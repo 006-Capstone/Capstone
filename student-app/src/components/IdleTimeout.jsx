@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaClock, FaExclamationTriangle } from 'react-icons/fa';
 import '../styles/IdleTimeout.css';
 
-const IDLE_TIMEOUT = 4.5 * 60 * 1000; // 4.5 minutes (270 seconds)
-const WARNING_DURATION = 30 * 1000; // 30 seconds
+const IDLE_TIMEOUT = 1 * 60 * 1000; // 1 minute (60 seconds)
+const WARNING_DURATION = 5 * 1000; // 5 seconds
 
 const IdleTimeout = ({ onLogout, isGuest }) => {
   const [showWarning, setShowWarning] = useState(false);
-  const [countdown, setCountdown] = useState(30); // 30 seconds countdown
+  const [countdown, setCountdown] = useState(5); // 5 seconds countdown
   const idleTimerRef = useRef(null);
   const warningTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
@@ -15,14 +15,14 @@ const IdleTimeout = ({ onLogout, isGuest }) => {
   useEffect(() => {
     // Don't apply idle timeout to guest users
     if (isGuest) {
-      console.log('👤 Guest user - idle timeout disabled');
+      console.log('[IdleTimeout] Guest user - idle timeout disabled');
       return;
     }
 
-    console.log('⏰ Idle timeout system initialized');
+    console.log('[IdleTimeout] Idle timeout system initialized');
 
     const handleLogout = () => {
-      console.log('🚪 Logging out due to inactivity');
+      console.log('[IdleTimeout] Logging out due to inactivity');
       // Clear all timers
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
@@ -33,9 +33,9 @@ const IdleTimeout = ({ onLogout, isGuest }) => {
     };
 
     const startWarningCountdown = () => {
-      console.log('⚠️ Showing idle warning modal');
+      console.log('[IdleTimeout] Showing idle warning modal');
       setShowWarning(true);
-      setCountdown(30); // 30 seconds countdown
+      setCountdown(5); // 5 seconds countdown
 
       // Start countdown
       countdownIntervalRef.current = setInterval(() => {
@@ -62,11 +62,11 @@ const IdleTimeout = ({ onLogout, isGuest }) => {
 
       // Hide warning if showing
       setShowWarning(false);
-      setCountdown(30); // Reset to 30 seconds
+      setCountdown(5); // Reset to 5 seconds
 
       // Set new idle timer
       idleTimerRef.current = setTimeout(() => {
-        console.log('⏰ Idle timeout reached - showing warning');
+        console.log('[IdleTimeout] Idle timeout reached - showing warning');
         startWarningCountdown();
       }, IDLE_TIMEOUT);
     };
@@ -90,7 +90,7 @@ const IdleTimeout = ({ onLogout, isGuest }) => {
 
     // Cleanup function
     return () => {
-      console.log('🧹 Cleaning up idle timeout');
+      console.log('[IdleTimeout] Cleaning up idle timeout');
       events.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
@@ -101,7 +101,7 @@ const IdleTimeout = ({ onLogout, isGuest }) => {
   }, [isGuest, onLogout]); // Only depend on isGuest and onLogout
 
   const handleStayLoggedIn = () => {
-    console.log('👤 User clicked "Stay Logged In"');
+    console.log('[IdleTimeout] User clicked "Stay Logged In"');
     
     // Clear timers
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
@@ -110,13 +110,13 @@ const IdleTimeout = ({ onLogout, isGuest }) => {
 
     // Hide warning
     setShowWarning(false);
-    setCountdown(30); // Reset to 30 seconds
+    setCountdown(5); // Reset to 5 seconds
 
     // Restart idle timer
     idleTimerRef.current = setTimeout(() => {
-      console.log('⏰ Idle timeout reached - showing warning');
+      console.log('[IdleTimeout] Idle timeout reached - showing warning');
       setShowWarning(true);
-      setCountdown(30); // 30 seconds countdown
+      setCountdown(5); // 5 seconds countdown
 
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => {
@@ -135,7 +135,7 @@ const IdleTimeout = ({ onLogout, isGuest }) => {
   };
 
   const handleLogoutNow = () => {
-    console.log('👤 User clicked "Log Out Now"');
+    console.log('[IdleTimeout] User clicked "Log Out Now"');
     
     // Clear all timers
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);

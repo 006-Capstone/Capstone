@@ -155,7 +155,7 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
   "tone": "appropriate" | "inappropriate" | "aggressive" | "neutral"
 }`;
 
-    // Call Groq AI (using Llama 3.3 70B - more powerful and accurate model)
+    // Call Groq AI (using GPT-OSS 20B - current supported model)
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         {
@@ -163,7 +163,7 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
           content: prompt
         }
       ],
-      model: 'llama-3.3-70b-versatile', // Powerful and accurate model (replacement for deprecated 3.1 8b)
+      model: 'openai/gpt-oss-20b', // Currently supported Groq model (as of 2026)
       temperature: 0.1, // Low temperature for consistent analysis
       max_tokens: 500
     });

@@ -7,7 +7,7 @@ import {
   MdInbox
 } from 'react-icons/md';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import StatusBadge from './StatusBadge';
@@ -43,7 +43,7 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
     // eslint-disable-next-line
   }, [searchQuery, statusFilter, officeFilter, requests]);
 
-  const loadRequests = async () => {
+  const loadRequests = () => {
     try {
       setLoading(true);
       setError('');
@@ -58,66 +58,53 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
 
       const student = JSON.parse(studentData);
 
-      // Collect all requests from multiple query attempts
-      const allRequests = new Map(); // Use Map to avoid duplicates by firestoreId
+      if (!student.uid) {
+        console.error('Student UID not found');
+        setError('Unable to load requests. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      // Set up real-time listener using studentUid (most reliable)
       const requestsRef = collection(db, 'requests');
+      const q = query(requestsRef, where('studentUid', '==', student.uid));
 
-      // Try 1: Query by full studentId (e.g., "05-2324-2222")
-      if (student.studentId) {
-        const q1 = query(requestsRef, where('studentId', '==', student.studentId));
-        const snapshot1 = await getDocs(q1);
-        snapshot1.docs.forEach(doc => allRequests.set(doc.id, doc));
-      }
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const requestsData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            firestoreId: doc.id,
+            id: data.requestId,
+            office: data.office,
+            subject: data.subject,
+            date: data.createdAt?.toDate().toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            }) || 'N/A',
+            status: data.status,
+            createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
+            ...data
+          };
+        });
 
-      // Try 2: Query by short ID (last 4 digits, e.g., "2222")
-      if (student.studentId) {
-        const shortId = student.studentId.split('-').pop(); // Get last part after last dash
-        const q2 = query(requestsRef, where('studentId', '==', shortId));
-        const snapshot2 = await getDocs(q2);
-        snapshot2.docs.forEach(doc => allRequests.set(doc.id, doc));
-      }
+        // Sort by date (newest first)
+        requestsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
 
-      // Try 3: Query by studentUid
-      if (student.uid) {
-        const q3 = query(requestsRef, where('studentUid', '==', student.uid));
-        const snapshot3 = await getDocs(q3);
-        snapshot3.docs.forEach(doc => allRequests.set(doc.id, doc));
-      }
-
-      // Try 4: Query by legacy 'id' field
-      if (student.id) {
-        const q4 = query(requestsRef, where('studentId', '==', student.id));
-        const snapshot4 = await getDocs(q4);
-        snapshot4.docs.forEach(doc => allRequests.set(doc.id, doc));
-      }
-
-      // Convert Map to array and format
-      const requestsData = Array.from(allRequests.values()).map(doc => {
-        const data = doc.data();
-        return {
-          firestoreId: doc.id,
-          id: data.requestId,
-          office: data.office,
-          subject: data.subject,
-          date: data.createdAt?.toDate().toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric'
-          }) || 'N/A',
-          status: data.status,
-          createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
-          ...data
-        };
+        console.log('📥 Real-time update: Loaded', requestsData.length, 'requests');
+        setRequests(requestsData);
+        setLoading(false);
+      }, (loadError) => {
+        console.error('[Error] Error loading requests:', loadError);
+        setError('Unable to load your requests. Please try again later.');
+        setLoading(false);
       });
 
-      // Sort by date manually (newest first)
-      requestsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
-
-      setRequests(requestsData);
+      // Cleanup listener on unmount
+      return unsubscribe;
     } catch (loadError) {
-      console.error('❌ Error loading requests:', loadError);
+      console.error('[Error] Error setting up listener:', loadError);
       setError('Unable to load your requests. Please try again later.');
-    } finally {
       setLoading(false);
     }
   };

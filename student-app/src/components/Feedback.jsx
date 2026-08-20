@@ -133,10 +133,10 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
       });
       
       setOffices(updatedOffices);
-      console.log('✅ Loaded office ratings from Firebase:', updatedOffices);
+      console.log('[Success] Loaded office ratings from Firebase:', updatedOffices);
       
     } catch (error) {
-      console.error('❌ Error loading office ratings:', error);
+      console.error('[Error] Error loading office ratings:', error);
       // Keep default offices on error
       setOffices(DEFAULT_OFFICES);
     } finally {
@@ -208,7 +208,7 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
 
       // Save feedback to Firestore
       const docRef = await addDoc(collection(db, 'feedback'), feedbackData);
-      console.log('✅ Feedback submitted with ID:', docRef.id);
+      console.log('[Success] Feedback submitted with ID:', docRef.id);
 
       // If linked to a request, update the request to mark feedback as provided
       if (selectedRequest?.firestoreId) {
@@ -219,6 +219,9 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
           updatedAt: serverTimestamp()
         });
       }
+
+      // Wait a moment for Firestore real-time listeners to update
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       alert('Thank you for your feedback!');
       
@@ -241,7 +244,7 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
       }
       
     } catch (error) {
-      console.error('❌ Error submitting feedback:', error);
+      console.error('[Error] Error submitting feedback:', error);
       alert('Failed to submit feedback: ' + error.message);
     } finally {
       setSubmitting(false);

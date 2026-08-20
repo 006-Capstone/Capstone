@@ -22,9 +22,9 @@ export const createNotification = async (recipientId, recipientType, type, title
       isRead: false,
       createdAt: serverTimestamp()
     });
-    console.log('✅ Notification created:', { recipientId, type, title });
+    console.log('[Success] Notification created:', { recipientId, type, title });
   } catch (error) {
-    console.error('❌ Error creating notification:', error);
+    console.error('[Error] Error creating notification:', error);
   }
 };
 
@@ -45,7 +45,7 @@ export const getUnreadCount = async (userId, userType) => {
     const querySnapshot = await getDocs(q);
     return querySnapshot.size;
   } catch (error) {
-    console.error('❌ Error getting unread count:', error);
+    console.error('[Error] Error getting unread count:', error);
     return 0;
   }
 };
@@ -73,7 +73,7 @@ export const getNotifications = async (userId, userType, limitCount = 20) => {
       createdAt: doc.data().createdAt?.toDate()
     }));
   } catch (error) {
-    console.error('❌ Error getting notifications:', error);
+    console.error('[Error] Error getting notifications:', error);
     return [];
   }
 };
@@ -89,7 +89,7 @@ export const markAsRead = async (notificationId) => {
       readAt: serverTimestamp()
     });
   } catch (error) {
-    console.error('❌ Error marking notification as read:', error);
+    console.error('[Error] Error marking notification as read:', error);
   }
 };
 
@@ -116,9 +116,9 @@ export const markAllAsRead = async (userId, userType) => {
     );
     
     await Promise.all(updatePromises);
-    console.log('✅ All notifications marked as read');
+    console.log('[Success] All notifications marked as read');
   } catch (error) {
-    console.error('❌ Error marking all notifications as read:', error);
+    console.error('[Error] Error marking all notifications as read:', error);
   }
 };
 
@@ -177,7 +177,7 @@ export const notifyStaffNewRequest = async (office, requestId, requestSubject, s
     
     await Promise.all(notificationPromises);
   } catch (error) {
-    console.error('❌ Error notifying staff about new request:', error);
+    console.error('[Error] Error notifying staff about new request:', error);
   }
 };
 
@@ -206,7 +206,7 @@ export const notifyStaffFollowUp = async (assignedToStaffName, requestId, reques
       );
     }
   } catch (error) {
-    console.error('❌ Error notifying staff about follow-up:', error);
+    console.error('[Error] Error notifying staff about follow-up:', error);
   }
 };
 
@@ -237,6 +237,6 @@ export const notifyStaffReassignment = async (toOffice, requestId, requestSubjec
     
     await Promise.all(notificationPromises);
   } catch (error) {
-    console.error('❌ Error notifying staff about reassignment:', error);
+    console.error('[Error] Error notifying staff about reassignment:', error);
   }
 };

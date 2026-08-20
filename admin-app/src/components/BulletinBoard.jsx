@@ -138,7 +138,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
         setAnnouncements(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       },
       (err) => {
-        console.error('❌ Error loading announcements:', err);
+        console.error('[Error] Error loading announcements:', err);
         setLoadError('Could not load announcements.');
       }
     );
@@ -155,7 +155,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
         setImportantDates(dates);
       },
       (err) => {
-        console.error('❌ Error loading important dates:', err);
+        console.error('[Error] Error loading important dates:', err);
         setLoadError('Could not load important dates.');
       }
     );
@@ -178,7 +178,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
           }
         },
         (err) => {
-          console.error('❌ Error loading featured announcement:', err);
+          console.error('[Error] Error loading featured announcement:', err);
           setHero({ title: DEFAULT_HERO_TITLE, body: DEFAULT_HERO_BODY });
         }
       );
@@ -199,11 +199,11 @@ const BulletinBoard = ({ department, onViewRequest }) => {
           (snap) => {
             setUnreadCount(snap.docs.filter(doc => !doc.data().isRead).length);
           },
-          (err) => console.error('❌ Error loading notifications:', err)
+          (err) => console.error('[Error] Error loading notifications:', err)
         );
       }
     } catch (e) {
-      console.error('❌ Error reading staff data:', e);
+      console.error('[Error] Error reading staff data:', e);
     }
 
     return () => {
@@ -264,7 +264,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
       setAnnouncementPhoto(dataUrl);
       setPhotoPreview(dataUrl);
     } catch (err) {
-      console.error('❌ Error processing image:', err);
+      console.error('[Error] Error processing image:', err);
       setPhotoError(err.message || 'Could not process this image.');
     }
   };
@@ -312,7 +312,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
       });
       closeHeroModal();
     } catch (error) {
-      console.error('❌ Error saving featured announcement:', error);
+      console.error('[Error] Error saving featured announcement:', error);
       alert('Failed to save. Please try again.');
     } finally {
       setHeroSaving(false);
@@ -357,7 +357,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
       closeCreateModal();
     } catch (error) {
-      console.error('❌ Error saving announcement:', error);
+      console.error('[Error] Error saving announcement:', error);
       alert(editingAnnouncement
         ? 'Failed to update announcement. Please try again.'
         : 'Failed to create announcement. Please try again.');
@@ -421,7 +421,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
       closeCreateModal();
       resetImportantDateForm();
     } catch (error) {
-      console.error('❌ Error creating important date:', error);
+      console.error('[Error] Error creating important date:', error);
       alert('Failed to create important date. Please try again.');
     } finally {
       setSubmitting(false);
@@ -435,7 +435,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
     try {
       await deleteDoc(doc(db, 'announcements', announcementId));
     } catch (error) {
-      console.error('❌ Error deleting announcement:', error);
+      console.error('[Error] Error deleting announcement:', error);
       alert('Failed to delete announcement.');
     }
   };
@@ -445,7 +445,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
     try {
       await deleteDoc(doc(db, 'importantDates', dateId));
     } catch (error) {
-      console.error('❌ Error deleting important date:', error);
+      console.error('[Error] Error deleting important date:', error);
       alert('Failed to delete important date.');
     }
   };

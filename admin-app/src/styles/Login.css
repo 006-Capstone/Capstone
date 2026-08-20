@@ -471,3 +471,279 @@ body {
     padding: 36px 20px;
   }
 }
+
+
+/* QR Scanner Modal */
+.qr-scanner-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.qr-scanner-content {
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  max-width: 550px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.qr-scanner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.qr-scanner-header h2 {
+  font-size: 24px;
+  color: #105E06;
+  font-weight: 700;
+}
+
+.close-scanner-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-scanner-btn:hover {
+  color: #c33;
+  transform: scale(1.1);
+}
+
+/* Scanning Status */
+.scanning-status {
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.scanning-status.initializing {
+  background: #f0f0f0;
+}
+
+.scanning-status.ready {
+  background: #e7f5e6;
+}
+
+.scanning-status.success {
+  background: #d4edda;
+}
+
+.scanning-status.error {
+  background: #f8d7da;
+}
+
+.status-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-message.initializing {
+  color: #666;
+}
+
+.status-message.ready {
+  color: #105E06;
+}
+
+.status-message.success {
+  color: #28a745;
+}
+
+.status-message.error {
+  color: #c33;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #105E06;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pulse-indicator {
+  width: 12px;
+  height: 12px;
+  background: #105E06;
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.status-icon {
+  font-size: 20px;
+}
+
+.qr-scanner-instructions {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #105E06;
+}
+
+.qr-scanner-instructions strong {
+  color: #105E06;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.qr-reader-container {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 2px solid #105E06;
+}
+
+.qr-upload-section {
+  margin-top: 20px;
+}
+
+.divider-qr {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.divider-qr::before,
+.divider-qr::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.divider-qr span {
+  padding: 0 15px;
+}
+
+.qr-upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border: 2px dashed #105E06;
+  border-radius: 8px;
+  color: #105E06;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qr-upload-btn:hover {
+  background: #e7f5e6;
+  border-color: #0d4a05;
+}
+
+.qr-scanner-footer {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+.qr-scanner-footer p {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Alt login button for QR */
+.alt-login-btn {
+  width: 100%;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #f8f9fa;
+  border: 2px solid #105E06;
+  border-radius: 8px;
+  color: #105E06;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 15px;
+}
+
+.alt-login-btn:hover {
+  background: #105E06;
+  color: white;
+}
+
+.alt-login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.divider-student {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.divider-student::before,
+.divider-student::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.divider-student span {
+  padding: 0 15px;
+}
+
+/* Modal open - prevent body scroll */
+.modal-open {
+  overflow: hidden;
+}

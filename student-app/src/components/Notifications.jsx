@@ -133,7 +133,7 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
       setUnreadCount(unread);
       setLoading(false);
     }, (error) => {
-      console.error('❌ Error loading notifications:', error);
+      console.error('[Error] Error loading notifications:', error);
       setLoading(false);
     });
 
@@ -160,7 +160,7 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
         bellRef?.current?.focus();
       }
     } catch (error) {
-      console.error('❌ Error opening request from notification:', error);
+      console.error('[Error] Error opening request from notification:', error);
     }
   };
 

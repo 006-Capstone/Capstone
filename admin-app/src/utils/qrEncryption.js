@@ -1,21 +1,23 @@
 import CryptoJS from 'crypto-js';
 
 const ENCRYPTION_KEY = process.env.REACT_APP_QR_ENCRYPTION_KEY || '';
-const APP_SIGNATURE = 'ASJ_STUDENT_QR'; // Unique signature for this app
+const APP_SIGNATURE = 'ASJ_ADMIN_QR'; // Unique signature for admin app
 
 /**
- * Encrypts student credentials for QR code
- * @param {string} studentId - 4-digit student ID
- * @param {string} password - Student password
+ * Encrypts admin credentials for QR code
+ * @param {string} username - Admin username
+ * @param {string} password - Admin password
+ * @param {string} office - Office ID (finance, library, guidance, registrar)
  * @returns {string} Encrypted string for QR code
  */
-export const encryptCredentials = (studentId, password) => {
+export const encryptCredentials = (username, password, office) => {
   try {
     // Create payload with signature
     const payload = {
       sig: APP_SIGNATURE,
-      id: studentId,
+      usr: username,
       pwd: password,
+      off: office,
       ts: Date.now() // timestamp for additional security
     };
     
@@ -25,7 +27,7 @@ export const encryptCredentials = (studentId, password) => {
     // Encrypt using AES
     const encrypted = CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
     
-    console.log('[Encryption] Credentials encrypted successfully');
+    console.log('[Encryption] Admin credentials encrypted successfully');
     return encrypted;
   } catch (error) {
     console.error('[Error] Encryption error:', error);
@@ -36,7 +38,7 @@ export const encryptCredentials = (studentId, password) => {
 /**
  * Decrypts QR code data
  * @param {string} encryptedData - Encrypted string from QR code
- * @returns {object|null} { studentId, password } or null if invalid
+ * @returns {object|null} { username, password, office } or null if invalid
  */
 export const decryptCredentials = (encryptedData) => {
   try {
@@ -54,7 +56,7 @@ export const decryptCredentials = (encryptedData) => {
     
     // Verify signature
     if (payload.sig !== APP_SIGNATURE) {
-      console.error('[Error] Invalid QR code - not from this application');
+      console.error('[Error] Invalid QR code - not from admin application');
       return null;
     }
     
@@ -65,10 +67,11 @@ export const decryptCredentials = (encryptedData) => {
       return null;
     }
     
-    console.log('[Success] Credentials decrypted successfully');
+    console.log('[Success] Admin credentials decrypted successfully');
     return {
-      studentId: payload.id,
-      password: payload.pwd
+      username: payload.usr,
+      password: payload.pwd,
+      office: payload.off
     };
   } catch (error) {
     console.error('[Error] Decryption error:', error);

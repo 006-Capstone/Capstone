@@ -163,7 +163,7 @@ const Feedback = ({ department, onViewRequest }) => {
       // Log the first document to see its structure
       if (querySnapshot.docs.length > 0) {
         const firstDoc = querySnapshot.docs[0].data();
-        console.log('📄 First feedback document:', {
+        console.log('[File] First feedback document:', {
           officeId: firstDoc.officeId,
           officeName: firstDoc.officeName,
           studentName: firstDoc.studentName,
@@ -201,7 +201,7 @@ const Feedback = ({ department, onViewRequest }) => {
       setLoading(false);
       console.log(`✅ Loaded ${feedback.length} feedback items for ${department}`);
     }, (error) => {
-      console.error('❌ Error loading feedback:', error);
+      console.error('[Error] Error loading feedback:', error);
       setFeedbackData(DEMO_FEEDBACK);
       setLoading(false);
     });
@@ -313,12 +313,12 @@ const Feedback = ({ department, onViewRequest }) => {
         updatedAt: serverTimestamp()
       });
 
-      console.log('✅ Reply sent successfully');
+      console.log('[Success] Reply sent successfully');
       alert('Reply sent successfully!');
       closeReplyModal();
       
     } catch (error) {
-      console.error('❌ Error sending reply:', error);
+      console.error('[Error] Error sending reply:', error);
       alert('Failed to send reply: ' + error.message);
     }
   };

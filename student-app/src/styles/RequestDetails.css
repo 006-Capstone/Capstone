@@ -746,3 +746,17 @@
     justify-content: center;
   }
 }
+
+
+/* Disabled cancel button */
+.cancel-btn:disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.cancel-btn:disabled:hover {
+  background-color: #ccc;
+  transform: none;
+}

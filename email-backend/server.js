@@ -19,9 +19,9 @@ const transporter = nodemailer.createTransport({
 // Verify SMTP connection
 transporter.verify((error, success) => {
   if (error) {
-    console.error('❌ Gmail SMTP connection failed:', error);
+    console.error('[Error] Gmail SMTP connection failed:', error);
   } else {
-    console.log('✅ Gmail SMTP ready to send emails');
+    console.log('[Success] Gmail SMTP ready to send emails');
   }
 });
 
@@ -34,14 +34,14 @@ if (!admin.apps || admin.apps.length === 0) {
     initializeApp({
       credential: cert(serviceAccount)
     });
-    console.log('✅ Firebase Admin initialized');
+    console.log('[Success] Firebase Admin initialized');
   } catch (error) {
-    console.warn('⚠️ Firebase Admin not initialized - delete user from Auth will not work');
+    console.warn('[Warning] Firebase Admin not initialized - delete user from Auth will not work');
     console.warn('Download service account key from Firebase Console to enable this feature');
     console.warn('Error details:', error.message);
   }
 } else {
-  console.log('✅ Firebase Admin already initialized');
+  console.log('[Success] Firebase Admin already initialized');
 }
 
 // Middleware
@@ -194,14 +194,14 @@ This is an automated email. Please do not reply to this message.
       html: htmlContent
     });
 
-    console.log('✅ Email sent successfully via Gmail:', info.messageId);
+    console.log('[Success] Email sent successfully via Gmail:', info.messageId);
     res.json({
       success: true,
       messageId: info.messageId
     });
 
   } catch (error) {
-    console.error('❌ Error sending email:', error);
+    console.error('[Error] Error sending email:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to send email'
@@ -352,14 +352,14 @@ This is an automated email. Please do not reply to this message.
       html: htmlContent
     });
 
-    console.log('✅ Staff email sent successfully via Gmail:', info.messageId);
+    console.log('[Success] Staff email sent successfully via Gmail:', info.messageId);
     res.json({
       success: true,
       messageId: info.messageId
     });
 
   } catch (error) {
-    console.error('❌ Error sending staff email:', error);
+    console.error('[Error] Error sending staff email:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to send email'
@@ -390,7 +390,7 @@ app.post('/api/delete-user', async (req, res) => {
     // Delete user from Firebase Authentication
     await admin.auth().deleteUser(uid);
     
-    console.log('✅ User deleted from Firebase Auth:', uid);
+    console.log('[Success] User deleted from Firebase Auth:', uid);
 
     res.json({
       success: true,
@@ -398,7 +398,7 @@ app.post('/api/delete-user', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error deleting user:', error);
+    console.error('[Error] Error deleting user:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to delete user'
@@ -569,7 +569,7 @@ This is an automated email. Please do not reply to this message.
       html: htmlContent
     });
 
-    console.log('✅ Reset code sent successfully:', info.messageId);
+    console.log('[Success] Reset code sent successfully:', info.messageId);
     res.json({
       success: true,
       message: 'Verification code sent to email',
@@ -577,7 +577,7 @@ This is an automated email. Please do not reply to this message.
     });
 
   } catch (error) {
-    console.error('❌ Error sending reset code:', error);
+    console.error('[Error] Error sending reset code:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to send verification code'
@@ -622,7 +622,7 @@ app.post('/api/verify-reset-code', async (req, res) => {
     }
 
     // Code is valid
-    console.log('✅ Verification code validated for:', email);
+    console.log('[Success] Verification code validated for:', email);
     res.json({
       success: true,
       message: 'Code verified successfully',
@@ -632,7 +632,7 @@ app.post('/api/verify-reset-code', async (req, res) => {
     // Keep the code for password reset (don't delete yet)
 
   } catch (error) {
-    console.error('❌ Error verifying code:', error);
+    console.error('[Error] Error verifying code:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to verify code'
@@ -647,12 +647,12 @@ app.post('/api/clear-reset-code', async (req, res) => {
     
     if (email && verificationCodes.has(email)) {
       verificationCodes.delete(email);
-      console.log('✅ Verification code cleared for:', email);
+      console.log('[Success] Verification code cleared for:', email);
     }
 
     res.json({ success: true });
   } catch (error) {
-    console.error('❌ Error clearing code:', error);
+    console.error('[Error] Error clearing code:', error);
     res.json({ success: false });
   }
 });
@@ -712,14 +712,14 @@ app.post('/api/reset-password', async (req, res) => {
     // Clear the verification code
     verificationCodes.delete(email);
 
-    console.log('✅ Password reset successfully for:', email);
+    console.log('[Success] Password reset successfully for:', email);
     res.json({
       success: true,
       message: 'Password updated successfully'
     });
 
   } catch (error) {
-    console.error('❌ Error resetting password:', error);
+    console.error('[Error] Error resetting password:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to reset password'

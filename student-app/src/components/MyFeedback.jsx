@@ -51,7 +51,7 @@ const MyFeedback = ({ onNavigate }) => {
       setLoading(false);
       console.log(`✅ Loaded ${feedback.length} feedback items`);
     }, (error) => {
-      console.error('❌ Error loading feedback:', error);
+      console.error('[Error] Error loading feedback:', error);
       setLoading(false);
     });
 

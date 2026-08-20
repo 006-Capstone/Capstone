@@ -19,6 +19,11 @@ function RequestDetails({ requestData, onNavigate }) {
   useEffect(() => {
     if (requestData) {
       loadRequestDetails();
+    } else {
+      // If no requestData provided, navigate back to request history
+      console.warn('No request data provided to RequestDetails');
+      setLoading(false);
+      onNavigate('request');
     }
   }, [requestData]);
 
@@ -42,13 +47,13 @@ function RequestDetails({ requestData, onNavigate }) {
           }) || 'N/A',
           createdAtTimestamp: data.createdAt?.toDate().getTime() || 0
         });
-        console.log('✅ Loaded request details:', data);
+        console.log('[Success] Loaded request details:', data);
       } else {
-        console.error('❌ Request not found');
+        console.error('[Error] Request not found');
         alert('Request not found');
       }
     } catch (error) {
-      console.error('❌ Error loading request:', error);
+      console.error('[Error] Error loading request:', error);
       alert('Failed to load request details');
     } finally {
       setLoading(false);
@@ -137,13 +142,16 @@ function RequestDetails({ requestData, onNavigate }) {
         );
       }
 
+      // Wait a moment for Firestore real-time listeners to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       alert('Follow-up sent successfully!');
       setComment('');
       setFollowUpFiles([]);
       loadRequestDetails(); // Reload to show new follow-up
       
     } catch (error) {
-      console.error('❌ Error sending follow-up:', error);
+      console.error('[Error] Error sending follow-up:', error);
       alert('Failed to send follow-up: ' + error.message);
     } finally {
       setSending(false);
@@ -162,12 +170,37 @@ function RequestDetails({ requestData, onNavigate }) {
         updatedAt: serverTimestamp()
       });
       
+      // Wait a moment for Firestore real-time listeners to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       alert('Request cancelled successfully');
       onNavigate('request');
     } catch (error) {
-      console.error('❌ Error cancelling request:', error);
+      console.error('[Error] Error cancelling request:', error);
       alert('Failed to cancel request');
     }
+  };
+
+  // Check if cancellation is allowed (after 3 days)
+  const canCancelRequest = () => {
+    if (!request || !request.createdAt) return false;
+    
+    const createdDate = request.createdAt.toDate();
+    const now = new Date();
+    const daysSinceCreation = (now - createdDate) / (1000 * 60 * 60 * 24);
+    
+    return daysSinceCreation >= 3;
+  };
+
+  const getDaysUntilCancellable = () => {
+    if (!request || !request.createdAt) return 0;
+    
+    const createdDate = request.createdAt.toDate();
+    const now = new Date();
+    const daysSinceCreation = (now - createdDate) / (1000 * 60 * 60 * 24);
+    const daysRemaining = Math.ceil(3 - daysSinceCreation);
+    
+    return daysRemaining > 0 ? daysRemaining : 0;
   };
 
   const downloadAttachment = (attachment) => {
@@ -204,11 +237,15 @@ function RequestDetails({ requestData, onNavigate }) {
     return codes[office] || 'N/A';
   };
 
-  const getEstimatedCompletion = (createdDate) => {
-    if (!createdDate) return 'N/A';
-    const date = new Date(createdDate);
-    date.setDate(date.getDate() + 2); // Add 2 days
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const getEstimatedCompletion = () => {
+    // Use the actual estimated completion date set by admin
+    if (request?.estimatedCompletion) {
+      const date = request.estimatedCompletion.toDate ? request.estimatedCompletion.toDate() : new Date(request.estimatedCompletion);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    
+    // Fallback: if no estimated completion is set, show "To be determined"
+    return 'To be determined';
   };
 
   const renderTimeline = () => {
@@ -327,7 +364,16 @@ function RequestDetails({ requestData, onNavigate }) {
                   {request.status}
                 </span>
                 {request.status?.toLowerCase() === 'pending' && (
-                  <button className="cancel-btn" onClick={handleCancelRequest}>
+                  <button 
+                    className="cancel-btn" 
+                    onClick={handleCancelRequest}
+                    disabled={!canCancelRequest()}
+                    title={
+                      canCancelRequest() 
+                        ? 'Cancel this request' 
+                        : `You can cancel this request in ${getDaysUntilCancellable()} day${getDaysUntilCancellable() === 1 ? '' : 's'}`
+                    }
+                  >
                     <MdBlock /> Cancel Request
                   </button>
                 )}
@@ -543,7 +589,7 @@ function RequestDetails({ requestData, onNavigate }) {
             </div>
             <div className="detail-row">
               <span className="label">ESTIMATED COMPLETION</span>
-              <span className="value">{getEstimatedCompletion(request.createdAt?.toDate()).toUpperCase()}</span>
+              <span className="value">{getEstimatedCompletion().toUpperCase()}</span>
             </div>
           </div>
 

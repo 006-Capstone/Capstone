@@ -16,6 +16,13 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const ticketsSectionRef = useRef(null);
+  
+  // Estimated Completion Date Modal state
+  const [showEstimatedCompletionModal, setShowEstimatedCompletionModal] = useState(false);
+  const [selectedTicketForCompletion, setSelectedTicketForCompletion] = useState(null);
+  const [completionOption, setCompletionOption] = useState('1-3'); // '1-3', '4-7', 'custom'
+  const [customCompletionDate, setCustomCompletionDate] = useState('');
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
     // Get staff data from localStorage
@@ -65,37 +72,77 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       return;
     }
 
+    // Show Estimated Completion Date modal before claiming
+    setSelectedTicketForCompletion(ticket);
+    setShowEstimatedCompletionModal(true);
+  };
+
+  const handleSetEstimatedCompletion = async () => {
+    if (!selectedTicketForCompletion) return;
+
+    let completionDate;
+    
+    if (completionOption === 'custom') {
+      if (!customCompletionDate) {
+        alert('Please select a custom date');
+        return;
+      }
+      completionDate = new Date(customCompletionDate);
+    } else if (completionOption === '1-3') {
+      completionDate = new Date();
+      completionDate.setDate(completionDate.getDate() + 3);
+    } else if (completionOption === '4-7') {
+      completionDate = new Date();
+      completionDate.setDate(completionDate.getDate() + 7);
+    }
+
     try {
-      // Update ticket in Firestore (the shared live listener refreshes the UI)
-      const ticketRef = doc(db, 'requests', ticket.firestoreId);
+      setClaiming(true);
+      
+      // Update ticket in Firestore with Estimated Completion Date
+      const ticketRef = doc(db, 'requests', selectedTicketForCompletion.firestoreId);
       await updateDoc(ticketRef, {
         assignedTo: staffData.name,
         assignedToStaff: staffData.name,
         status: 'In Process',
         claimedAt: new Date(),
-        claimedBy: staffData.name
+        claimedBy: staffData.name,
+        estimatedCompletion: completionDate,
+        estimatedCompletionSetAt: new Date(),
+        estimatedCompletionSetBy: staffData.name
       });
 
-      console.log('✅ Ticket claimed by', staffData.name);
+      console.log('[Success] Ticket claimed by', staffData.name, 'with Estimated Completion Date:', completionDate);
 
       // Create notification for the student about status change
-      if (ticket.studentUid) {
+      if (selectedTicketForCompletion.studentUid) {
         await notifyStudentStatusChange(
-          ticket.studentUid,
-          ticket.id,
-          ticket.title,
-          ticket.status || 'Pending',
+          selectedTicketForCompletion.studentUid,
+          selectedTicketForCompletion.id,
+          selectedTicketForCompletion.title,
+          selectedTicketForCompletion.status || 'Pending',
           'In Process'
         );
-        console.log('✅ Notification sent to student');
+        console.log('[Success] Notification sent to student');
       } else {
-        console.warn('⚠️ Student UID not found in ticket, notification not sent');
+        console.warn('[Warning] Student UID not found in ticket, notification not sent');
       }
 
-      alert(`Request ${ticket.id} has been assigned to you!`);
+      // Wait a moment for Firestore real-time listener to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      alert(`Request ${selectedTicketForCompletion.id} has been assigned to you!`);
+      
+      // Close modal and reset state
+      setShowEstimatedCompletionModal(false);
+      setSelectedTicketForCompletion(null);
+      setCompletionOption('1-3');
+      setCustomCompletionDate('');
+      setClaiming(false);
     } catch (error) {
-      console.error('❌ Error claiming ticket:', error);
+      console.error('[Error] Error claiming ticket:', error);
       alert('Failed to claim request: ' + error.message);
+      setClaiming(false);
     }
   };
 
@@ -301,6 +348,82 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       </div>
 
       <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
+
+      {/* Estimated Completion Date Modal */}
+      {showEstimatedCompletionModal && (
+        <div className="modal-overlay" onClick={() => setShowEstimatedCompletionModal(false)}>
+          <div className="modal-content estimated-completion-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Set Estimated Completion Date</h2>
+            <p className="modal-description">
+              Request: <strong>{selectedTicketForCompletion?.title || selectedTicketForCompletion?.id}</strong>
+            </p>
+            
+            <div className="completion-options">
+              <label className="completion-option">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="1-3"
+                  checked={completionOption === '1-3'}
+                  onChange={(e) => setCompletionOption(e.target.value)}
+                />
+                <span>1 to 3 days</span>
+              </label>
+              
+              <label className="completion-option">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="4-7"
+                  checked={completionOption === '4-7'}
+                  onChange={(e) => setCompletionOption(e.target.value)}
+                />
+                <span>4 to 7 days</span>
+              </label>
+              
+              <label className="completion-option">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="custom"
+                  checked={completionOption === 'custom'}
+                  onChange={(e) => setCompletionOption(e.target.value)}
+                />
+                <span>Custom date</span>
+              </label>
+            </div>
+
+            {completionOption === 'custom' && (
+              <div className="custom-date-input">
+                <label>Select completion date:</label>
+                <input
+                  type="date"
+                  value={customCompletionDate}
+                  onChange={(e) => setCustomCompletionDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button 
+                className="cancel-btn" 
+                onClick={() => setShowEstimatedCompletionModal(false)}
+                disabled={claiming}
+              >
+                Cancel
+              </button>
+              <button 
+                className="confirm-btn" 
+                onClick={handleSetEstimatedCompletion}
+                disabled={claiming}
+              >
+                {claiming ? 'Claiming...' : 'Claim & Set Completion Date'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

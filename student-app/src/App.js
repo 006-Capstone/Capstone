@@ -28,11 +28,13 @@ function App() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [activePage, setActivePage] = useState(() => {
     const stored = localStorage.getItem('studentActivePage');
-    // Request Details requires a selected request object which isn't persisted
-    // Restoring it after refresh would trap the app on the loading screen
-    return stored && stored !== 'request-details' ? stored : 'dashboard';
+    return stored || 'dashboard';
   });
-  const [selectedRequest, setSelectedRequest] = useState(null); // Store selected request
+  const [selectedRequest, setSelectedRequest] = useState(() => {
+    // Restore selected request from localStorage if available
+    const stored = localStorage.getItem('selectedRequest');
+    return stored ? JSON.parse(stored) : null;
+  }); // Store selected request
   const [feedbackRequest, setFeedbackRequest] = useState(null); // Store request for feedback
   // Status filter pre-applied when opening Request History from the dashboard cards
   const [requestStatusFilter, setRequestStatusFilter] = useState('All Status');
@@ -126,6 +128,7 @@ function App() {
     localStorage.removeItem('studentLoggedIn');
     localStorage.removeItem('studentIsGuest');
     localStorage.removeItem('studentData');
+    localStorage.removeItem('selectedRequest'); // Clear selected request on logout
     setActivePage('dashboard'); // Reset to dashboard on logout
   };
 
@@ -140,6 +143,8 @@ function App() {
   
   const handleViewRequestDetails = (request) => {
     setSelectedRequest(request);
+    // Save to localStorage so it persists on page refresh
+    localStorage.setItem('selectedRequest', JSON.stringify(request));
     setActivePage('request-details');
   };
 
@@ -149,6 +154,11 @@ function App() {
     if (page === 'request') setRequestStatusFilter('All Status');
     if (page === 'feedback-for-request' && data) {
       setFeedbackRequest(data);
+    }
+    // Clear selected request from localStorage when navigating away from request details
+    if (page !== 'request-details') {
+      localStorage.removeItem('selectedRequest');
+      setSelectedRequest(null);
     }
     setActivePage(page);
   };

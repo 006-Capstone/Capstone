@@ -85,7 +85,7 @@ export const useOfficeTickets = (department) => {
       (err) => {
         if (settled) return;
         finish();
-        console.error('❌ Error loading tickets:', err);
+        console.error('[Error] Error loading tickets:', err);
         setError(err);
         setLoading(false);
       }

@@ -33,11 +33,13 @@ function App() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [activePage, setActivePage] = useState(() => {
     const stored = localStorage.getItem('adminActivePage');
-    // Ticket Details needs the ticket object, which isn't persisted — restoring
-    // it after a refresh would trap the app on the loading screen.
-    return stored && stored !== 'ticket-details' ? stored : 'dashboard';
+    return stored || 'dashboard';
   });
-  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(() => {
+    // Restore selected ticket from localStorage if available
+    const stored = localStorage.getItem('selectedTicket');
+    return stored ? JSON.parse(stored) : null;
+  });
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [staffData, setStaffData] = useState(null);
@@ -65,19 +67,29 @@ function App() {
     setIsLoggedIn(false);
     setSelectedDepartment('');
     localStorage.removeItem('staffData');
+    localStorage.removeItem('selectedTicket'); // Clear selected ticket on logout
   };
 
   const handleNavigate = (page, ticket = null) => {
     setActivePage(page);
     if (ticket) {
       setSelectedTicket(ticket);
+      // Save to localStorage so it persists on page refresh
+      localStorage.setItem('selectedTicket', JSON.stringify(ticket));
+    } else if (page !== 'ticket-details') {
+      // Clear selected ticket from localStorage when navigating away from ticket details
+      localStorage.removeItem('selectedTicket');
+      setSelectedTicket(null);
     }
   };
 
   // Open a ticket straight from a notification click — same path as
   // "View Ticket" buttons (sets the ticket + navigates to its details).
   const handleViewTicket = (ticket) => {
-    handleNavigate('ticket-details', ticket);
+    setSelectedTicket(ticket);
+    // Save to localStorage so it persists on page refresh
+    localStorage.setItem('selectedTicket', JSON.stringify(ticket));
+    setActivePage('ticket-details');
   };
 
   const handlePasswordChanged = () => {

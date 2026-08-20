@@ -121,9 +121,9 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
       };
       setStats(newStats);
       
-      console.log('✅ Loaded', ticketsData.length, 'tickets for', staffName);
+      console.log('[Success] Loaded', ticketsData.length, 'tickets for', staffName);
     } catch (error) {
-      console.error('❌ Error loading my tickets:', error);
+      console.error('[Error] Error loading my tickets:', error);
     } finally {
       setLoading(false);
     }

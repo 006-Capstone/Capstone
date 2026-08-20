@@ -6,6 +6,7 @@ import SuperAdminDashboard from './components/SuperAdminDashboard';
 import EditRequestForm from './components/EditRequestForm';
 import Analytics from './components/Analytics';
 import UserManagement from './components/UserManagement';
+import Archive from './components/Archive';
 import './App.css';
 
 function App() {
@@ -88,6 +89,7 @@ function App() {
         {activePage === 'edit-request' && <EditRequestForm />}
         {activePage === 'analytics' && <Analytics />}
         {activePage === 'user-management' && <UserManagement />}
+        {activePage === 'archive' && <Archive />}
       </div>
     </div>
   );

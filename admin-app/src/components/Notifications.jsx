@@ -124,7 +124,7 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
       setUnreadCount(unread);
       setLoading(false);
     }, (error) => {
-      console.error('❌ Error loading notifications:', error);
+      console.error('[Error] Error loading notifications:', error);
       setLoading(false);
     });
 
@@ -149,7 +149,7 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
         onClose();
       }
     } catch (error) {
-      console.error('❌ Error opening ticket from notification:', error);
+      console.error('[Error] Error opening ticket from notification:', error);
     }
   };
 

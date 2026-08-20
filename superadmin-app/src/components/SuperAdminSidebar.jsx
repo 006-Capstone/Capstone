@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt, FaTimes } from 'react-icons/fa';
+import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt, FaTimes, FaArchive } from 'react-icons/fa';
 import '../styles/SuperAdminSidebar.css';
 
 const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, onLogout }) => {
@@ -15,7 +15,8 @@ const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, on
     { key: 'dashboard', label: 'Dashboard', icon: FaThLarge },
     { key: 'edit-request', label: 'Edit Request Form', icon: FaEdit },
     { key: 'analytics', label: 'Analytics', icon: FaChartLine },
-    { key: 'user-management', label: 'User Management', icon: FaUsers }
+    { key: 'user-management', label: 'User Management', icon: FaUsers },
+    { key: 'archive', label: 'Archive', icon: FaArchive }
   ];
 
   const handleNavigate = (page) => {

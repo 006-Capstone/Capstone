@@ -138,7 +138,7 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
       // Get recent 5 requests
       setRequests(allRequests.slice(0, 5));
     } catch (loadError) {
-      console.error('❌ Error loading dashboard:', loadError);
+      console.error('[Error] Error loading dashboard:', loadError);
       setError('Unable to load your requests. Please try again later.');
     } finally {
       setLoading(false);

@@ -81,24 +81,24 @@ function ProfileSettings({ onClose }) {
         errorCorrectionLevel: 'H'
       });
       setQrCodeDataURL(qrDataURL);
-      console.log('✅ QR code image generated from stored data');
+      console.log('[Success] QR code image generated from stored data');
     } catch (error) {
-      console.error('❌ Error generating QR code image:', error);
+      console.error('[Error] Error generating QR code image:', error);
     }
   };
 
   const generateQRCode = async (studentId, password) => {
     try {
-      console.log('🔲 Generating encrypted QR code for student ID:', studentId);
+      console.log('[QRCode] Generating encrypted QR code for student ID:', studentId);
       
       // Ensure it's exactly 4 digits
       if (!/^\d{4}$/.test(studentId)) {
-        console.error('❌ Invalid student ID format for QR:', studentId);
+        console.error('[Error] Invalid student ID format for QR:', studentId);
         return;
       }
       
       if (!password) {
-        console.error('❌ Password required for QR generation');
+        console.error('[Error] Password required for QR generation');
         return;
       }
       
@@ -132,12 +132,12 @@ function ProfileSettings({ onClose }) {
           qrCodeData: encryptedData
         }));
         
-        console.log('✅ QR code saved to Firestore');
+        console.log('[Success] QR code saved to Firestore');
       }
       
-      console.log('✅ QR code generated successfully with encrypted credentials');
+      console.log('[Success] QR code generated successfully with encrypted credentials');
     } catch (error) {
-      console.error('❌ Error generating QR code:', error);
+      console.error('[Error] Error generating QR code:', error);
       alert('Failed to generate QR code. Please try again.');
     }
   };
@@ -155,7 +155,7 @@ function ProfileSettings({ onClose }) {
 
     // Validate school ID before proceeding
     if (!profileData.schoolId || !/^\d{4}$/.test(profileData.schoolId)) {
-      console.error('❌ Invalid school ID:', profileData.schoolId);
+      console.error('[Error] Invalid school ID:', profileData.schoolId);
       alert(`Invalid student ID format: "${profileData.schoolId}". Expected 4 digits. Please contact support.`);
       return;
     }
@@ -166,7 +166,7 @@ function ProfileSettings({ onClose }) {
       await reauthenticateWithCredential(auth.currentUser, credential);
       
       // Password is correct, generate QR code
-      console.log('🎫 Generating QR for student ID:', profileData.schoolId);
+      console.log('[Ticket] Generating QR for student ID:', profileData.schoolId);
       await generateQRCode(profileData.schoolId, qrPassword);
       setShowQRPasswordPrompt(false);
       setQrPassword('');
@@ -200,7 +200,7 @@ function ProfileSettings({ onClose }) {
         return;
       }
 
-      console.log('📋 Loading profile for student:', studentData);
+      console.log('[Data] Loading profile for student:', studentData);
 
       // Try to get the document using the Firestore document ID if available
       let docSnap = null;
@@ -209,7 +209,7 @@ function ProfileSettings({ onClose }) {
         // Use the stored document ID
         const docRef = doc(db, 'students', studentData.firestoreDocId);
         docSnap = await getDoc(docRef);
-        console.log('✅ Found using firestoreDocId:', studentData.firestoreDocId);
+        console.log('[Success] Found using firestoreDocId:', studentData.firestoreDocId);
       }
       
       // If not found or no firestoreDocId, try using uid as document ID
@@ -218,7 +218,7 @@ function ProfileSettings({ onClose }) {
           const docRef = doc(db, 'students', studentData.uid);
           docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            console.log('✅ Found using uid as document ID:', studentData.uid);
+            console.log('[Success] Found using uid as document ID:', studentData.uid);
           }
         }
       }
@@ -237,7 +237,7 @@ function ProfileSettings({ onClose }) {
             // Save the Firestore document ID for future use
             studentData.firestoreDocId = docSnap.id;
             localStorage.setItem('studentData', JSON.stringify(studentData));
-            console.log('✅ Found by querying uid field, docId:', docSnap.id);
+            console.log('[Success] Found by querying uid field, docId:', docSnap.id);
           }
         }
         
@@ -249,14 +249,14 @@ function ProfileSettings({ onClose }) {
             docSnap = querySnapshot.docs[0];
             studentData.firestoreDocId = docSnap.id;
             localStorage.setItem('studentData', JSON.stringify(studentData));
-            console.log('✅ Found by querying id field, docId:', docSnap.id);
+            console.log('[Success] Found by querying id field, docId:', docSnap.id);
           }
         }
       }
 
       if (docSnap && docSnap.exists()) {
         const data = docSnap.data();
-        console.log('📄 Student document data:', data);
+        console.log('[File] Student document data:', data);
         
         // Extract 4-digit ID from various formats
         let fourDigitId = '';
@@ -274,7 +274,7 @@ function ProfileSettings({ onClose }) {
           fourDigitId = rawId.slice(-4);
         }
         
-        console.log('🆔 Extracted 4-digit ID:', fourDigitId, 'from raw ID:', rawId);
+        console.log('[ID] Extracted 4-digit ID:', fourDigitId, 'from raw ID:', rawId);
         
         const loadedProfile = {
           lastName: data.lastName || '',
@@ -296,7 +296,7 @@ function ProfileSettings({ onClose }) {
         setOriginalProfileData(loadedProfile);
         setProfilePicturePreview(data.profilePicture || '');
       } else {
-        console.error('❌ Student document not found');
+        console.error('[Error] Student document not found');
         alert('Profile data not found. Please contact support.');
       }
     } catch (error) {

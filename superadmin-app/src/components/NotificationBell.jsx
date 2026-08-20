@@ -51,7 +51,7 @@ const NotificationBell = () => {
       setUnreadCount(unread);
       setLoading(false);
     }, (error) => {
-      console.error('❌ Error loading notifications:', error);
+      console.error('[Error] Error loading notifications:', error);
       setLoading(false);
     });
 
@@ -89,7 +89,7 @@ const NotificationBell = () => {
         readAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('❌ Error marking notification as read:', error);
+      console.error('[Error] Error marking notification as read:', error);
     }
   };
 
@@ -102,7 +102,7 @@ const NotificationBell = () => {
         }))
       );
     } catch (error) {
-      console.error('❌ Error marking all as read:', error);
+      console.error('[Error] Error marking all as read:', error);
     }
   };
 

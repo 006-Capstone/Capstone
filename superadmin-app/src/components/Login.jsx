@@ -67,11 +67,11 @@ const Login = ({ onLogin }) => {
         uid: superadminData.uid
       }));
       
-      console.log('✅ Superadmin logged in');
+      console.log('[Success] Superadmin logged in');
       onLogin();
       
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('[Error] Login error:', error);
       
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         setError('Invalid password. Please try again.');

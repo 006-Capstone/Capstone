@@ -20,10 +20,20 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const fileInputRef = useRef(null);
+  
+  // Estimated Completion Date editing state
+  const [showEstimatedCompletionModal, setShowEstimatedCompletionModal] = useState(false);
+  const [completionOption, setCompletionOption] = useState('1-3');
+  const [customCompletionDate, setCustomCompletionDate] = useState('');
 
   useEffect(() => {
     if (ticketData) {
       loadTicketDetails();
+    } else {
+      // If no ticketData provided, navigate back to dashboard
+      console.warn('No ticket data provided to TicketDetails');
+      setLoading(false);
+      onNavigate('dashboard');
     }
     
     // Listen for unread notifications
@@ -52,14 +62,14 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        const data = docSnap.data();
+        const data = docSnap.data();  
         setTicket({
           ...data,
           firestoreId: docSnap.id
         });
         setReassignOffice(data.office || '');
         setUrgencyLevel(data.urgencyLevel || 'Normal');
-        console.log('✅ Loaded ticket details:', {
+        console.log('[Success] Loaded ticket details:', {
           requestId: data.requestId,
           office: data.office,
           assignedTo: data.assignedTo,
@@ -68,11 +78,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           officeHistory: data.officeHistory
         });
       } else {
-        console.error('❌ Ticket not found');
+        console.error('[Error] Ticket not found');
         alert('Request not found');
       }
     } catch (error) {
-      console.error('❌ Error loading ticket:', error);
+      console.error('[Error] Error loading ticket:', error);
       alert('Failed to load request details');
     } finally {
       setLoading(false);
@@ -152,10 +162,55 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       loadTicketDetails();
       
     } catch (error) {
-      console.error('❌ Error sending reply:', error);
+      console.error('[Error] Error sending reply:', error);
       alert('Failed to send reply: ' + error.message);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleUpdateEstimatedCompletion = async () => {
+    if (!ticket) return;
+
+    let completionDate;
+    
+    if (completionOption === 'custom') {
+      if (!customCompletionDate) {
+        alert('Please select a custom date');
+        return;
+      }
+      completionDate = new Date(customCompletionDate);
+    } else if (completionOption === '1-3') {
+      completionDate = new Date();
+      completionDate.setDate(completionDate.getDate() + 3);
+    } else if (completionOption === '4-7') {
+      completionDate = new Date();
+      completionDate.setDate(completionDate.getDate() + 7);
+    }
+
+    try {
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      const docRef = doc(db, 'requests', ticket.firestoreId);
+      
+      await updateDoc(docRef, {
+        estimatedCompletion: completionDate,
+        estimatedCompletionSetAt: new Date(),
+        estimatedCompletionSetBy: staffData.name,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('[Success] Estimated Completion Date updated by', staffData.name, 'to:', completionDate);
+      alert('Estimated Completion Date updated successfully!');
+      
+      // Close modal and reload ticket details
+      setShowEstimatedCompletionModal(false);
+      setCompletionOption('1-3');
+      setCustomCompletionDate('');
+      loadTicketDetails();
+      
+    } catch (error) {
+      console.error('[Error] Error updating Estimated Completion Date:', error);
+      alert('Failed to update Estimated Completion Date: ' + error.message);
     }
   };
 
@@ -175,7 +230,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       alert('Request returned successfully');
       onNavigate('my-tickets');
     } catch (error) {
-      console.error('❌ Error returning ticket:', error);
+      console.error('[Error] Error returning ticket:', error);
       alert('Failed to return request');
     }
   };
@@ -206,7 +261,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       alert('Request resolved successfully');
       onNavigate('my-tickets');
     } catch (error) {
-      console.error('❌ Error resolving ticket:', error);
+      console.error('[Error] Error resolving ticket:', error);
       alert('Failed to resolve request');
     }
   };
@@ -275,12 +330,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         };
       }
       
-      console.log('📋 Office History:', currentOfficeHistory);
-      console.log('🔍 Checking for previous handler in', reassignOffice);
+      console.log('[Data] Office History:', currentOfficeHistory);
+      console.log('[Search] Checking for previous handler in', reassignOffice);
       
       // Check if the ticket was previously in the target office
       const previousHandler = currentOfficeHistory[reassignOffice];
-      console.log('👤 Previous Handler:', previousHandler);
+      console.log('[User] Previous Handler:', previousHandler);
       
       const updateData = {
         office: reassignOffice,
@@ -299,7 +354,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       
       // If ticket was previously in this office, auto-assign to previous handler
       if (previousHandler && previousHandler.handledBy) {
-        console.log('✅ Auto-assigning to previous handler:', previousHandler.handledBy);
+        console.log('[Success] Auto-assigning to previous handler:', previousHandler.handledBy);
         updateData.assignedTo = previousHandler.handledBy;
         updateData.claimedBy = previousHandler.handledBy;
         updateData.claimedAt = new Date().toISOString();
@@ -370,7 +425,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       
       onNavigate('my-tickets');
     } catch (error) {
-      console.error('❌ Error reassigning ticket:', error);
+      console.error('[Error] Error reassigning ticket:', error);
       alert('Failed to reassign request: ' + error.message);
     }
   };
@@ -709,6 +764,41 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 </button>
               )}
             </div>
+
+            {/* Estimated Completion Date */}
+            {ticket.status === 'In Process' && (
+              <div className="management-field">
+                <p className="field-label">ESTIMATED COMPLETION DATE</p>
+                <div className="estimated-completion-display">
+                  {ticket.estimatedCompletion ? (
+                    <>
+                      <p className="field-value completion-date">
+                        {formatDate(ticket.estimatedCompletion)}
+                      </p>
+                      {ticket.estimatedCompletionSetBy && (
+                        <p className="completion-metadata">
+                          Set by {ticket.estimatedCompletionSetBy} on {formatDate(ticket.estimatedCompletionSetAt)}
+                        </p>
+                      )}
+                      {!isTicketClosed && (
+                        <button className="edit-completion-btn" onClick={() => setShowEstimatedCompletionModal(true)}>
+                          Edit Completion Date
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="field-value completion-not-set">Not set</p>
+                      {!isTicketClosed && (
+                        <button className="edit-completion-btn" onClick={() => setShowEstimatedCompletionModal(true)}>
+                          Set Completion Date
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="student-info-card">
@@ -769,6 +859,77 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 disabled={reassignNote.trim().length < 10}
               >
                 Confirm Reassignment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Estimated Completion Date Edit Modal */}
+      {showEstimatedCompletionModal && (
+        <div className="reassign-modal-overlay" onClick={() => setShowEstimatedCompletionModal(false)}>
+          <div className="reassign-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="reassign-modal-title">Edit Estimated Completion Date</h3>
+            <p className="reassign-modal-subtitle">
+              Update the expected completion date for request #{ticket.requestId}
+            </p>
+            
+            <div className="completion-options">
+              <label className="completion-option">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="1-3"
+                  checked={completionOption === '1-3'}
+                  onChange={(e) => setCompletionOption(e.target.value)}
+                />
+                <span>1 to 3 days</span>
+              </label>
+              
+              <label className="completion-option">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="4-7"
+                  checked={completionOption === '4-7'}
+                  onChange={(e) => setCompletionOption(e.target.value)}
+                />
+                <span>4 to 7 days</span>
+              </label>
+              
+              <label className="completion-option">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="custom"
+                  checked={completionOption === 'custom'}
+                  onChange={(e) => setCompletionOption(e.target.value)}
+                />
+                <span>Custom date</span>
+              </label>
+            </div>
+
+            {completionOption === 'custom' && (
+              <div className="custom-date-input">
+                <label>Select completion date:</label>
+                <input
+                  type="date"
+                  value={customCompletionDate}
+                  onChange={(e) => setCustomCompletionDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            )}
+            
+            <div className="reassign-modal-actions">
+              <button className="reassign-cancel-btn" onClick={() => setShowEstimatedCompletionModal(false)}>
+                Cancel
+              </button>
+              <button 
+                className="reassign-confirm-btn" 
+                onClick={handleUpdateEstimatedCompletion}
+              >
+                Update Completion Date
               </button>
             </div>
           </div>

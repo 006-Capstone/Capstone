@@ -75,7 +75,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       const studentData = studentDoc.data();
       const firestoreDocId = studentDoc.id; // Save the Firestore document ID
       
-      console.log('📋 Raw student data from Firestore:', studentData);
+      console.log('[Data] Raw student data from Firestore:', studentData);
       console.log('📌 Firestore document ID:', firestoreDocId);
 
       // Check if account is active
@@ -108,7 +108,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         mustChangePassword: studentData.mustChangePassword || false // Flag for forced password change
       };
       
-      console.log('✅ Formatted student data for localStorage:', formattedStudentData);
+      console.log('[Success] Formatted student data for localStorage:', formattedStudentData);
       
       // Save student data to localStorage with all fields
       localStorage.setItem('studentData', JSON.stringify(formattedStudentData));
@@ -162,12 +162,12 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
 
   const initializeQRScanner = async () => {
     try {
-      console.log('🔧 Initializing QR scanner...');
+      console.log('[Config] Initializing QR scanner...');
       
       const scanner = new Html5Qrcode("qr-reader");
       setQrScanner(scanner);
       
-      console.log('📹 Starting camera...');
+      console.log('[Camera] Starting camera...');
       
       await scanner.start(
         { facingMode: "environment" }, // Use back camera
@@ -184,18 +184,18 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       );
       
       setScanningStatus('ready');
-      console.log('✅ Camera started successfully - Ready to scan');
+      console.log('[Success] Camera started successfully - Ready to scan');
       
     } catch (error) {
-      console.error('❌ Error initializing QR scanner:', error);
+      console.error('[Error] Error initializing QR scanner:', error);
       setScanningStatus('error');
       setError('Failed to start camera. Please ensure camera permissions are granted.');
     }
   };
 
   const onScanSuccess = async (decodedText, decodedResult) => {
-    console.log('✅ QR Code scanned, raw data:', decodedText);
-    console.log('📊 Decoded result:', decodedResult);
+    console.log('[Success] QR Code scanned, raw data:', decodedText);
+    console.log('[Stats] Decoded result:', decodedResult);
     setScanningStatus('success');
     
     // Stop scanner immediately
@@ -218,7 +218,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     try {
       // Check if this looks like encrypted data (should be long string)
       if (decodedText.length < 20) {
-        console.error('❌ Scanned data too short to be encrypted:', decodedText);
+        console.error('[Error] Scanned data too short to be encrypted:', decodedText);
         setScanningStatus('error');
         setError('Invalid QR code. Please scan a valid student login QR code.');
         setLoading(false);
@@ -226,11 +226,11 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       }
       
       // Decrypt the QR code data
-      console.log('🔓 Decrypting QR code data (length:', decodedText.length, ')...');
+      console.log('[Decryption] Decrypting QR code data (length:', decodedText.length, ')...');
       const credentials = decryptCredentials(decodedText);
       
       if (!credentials) {
-        console.error('❌ Invalid or corrupted QR code - decryption failed');
+        console.error('[Error] Invalid or corrupted QR code - decryption failed');
         setScanningStatus('error');
         setError('Invalid QR code. This QR code cannot be read or is from a different application.');
         setLoading(false);
@@ -238,13 +238,13 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       }
       
       const { studentId, password } = credentials;
-      console.log('✅ QR code decrypted successfully');
-      console.log('🆔 Student ID from QR:', studentId, '(length:', studentId.length, ')');
-      console.log('🔑 Password length:', password.length);
+      console.log('[Success] QR code decrypted successfully');
+      console.log('[ID] Student ID from QR:', studentId, '(length:', studentId.length, ')');
+      console.log('[Key] Password length:', password.length);
 
       // Validate student ID format - must be exactly 4 digits
       if (!/^\d{4}$/.test(studentId)) {
-        console.error('❌ Invalid student ID format in QR:', studentId, '- expected 4 digits');
+        console.error('[Error] Invalid student ID format in QR:', studentId, '- expected 4 digits');
         setScanningStatus('error');
         setError(`Invalid QR code data format. Expected 4-digit ID, got: ${studentId}`);
         setLoading(false);
@@ -252,7 +252,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       }
 
       // Find student by Student ID
-      console.log('🔎 Searching for student with ID:', studentId);
+      console.log('[Search] Searching for student with ID:', studentId);
       const studentsRef = collection(db, 'students');
       let q = query(studentsRef, where('id', '==', studentId));
       let querySnapshot = await getDocs(q);
@@ -264,7 +264,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       }
 
       if (querySnapshot.empty) {
-        console.error('❌ Student not found in database with ID:', studentId);
+        console.error('[Error] Student not found in database with ID:', studentId);
         setScanningStatus('error');
         setError(`Student not found. Please contact the administrator. (ID: ${studentId})`);
         setLoading(false);
@@ -274,10 +274,10 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       const studentDoc = querySnapshot.docs[0];
       const studentData = studentDoc.data();
       const firestoreDocId = studentDoc.id;
-      console.log('✅ Student found:', studentData);
+      console.log('[Success] Student found:', studentData);
 
       if (studentData.isActive === false) {
-        console.error('❌ Account suspended');
+        console.error('[Error] Account suspended');
         setScanningStatus('error');
         setError('Your account has been suspended. Please contact the administrator.');
         setLoading(false);
@@ -285,7 +285,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       }
 
       // Attempt automatic login with decrypted password
-      console.log('🔐 Attempting automatic login with email:', studentData.email);
+      console.log('[Encryption] Attempting automatic login with email:', studentData.email);
       await signInWithEmailAndPassword(auth, studentData.email, password);
 
       // Prepare student data for localStorage
@@ -308,7 +308,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         mustChangePassword: studentData.mustChangePassword || false // Flag for forced password change
       };
       
-      console.log('✅ Login successful via QR code!');
+      console.log('[Success] Login successful via QR code!');
       localStorage.setItem('studentData', JSON.stringify(formattedStudentData));
 
       // Login successful
@@ -316,7 +316,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       setLoading(false);
 
     } catch (error) {
-      console.error('❌ QR Login error:', error);
+      console.error('[Error] QR Login error:', error);
       console.error('Error details:', {
         code: error.code,
         message: error.message,
@@ -387,7 +387,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     try {
       setLoading(true);
       setScanningStatus('initializing');
-      console.log('📤 Processing uploaded QR code image...');
+      console.log('[Upload] Processing uploaded QR code image...');
 
       // Create a temporary scanner instance for file scanning
       const scanner = new Html5Qrcode("qr-reader");
@@ -395,7 +395,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       // Scan the uploaded image file
       const decodedText = await scanner.scanFile(file, true);
       
-      console.log('✅ QR Code decoded from image:', decodedText);
+      console.log('[Success] QR Code decoded from image:', decodedText);
       setScanningStatus('success');
       
       // Process the scanned QR code (same as camera scan)
@@ -405,7 +405,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       event.target.value = '';
       
     } catch (error) {
-      console.error('❌ Error scanning uploaded QR code:', error);
+      console.error('[Error] Error scanning uploaded QR code:', error);
       setScanningStatus('error');
       setError('Failed to read QR code from image. Please ensure the image is clear and contains a valid QR code.');
       setLoading(false);

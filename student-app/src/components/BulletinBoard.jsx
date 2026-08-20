@@ -12,11 +12,37 @@ const DEFAULT_HERO = {
   body: 'Stay updated with the latest announcements and important deadlines'
 };
 
+const ITEMS_PER_PAGE = 5;
+
 function BulletinBoard() {
   const [announcements, setAnnouncements] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hero, setHero] = useState(DEFAULT_HERO);
+  const [selectedOffice, setSelectedOffice] = useState('All Offices');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const offices = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
+
+  // Filter announcements by selected office (check department field - case-insensitive)
+  const filteredAnnouncements = selectedOffice === 'All Offices'
+    ? announcements
+    : announcements.filter(a => {
+        const department = a.department?.toLowerCase();
+        const selectedLower = selectedOffice.toLowerCase();
+        return department === selectedLower;
+      });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAnnouncements.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedAnnouncements = filteredAnnouncements.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedOffice]);
 
   useEffect(() => {
     let unsubscribeAnnouncements = null;
@@ -38,7 +64,7 @@ function BulletinBoard() {
         setAnnouncements(announcementsData);
         setLoading(false);
       }, (error) => {
-        console.error('❌ Error loading announcements:', error);
+        console.error('[Error] Error loading announcements:', error);
         setLoading(false);
       });
 
@@ -57,7 +83,7 @@ function BulletinBoard() {
         deadlinesData.sort((a, b) => (a.dateValue || 0) - (b.dateValue || 0));
         setDeadlines(deadlinesData);
       }, (error) => {
-        console.error('❌ Error loading deadlines:', error);
+        console.error('[Error] Error loading deadlines:', error);
       });
 
       // Featured (semestral) announcement — the most recently updated one
@@ -80,11 +106,11 @@ function BulletinBoard() {
           setHero(DEFAULT_HERO);
         }
       }, (error) => {
-        console.error('❌ Error loading featured announcement:', error);
+        console.error('[Error] Error loading featured announcement:', error);
         setHero(DEFAULT_HERO);
       });
     } catch (error) {
-      console.error('❌ Error loading bulletin data:', error);
+      console.error('[Error] Error loading bulletin data:', error);
       setLoading(false);
     }
 
@@ -121,18 +147,61 @@ function BulletinBoard() {
 
       <div className="bulletin-content">
         <div className="announcements-section">
-          <h3>Announcements</h3>
+          <div className="announcements-header">
+            <h3>Announcements</h3>
+            <div className="office-filters">
+              {offices.map(office => (
+                <button
+                  key={office}
+                  className={`filter-btn ${selectedOffice === office ? 'active' : ''}`}
+                  onClick={() => setSelectedOffice(office)}
+                >
+                  {office}
+                </button>
+              ))}
+            </div>
+          </div>
           
           {loading ? (
             <LoadingSpinner message="Loading announcements..." fullScreen={false} />
-          ) : announcements.length === 0 ? (
+          ) : filteredAnnouncements.length === 0 ? (
             <div className="empty-state">
-              <p>No announcements at this time. Check back later for updates!</p>
+              <p>
+                {selectedOffice === 'All Offices' 
+                  ? 'No announcements at this time. Check back later for updates!' 
+                  : `No announcements from ${selectedOffice} at this time.`}
+              </p>
             </div>
           ) : (
-            announcements.map((announcement) => (
-              <AnnouncementCard key={announcement.id} announcement={announcement} />
-            ))
+            <>
+              {paginatedAnnouncements.map((announcement) => (
+                <AnnouncementCard key={announcement.id} announcement={announcement} />
+              ))}
+              
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Previous
+                  </button>
+                  
+                  <div className="pagination-info">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  
+                  <button
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 

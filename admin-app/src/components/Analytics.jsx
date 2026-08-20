@@ -126,7 +126,7 @@ const Analytics = ({ department, onViewRequest }) => {
           setStaffMembers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         }
       } catch (error) {
-        console.error('❌ Error loading staff:', error);
+        console.error('[Error] Error loading staff:', error);
       } finally {
         clearTimeout(timer);
         if (active) setStaffLoading(false);

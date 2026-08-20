@@ -14,7 +14,7 @@ import {
   FaTimes
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, onSnapshot, getDocs } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import NotificationBell from './NotificationBell';
 import '../styles/UserManagement.css';
@@ -22,6 +22,13 @@ import '../styles/UserManagement.css';
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('students'); // 'students' or 'staff'
   const [showCreateForm, setShowCreateForm] = useState(false);
+  
+  // Selection state for archiving
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [selectedStaffIds, setSelectedStaffIds] = useState([]);
+  const [selectAllStudents, setSelectAllStudents] = useState(false);
+  const [selectAllStaff, setSelectAllStaff] = useState(false);
+  
   const [studentId, setStudentId] = useState('');
   const [studentFirstName, setStudentFirstName] = useState('');
   const [studentLastName, setStudentLastName] = useState('');
@@ -39,6 +46,8 @@ const UserManagement = () => {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffOffice, setStaffOffice] = useState('finance');
   const [staffUsername, setStaffUsername] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [usernameChecking, setUsernameChecking] = useState(false);
   
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [error, setError] = useState('');
@@ -169,53 +178,213 @@ const UserManagement = () => {
     { id: 'registrar', name: 'Registrar' }
   ];
 
-  // Load students and staff from Firestore on component mount
+  // Load students and staff from Firestore on component mount with real-time listeners
   useEffect(() => {
-    loadStudents();
-    loadStaff();
+    const unsubscribeStudents = loadStudents();
+    const unsubscribeStaff = loadStaff();
+    
+    // Cleanup listeners on unmount
+    return () => {
+      if (unsubscribeStudents) unsubscribeStudents();
+      if (unsubscribeStaff) unsubscribeStaff();
+    };
   }, []);
 
-  const loadStaff = async () => {
+  const loadStaff = () => {
     try {
       const staffQuery = query(
         collection(db, 'staff'),
         orderBy('createdAt', 'desc')
       );
-      const querySnapshot = await getDocs(staffQuery);
-      const staffData = querySnapshot.docs.map(doc => ({
-        firestoreId: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate().toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          year: 'numeric' 
-        }) || 'N/A'
-      }));
-      setStaffMembers(staffData);
+      
+      const unsubscribe = onSnapshot(staffQuery, (querySnapshot) => {
+        const staffData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          let formattedCreatedAt = 'N/A';
+          
+          try {
+            if (data.createdAt) {
+              if (typeof data.createdAt.toDate === 'function') {
+                formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                });
+              } else if (typeof data.createdAt === 'string') {
+                formattedCreatedAt = data.createdAt;
+              }
+            }
+          } catch (err) {
+            console.error('[Warning] Failed to format staff createdAt:', err);
+          }
+          
+          return {
+            firestoreId: doc.id,
+            ...data,
+            createdAt: formattedCreatedAt
+          };
+        });
+        console.log('[Success] Loaded', staffData.length, 'staff members');
+        setStaffMembers(staffData);
+      }, (error) => {
+        console.error('[Error] loading staff:', error);
+      });
+      
+      return unsubscribe;
     } catch (error) {
-      console.error('Error loading staff:', error);
+      console.error('Error setting up staff listener:', error);
     }
   };
 
-  const loadStudents = async () => {
+  const loadStudents = () => {
     try {
       const studentsQuery = query(
         collection(db, 'students'),
         orderBy('createdAt', 'desc')
       );
-      const querySnapshot = await getDocs(studentsQuery);
-      const studentsData = querySnapshot.docs.map(doc => ({
-        firestoreId: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate().toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          year: 'numeric' 
-        }) || 'N/A'
-      }));
-      setStudents(studentsData);
+      
+      const unsubscribe = onSnapshot(studentsQuery, (querySnapshot) => {
+        const studentsData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          let formattedCreatedAt = 'N/A';
+          
+          try {
+            if (data.createdAt) {
+              if (typeof data.createdAt.toDate === 'function') {
+                formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                });
+              } else if (typeof data.createdAt === 'string') {
+                formattedCreatedAt = data.createdAt;
+              }
+            }
+          } catch (err) {
+            console.error('[Warning] Failed to format student createdAt:', err);
+          }
+          
+          return {
+            firestoreId: doc.id,
+            ...data,
+            createdAt: formattedCreatedAt
+          };
+        });
+        console.log('[Success] Loaded', studentsData.length, 'students');
+        setStudents(studentsData);
+      }, (error) => {
+        console.error('[Error] loading students:', error);
+      });
+      
+      return unsubscribe;
     } catch (error) {
-      console.error('Error loading students:', error);
+      console.error('Error setting up students listener:', error);
+    }
+  };
+
+  // Archive selected accounts
+  const handleArchiveAccounts = async () => {
+    const accountsToArchive = activeTab === 'students' 
+      ? students.filter(s => selectedStudentIds.includes(s.firestoreId))
+      : staffMembers.filter(s => selectedStaffIds.includes(s.firestoreId));
+    
+    if (accountsToArchive.length === 0) {
+      alert('Please select accounts to archive');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to archive ${accountsToArchive.length} ${activeTab}? ${activeTab === 'students' ? 'Their related requests will also be archived.' : ''}`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      for (const account of accountsToArchive) {
+        // If archiving a student, also archive their requests
+        if (activeTab === 'students') {
+          // Find all requests from this student
+          const requestsQuery = query(
+            collection(db, 'requests'),
+            where('studentUid', '==', account.uid)
+          );
+          
+          const requestsSnapshot = await getDocs(requestsQuery);
+          console.log(`[Archive] Found ${requestsSnapshot.size} requests for student ${account.name}`);
+          
+          // Archive each request
+          for (const requestDoc of requestsSnapshot.docs) {
+            const requestData = requestDoc.data();
+            await addDoc(collection(db, 'archivedRequests'), {
+              ...requestData,
+              archivedAt: serverTimestamp(),
+              archivedReason: 'Student account archived',
+              originalRequestId: requestDoc.id
+            });
+            
+            // Delete from original requests collection
+            await deleteDoc(doc(db, 'requests', requestDoc.id));
+          }
+        }
+
+        // Add account to archived collection
+        await addDoc(collection(db, 'archivedAccounts'), {
+          ...account,
+          accountType: activeTab === 'students' ? 'student' : 'staff',
+          archivedAt: serverTimestamp(),
+          originalCollection: activeTab
+        });
+
+        // Delete from original collection
+        const collectionName = activeTab === 'students' ? 'students' : 'staff';
+        await deleteDoc(doc(db, collectionName, account.firestoreId));
+      }
+
+      const message = activeTab === 'students' 
+        ? `Successfully archived ${accountsToArchive.length} student(s) and their related requests`
+        : `Successfully archived ${accountsToArchive.length} staff member(s)`;
+      
+      alert(message);
+      setSelectedStudentIds([]);
+      setSelectedStaffIds([]);
+      setSelectAllStudents(false);
+      setSelectAllStaff(false);
+    } catch (error) {
+      console.error('[Error] archiving accounts:', error);
+      alert('Failed to archive accounts: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle individual checkbox selection
+  const handleSelectAccount = (id) => {
+    if (activeTab === 'students') {
+      setSelectedStudentIds(prev =>
+        prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+      );
+    } else {
+      setSelectedStaffIds(prev =>
+        prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+      );
+    }
+  };
+
+  // Handle select all checkbox
+  const handleSelectAll = () => {
+    if (activeTab === 'students') {
+      if (selectAllStudents) {
+        setSelectedStudentIds([]);
+      } else {
+        setSelectedStudentIds(visibleStudents.pageItems.map(s => s.firestoreId));
+      }
+      setSelectAllStudents(!selectAllStudents);
+    } else {
+      if (selectAllStaff) {
+        setSelectedStaffIds([]);
+      } else {
+        setSelectedStaffIds(visibleStaff.pageItems.map(s => s.firestoreId));
+      }
+      setSelectAllStaff(!selectAllStaff);
     }
   };
 
@@ -342,18 +511,21 @@ const UserManagement = () => {
         const result = await response.json();
         
         if (result.success) {
-          console.log('✅ Email sent successfully to:', studentEmail);
+          console.log('[Success] Email sent successfully to:', studentEmail);
         } else {
           throw new Error(result.error || 'Failed to send email');
         }
       } catch (emailError) {
-        console.error('❌ Failed to send email:', emailError);
+        console.error('[Error] Failed to send email:', emailError);
         // Continue anyway - account was created successfully
         alert('Account created but email failed to send. Please manually share credentials with student:\nStudent ID: ' + studentId + '\nPassword: ' + password);
       }
 
-      // Reload students list
-      await loadStudents();
+      // Reload students list (real-time listener will update automatically)
+      // await loadStudents(); // No longer needed - real-time listener handles this
+
+      // Wait a moment for Firestore real-time listeners to update
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Show simple success message
       setCreatedStudent({
@@ -423,6 +595,45 @@ const UserManagement = () => {
     setError('');
   };
 
+  // Check username uniqueness when user stops typing
+  const checkUsernameAvailability = async (username) => {
+    if (!username.trim()) {
+      setUsernameError('');
+      return;
+    }
+
+    setUsernameChecking(true);
+    
+    try {
+      const staffQuery = query(collection(db, 'staff'), where('username', '==', username.trim()));
+      const existingStaff = await getDocs(staffQuery);
+      
+      if (!existingStaff.empty) {
+        setUsernameError('⚠ Username already exists');
+      } else {
+        setUsernameError('');
+      }
+    } catch (error) {
+      console.error('Error checking username:', error);
+    } finally {
+      setUsernameChecking(false);
+    }
+  };
+
+  // Debounce username check
+  useEffect(() => {
+    if (!staffUsername) {
+      setUsernameError('');
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      checkUsernameAvailability(staffUsername);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [staffUsername]);
+
   const handleCreateStaff = async (e) => {
     e.preventDefault();
     setError('');
@@ -449,6 +660,23 @@ const UserManagement = () => {
 
       if (!staffUsername.trim()) {
         setError('Please enter username');
+        setLoading(false);
+        return;
+      }
+
+      // Check if username is already showing an error
+      if (usernameError) {
+        setError(usernameError);
+        setLoading(false);
+        return;
+      }
+
+      // Check if username already exists
+      const staffQuery = query(collection(db, 'staff'), where('username', '==', staffUsername.trim()));
+      const existingStaff = await getDocs(staffQuery);
+      
+      if (!existingStaff.empty) {
+        setError('Username already exists. Please choose a different username.');
         setLoading(false);
         return;
       }
@@ -510,18 +738,21 @@ const UserManagement = () => {
         const result = await response.json();
         
         if (result.success) {
-          console.log('✅ Email sent successfully to:', staffEmail);
+          console.log('[Success] Email sent successfully to:', staffEmail);
         } else {
           throw new Error(result.error || 'Failed to send email');
         }
       } catch (emailError) {
-        console.error('❌ Failed to send email:', emailError);
+        console.error('[Error] Failed to send email:', emailError);
         // Continue anyway - account was created successfully
         alert('Account created but email failed to send. Please manually share credentials with staff:\nUsername: ' + staffUsername + '\nPassword: ' + password);
       }
 
-      // Reload staff list
-      await loadStaff();
+      // Reload staff list (real-time listener will update automatically)
+      // await loadStaff(); // No longer needed - real-time listener handles this
+
+      // Wait a moment for Firestore real-time listeners to update
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Show success message
       setCreatedStaff({
@@ -538,6 +769,7 @@ const UserManagement = () => {
       setStaffSuffix('');
       setStaffEmail('');
       setStaffUsername('');
+      setUsernameError('');
       setLoading(false);
 
     } catch (error) {
@@ -581,21 +813,21 @@ const UserManagement = () => {
         await updateDoc(doc(db, collectionName, target.firestoreId), {
           isActive: newStatus
         });
-        if (isStudent) {
-          await loadStudents();
-        } else {
-          await loadStaff();
-        }
+        // Real-time listener will update the list automatically
+        // No need to manually reload
+        
+        // Wait a moment for Firestore real-time listeners to update
+        await new Promise(resolve => setTimeout(resolve, 500));
         alert(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
       } else if (confirmAction === 'delete') {
         // Delete from Firestore
         // Note: User will remain in Firebase Auth but cannot login without Firestore document
         await deleteDoc(doc(db, collectionName, target.firestoreId));
-        if (isStudent) {
-          await loadStudents();
-        } else {
-          await loadStaff();
-        }
+        // Real-time listener will update the list automatically
+        // No need to manually reload
+        
+        // Wait a moment for Firestore real-time listeners to update
+        await new Promise(resolve => setTimeout(resolve, 500));
         alert('Account deleted successfully from database!');
       }
       setShowConfirmModal(false);
@@ -627,6 +859,12 @@ const UserManagement = () => {
             <FaUserPlus aria-hidden="true" />
             {activeTab === 'students' ? 'Create Student Account' : 'Create Staff Account'}
           </button>
+          {((activeTab === 'students' && selectedStudentIds.length > 0) || (activeTab === 'staff' && selectedStaffIds.length > 0)) && (
+            <button className="btn-archive" onClick={handleArchiveAccounts} disabled={loading}>
+              <FaBan aria-hidden="true" />
+              Move to Archive ({activeTab === 'students' ? selectedStudentIds.length : selectedStaffIds.length})
+            </button>
+          )}
           <NotificationBell />
         </div>
       </div>
@@ -636,13 +874,13 @@ const UserManagement = () => {
         <div className="user-tabs">
           <button
             className={`user-tab ${activeTab === 'students' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('students'); resetPagination(); }}
+            onClick={() => { setActiveTab('students'); resetPagination(); setSelectedStudentIds([]);setSelectAllStudents(false); }}
           >
             Students
           </button>
           <button
             className={`user-tab ${activeTab === 'staff' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('staff'); resetPagination(); }}
+            onClick={() => { setActiveTab('staff'); resetPagination(); setSelectedStaffIds([]); setSelectAllStaff(false); }}
           >
             Staff Members
           </button>
@@ -1161,12 +1399,27 @@ const UserManagement = () => {
                 <label className="form-label-super">Username</label>
                 <input
                   type="text"
-                  className="form-input-super"
+                  className={`form-input-super ${usernameError ? 'input-error' : ''}`}
                   value={staffUsername}
                   onChange={(e) => setStaffUsername(e.target.value)}
                   placeholder="Enter username for login"
                   required
                 />
+                {usernameChecking && (
+                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Checking availability...
+                  </small>
+                )}
+                {usernameError && (
+                  <small style={{ color: '#c33', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    {usernameError}
+                  </small>
+                )}
+                {!usernameError && staffUsername && !usernameChecking && (
+                  <small style={{ color: '#28a745', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    ✓ Username available
+                  </small>
+                )}
               </div>
 
               <div className="form-group-super">
@@ -1194,7 +1447,11 @@ const UserManagement = () => {
                 <button 
                   type="button" 
                   className="cancel-btn-super" 
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setUsernameError('');
+                    setStaffUsername('');
+                  }}
                   disabled={loading}
                 >
                   Cancel
@@ -1202,8 +1459,8 @@ const UserManagement = () => {
                 <button
                   type="submit"
                   className="create-btn-super"
-                  disabled={loading || !isStaffFormValid}
-                  title={!isStaffFormValid ? 'Fill in all required fields to create the account' : undefined}
+                  disabled={loading || !isStaffFormValid || usernameError}
+                  title={!isStaffFormValid ? 'Fill in all required fields to create the account' : usernameError ? 'Username already exists' : undefined}
                 >
                   <FaPlus />
                   {loading ? 'Creating...' : 'Create Account'}
@@ -1227,6 +1484,14 @@ const UserManagement = () => {
               <div className="table-container">
                 <div className="students-table">
                   <div className="table-header">
+                    <div className="table-cell checkbox-cell">
+                      <input 
+                        type="checkbox" 
+                        checked={selectAllStudents} 
+                        onChange={handleSelectAll}
+                        aria-label="Select all students"
+                      />
+                    </div>
                     <div className="table-cell">Student ID</div>
                     <div className="table-cell">Name</div>
                     <div className="table-cell">Email</div>
@@ -1235,6 +1500,14 @@ const UserManagement = () => {
                   </div>
                   {visibleStudents.pageItems.map((student) => (
                     <div key={student.firestoreId || student.id} className="table-row">
+                      <div className="table-cell checkbox-cell">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedStudentIds.includes(student.firestoreId)} 
+                          onChange={() => handleSelectAccount(student.firestoreId)}
+                          aria-label={`Select ${student.name}`}
+                        />
+                      </div>
                       <div className="table-cell">{student.id}</div>
                       <div className="table-cell">
                         {student.name}
@@ -1304,6 +1577,14 @@ const UserManagement = () => {
               <div className="table-container">
                 <div className="students-table staff-table">
                   <div className="table-header">
+                    <div className="table-cell checkbox-cell">
+                      <input 
+                        type="checkbox" 
+                        checked={selectAllStaff} 
+                        onChange={handleSelectAll}
+                        aria-label="Select all staff"
+                      />
+                    </div>
                     <div className="table-cell">Username</div>
                     <div className="table-cell">Name</div>
                     <div className="table-cell">Email</div>
@@ -1313,6 +1594,14 @@ const UserManagement = () => {
                   </div>
                   {visibleStaff.pageItems.map((staff) => (
                     <div key={staff.firestoreId} className="table-row">
+                      <div className="table-cell checkbox-cell">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedStaffIds.includes(staff.firestoreId)} 
+                          onChange={() => handleSelectAccount(staff.firestoreId)}
+                          aria-label={`Select ${staff.name}`}
+                        />
+                      </div>
                       <div className="table-cell">{staff.username}</div>
                       <div className="table-cell">
                         {staff.name}

@@ -315,7 +315,7 @@ function NewRequest({ onNavigate }) {
 
       // Save to Firebase
       const docRef = await addDoc(collection(db, 'requests'), requestData);
-      console.log('✅ Request created with ID:', docRef.id);
+      console.log('[Success] Request created with ID:', docRef.id);
 
       // Notify all staff in the target office about the new request
       await notifyStaffNewRequest(
@@ -324,6 +324,9 @@ function NewRequest({ onNavigate }) {
         subject.trim(),
         student.name || `${student.firstName} ${student.lastName}`.trim()
       );
+
+      // Wait a moment for Firestore real-time listeners to update
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Show success message
       alert(`Request submitted successfully! Your request ID is: ${requestId}${attachments.length > 0 ? `\n${attachments.length} file(s) attached` : ''}`);
@@ -340,7 +343,7 @@ function NewRequest({ onNavigate }) {
       }
 
     } catch (error) {
-      console.error('❌ Error submitting request:', error);
+      console.error('[Error] Error submitting request:', error);
       setError('Failed to submit request: ' + error.message);
     } finally {
       setLoading(false);

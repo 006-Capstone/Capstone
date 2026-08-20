@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
-import { FaCamera, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload } from 'react-icons/fa';
+import { MdClose } from 'react-icons/md';
+import QRCode from 'qrcode';
+import { encryptCredentials } from '../utils/qrEncryption';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/ProfileSettings.css';
 
@@ -23,11 +26,13 @@ function ProfileSettings({ onClose }) {
     position: '',
     office: '',
     staffId: '',
+    username: '', // Add username field
     email: '',
     phoneNumber: '',
     profilePicture: '',
     twoFactorEnabled: false,
-    lastPasswordUpdate: null
+    lastPasswordUpdate: null,
+    qrCodeData: '' // Store encrypted QR data
   });
 
   const [profilePicture, setProfilePicture] = useState(null);
@@ -35,6 +40,11 @@ function ProfileSettings({ onClose }) {
   // Snapshot of the values loaded from Firestore — used to detect unsaved changes
   const [originalProfileData, setOriginalProfileData] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [qrCodeDataURL, setQrCodeDataURL] = useState('');
+  const [showQRPasswordPrompt, setShowQRPasswordPrompt] = useState(false);
+  const [qrPassword, setQrPassword] = useState('');
+  const [showQRPassword, setShowQRPassword] = useState(false);
+  const qrCodeRef = useRef(null);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -59,6 +69,143 @@ function ProfileSettings({ onClose }) {
     };
   }, []);
 
+  useEffect(() => {
+    // Generate QR code image from stored encrypted data
+    if (profileData.qrCodeData) {
+      generateQRCodeImage(profileData.qrCodeData);
+    }
+  }, [profileData.qrCodeData]);
+
+  const generateQRCodeImage = async (encryptedData) => {
+    try {
+      console.log('[Encryption] Loading QR from stored data, length:', encryptedData.length);
+      const qrDataURL = await QRCode.toDataURL(encryptedData, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#105E06',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'M', // Changed from H to M
+        type: 'image/png'
+      });
+      setQrCodeDataURL(qrDataURL);
+      console.log('[Success] QR code image generated from stored data');
+    } catch (error) {
+      console.error('[Error] Error generating QR code image:', error);
+    }
+  };
+
+  const generateQRCode = async (username, password, office) => {
+    try {
+      console.log('[QRCode] Generating encrypted QR code for username:', username, 'office:', office);
+      
+      if (!username || !password || !office) {
+        console.error('[Error] Username, password, and office required for QR generation');
+        return;
+      }
+      
+      // Encrypt the credentials
+      const encryptedData = encryptCredentials(username, password, office);
+      console.log('[Encryption] Encrypted data length:', encryptedData.length, 'characters');
+      console.log('[Encryption] Encrypted data preview:', encryptedData.substring(0, 50) + '...');
+      
+      // Generate QR code image with encrypted data
+      // Try with medium error correction first for better compatibility
+      const qrDataURL = await QRCode.toDataURL(encryptedData, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#105E06',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'M', // Changed from H to M for better compatibility
+        type: 'image/png'
+      });
+      setQrCodeDataURL(qrDataURL);
+      console.log('[Success] QR code generated successfully');
+      
+      // Save encrypted data to Firestore so QR persists
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      if (staffData.firestoreDocId) {
+        const docRef = doc(db, 'staff', staffData.firestoreDocId);
+        await updateDoc(docRef, {
+          qrCodeData: encryptedData,
+          qrCodeGeneratedAt: new Date().toISOString()
+        });
+        
+        // Update local state
+        setProfileData(prev => ({
+          ...prev,
+          qrCodeData: encryptedData
+        }));
+        
+        console.log('[Success] QR code saved to Firestore');
+      }
+      
+      console.log('[Success] QR code generated successfully with encrypted credentials');
+    } catch (error) {
+      console.error('[Error] Error generating QR code:', error);
+      alert('Failed to generate QR code. Please try again.');
+    }
+  };
+
+  const handleGenerateQRCode = () => {
+    setShowQRPasswordPrompt(true);
+    setQrPassword('');
+  };
+
+  const handleQRPasswordSubmit = async () => {
+    if (!qrPassword) {
+      alert('Please enter your password');
+      return;
+    }
+
+    if (!profileData.username) {
+      alert('Username not found. Please contact support.');
+      return;
+    }
+
+    const staffData = JSON.parse(localStorage.getItem('staffData'));
+    const officeId = staffData.officeId || profileData.office;
+
+    if (!officeId) {
+      alert('Office information not found. Please contact support.');
+      return;
+    }
+
+    try {
+      // Verify password by attempting to reauthenticate
+      const credential = EmailAuthProvider.credential(profileData.email, qrPassword);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      
+      // Password is correct, generate QR code
+      console.log('[Ticket] Generating QR for username:', profileData.username, 'office:', officeId);
+      await generateQRCode(profileData.username, qrPassword, officeId);
+      setShowQRPasswordPrompt(false);
+      setQrPassword('');
+      
+      const message = profileData.qrCodeData 
+        ? 'QR code regenerated successfully! Your old QR code will no longer work.'
+        : 'QR code generated successfully! You can now download it.';
+      alert(message);
+    } catch (error) {
+      console.error('Password verification failed:', error);
+      alert('Incorrect password. Please try again.');
+    }
+  };
+
+  const handleDownloadQRCode = () => {
+    if (!qrCodeDataURL) return;
+    
+    const link = document.createElement('a');
+    link.href = qrCodeDataURL;
+    link.download = `admin-qr-${profileData.username}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const loadProfileData = async () => {
     try {
       const staffData = JSON.parse(localStorage.getItem('staffData'));
@@ -67,7 +214,7 @@ function ProfileSettings({ onClose }) {
         return;
       }
 
-      console.log('📋 Loading profile for staff:', staffData);
+      console.log('[Data] Loading profile for staff:', staffData);
 
       // Try to get the document using the Firestore document ID
       let docSnap = null;
@@ -75,7 +222,7 @@ function ProfileSettings({ onClose }) {
       if (staffData.firestoreDocId) {
         const docRef = doc(db, 'staff', staffData.firestoreDocId);
         docSnap = await getDoc(docRef);
-        console.log('✅ Found using firestoreDocId:', staffData.firestoreDocId);
+        console.log('[Success] Found using firestoreDocId:', staffData.firestoreDocId);
       }
       
       // If not found or no firestoreDocId, try using uid as document ID
@@ -84,7 +231,7 @@ function ProfileSettings({ onClose }) {
           const docRef = doc(db, 'staff', staffData.uid);
           docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            console.log('✅ Found using uid as document ID:', staffData.uid);
+            console.log('[Success] Found using uid as document ID:', staffData.uid);
           }
         }
       }
@@ -101,14 +248,14 @@ function ProfileSettings({ onClose }) {
             docSnap = querySnapshot.docs[0];
             staffData.firestoreDocId = docSnap.id;
             localStorage.setItem('staffData', JSON.stringify(staffData));
-            console.log('✅ Found by querying uid field, docId:', docSnap.id);
+            console.log('[Success] Found by querying uid field, docId:', docSnap.id);
           }
         }
       }
 
       if (docSnap && docSnap.exists()) {
         const data = docSnap.data();
-        console.log('📄 Staff document data:', data);
+        console.log('[File] Staff document data:', data);
         
         // Handle different name field formats
         let firstName = data.firstName || '';
@@ -145,17 +292,19 @@ function ProfileSettings({ onClose }) {
           position: data.position || '',
           office: data.office || '',
           staffId: data.staffId || '',
+          username: data.username || '',
           email: data.email || '',
           phoneNumber: data.phoneNumber || '',
           profilePicture: data.profilePicture || '',
           twoFactorEnabled: data.twoFactorEnabled || false,
-          lastPasswordUpdate: data.lastPasswordUpdate || null
+          lastPasswordUpdate: data.lastPasswordUpdate || null,
+          qrCodeData: data.qrCodeData || ''
         };
         setProfileData(loadedProfile);
         setOriginalProfileData(loadedProfile);
         setProfilePicturePreview(data.profilePicture || '');
       } else {
-        console.error('❌ Staff document not found');
+        console.error('[Error] Staff document not found');
         alert('Profile data not found. Please contact admin.');
       }
     } catch (error) {
@@ -522,6 +671,77 @@ function ProfileSettings({ onClose }) {
             </div>
           </div>
 
+          {/* QR Code Section */}
+          <div className="settings-section">
+            <h3>Quick Login QR Code</h3>
+            <p className="section-description">
+              {profileData.qrCodeData 
+                ? 'Your secure QR code for instant login. This QR code is unique and persistent.'
+                : 'Generate a secure QR code for instant login. This QR code contains encrypted credentials and can only be read by this website.'
+              }
+            </p>
+            
+            <div className="qr-code-container">
+              <div className="qr-code-display">
+                {qrCodeDataURL ? (
+                  <img ref={qrCodeRef} src={qrCodeDataURL} alt="Admin QR Code" className="qr-code-image" />
+                ) : (
+                  <div className="qr-code-placeholder">
+                    <FaQrcode className="qr-placeholder-icon" />
+                    <p>No QR code generated yet</p>
+                  </div>
+                )}
+                {qrCodeDataURL && <p className="qr-code-id">Username: {profileData.username}</p>}
+              </div>
+              
+              <div className="qr-code-info">
+                <div className="info-item">
+                  <FaQrcode className="info-icon" />
+                  <div>
+                    <h4>How to use:</h4>
+                    {!profileData.qrCodeData ? (
+                      <>
+                        <p>1. Click "Generate QR Code" and enter your password</p>
+                        <p>2. Download and save it on your phone</p>
+                        <p>3. On login page, click "Login with QR code"</p>
+                        <p>4. Scan your QR code for instant automatic login</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>1. Download your QR code (it's saved securely)</p>
+                        <p>2. On login page, click "Login with QR code"</p>
+                        <p>3. Scan your QR code for instant automatic login</p>
+                        <p>4. This QR code will work until you regenerate it</p>
+                      </>
+                    )}
+                    <p style={{ color: '#ef5350', marginTop: '10px', fontWeight: 600 }}>
+                      ⚠ Keep your QR code secure - it contains your login credentials!
+                    </p>
+                    {!qrCodeDataURL && (
+                      <button className="generate-qr-btn" onClick={handleGenerateQRCode}>
+                        <FaQrcode />
+                        Generate QR Code
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {qrCodeDataURL && (
+                  <div className="qr-action-buttons">
+                    <button className="download-qr-btn" onClick={handleDownloadQRCode}>
+                      <FaDownload />
+                      Download QR Code
+                    </button>
+                    <button className="regenerate-qr-btn" onClick={handleGenerateQRCode}>
+                      <FaQrcode />
+                      {profileData.qrCodeData ? 'Regenerate QR Code' : 'Generate QR Code'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Action Buttons */}
           <div className="settings-actions">
             <button
@@ -612,6 +832,65 @@ function ProfileSettings({ onClose }) {
                   disabled={saving}
                 >
                   {saving ? 'Changing...' : 'Change Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* QR Password Prompt Modal */}
+        {showQRPasswordPrompt && (
+          <div className="password-modal-overlay" onClick={() => setShowQRPasswordPrompt(false)}>
+            <div className="password-modal qr-password-modal" onClick={(e) => e.stopPropagation()}>
+              <button className="close-modal-btn" onClick={() => setShowQRPasswordPrompt(false)}>
+                <MdClose />
+              </button>
+              
+              <h3><FaQrcode /> Generate QR Code</h3>
+              <p className="modal-description">
+                Enter your password to generate an encrypted QR code for quick login.
+              </p>
+              
+              <div className="form-group">
+                <label>Password</label>
+                <div className="password-input-wrapper">
+                  <input
+                    type={showQRPassword ? 'text' : 'password'}
+                    value={qrPassword}
+                    onChange={(e) => setQrPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    autoFocus
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleQRPasswordSubmit();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="toggle-password"
+                    onClick={() => setShowQRPassword(!showQRPassword)}
+                  >
+                    {showQRPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="qr-password-warning">
+                <p>⚠ Your QR code will contain encrypted login credentials.</p>
+                <p>Keep it secure and don't share it with anyone.</p>
+              </div>
+
+              <div className="password-modal-actions">
+                <button className="cancel-btn" onClick={() => setShowQRPasswordPrompt(false)}>
+                  Cancel
+                </button>
+                <button 
+                  className="confirm-btn" 
+                  onClick={handleQRPasswordSubmit}
+                  disabled={!qrPassword}
+                >
+                  Generate QR Code
                 </button>
               </div>
             </div>
