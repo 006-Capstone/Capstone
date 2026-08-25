@@ -165,7 +165,7 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
       ],
       model: 'openai/gpt-oss-20b', // Currently supported Groq model (as of 2026)
       temperature: 0.1, // Low temperature for consistent analysis
-      max_tokens: 500
+      max_tokens: 800 // Increased to ensure complete JSON response
     });
 
     const responseText = chatCompletion.choices[0]?.message?.content || '';
@@ -175,14 +175,26 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
     try {
       // Remove markdown code blocks if present
       const cleanText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Check if response is complete JSON (should end with })
+      if (!cleanText.endsWith('}')) {
+        console.warn('Incomplete AI response detected, using fallback validation');
+        return {
+          isValid: true,
+          errors: [],
+          warnings: ['AI validation temporarily unavailable. Your request will be manually reviewed.'],
+          language: 'unknown'
+        };
+      }
+      
       aiAnalysis = JSON.parse(cleanText);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', responseText);
+      console.warn('Failed to parse AI response (may be incomplete):', responseText.substring(0, 100));
       // Fallback to basic validation
       return {
         isValid: true,
         errors: [],
-        warnings: ['AI validation temporarily unavailable. Basic checks passed.'],
+        warnings: ['AI validation temporarily unavailable. Your request will be manually reviewed.'],
         language: 'unknown'
       };
     }

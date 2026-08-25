@@ -40,6 +40,9 @@ export const useOfficeTickets = (department) => {
       where('office', '==', department)
     );
 
+    console.log('[useOfficeTickets] Querying requests for department:', department);
+    console.log('[useOfficeTickets] Query will match requests where office ==', department);
+
     // Safety net: if Firestore never responds, stop loading so the page
     // renders an (empty/error) state and stays fully navigable.
     let settled = false;
@@ -60,8 +63,11 @@ export const useOfficeTickets = (department) => {
         if (settled) return;
         finish();
 
+        console.log('[useOfficeTickets] Received', querySnapshot.docs.length, 'requests for', department);
+
         const ticketsData = querySnapshot.docs.map(doc => {
           const data = doc.data();
+          console.log('[useOfficeTickets] Request:', data.requestId, 'Office:', data.office, 'IsGuest:', data.isGuest);
           return {
             firestoreId: doc.id,
             id: data.requestId,

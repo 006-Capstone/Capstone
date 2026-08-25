@@ -1,570 +1,551 @@
 /* ==========================================================================
-   GUEST LOGIN — follows the Figma "Guest Login" export (1440 × 1970):
-   • Flat neutral near-white canvas #F0EEEE — no card containers
-   • Black section headings and field labels
-   • White inputs with subtle gray borders
-   • Sage #E1E7DF selected office card with #105E06 radio
-   • #3C7735 primary buttons, outlined Cancel, right-aligned
-   • White logout pill in the header
+   GUEST LOGIN — Two-Column Layout
+   Left: Check Request Status
+   Right: Submit New Request
    ========================================================================== */
 
 .guest-login-container {
   min-height: 100vh;
-  min-height: 100dvh;
-  background-color: #F0EEEE;
-  font-family: var(--font-family);
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  background: #f5f5f5;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* ---- Header ---- */
 .guest-header {
-  background-color: #ffffff;
-  padding: 16px clamp(20px, 4vw, 60px);
+  background: white;
+  padding: 16px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px 20px;
-  border-bottom: 1px solid #E3E1E1;
-  position: fixed;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
+  z-index: 100;
 }
 
 .guest-header-content {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.guest-header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-left: auto;
+  gap: 12px;
 }
 
 .guest-logo {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
-  flex-shrink: 0;
 }
 
 .guest-school-name {
   font-size: 18px;
   font-weight: 600;
-  color: #105E06;
+  color: #1a1a1a;
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  white-space: nowrap;
+}
+
+.guest-header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .guest-account-badge {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #f0f0f0;
+  border-radius: 20px;
   font-size: 14px;
-  color: #555;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  white-space: nowrap;
+  font-weight: 500;
+  color: #333;
 }
 
 .guest-icon {
-  font-size: 30px;
-  color: #105E06;
+  font-size: 18px;
 }
 
-/* White pill logout button (matches the Figma header) */
-.guest-logout-btn {
-  padding: 8px 18px;
-  background-color: #ffffff;
-  border: 1px solid #D9D9D9;
-  border-radius: 8px;
-  color: #3C7735;
+/* ---- Two-Column Grid ---- */
+.guest-content-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 0;
+  max-width: 1600px;
+  margin: 0 auto;
+  height: calc(100vh - 72px);
+  overflow: hidden;
+}
+
+.guest-panel {
+  background: white;
+  padding: 40px 30px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+.guest-panel:first-child {
+  border-right: 1px solid #e0e0e0;
+}
+
+.panel-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.panel-subtitle {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 30px 0;
+}
+
+/* ---- Form Sections ---- */
+.form-section {
+  margin-bottom: 32px;
+}
+
+.section-subtitle {
   font-size: 14px;
   font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
-  font-family: var(--font-family);
-  white-space: nowrap;
-}
-
-.guest-logout-btn:hover {
-  border-color: #3C7735;
-  background-color: #F0F7F0;
-  box-shadow: 0 2px 8px rgba(60, 119, 53, 0.18);
-}
-
-.guest-logout-btn:active {
-  transform: translateY(0);
-}
-
-.guest-logout-btn svg {
-  font-size: 16px;
-}
-
-/* ---- Content: centered column ---- */
-.guest-content {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 110px clamp(20px, 4vw, 40px) 64px;
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* Each section is a white rectangular card on the light canvas */
-.guest-section {
-  background: #ffffff;
-  border: 1px solid #E7E5E5;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  padding: 32px 36px;
-}
-
-.section-title-guest {
-  font-size: 24px;
-  font-weight: 600;
-  color: #000000;
-  margin: 0 0 24px 0;
-  font-family: var(--font-family);
-}
-
-/* ---- Form fields ---- */
-
-/* Two-column field rows (Request ID / Office Code) */
-.field-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px 24px;
-  margin-bottom: 24px;
+  color: #1a1a1a;
+  margin: 0 0 16px 0;
 }
 
 .form-group-guest {
-  margin-bottom: 24px;
-}
-
-.field-grid .form-group-guest {
-  margin-bottom: 0;
+  margin-bottom: 20px;
 }
 
 .form-label-guest {
   display: block;
-  font-size: 14px;
   font-weight: 500;
-  color: #000000;
-  margin-bottom: 10px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #333;
+  margin-bottom: 8px;
+  font-size: 13px;
 }
 
-.form-input-guest {
+.required-asterisk {
+  color: #e53e3e;
+  margin-left: 2px;
+  font-weight: 600;
+}
+
+/* ---- Form Inputs ---- */
+.form-input-guest,
+.form-select-guest,
+.form-textarea-guest {
   width: 100%;
-  padding: 13px 15px;
-  border: 1px solid #D1D5DB;
+  padding: 10px 12px;
+  border: 1px solid #d0d0d0;
   border-radius: 6px;
   font-size: 14px;
-  color: #333333;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: border-color 0.2s ease;
   box-sizing: border-box;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background: white;
+  font-family: inherit;
 }
 
-.form-input-guest:hover {
-  border-color: #B9BFC7;
-}
-
-.form-input-guest:focus {
+.form-input-guest:focus,
+.form-select-guest:focus,
+.form-textarea-guest:focus {
   outline: none;
-  border-color: #105E06;
-  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.12);
-}
-
-.form-input-guest::placeholder {
-  color: #999999;
+  border-color: #4a90e2;
 }
 
 .form-select-guest {
-  width: 100%;
-  padding: 13px 15px;
-  border: 1px solid #D1D5DB;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #333333;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  box-sizing: border-box;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
   cursor: pointer;
   appearance: none;
-  -webkit-appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 40px; /* keep text clear of the chevron */
-}
-
-.form-select-guest:hover {
-  border-color: #B9BFC7;
-}
-
-.form-select-guest:focus {
-  outline: none;
-  border-color: #105E06;
-  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.12);
+  background-position: right 12px center;
+  padding-right: 35px;
 }
 
 .form-select-guest:disabled {
-  background-color: #f4f2f0;
+  background-color: #f5f5f5;
   cursor: not-allowed;
-  color: #999999;
-}
-
-.optional-guest {
-  color: #999999;
-  font-weight: 400;
+  color: #999;
 }
 
 .form-textarea-guest {
-  width: 100%;
-  padding: 13px 15px;
-  border: 1px solid #D1D5DB;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #333333;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   resize: vertical;
-  box-sizing: border-box;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
-.form-textarea-guest:hover {
-  border-color: #B9BFC7;
+/* ---- Grid Layouts ---- */
+.name-grid,
+.grade-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
-.form-textarea-guest:focus {
-  outline: none;
+/* ---- Office Cards (2x2 grid) ---- */
+.office-grid-new {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.office-card-new {
+  border: 2px solid #d0d0d0;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.office-card-new:hover {
+  border-color: #8CB986;
+  background: #f9fcf9;
+}
+
+.office-card-new.selected {
   border-color: #105E06;
-  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.12);
+  background: #E1E7DF;
 }
 
-.form-textarea-guest::placeholder {
-  color: #999999;
+.office-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
 }
 
-/* ---- File upload boxes ---- */
-.upload-box-auth {
-  border: 2px solid #3C7735;
-  border-radius: 10px;
-  padding: 28px 24px;
+.office-card-desc {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ---- File Upload Boxes ---- */
+.upload-box-new {
+  border: 2px dashed #d0d0d0;
+  border-radius: 8px;
+  padding: 30px 20px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(60, 119, 53, 0.3); /* primary green at 30% */
-  min-height: 150px;
-  box-sizing: border-box;
+  transition: all 0.2s ease;
+  background: #fafafa;
 }
 
-.upload-box-auth:hover {
-  border-color: #105E06;
-  background-color: rgba(60, 119, 53, 0.38);
+.upload-box-new:hover {
+  border-color: #4a90e2;
+  background: #f0f7ff;
 }
 
-.upload-box-dashed {
-  border: 2px dashed #C9C9C9;
-  border-radius: 6px;
-  padding: 40px 24px;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: #ffffff;
-  box-sizing: border-box;
-}
-
-.upload-box-dashed:hover {
-  border-color: #105E06;
-  background-color: #FAFDF9;
-}
-
-.upload-icon-auth {
-  font-size: 44px;
-  color: #105E06;
+.upload-icon-new {
+  font-size: 36px;
+  color: #999;
   margin-bottom: 12px;
 }
 
-/* Green "Required" pill — matches the button language */
-.required-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background-color: #3C7735;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-family: var(--font-family);
-}
-
-.upload-icon-large {
-  font-size: 52px;
-  color: #8CB986;
-  margin-bottom: 14px;
-}
-
-.upload-text-auth {
+.upload-text-new {
   font-size: 14px;
   font-weight: 500;
-  color: #3C4F38; /* sage-ink — dark sage text on sage-100 fills */
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.6;
+  color: #333;
+  margin: 0 0 4px 0;
 }
 
-.upload-text-main {
-  font-size: 14px;
-  color: #333333;
-  margin: 0 0 8px 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-weight: 500;
+.upload-subtext-new {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
 }
 
-.upload-text-sub {
-  font-size: 13px;
-  color: #666666;
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+.optional-text {
+  color: #999;
+  font-weight: 400;
 }
 
 .file-input-hidden {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
+  display: none;
 }
 
-/* ---- Office selection cards (two-column) ---- */
-.office-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.office-card-guest {
-  border: 2px solid #D9D9D9;
-  border-radius: 8px;
-  padding: 20px 24px;
-  cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s;
-  display: flex;
-  gap: 15px;
-  background-color: #ffffff;
-  box-sizing: border-box;
-}
-
-.office-card-guest:hover {
-  border-color: #8CB986;
-  background-color: #F9FCF9;
-}
-
-.office-card-guest.selected {
-  border-color: #105E06;
-  background-color: #E1E7DF;
-}
-
-.office-card-guest.selected:hover {
-  background-color: #DBE6D9;
-}
-
-.office-radio {
-  width: 22px;
-  height: 22px;
-  border: 2px solid #B9BFC7;
-  border-radius: 50%;
+/* ---- Content Moderation ---- */
+.moderation-checking {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f0f7ff;
+  border: 1px solid #4a90e2;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #4a90e2;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+}
+
+.moderation-warning {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #856404;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.moderation-warning svg {
   flex-shrink: 0;
   margin-top: 2px;
-  transition: border-color 0.2s;
+  color: #ffc107;
 }
 
-.office-card-guest.selected .office-radio {
-  border-color: #105E06;
+/* ---- Error Message ---- */
+.error-message-guest {
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: #c33;
+  font-size: 14px;
 }
 
-.radio-dot {
-  width: 12px;
-  height: 12px;
-  background-color: #105E06;
-  border-radius: 50%;
+/* ---- Validation Status ---- */
+.validation-status-guest {
+  font-size: 12px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.office-info {
-  flex: 1 1;
+.validation-status-guest.validating {
+  color: #4a90e2;
+}
+
+.validation-status-guest.valid {
+  color: #4CAF50;
+}
+
+/* ---- Validation Feedback ---- */
+.validation-feedback-guest {
+  margin-top: 10px;
+}
+
+.validation-errors-guest,
+.validation-warnings-guest {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.validation-message-guest {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.validation-message-guest.error {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+}
+
+.validation-message-guest.warning {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
+}
+
+.validation-message-guest .icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 16px;
+}
+
+.form-textarea-guest.has-error {
+  border-color: #c33;
+}
+
+.form-textarea-guest.has-warning {
+  border-color: #ffc107;
+}
+
+/* ---- Uploaded Files List ---- */
+.uploaded-files-list-guest {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uploaded-file-item-guest {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.uploaded-file-item-guest:hover {
+  background: #f0f0f0;
+}
+
+.file-info-guest {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
   min-width: 0;
 }
 
-.office-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #105E06;
-  margin: 0 0 8px 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+.file-name-guest {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.office-description {
-  font-size: 13px;
-  color: #555555;
-  margin: 0;
-  line-height: 1.6;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+.file-size-guest {
+  font-size: 12px;
+  color: #999;
 }
 
-/* ---- Bottom action buttons ---- */
+.remove-file-btn-guest {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.remove-file-btn-guest:hover {
+  background: #fee;
+  border-color: #fcc;
+  color: #c33;
+}
+
+.remove-file-btn-guest svg {
+  font-size: 16px;
+}
+
+/* ---- Button Spinner ---- */
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Action Buttons ---- */
 .form-actions-guest {
   display: flex;
   justify-content: flex-end;
-  gap: 15px;
+  gap: 12px;
   margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.cancel-btn-guest,
+.confirm-btn-guest,
+.submit-btn-guest {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 .cancel-btn-guest {
-  padding: 12px 35px;
-  border: 2px solid #D9D9D9;
-  border-radius: 6px;
-  background-color: #ffffff;
-  color: #666666;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
-  font-family: var(--font-family);
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #e0e0e0;
 }
 
 .cancel-btn-guest:hover {
-  background-color: #F4F4F4;
-  border-color: #B9BFC7;
+  background: #e0e0e0;
 }
 
 .confirm-btn-guest,
 .submit-btn-guest {
-  padding: 12px 35px;
-  border: none;
-  border-radius: 6px;
-  background-color: #3C7735;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s, transform 0.15s;
-  font-family: var(--font-family);
+  background: #4CAF50;
+  color: white;
 }
 
 .confirm-btn-guest:hover:not(:disabled),
 .submit-btn-guest:hover:not(:disabled) {
-  background-color: #336B2E;
-  box-shadow: 0 4px 12px rgba(60, 119, 53, 0.3);
+  background: #45a049;
   transform: translateY(-1px);
-}
-
-.confirm-btn-guest:active:not(:disabled),
-.submit-btn-guest:active:not(:disabled) {
-  transform: translateY(0);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
 }
 
 .confirm-btn-guest:disabled,
 .submit-btn-guest:disabled {
-  /* Solid neutral gray — same gray-out treatment as the app's other submit buttons */
-  background-color: #CFCAC6;
-  color: #ffffff;
+  background: #d0d0d0;
   cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
+  opacity: 0.6;
 }
 
 /* ---- Responsive ---- */
-@media (max-width: 768px) {
-  .field-grid,
-  .office-grid {
+@media (max-width: 1200px) {
+  .guest-content-grid {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
-  .guest-content {
-    padding-top: 100px;
-    gap: 40px;
+  .guest-panel {
+    height: auto;
   }
 
-  .section-title-guest {
-    font-size: 21px;
-  }
-
-  .guest-section {
-    padding: 24px 20px;
-  }
-
-  .guest-header {
-    padding: 14px 16px;
-  }
-
-  .guest-account-badge {
-    font-size: 13px;
+  .guest-panel:first-child {
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
   }
 }
 
-@media (max-width: 480px) {
-  .guest-content {
-    padding: 96px 16px 48px;
-  }
-
-  .guest-section {
-    padding: 20px 16px;
-    border-radius: 10px;
-  }
-
-  .form-actions-guest {
-    flex-direction: column-reverse;
-  }
-
-  .cancel-btn-guest,
-  .confirm-btn-guest,
-  .submit-btn-guest {
-    width: 100%;
+@media (max-width: 768px) {
+  .guest-header {
+    padding: 12px 20px;
+    flex-direction: column;
+    gap: 12px;
   }
 
   .guest-school-name {
     font-size: 16px;
+  }
+
+  .office-grid-new,
+  .name-grid,
+  .grade-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guest-panel {
+    padding: 24px 20px;
   }
 }

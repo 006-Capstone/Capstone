@@ -15,7 +15,8 @@ import BulletinBoard from './components/BulletinBoard';
 import FAQs from './components/FAQs';
 import IdleTimeout from './components/IdleTimeout';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
+import { signInAnonymously } from 'firebase/auth';
 import './App.css';
 
 function App() {
@@ -115,14 +116,33 @@ function App() {
     localStorage.setItem('studentActivePage', 'dashboard'); // Reset to dashboard
   };
 
-  const handleGuestLogin = () => {
-    setIsGuest(true);
-    setIsLoggedIn(false);
-    localStorage.setItem('studentIsGuest', 'true');
-    localStorage.setItem('studentLoggedIn', 'false');
+  const handleGuestLogin = async () => {
+    try {
+      // Sign in anonymously for guest access
+      await signInAnonymously(auth);
+      console.log('[Guest] Signed in anonymously');
+      
+      setIsGuest(true);
+      setIsLoggedIn(false);
+      localStorage.setItem('studentIsGuest', 'true');
+      localStorage.setItem('studentLoggedIn', 'false');
+    } catch (error) {
+      console.error('[Guest] Error signing in anonymously:', error);
+      alert('Failed to access guest mode. Please try again.');
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Sign out if authenticated (including anonymous users)
+      if (auth.currentUser) {
+        await auth.signOut();
+        console.log('[Logout] Signed out');
+      }
+    } catch (error) {
+      console.error('[Logout] Error signing out:', error);
+    }
+    
     setIsLoggedIn(false);
     setIsGuest(false);
     localStorage.removeItem('studentLoggedIn');

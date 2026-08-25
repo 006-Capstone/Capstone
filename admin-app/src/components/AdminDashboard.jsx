@@ -28,9 +28,12 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     // Get staff data from localStorage
     const storedStaffData = localStorage.getItem('staffData');
     if (storedStaffData) {
-      setStaffData(JSON.parse(storedStaffData));
+      const parsedData = JSON.parse(storedStaffData);
+      console.log('[AdminDashboard] Staff office:', parsedData.office);
+      console.log('[AdminDashboard] Department prop:', department);
+      setStaffData(parsedData);
     }
-  }, []);
+  }, [department]);
 
   // Dashboard summary cards — derived straight from the shared live tickets
   const stats = useMemo(() => ({

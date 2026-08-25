@@ -60,18 +60,20 @@ const EditRequestForm = () => {
       
       if (docSnap.exists()) {
         const loaded = docSnap.data().offices || defaultOffices;
+        console.log('[EditRequestForm] Loaded config from Firestore:', loaded);
         setOffices(loaded);
-        setOriginalOffices(loaded);
+        setOriginalOffices(JSON.parse(JSON.stringify(loaded))); // Deep copy
       } else {
         // Initialize with default config
+        console.log('[EditRequestForm] No config found, initializing with defaults');
         setOffices(defaultOffices);
-        setOriginalOffices(defaultOffices);
+        setOriginalOffices(JSON.parse(JSON.stringify(defaultOffices))); // Deep copy
         await setDoc(docRef, { offices: defaultOffices });
       }
     } catch (error) {
-      console.error('Error loading form config:', error);
+      console.error('[EditRequestForm] Error loading form config:', error);
       setOffices(defaultOffices);
-      setOriginalOffices(defaultOffices);
+      setOriginalOffices(JSON.parse(JSON.stringify(defaultOffices))); // Deep copy
     } finally {
       setLoading(false);
     }
@@ -80,13 +82,21 @@ const EditRequestForm = () => {
   const saveFormConfig = async () => {
     try {
       setSaving(true);
+      console.log('[EditRequestForm] Saving config to Firestore...');
+      console.log('[EditRequestForm] Offices to save:', offices);
+      
       const docRef = doc(db, 'config', 'requestForm');
       await setDoc(docRef, { offices });
+      
+      console.log('[EditRequestForm] Config saved successfully!');
+      
       // Refresh the snapshot so the button re-grays until the next change
-      setOriginalOffices(offices);
+      setOriginalOffices(JSON.parse(JSON.stringify(offices)));
       alert('Form configuration saved successfully!');
     } catch (error) {
-      console.error('Error saving form config:', error);
+      console.error('[EditRequestForm] Error saving form config:', error);
+      console.error('[EditRequestForm] Error code:', error.code);
+      console.error('[EditRequestForm] Error message:', error.message);
       alert('Failed to save configuration: ' + error.message);
     } finally {
       setSaving(false);
