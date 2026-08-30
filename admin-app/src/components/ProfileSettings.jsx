@@ -57,12 +57,6 @@ function ProfileSettings({ onClose }) {
     confirm: false
   });
 
-  const [qrCodeDataURL, setQrCodeDataURL] = useState('');
-  const [showQRPasswordPrompt, setShowQRPasswordPrompt] = useState(false);
-  const [qrPassword, setQrPassword] = useState('');
-  const [showQRPassword, setShowQRPassword] = useState(false);
-  const qrCodeRef = useRef(null);
-
   useEffect(() => {
     let active = true;
     // Safety net: a stalled fetch must not leave the modal stuck on a spinner

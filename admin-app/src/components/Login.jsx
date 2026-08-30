@@ -210,17 +210,17 @@ const Login = ({ onLogin, onForgotPassword }) => {
         return;
       }
       
-      const { username, password, office } = credentials;
+      const { username, password, officeId } = credentials;
       console.log('[Success] QR code decrypted successfully');
       console.log('[User] Username from QR:', username);
-      console.log('[Office] Office from QR:', office);
+      console.log('[Office] Office from QR:', officeId);
 
       // Find staff member by username and office
-      console.log('[Search] Searching for staff with username:', username, 'and office:', office);
+      console.log('[Search] Searching for staff with username:', username, 'and office:', officeId);
       const staffQuery = query(
         collection(db, 'staff'),
         where('username', '==', username),
-        where('officeId', '==', office)
+        where('officeId', '==', officeId)
       );
       
       const querySnapshot = await getDocs(staffQuery);
@@ -486,11 +486,11 @@ const Login = ({ onLogin, onForgotPassword }) => {
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
             
-            <div className="divider-student">
+            <div className="divider-admin">
               <span>or</span>
             </div>
 
-            <button type="button" className="alt-login-btn" onClick={handleQRLogin} disabled={loading}>
+            <button type="button" className="alt-login-btn-admin" onClick={handleQRLogin} disabled={loading}>
               <FaQrcode />
               Login with QR code
             </button>
