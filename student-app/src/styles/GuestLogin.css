@@ -109,8 +109,144 @@
 .section-subtitle {
   font-size: 14px;
   font-weight: 600;
-  color: #1a1a1a;
-  margin: 0 0 16px 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+  font-family: var(--font-family);
+  white-space: nowrap;
+}
+
+.guest-logout-btn:hover {
+  border-color: #3C7735;
+  background-color: #F0F7F0;
+  box-shadow: 0 2px 8px rgba(60, 119, 53, 0.18);
+}
+
+.guest-logout-btn:active {
+  transform: translateY(0);
+}
+
+/* Keyboard focus ring for all interactive controls — matches the app's green focus color */
+.guest-logout-btn:focus-visible,
+.cancel-btn-guest:focus-visible,
+.confirm-btn-guest:focus-visible,
+.submit-btn-guest:focus-visible {
+  outline: 2px solid #105E06;
+  outline-offset: 2px;
+}
+
+.guest-logout-btn svg {
+  font-size: 16px;
+}
+
+/* ---- Secondary navigation (Figma: Guest Log In / Track Request Status) ---- */
+.guest-top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 0 4px;
+  flex-wrap: wrap;
+}
+
+.guest-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 2px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #105E06;
+  cursor: pointer;
+  font-family: var(--font-family);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.guest-nav-link svg {
+  font-size: 16px;
+}
+
+.guest-nav-link:hover {
+  color: #3C7735;
+}
+
+.guest-nav-link.active {
+  border-bottom-color: #105E06;
+}
+
+.guest-nav-link:focus-visible {
+  outline: 2px solid #105E06;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---- Content: centered column ---- */
+.guest-content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 110px clamp(20px, 4vw, 40px) 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Each section is a white rectangular card on the light canvas */
+.guest-section {
+  background: #ffffff;
+  border: 1px solid #E7E5E5;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  padding: 32px 36px;
+}
+
+.section-title-guest {
+  font-size: 24px;
+  font-weight: 600;
+  color: #000000;
+  margin: 0 0 24px 0;
+  font-family: var(--font-family);
+}
+
+.section-subtitle-guest {
+  font-size: 14px;
+  color: #777777;
+  margin: -16px 0 24px 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Sub-section headings inside Submit New Request (Figma: green) */
+.guest-subheading {
+  font-size: 15px;
+  font-weight: 700;
+  color: #105E06;
+  margin: 0 0 18px 0;
+  font-family: var(--font-family);
+  letter-spacing: 0.02em;
+}
+
+.form-section-guest {
+  margin-bottom: 36px;
+}
+
+.form-section-guest:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- Form fields ---- */
+
+/* Two-column field rows (Request ID / Office Code) */
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 24px;
+  margin-bottom: 24px;
 }
 
 .form-group-guest {
@@ -243,11 +379,30 @@
   margin-bottom: 12px;
 }
 
-.upload-text-new {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin: 0 0 4px 0;
+/* Green "Required" pill — matches the button language */
+.required-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background-color: #3C7735;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--font-family);
+}
+
+.upload-icon-large {
+  font-size: 52px;
+  color: #8CB986;
+  margin-bottom: 14px;
+}
+
+/* Green icon used on the required authorization upload box */
+.upload-icon-green {
+  color: #105E06;
 }
 
 .upload-subtext-new {
@@ -265,15 +420,159 @@
   display: none;
 }
 
-/* ---- Content Moderation ---- */
-.moderation-checking {
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: #f0f7ff;
-  border: 1px solid #4a90e2;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #4a90e2;
+/* Visible focus state when the hidden file input inside a box is focused */
+.upload-box-auth:focus-within,
+.upload-box-dashed:focus-within,
+.upload-box-auth:focus-visible,
+.upload-box-dashed:focus-visible {
+  outline: 2px solid rgba(16, 94, 6, 0.55);
+  outline-offset: 2px;
+}
+
+/* ---- Attached file feedback ---- */
+.upload-box-auth.has-file,
+.upload-box-dashed.has-file {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.guest-attached-file {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background-color: #ffffff;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  padding: 14px 18px;
+  max-width: 420px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.upload-box-auth.has-file .guest-attached-file {
+  background-color: #F3F8F2;
+  border-color: #8CB986;
+}
+
+.upload-box-dashed.has-file .guest-attached-file {
+  background-color: #F7F7F6;
+}
+
+.guest-file-icon {
+  font-size: 26px;
+  color: #105E06;
+  flex-shrink: 0;
+}
+
+.guest-file-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.guest-file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guest-file-size {
+  font-size: 12px;
+  color: #888888;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.guest-file-remove {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background-color: transparent;
+  color: #A15C55;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.guest-file-remove:hover {
+  background-color: #F8E7E5;
+  color: #A43B32;
+}
+
+.guest-file-remove:focus-visible {
+  outline: 2px solid #105E06;
+  outline-offset: 2px;
+}
+
+.upload-file-status {
+  font-size: 12px;
+  color: #105E06;
+  font-weight: 500;
+  margin: 10px 0 0 0;
+  min-height: 15px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ---- Office selection cards (two-column) ---- */
+.office-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.office-card-guest {
+  border: 2px solid #D9D9D9;
+  border-radius: 8px;
+  padding: 20px 24px;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  display: flex;
+  gap: 15px;
+  background-color: #ffffff;
+  box-sizing: border-box;
+}
+
+/* Keyboard focus — sage ring matching the selected state, no change to default visuals */
+.office-card-guest:focus-visible {
+  outline: none;
+  border-color: #105E06;
+  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.15);
+}
+
+.office-card-guest:focus-visible .office-radio {
+  border-color: #105E06;
+}
+
+.office-card-guest:hover {
+  border-color: #8CB986;
+  background-color: #F9FCF9;
+}
+
+.office-card-guest.selected {
+  border-color: #105E06;
+  background-color: #E1E7DF;
+}
+
+.office-card-guest.selected:hover {
+  background-color: #DBE6D9;
+}
+
+.office-radio {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #B9BFC7;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -547,5 +846,27 @@
 
   .guest-panel {
     padding: 24px 20px;
+  }
+}
+
+/* ---- Motion safety ---- */
+@media (prefers-reduced-motion: reduce) {
+  .guest-logout-btn,
+  .cancel-btn-guest,
+  .confirm-btn-guest,
+  .submit-btn-guest,
+  .form-input-guest,
+  .form-select-guest,
+  .form-textarea-guest,
+  .upload-box-auth,
+  .upload-box-dashed,
+  .office-card-guest,
+  .office-radio {
+    transition: none;
+  }
+
+  .confirm-btn-guest:hover:not(:disabled),
+  .submit-btn-guest:hover:not(:disabled) {
+    transform: none;
   }
 }

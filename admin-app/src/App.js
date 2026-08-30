@@ -107,10 +107,14 @@ function App() {
   }, [activePage]);
 
   if (!isLoggedIn) {
-    if (showForgotPassword) {
-      return <ForgotPassword onClose={() => setShowForgotPassword(false)} />;
-    }
-    return <Login onLogin={handleLogin} onForgotPassword={() => setShowForgotPassword(true)} />;
+    return (
+      <>
+        <Login onLogin={handleLogin} onForgotPassword={() => setShowForgotPassword(true)} />
+        {showForgotPassword && (
+          <ForgotPassword onClose={() => setShowForgotPassword(false)} />
+        )}
+      </>
+    );
   }
 
   // Show password change modal if required

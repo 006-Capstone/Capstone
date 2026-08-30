@@ -237,15 +237,19 @@ function RequestDetails({ requestData, onNavigate }) {
     return codes[office] || 'N/A';
   };
 
-  const getEstimatedCompletion = () => {
-    // Use the actual estimated completion date set by admin
-    if (request?.estimatedCompletion) {
-      const date = request.estimatedCompletion.toDate ? request.estimatedCompletion.toDate() : new Date(request.estimatedCompletion);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const getEstimatedCompletion = (createdDate, etc) => {
+    // Live estimate set by staff takes priority over the static +2 days.
+    if (etc) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(etc)) {
+        const [y, m, d] = etc.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      return etc;
     }
-    
-    // Fallback: if no estimated completion is set, show "To be determined"
-    return 'To be determined';
+    if (!createdDate) return 'N/A';
+    const date = new Date(createdDate);
+    date.setDate(date.getDate() + 2); // Add 2 days
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const renderTimeline = () => {
@@ -589,7 +593,7 @@ function RequestDetails({ requestData, onNavigate }) {
             </div>
             <div className="detail-row">
               <span className="label">ESTIMATED COMPLETION</span>
-              <span className="value">{getEstimatedCompletion().toUpperCase()}</span>
+              <span className="value">{getEstimatedCompletion(request.createdAt?.toDate(), request.etc).toUpperCase()}</span>
             </div>
           </div>
 

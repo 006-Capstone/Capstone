@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { FaBell, FaInbox, FaTicketAlt, FaClipboard, FaCheckCircle, FaUserCircle } from 'react-icons/fa';
 import { db } from '../firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import Notifications from './Notifications';
-import { notifyStudentStatusChange } from '../utils/notificationHelper';
+import ClaimETCModal from './ClaimETCModal';
+import { notifyStudentStatusChange, notifyStudentEtcChange } from '../utils/notificationHelper';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/AdminDashboard.css';
@@ -15,6 +16,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const [staffData, setStaffData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Ticket awaiting its Estimated Time of Completion in the claim modal.
+  const [etcClaimTicket, setEtcClaimTicket] = useState(null);
   const ticketsSectionRef = useRef(null);
   
   // Estimated Completion Date Modal state
@@ -69,53 +72,35 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     ticketsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  const handleClaimTicket = async (ticket) => {
+  const handleClaimTicket = async (ticket, etc = '') => {
     if (!staffData) {
       alert('Staff data not found. Please login again.');
       return;
     }
 
-    // Show Estimated Completion Date modal before claiming
-    setSelectedTicketForCompletion(ticket);
-    setShowEstimatedCompletionModal(true);
-  };
+    // Standard claim state transition (the interact onSuccess step). The
+    // optional `etc` (confirmed date) rides along on the same update so the
+    // Management Control panel and the student are in sync immediately.
+    const updateData = {
+      assignedTo: staffData.name,
+      assignedToStaff: staffData.name,
+      status: 'In Process',
+      claimedAt: new Date(),
+      claimedBy: staffData.name
+    };
 
-  const handleSetEstimatedCompletion = async () => {
-    if (!selectedTicketForCompletion) return;
-
-    let completionDate;
-    
-    if (completionOption === 'custom') {
-      if (!customCompletionDate) {
-        alert('Please select a custom date');
-        return;
-      }
-      completionDate = new Date(customCompletionDate);
-    } else if (completionOption === '1-3') {
-      completionDate = new Date();
-      completionDate.setDate(completionDate.getDate() + 3);
-    } else if (completionOption === '4-7') {
-      completionDate = new Date();
-      completionDate.setDate(completionDate.getDate() + 7);
+    if (etc) {
+      updateData.etc = etc;
+      updateData.etcUpdatedBy = staffData.name;
+      updateData.etcUpdatedAt = serverTimestamp();
     }
 
     try {
-      setClaiming(true);
-      
-      // Update ticket in Firestore with Estimated Completion Date
-      const ticketRef = doc(db, 'requests', selectedTicketForCompletion.firestoreId);
-      await updateDoc(ticketRef, {
-        assignedTo: staffData.name,
-        assignedToStaff: staffData.name,
-        status: 'In Process',
-        claimedAt: new Date(),
-        claimedBy: staffData.name,
-        estimatedCompletion: completionDate,
-        estimatedCompletionSetAt: new Date(),
-        estimatedCompletionSetBy: staffData.name
-      });
+      // Update ticket in Firestore (the shared live listener refreshes the UI)
+      const ticketRef = doc(db, 'requests', ticket.firestoreId);
+      await updateDoc(ticketRef, updateData);
 
-      console.log('[Success] Ticket claimed by', staffData.name, 'with Estimated Completion Date:', completionDate);
+      console.log('✅ Ticket claimed by', staffData.name, etc ? `with ETC ${etc}` : 'without ETC');
 
       // Create notification for the student about status change
       if (selectedTicketForCompletion.studentUid) {
@@ -131,22 +116,45 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         console.warn('[Warning] Student UID not found in ticket, notification not sent');
       }
 
-      // Wait a moment for Firestore real-time listener to update
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      alert(`Request ${selectedTicketForCompletion.id} has been assigned to you!`);
-      
-      // Close modal and reset state
-      setShowEstimatedCompletionModal(false);
-      setSelectedTicketForCompletion(null);
-      setCompletionOption('1-3');
-      setCustomCompletionDate('');
-      setClaiming(false);
+      // Notify the student about the new estimated completion date when one
+      // was set during claiming.
+      if (etc && ticket.studentUid) {
+        await notifyStudentEtcChange(ticket.studentUid, ticket.id, ticket.title, etc);
+      }
+
+      alert(`Request ${ticket.id} has been assigned to you!`);
     } catch (error) {
       console.error('[Error] Error claiming ticket:', error);
       alert('Failed to claim request: ' + error.message);
       setClaiming(false);
     }
+  };
+
+  // Intercept the claim click: open the ETC modal instead of transitioning
+  // the ticket immediately. The claim only proceeds once this modal concludes.
+  const handleClaimRequest = (ticket) => {
+    setEtcClaimTicket(ticket);
+  };
+
+  // Primary action: save the confirmed date, close the modal, then claim.
+  const handleEtcConfirm = async (date) => {
+    if (!etcClaimTicket) return;
+    const ticket = etcClaimTicket;
+    setEtcClaimTicket(null);
+    await handleClaimTicket(ticket, date);
+  };
+
+  // Secondary action: skip the manual ETC override and claim normally.
+  const handleEtcSkip = () => {
+    if (!etcClaimTicket) return;
+    const ticket = etcClaimTicket;
+    setEtcClaimTicket(null);
+    handleClaimTicket(ticket);
+  };
+
+  // Cancel: close the modal without claiming — the ticket stays unclaimed.
+  const handleEtcCancel = () => {
+    setEtcClaimTicket(null);
   };
 
   return (
@@ -330,7 +338,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                       ) : (
                         <button
                           className="action-btn claim"
-                          onClick={() => handleClaimTicket(ticket)}
+                          onClick={() => handleClaimRequest(ticket)}
                         >
                           Claim Request
                         </button>
@@ -352,80 +360,13 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
       <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
 
-      {/* Estimated Completion Date Modal */}
-      {showEstimatedCompletionModal && (
-        <div className="modal-overlay" onClick={() => setShowEstimatedCompletionModal(false)}>
-          <div className="modal-content estimated-completion-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Set Estimated Completion Date</h2>
-            <p className="modal-description">
-              Request: <strong>{selectedTicketForCompletion?.title || selectedTicketForCompletion?.id}</strong>
-            </p>
-            
-            <div className="completion-options">
-              <label className="completion-option">
-                <input
-                  type="radio"
-                  name="completion"
-                  value="1-3"
-                  checked={completionOption === '1-3'}
-                  onChange={(e) => setCompletionOption(e.target.value)}
-                />
-                <span>1 to 3 days</span>
-              </label>
-              
-              <label className="completion-option">
-                <input
-                  type="radio"
-                  name="completion"
-                  value="4-7"
-                  checked={completionOption === '4-7'}
-                  onChange={(e) => setCompletionOption(e.target.value)}
-                />
-                <span>4 to 7 days</span>
-              </label>
-              
-              <label className="completion-option">
-                <input
-                  type="radio"
-                  name="completion"
-                  value="custom"
-                  checked={completionOption === 'custom'}
-                  onChange={(e) => setCompletionOption(e.target.value)}
-                />
-                <span>Custom date</span>
-              </label>
-            </div>
-
-            {completionOption === 'custom' && (
-              <div className="custom-date-input">
-                <label>Select completion date:</label>
-                <input
-                  type="date"
-                  value={customCompletionDate}
-                  onChange={(e) => setCustomCompletionDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-            )}
-
-            <div className="modal-actions">
-              <button 
-                className="cancel-btn" 
-                onClick={() => setShowEstimatedCompletionModal(false)}
-                disabled={claiming}
-              >
-                Cancel
-              </button>
-              <button 
-                className="confirm-btn" 
-                onClick={handleSetEstimatedCompletion}
-                disabled={claiming}
-              >
-                {claiming ? 'Claiming...' : 'Claim & Set Completion Date'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {etcClaimTicket && (
+        <ClaimETCModal
+          ticket={etcClaimTicket}
+          onConfirm={handleEtcConfirm}
+          onSkip={handleEtcSkip}
+          onCancel={handleEtcCancel}
+        />
       )}
     </div>
   );

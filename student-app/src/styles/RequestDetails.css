@@ -421,6 +421,8 @@
   border-radius: var(--radius-sm);
   font-size: var(--font-size-base);
   font-family: inherit;
+  background-color: var(--color-surface);
+  color: var(--color-text-body);
   resize: vertical;
   margin-bottom: var(--space-4);
   outline: none;

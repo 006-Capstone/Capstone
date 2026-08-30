@@ -230,10 +230,14 @@ function App() {
   };
 
   if (!isLoggedIn && !isGuest) {
-    if (showForgotPassword) {
-      return <ForgotPassword onClose={() => setShowForgotPassword(false)} />;
-    }
-    return <Login onLogin={handleLogin} onGuestLogin={handleGuestLogin} onForgotPassword={() => setShowForgotPassword(true)} />;
+    return (
+      <>
+        <Login onLogin={handleLogin} onGuestLogin={handleGuestLogin} onForgotPassword={() => setShowForgotPassword(true)} />
+        {showForgotPassword && (
+          <ForgotPassword onClose={() => setShowForgotPassword(false)} />
+        )}
+      </>
+    );
   }
 
   if (isGuest) {

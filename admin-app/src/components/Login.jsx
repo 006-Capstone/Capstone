@@ -481,7 +481,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
               </label>
             </div>
             
-            <button type="submit" className="sign-in-button" disabled={loading}>
+            <button type="submit" className="sign-in-button" disabled={loading} aria-busy={loading}>
+              {loading && <span className="btn-spinner" aria-hidden="true" />}
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
             

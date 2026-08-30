@@ -151,6 +151,36 @@ export const notifyStudentComment = async (studentUid, requestId, requestSubject
 };
 
 /**
+ * Human-friendly version of an ETC value for notification text.
+ */
+const formatEtcForMessage = (etc) => {
+  if (!etc) return 'soon';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(etc)) {
+    const [y, m, d] = etc.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  }
+  return `within ${etc}`;
+};
+
+/**
+ * Helper to notify student when staff updates the estimated time of completion
+ */
+export const notifyStudentEtcChange = async (studentUid, requestId, requestSubject, etc) => {
+  await createNotification(
+    studentUid,
+    'student',
+    'etc_update',
+    'Estimated Completion Updated',
+    `Your request "${requestSubject}" is now estimated to be completed ${formatEtcForMessage(etc)}`,
+    { requestId, etc }
+  );
+};
+
+/**
  * Helper to notify staff about new request
  */
 export const notifyStaffNewRequest = async (office, requestId, requestSubject, studentName) => {

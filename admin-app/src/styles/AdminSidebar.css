@@ -1,5 +1,5 @@
 .admin-sidebar {
-  width: 200px;
+  width: 220px;
   background-color: #ffffff; /* matches the white dashboard cards */
   padding: 20px 0;
   display: flex;
@@ -179,7 +179,7 @@
 
 @media (max-width: 1024px) {
   .admin-sidebar {
-    width: 168px;
+    width: 184px;
   }
 
   .sidebar-logo {

@@ -1,0 +1,225 @@
+/* Claim Request — Estimated Time of Completion modal (matches the app's
+   modal language from ChangePasswordModal: dark blurred overlay, white
+   rounded card, green accent). */
+
+.etc-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.etc-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 36px;
+  max-width: 440px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: etcModalSlideIn 0.3s ease-out;
+  position: relative;
+  text-align: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@keyframes etcModalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.etc-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.etc-modal-close:hover {
+  color: #333;
+}
+
+.etc-modal-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.etc-modal-icon svg {
+  font-size: 56px;
+  color: #105E06;
+}
+
+.etc-modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+}
+
+.etc-modal-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.etc-modal-subtitle strong {
+  color: #105E06;
+}
+
+.etc-modal-body {
+  text-align: left;
+}
+
+.etc-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  letter-spacing: 0.4px;
+  margin-bottom: 8px;
+}
+
+.etc-date-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background-color: #fafafa;
+  font-size: 14px;
+  color: #1a1a1a;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.etc-date-input:hover {
+  border-color: #c9c9c9;
+}
+
+.etc-date-input:focus {
+  outline: none;
+  border-color: #2e7d32;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.14);
+}
+
+.etc-notice {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background-color: #f0f7f0;
+  border: 1px solid #c8e6c9;
+  border-radius: 10px;
+  color: #1b5e20;
+  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.etc-notice-icon {
+  font-size: 16px;
+  margin-top: 1px;
+  color: #2e7d32;
+  flex-shrink: 0;
+}
+
+.etc-modal-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.etc-btn-primary {
+  width: 100%;
+  padding: 13px;
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.3);
+  transition: background-color 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.etc-btn-primary:hover:not(:disabled) {
+  background-color: #256d29;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(46, 125, 50, 0.38);
+}
+
+.etc-btn-primary:disabled {
+  background-color: #8fba91;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.etc-btn-secondary {
+  width: 100%;
+  padding: 12px;
+  background: none;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.etc-btn-secondary:hover {
+  background-color: #f0f7f0;
+  color: #1b5e20;
+}
+
+.etc-btn-cancel {
+  width: 100%;
+  padding: 12px;
+  background: none;
+  color: #6b7280;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: color 0.2s;
+}
+
+.etc-btn-cancel:hover {
+  color: #333;
+}

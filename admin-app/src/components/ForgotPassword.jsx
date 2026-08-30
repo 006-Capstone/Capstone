@@ -339,25 +339,23 @@ const ForgotPassword = ({ onClose }) => {
             
             <div className="form-group">
               <label>Verification Code</label>
-              <div className="input-with-icon">
-                <FaKey className="input-icon" />
-                <input
-                  type="text"
-                  value={verificationCode}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d{0,6}$/.test(value)) {
-                      setVerificationCode(value);
-                      setError('');
-                    }
-                  }}
-                  placeholder="Enter 6-digit code"
-                  maxLength={6}
-                  style={{ letterSpacing: '8px', fontSize: '20px', textAlign: 'center' }}
-                  required
-                  autoFocus
-                />
-              </div>
+              <input
+                type="text"
+                className="code-input"
+                value={verificationCode}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (/^\d{0,6}$/.test(value)) {
+                    setVerificationCode(value);
+                    setError('');
+                  }
+                }}
+                placeholder="Enter 6-digit code"
+                maxLength={6}
+                inputMode="numeric"
+                required
+                autoFocus
+              />
             </div>
 
             <button type="submit" className="submit-btn" disabled={loading}>

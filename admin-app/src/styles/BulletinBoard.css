@@ -629,6 +629,7 @@
   border-radius: 8px;
   font-size: 14px;
   color: #333;
+  background-color: #fff;
   transition: all 0.2s;
 }
 
@@ -656,6 +657,7 @@
   border-radius: 8px;
   font-size: 14px;
   color: #333;
+  background-color: #fff;
   resize: vertical;
   font-family: inherit;
   transition: all 0.2s;

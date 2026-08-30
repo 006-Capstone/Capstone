@@ -11,10 +11,14 @@ import {
   FaSortAlphaDown,
   FaBuilding,
   FaChevronDown,
-  FaTimes
+  FaTimes,
+  FaArchive,
+  FaUndo,
+  FaListAlt,
+  FaBoxOpen
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
-import { collection, addDoc, query, where, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import NotificationBell from './NotificationBell';
 import '../styles/UserManagement.css';
@@ -61,6 +65,13 @@ const UserManagement = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
+
+  // Archiving state
+  const [actionLoading, setActionLoading] = useState(false);
+  const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
+  const [archiveRequestsStaff, setArchiveRequestsStaff] = useState(null);
+  const [handledRequests, setHandledRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
   // Frontend-only search + filter + sort + pagination state
   const [searchQuery, setSearchQuery] = useState('');
@@ -152,8 +163,12 @@ const UserManagement = () => {
     };
   };
 
+  const activeStaffMembers = staffMembers.filter((s) => s.isArchived !== true);
+  const archivedStaffMembers = staffMembers.filter((s) => s.isArchived === true);
+
   const visibleStudents = paginate(sortList(filterList(students)));
-  const visibleStaff = paginate(sortList(filterList(staffMembers)));
+  const visibleStaff = paginate(sortList(filterList(activeStaffMembers)));
+  const visibleArchivedStaff = paginate(sortList(filterList(archivedStaffMembers)));
 
   // Create Account buttons stay grayed out until every required field is
   // filled in (middle name and suffix are optional).
@@ -196,41 +211,23 @@ const UserManagement = () => {
         collection(db, 'staff'),
         orderBy('createdAt', 'desc')
       );
-      
-      const unsubscribe = onSnapshot(staffQuery, (querySnapshot) => {
-        const staffData = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          let formattedCreatedAt = 'N/A';
-          
-          try {
-            if (data.createdAt) {
-              if (typeof data.createdAt.toDate === 'function') {
-                formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                });
-              } else if (typeof data.createdAt === 'string') {
-                formattedCreatedAt = data.createdAt;
-              }
-            }
-          } catch (err) {
-            console.error('[Warning] Failed to format staff createdAt:', err);
-          }
-          
-          return {
-            firestoreId: doc.id,
-            ...data,
-            createdAt: formattedCreatedAt
-          };
-        });
-        console.log('[Success] Loaded', staffData.length, 'staff members');
-        setStaffMembers(staffData);
-      }, (error) => {
-        console.error('[Error] loading staff:', error);
-      });
-      
-      return unsubscribe;
+      const querySnapshot = await getDocs(staffQuery);
+      const staffData = querySnapshot.docs.map(doc => ({
+        firestoreId: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate().toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        }) || 'N/A',
+        archivedAt: doc.data().archivedAt?.toDate().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        }) || 'N/A',
+        archivedBy: doc.data().archivedBy || '—'
+      }));
+      setStaffMembers(staffData);
     } catch (error) {
       console.error('Error setting up staff listener:', error);
     }
@@ -847,6 +844,129 @@ const UserManagement = () => {
     setConfirmAction(null);
   };
 
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 4000);
+  };
+
+  const formatRequestDate = (ts) => {
+    if (ts && typeof ts.toDate === 'function') {
+      return ts.toDate().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+    return '—';
+  };
+
+  const handleArchiveStaff = (staff) => {
+    setSelectedStaff(staff);
+    setConfirmAction('archive');
+    setShowConfirmModal(true);
+  };
+
+  const handleRestoreStaff = (staff) => {
+    setSelectedStaff(staff);
+    setConfirmAction('restore');
+    setShowConfirmModal(true);
+  };
+
+  const confirmArchiveOrRestore = async () => {
+    const target = selectedStaff;
+    if (!target) return;
+
+    setActionLoading(true);
+    try {
+      if (confirmAction === 'archive') {
+        // Archive a staff member — purely additive fields. Their Firestore doc
+        // and request history are left untouched (no delete).
+        const actorName = auth?.currentUser?.email || 'Super Admin';
+        await updateDoc(doc(db, 'staff', target.firestoreId), {
+          isArchived: true,
+          archivedAt: serverTimestamp(),
+          archivedBy: actorName
+        });
+        await loadStaff();
+        showToast(`${target.name} has been archived and moved to Archived Staff.`);
+      } else if (confirmAction === 'restore') {
+        // Restore the member back to Active Staff. Request history is unchanged.
+        await updateDoc(doc(db, 'staff', target.firestoreId), {
+          isArchived: false,
+          restoredAt: serverTimestamp()
+        });
+        await loadStaff();
+        showToast(`${target.name} has been restored to Active Staff.`);
+      }
+      setShowConfirmModal(false);
+      setSelectedStaff(null);
+      setConfirmAction(null);
+    } catch (error) {
+      console.error('Error performing archive action:', error);
+      showToast('Failed to perform action: ' + error.message, 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openStaffRequests = async (staff) => {
+    setArchiveRequestsStaff(staff);
+    setHandledRequests([]);
+    setRequestsLoading(true);
+    try {
+      // Find requests previously assigned to / claimed by this staff member.
+      const queries = [];
+      if (staff.name) {
+        queries.push(
+          query(collection(db, 'requests'), where('assignedTo', '==', staff.name)),
+          query(collection(db, 'requests'), where('claimedBy', '==', staff.name))
+        );
+      }
+
+      if (queries.length === 0) {
+        setHandledRequests([]);
+        return;
+      }
+
+      const snapshots = await Promise.all(queries.map((q) => getDocs(q)));
+      const merged = new Map();
+      snapshots.forEach((snapshot) => {
+        snapshot.docs.forEach((requestDoc) => {
+          merged.set(requestDoc.id, { firestoreId: requestDoc.id, ...requestDoc.data() });
+        });
+      });
+
+      const list = Array.from(merged.values()).sort((a, b) => {
+        const at = a.createdAt?.toDate?.() || 0;
+        const bt = b.createdAt?.toDate?.() || 0;
+        return new Date(bt) - new Date(at);
+      });
+      setHandledRequests(list);
+    } catch (error) {
+      console.error('Error loading request history:', error);
+      showToast('Could not load request history for this staff member.', 'error');
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  const confirmBtnLabel =
+    actionLoading
+      ? (confirmAction === 'archive' ? 'Archiving...' : 'Restoring...')
+      : confirmAction === 'suspend'
+        ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend' : 'Activate')
+        : confirmAction === 'delete'
+          ? 'Delete'
+          : confirmAction === 'archive'
+            ? 'Archive'
+            : 'Restore';
+
+  const confirmBtnClass =
+    confirmAction === 'delete' ? 'delete-confirm-btn'
+      : confirmAction === 'archive' ? 'archive-confirm-btn'
+        : confirmAction === 'restore' ? 'restore-confirm-btn'
+          : 'suspend-confirm-btn';
+
   return (
     <div className="superadmin-page user-management-container">
       <div className="page-header">
@@ -855,14 +975,10 @@ const UserManagement = () => {
           <p className="page-subtitle">Create, suspend, or remove student and staff accounts</p>
         </div>
         <div className="header-actions">
-          <button className="btn-primary create-student-btn" onClick={activeTab === 'students' ? handleNewStudent : handleNewStaff}>
-            <FaUserPlus aria-hidden="true" />
-            {activeTab === 'students' ? 'Create Student Account' : 'Create Staff Account'}
-          </button>
-          {((activeTab === 'students' && selectedStudentIds.length > 0) || (activeTab === 'staff' && selectedStaffIds.length > 0)) && (
-            <button className="btn-archive" onClick={handleArchiveAccounts} disabled={loading}>
-              <FaBan aria-hidden="true" />
-              Move to Archive ({activeTab === 'students' ? selectedStudentIds.length : selectedStaffIds.length})
+          {activeTab !== 'archivedStaff' && (
+            <button className="btn-primary create-student-btn" onClick={activeTab === 'students' ? handleNewStudent : handleNewStaff}>
+              <FaUserPlus aria-hidden="true" />
+              {activeTab === 'students' ? 'Create Student Account' : 'Create Staff Account'}
             </button>
           )}
           <NotificationBell />
@@ -884,6 +1000,12 @@ const UserManagement = () => {
           >
             Staff Members
           </button>
+          <button
+            className={`user-tab ${activeTab === 'archivedStaff' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('archivedStaff'); resetPagination(); }}
+          >
+            Archived Staff
+          </button>
         </div>
       </div>
 
@@ -894,7 +1016,7 @@ const UserManagement = () => {
           <input
             type="search"
             name="account-search"
-            placeholder={activeTab === 'students' ? 'Search by student name or ID...' : 'Search by staff name or username...'}
+            placeholder={activeTab === 'students' ? 'Search by student name or ID...' : activeTab === 'archivedStaff' ? 'Search archived staff by name or username...' : 'Search by staff name or username...'}
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); resetPagination(); }}
             aria-label="Search accounts"
@@ -949,7 +1071,7 @@ const UserManagement = () => {
           )}
         </div>
 
-        {activeTab === 'staff' && (
+        {activeTab === 'staff' || activeTab === 'archivedStaff' ? (
           <div className="status-filter-wrap" ref={officeWrapRef}>
             <button
               type="button"
@@ -997,7 +1119,7 @@ const UserManagement = () => {
               </div>
             )}
           </div>
-        )}
+        ) : null}
 
         <div className="status-filter-wrap" ref={sortWrapRef}>
           <button
@@ -1055,21 +1177,39 @@ const UserManagement = () => {
       {showConfirmModal && (selectedStudent || selectedStaff) && (
         <div className="create-student-modal">
           <div className="modal-content confirm-modal">
-            <FaBan className="confirm-icon" />
+            {(confirmAction === 'archive' || confirmAction === 'restore')
+              ? (confirmAction === 'archive'
+                  ? <FaArchive className="confirm-icon" aria-hidden="true" />
+                  : <FaUndo className="confirm-icon" aria-hidden="true" />)
+              : <FaBan className="confirm-icon" aria-hidden="true" />}
             <h2 className="confirm-title">
-              {confirmAction === 'suspend' 
-                ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend Account?' : 'Activate Account?')
-                : 'Delete Account?'}
+              {confirmAction === 'archive'
+                ? 'Archive Staff Account?'
+                : confirmAction === 'restore'
+                  ? 'Restore Staff Account?'
+                  : confirmAction === 'suspend'
+                    ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend Account?' : 'Activate Account?')
+                    : 'Delete Account?'}
             </h2>
             <p className="confirm-message">
-              {confirmAction === 'suspend' 
-                ? ((selectedStudent?.isActive || selectedStaff?.isActive)
-                    ? `Are you sure you want to suspend ${(selectedStudent || selectedStaff).name}'s account? They will not be able to log in until reactivated.`
-                    : `Are you sure you want to activate ${(selectedStudent || selectedStaff).name}'s account? They will be able to log in again.`)
-                : `Are you sure you want to permanently delete ${(selectedStudent || selectedStaff).name}'s account? This action cannot be undone.`}
+              {confirmAction === 'archive'
+                ? `Are you sure you want to archive ${selectedStaff?.name}'s account? They will be moved to Archived Staff and will no longer be able to log in. Their request history will be kept unchanged.`
+                : confirmAction === 'restore'
+                  ? `Are you sure you want to restore ${selectedStaff?.name} to Active Staff? They will be able to log in again and their request history stays intact.`
+                  : confirmAction === 'suspend'
+                    ? ((selectedStudent?.isActive || selectedStaff?.isActive)
+                        ? `Are you sure you want to suspend ${(selectedStudent || selectedStaff).name}'s account? They will not be able to log in until reactivated.`
+                        : `Are you sure you want to activate ${(selectedStudent || selectedStaff).name}'s account? They will be able to log in again.`)
+                    : `Are you sure you want to permanently delete ${(selectedStudent || selectedStaff).name}'s account? This action cannot be undone.`}
             </p>
             <div className="student-info-box">
-              {selectedStudent ? (
+              {confirmAction === 'archive' || confirmAction === 'restore' ? (
+                <>
+                  <p><strong>Name:</strong> {selectedStaff?.name}</p>
+                  <p><strong>Email:</strong> {selectedStaff?.email}</p>
+                  <p><strong>Office:</strong> {selectedStaff?.office}</p>
+                </>
+              ) : selectedStudent ? (
                 <>
                   <p><strong>Student ID:</strong> {selectedStudent.id}</p>
                   <p><strong>Name:</strong> {selectedStudent.name}</p>
@@ -1084,16 +1224,15 @@ const UserManagement = () => {
               )}
             </div>
             <div className="modal-actions">
-              <button className="cancel-btn-super" onClick={cancelConfirm}>
+              <button className="cancel-btn-super" onClick={cancelConfirm} disabled={actionLoading}>
                 Cancel
               </button>
-              <button 
-                className={confirmAction === 'delete' ? 'delete-confirm-btn' : 'suspend-confirm-btn'}
-                onClick={confirmSuspendOrDelete}
+              <button
+                className={confirmBtnClass}
+                onClick={confirmAction === 'archive' || confirmAction === 'restore' ? confirmArchiveOrRestore : confirmSuspendOrDelete}
+                disabled={actionLoading}
               >
-                {confirmAction === 'suspend' 
-                  ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend' : 'Activate')
-                  : 'Delete'}
+                {confirmBtnLabel}
               </button>
             </div>
           </div>
@@ -1166,6 +1305,83 @@ const UserManagement = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {archiveRequestsStaff && (
+        <div className="create-student-modal">
+          <div className="modal-content requests-modal">
+            <div className="requests-modal-header">
+              <div className="requests-modal-heading">
+                <h2 className="modal-title">Request History</h2>
+                <p className="modal-subtitle">
+                  Requests previously handled by <strong>{archiveRequestsStaff.name}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="requests-modal-close"
+                onClick={() => setArchiveRequestsStaff(null)}
+                aria-label="Close request history"
+              >
+                <FaTimes aria-hidden="true" />
+              </button>
+            </div>
+
+            {requestsLoading ? (
+              <div className="requests-loading">
+                <span className="requests-spinner" aria-hidden="true" />
+                Loading request history...
+              </div>
+            ) : handledRequests.length === 0 ? (
+              <div className="empty-state">
+                <FaBoxOpen className="empty-state-icon" aria-hidden="true" />
+                <p>No requests were assigned to this staff member. Their existing request history is kept unchanged.</p>
+              </div>
+            ) : (
+              <ul className="requests-list">
+                {handledRequests.map((r) => (
+                  <li key={r.firestoreId || r.requestId || r.id} className="request-item">
+                    <div className="request-item-main">
+                      <span className="request-id">#{r.requestId || '—'}</span>
+                      <span className="request-subject">{r.subject || r.title || 'Untitled request'}</span>
+                      <span className="request-meta">
+                        {r.office || '—'} · {formatRequestDate(r.createdAt)}
+                      </span>
+                    </div>
+                    <span
+                      className={`status status-${(r.status || 'Pending').toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      {r.status || 'Pending'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="modal-actions">
+              <button className="cancel-btn-super" onClick={() => setArchiveRequestsStaff(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className={`action-toast ${toast.type === 'error' ? 'error' : 'success'}`} role="status">
+          <span className="action-toast-message">
+            {toast.type === 'error' ? <FaBan className="action-toast-icon" aria-hidden="true" /> : <FaCheck className="action-toast-icon" aria-hidden="true" />}
+            {toast.message}
+          </span>
+          <button
+            type="button"
+            className="action-toast-close"
+            onClick={() => setToast(null)}
+            aria-label="Dismiss notification"
+          >
+            <FaTimes aria-hidden="true" />
+          </button>
         </div>
       )}
 
@@ -1564,6 +1780,92 @@ const UserManagement = () => {
             </>
           )}
         </div>
+      ) : activeTab === 'archivedStaff' ? (
+        <div className="card students-list-section">
+          <h2 className="section-title-super">Archived Staff Accounts</h2>
+          {visibleArchivedStaff.pageItems.length === 0 ? (
+            <div className="empty-state">
+              <FaBoxOpen className="empty-state-icon" aria-hidden="true" />
+              <p>{archivedStaffMembers.length === 0 ? 'No archived staff yet. Archiving a staff member moves them here while keeping their request history intact.' : 'No archived staff match your search.'}</p>
+            </div>
+          ) : (
+            <>
+              <div className="table-container">
+                <div className="students-table archived-table">
+                  <div className="table-header">
+                    <div className="table-cell">Name</div>
+                    <div className="table-cell">Username</div>
+                    <div className="table-cell">Email</div>
+                    <div className="table-cell">Office</div>
+                    <div className="table-cell">Archived On</div>
+                    <div className="table-cell">Archived By</div>
+                    <div className="table-cell">Requests</div>
+                    <div className="table-cell">Actions</div>
+                  </div>
+                  {visibleArchivedStaff.pageItems.map((staff) => (
+                    <div key={staff.firestoreId} className="table-row">
+                      <div className="table-cell">
+                        {staff.name}
+                        <span className="status status-archived">Archived</span>
+                      </div>
+                      <div className="table-cell">{staff.username}</div>
+                      <div className="table-cell">{staff.email}</div>
+                      <div className="table-cell">{staff.office}</div>
+                      <div className="table-cell">{staff.archivedAt}</div>
+                      <div className="table-cell">{staff.archivedBy}</div>
+                      <div className="table-cell">
+                        <button
+                          className="table-action-btn"
+                          onClick={() => openStaffRequests(staff)}
+                          title="View requests previously handled by this staff member"
+                        >
+                          <FaListAlt aria-hidden="true" />
+                          View Requests
+                        </button>
+                      </div>
+                      <div className="table-cell">
+                        <button
+                          className="table-action-btn reset"
+                          onClick={() => handleRestoreStaff(staff)}
+                          title="Restore this staff member to Active Staff"
+                        >
+                          <FaUndo aria-hidden="true" />
+                          Restore
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="pagination">
+                <span className="pagination-info">
+                  Showing {filterList(archivedStaffMembers).length} archived staff member{filterList(archivedStaffMembers).length === 1 ? '' : 's'}
+                </span>
+                {visibleArchivedStaff.totalPages > 1 && (
+                  <>
+                    <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} aria-label="Previous page">
+                      ‹
+                    </button>
+                    {Array.from({ length: visibleArchivedStaff.totalPages }, (_, i) => i + 1).map((pg) => (
+                      <button
+                        key={pg}
+                        className={currentPage === pg ? 'active' : ''}
+                        onClick={() => setCurrentPage(pg)}
+                        aria-label={`Page ${pg}`}
+                        aria-current={currentPage === pg ? 'page' : undefined}
+                      >
+                        {pg}
+                      </button>
+                    ))}
+                    <button onClick={() => setCurrentPage((p) => Math.min(visibleArchivedStaff.totalPages, p + 1))} disabled={currentPage === visibleArchivedStaff.totalPages} aria-label="Next page">
+                      ›
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       ) : (
         <div className="card students-list-section">
           <h2 className="section-title-super">Staff Accounts</h2>
@@ -1611,6 +1913,14 @@ const UserManagement = () => {
                       <div className="table-cell">{staff.office}</div>
                       <div className="table-cell">{staff.createdAt}</div>
                       <div className="table-cell">
+                        <button
+                          className="table-action-btn archive"
+                          onClick={() => handleArchiveStaff(staff)}
+                          title="Archive this staff member"
+                        >
+                          <FaArchive aria-hidden="true" />
+                          Archive
+                        </button>
                         <button
                           className="table-action-btn reset"
                           onClick={() => {

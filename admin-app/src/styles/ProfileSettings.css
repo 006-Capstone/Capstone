@@ -507,18 +507,24 @@
   }
 }
 
+/* ==========================================================================
+   QR CODE SECTION (staff quick-login QR — mirrors student app)
+   ========================================================================== */
 
+.section-description {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
 
-
-
-/* QR Code Styles - Matching Student App */
 .qr-code-container {
   display: flex;
-  gap: 30px;
+  gap: 24px;
   padding: 20px;
-  background-color: #f8f9fa;
-  border: 1px solid #e1e7df;
-  border-radius: 12px;
+  background-color: #fbfaf9;
+  border: 1px solid #eeebea;
+  border-radius: 10px;
 }
 
 .qr-code-display {
@@ -528,16 +534,28 @@
   padding: 20px;
   background: white;
   border-radius: 10px;
-  border: 2px solid #E1E7DF;
+  border: 2px solid #e1e7df;
 }
 
 .qr-code-image {
   width: 200px;
   height: 200px;
-  border: 3px solid #105E06;
+  border: 3px solid #105e06;
   border-radius: 8px;
   padding: 10px;
   background: white;
+}
+
+.qr-code-loading {
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 14px;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
 }
 
 .qr-code-placeholder {
@@ -570,7 +588,7 @@
   width: 100%;
   padding: 12px 24px;
   margin-top: 20px;
-  background-color: #105E06;
+  background-color: #105e06;
   color: white;
   border: none;
   border-radius: 8px;
@@ -602,8 +620,8 @@
   gap: 10px;
   padding: 12px 24px;
   background-color: white;
-  color: #105E06;
-  border: 2px solid #105E06;
+  color: #105e06;
+  border: 2px solid #105e06;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
@@ -619,11 +637,18 @@
   font-size: 16px;
 }
 
+.modal-description {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
 .qr-code-id {
   margin-top: 15px;
   font-size: 16px;
   font-weight: 600;
-  color: #105E06;
+  color: #105e06;
 }
 
 .qr-code-info {
@@ -640,7 +665,7 @@
 
 .info-icon {
   font-size: 32px;
-  color: #105E06;
+  color: #105e06;
   flex-shrink: 0;
 }
 
@@ -664,7 +689,7 @@
   justify-content: center;
   gap: 10px;
   padding: 14px 24px;
-  background-color: #105E06;
+  background-color: #105e06;
   color: white;
   border: none;
   border-radius: 8px;
@@ -672,63 +697,30 @@
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  margin-top: 20px;
 }
 
-.download-qr-btn:hover {
+.download-qr-btn:hover:not(:disabled) {
   background-color: #0d4a05;
 }
 
-.section-description {
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 20px;
-  line-height: 1.5;
+.download-qr-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.modal-description {
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 20px;
-  line-height: 1.5;
+.download-qr-btn svg {
+  font-size: 18px;
 }
 
-.qr-password-warning {
-  background: #fff5e6;
-  border-left: 4px solid #ffa500;
-  padding: 12px;
-  border-radius: 6px;
-  margin: 15px 0;
-}
+/* Responsive: stack the QR display and info on smaller widths */
+@media (max-width: 1024px) {
+  .qr-code-container {
+    flex-direction: column;
+    align-items: center;
+  }
 
-.qr-password-warning p {
-  color: #666;
-  font-size: 13px;
-  margin: 5px 0;
-}
-
-.close-modal-btn {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #666;
-  cursor: pointer;
-  padding: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  border-radius: 50%;
-}
-
-.close-modal-btn:hover {
-  color: #c33;
-  background: #f8f9fa;
-  transform: scale(1.1);
-}
-
-.qr-password-modal {
-  max-width: 450px;
+  .qr-code-info {
+    width: 100%;
+  }
 }

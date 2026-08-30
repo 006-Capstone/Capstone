@@ -7,6 +7,20 @@ import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/TicketDetails.css';
 
+const isISODate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+
+const formatEtcLabel = (value) => {
+  if (!value) return '';
+  if (!isISODate(value)) return value;
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
 const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) => {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -15,6 +29,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [sending, setSending] = useState(false);
   const [reassignOffice, setReassignOffice] = useState('');
   const [urgencyLevel, setUrgencyLevel] = useState('Normal');
+  const [etc, setEtc] = useState('');
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignNote, setReassignNote] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -69,7 +84,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         });
         setReassignOffice(data.office || '');
         setUrgencyLevel(data.urgencyLevel || 'Normal');
-        console.log('[Success] Loaded ticket details:', {
+        setEtc(data.etc || '');
+        console.log('✅ Loaded ticket details:', {
           requestId: data.requestId,
           office: data.office,
           assignedTo: data.assignedTo,
@@ -528,7 +544,14 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 <h2>{ticket.subject?.toUpperCase()}</h2>
                 <p className="ticket-number-display">#{ticket.requestId}</p>
               </div>
-              <span className="ticket-status-badge">{ticket.status}</span>
+              <div className="ticket-badges">
+                <span className="ticket-status-badge">{ticket.status}</span>
+                {ticket.etc && (
+                  <span className="etc-chip" title="Estimated time of completion">
+                    ETC: {formatEtcLabel(ticket.etc)}
+                  </span>
+                )}
+              </div>
             </div>
             
             <div className="ticket-action-buttons">
@@ -709,6 +732,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 <p className="timeline-status">PROCESSING</p>
                 {ticket.claimedAt && <p className="timeline-date">{formatDate(ticket.claimedAt)}</p>}
                 {ticket.claimedBy && <p className="timeline-description">Accepted and processed by {ticket.claimedBy}</p>}
+                {ticket.etc && (
+                  <p className="timeline-description timeline-etc">
+                    Estimated time of completion: {formatEtcLabel(ticket.etc)}
+                  </p>
+                )}
               </div>
             </div>
             

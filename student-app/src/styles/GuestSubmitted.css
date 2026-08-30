@@ -1,0 +1,161 @@
+/* ==========================================================================
+   GUEST SUBMITTED — success screen after a guest submits a request.
+   Matches the Figma "Guest Submit" export.
+   ========================================================================== */
+
+.guest-submitted {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.guest-success-hero {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.guest-success-icon {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background-color: #E1E7DF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guest-success-icon svg {
+  font-size: 56px;
+  color: #3C7735;
+}
+
+.guest-success-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #105E06;
+  margin: 0 0 12px 0;
+  font-family: var(--font-family);
+}
+
+.guest-success-message {
+  font-size: 15px;
+  color: #555555;
+  line-height: 1.7;
+  max-width: 620px;
+  margin: 0 auto;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ---- Request details card (shared with the guest status screen) ---- */
+.guest-result-card {
+  background: #ffffff;
+  border: 1px solid #E7E5E5;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  padding: 28px 32px;
+}
+
+.guest-result-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a8a8a;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 6px 0;
+  font-family: var(--font-family);
+  padding-bottom: 14px;
+  border-bottom: 1px solid #ECEAEA;
+}
+
+.guest-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid #F2F1F1;
+}
+
+.guest-detail-row:last-child {
+  border-bottom: none;
+}
+
+.guest-detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a8a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.guest-detail-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  text-align: right;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  word-break: break-word;
+}
+
+/* ---- Result actions ---- */
+.guest-result-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+}
+
+.guest-outline-btn {
+  padding: 12px 35px;
+  border: 2px solid #3C7735;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #3C7735;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  font-family: var(--font-family);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.guest-outline-btn:hover {
+  background-color: #F0F7F0;
+  border-color: #105E06;
+  box-shadow: 0 2px 8px rgba(60, 119, 53, 0.18);
+}
+
+.guest-outline-btn svg {
+  font-size: 16px;
+}
+
+.guest-outline-btn:focus-visible {
+  outline: 2px solid #105E06;
+  outline-offset: 2px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .guest-result-actions {
+    flex-direction: column-reverse;
+  }
+
+  .guest-outline-btn,
+  .guest-result-actions .submit-btn-guest {
+    width: 100%;
+  }
+
+  .guest-success-title {
+    font-size: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-outline-btn {
+    transition: none;
+  }
+}

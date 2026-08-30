@@ -1,0 +1,305 @@
+/* ==========================================================================
+   GUEST REQUEST STATUS — tracking screen for a guest's submitted request.
+   Matches the Figma "Guest Status" export (details card + status timeline).
+   ========================================================================== */
+
+.guest-status-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.guest-status-heading {
+  text-align: center;
+  padding: 4px 0 0;
+}
+
+.guest-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #E1E7DF;
+  border: 1px solid #8CB986;
+  color: #105E06;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-family: var(--font-family);
+  margin-bottom: 14px;
+}
+
+.guest-status-pill.is-pending {
+  background-color: #F7F2E4;
+  border-color: #E3C97B;
+  color: #8A6D1D;
+}
+
+.guest-status-pill.is-resolved {
+  background-color: #E1E7DF;
+  border-color: #8CB986;
+  color: #105E06;
+}
+
+.guest-status-pill.is-cancelled {
+  background-color: #F8E7E5;
+  border-color: #E0A8A0;
+  color: #A43B32;
+}
+
+.guest-status-pill.is-follow-up {
+  background-color: #FBF0E3;
+  border-color: #EBC9A0;
+  color: #9A5B1B;
+}
+
+.guest-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #3C7735;
+}
+
+.guest-status-pill.is-in-process .guest-status-dot {
+  background-color: #3C7735;
+  animation: guestPulse 1.8s ease-in-out infinite;
+}
+
+.guest-status-pill.is-pending .guest-status-dot {
+  background-color: #D9A03A;
+  animation: none;
+}
+
+.guest-status-pill.is-resolved .guest-status-dot {
+  background-color: #105E06;
+  animation: none;
+}
+
+.guest-status-pill.is-cancelled .guest-status-dot {
+  background-color: #C0392B;
+  animation: none;
+}
+
+.guest-status-pill.is-follow-up .guest-status-dot {
+  background-color: #E67E22;
+  animation: none;
+}
+
+@keyframes guestPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(60, 119, 53, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(60, 119, 53, 0); }
+}
+
+/* ---- Message card (loading / error / not found) ---- */
+.guest-status-message-card {
+  background: #ffffff;
+  border: 1px solid #E7E5E5;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  padding: 56px 36px;
+  text-align: center;
+}
+
+.guest-status-message-icon {
+  font-size: 44px;
+  color: #3C7735;
+  margin-bottom: 16px;
+}
+
+.guest-status-message-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 10px 0;
+  font-family: var(--font-family);
+}
+
+.guest-status-message-text {
+  font-size: 15px;
+  color: #666666;
+  line-height: 1.7;
+  max-width: 440px;
+  margin: 0 auto 26px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.guest-spinner {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 20px;
+  border: 4px solid #E1E7DF;
+  border-top-color: #3C7735;
+  border-radius: 50%;
+  animation: guestSpin 0.9s linear infinite;
+}
+
+@keyframes guestSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Two-column results grid ---- */
+.guest-results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.guest-result-card {
+  background: #ffffff;
+  border: 1px solid #E7E5E5;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  padding: 28px 32px;
+}
+
+.guest-result-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a8a8a;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 6px 0;
+  font-family: var(--font-family);
+  padding-bottom: 14px;
+  border-bottom: 1px solid #ECEAEA;
+}
+
+.guest-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid #F2F1F1;
+}
+
+.guest-detail-row:last-child {
+  border-bottom: none;
+}
+
+.guest-detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a8a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.guest-detail-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  text-align: right;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  word-break: break-word;
+}
+
+/* ---- Status timeline ---- */
+.guest-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding-top: 4px;
+}
+
+.guest-timeline-item {
+  display: flex;
+  gap: 16px;
+  position: relative;
+}
+
+.guest-timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 30px;
+  bottom: -26px;
+  width: 2px;
+  background-color: #DCE3DA;
+}
+
+.guest-timeline-item.completed:not(:last-child)::before,
+.guest-timeline-item.active:not(:last-child)::before {
+  background-color: #8CB986;
+}
+
+.guest-timeline-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #D9D9D9;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.guest-timeline-item.completed .guest-timeline-icon,
+.guest-timeline-item.active .guest-timeline-icon {
+  background-color: #3C7735;
+}
+
+.guest-timeline-icon svg {
+  font-size: 15px;
+}
+
+.guest-timeline-content h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 4px 0;
+  font-family: var(--font-family);
+  letter-spacing: 0.03em;
+}
+
+.guest-timeline-date {
+  font-size: 12px;
+  color: #999999;
+  margin: 0 0 2px 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.guest-timeline-desc {
+  font-size: 13px;
+  color: #555555;
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+}
+
+/* ---- Empty state ---- */
+.guest-status-empty {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.guest-status-empty .section-title-guest {
+  margin-bottom: 12px;
+}
+
+.guest-status-empty-message {
+  font-size: 15px;
+  color: #666666;
+  line-height: 1.7;
+  max-width: 480px;
+  margin: 0 auto 28px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+  .guest-results-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-status-pill.is-in-process .guest-status-dot,
+  .guest-spinner {
+    animation: none;
+  }
+}
