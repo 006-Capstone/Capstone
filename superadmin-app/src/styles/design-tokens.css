@@ -58,15 +58,15 @@
   --color-accent-subtle:  var(--sage-100);
 
   /* Status Colors & Badges (Standardized System-Wide) */
-  --status-pending-bg:        #e0e7ff;
-  --status-pending-text:      #3730a3;
-  --status-pending-border:    #c7d2fe;
-  --status-pending-dot:       #4f46e5;
+  --status-pending-bg:        #f1f4f1;
+  --status-pending-text:      #3e483f;
+  --status-pending-border:    #d4ddd3;
+  --status-pending-dot:       #556157;
 
-  --status-inprocess-bg:      #fef9c3;
-  --status-inprocess-text:    #854d0e;
-  --status-inprocess-border:  #fde047;
-  --status-inprocess-dot:     #ca8a04;
+  --status-inprocess-bg:      var(--sage-100, #eaf2e8);
+  --status-inprocess-text:    var(--sage-900, #2b4528);
+  --status-inprocess-border:  var(--sage-300, #c1dec0);
+  --status-inprocess-dot:     var(--sage-600, #648f5e);
 
   --status-resolved-bg:       #dcfce7;
   --status-resolved-text:     #14532d;
@@ -78,18 +78,18 @@
   --status-cancelled-border:  #fca5a5;
   --status-cancelled-dot:     #dc2626;
 
-  --status-returned-bg:       #ffedd5;
-  --status-returned-text:     #9a3412;
-  --status-returned-border:   #fdba74;
-  --status-returned-dot:      #ea580c;
+  --status-returned-bg:       #fdf2f2;
+  --status-returned-text:     #991b1b;
+  --status-returned-border:   #fecaca;
+  --status-returned-dot:      #dc2626;
 
   --color-success:            #15803d;
   --color-success-bg:         var(--status-resolved-bg);
   --color-success-border:     var(--status-resolved-border);
 
-  --color-warning:            #b45309;
-  --color-warning-bg:         #fffbeb;
-  --color-warning-border:     #fde68a;
+  --color-warning:            #dc2626;
+  --color-warning-bg:         #fee2e2;
+  --color-warning-border:     #fca5a5;
 
   --color-danger:             #b91c1c;
   --color-danger-bg:          var(--status-cancelled-bg);
@@ -97,9 +97,9 @@
   --red-500:                  #ef4444;
   --red-600:                  #dc2626;
 
-  --color-info:               #1d4ed8;
-  --color-info-bg:            #eff6ff;
-  --color-info-border:        #bfdbfe;
+  --color-info:               var(--color-primary);
+  --color-info-bg:            var(--sage-50);
+  --color-info-border:        var(--sage-200);
 
   --color-pending:            var(--status-pending-text);
   --color-pending-bg:         var(--status-pending-bg);
@@ -109,7 +109,7 @@
   --color-in-process-bg:      var(--status-inprocess-bg);
   --color-in-process-border:  var(--status-inprocess-border);
 
-  --color-star-filled:        #eab308;
+  --color-star-filled:        var(--green-600);
   --color-star-empty:         #d1d5db;
 
   /* Surfaces & Borders */
@@ -206,12 +206,12 @@
   --red-100: #fee2e2;
   --red-400: #f87171;
   --red-700: #b91c1c;
-  --yellow-100: #fef3c7;
-  --yellow-400: #fbbf24;
-  --yellow-600: #d97706;
-  --yellow-800: #92400e;
-  --purple-100: #f3e8ff;
-  --purple-800: #6b21a8;
+  --yellow-100: var(--sage-50);
+  --yellow-400: var(--sage-400);
+  --yellow-600: var(--green-700);
+  --yellow-800: var(--green-900);
+  --purple-100: var(--sage-100);
+  --purple-800: var(--green-950);
 }
 
 

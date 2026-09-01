@@ -15,14 +15,24 @@ import {
   FaArchive,
   FaUndo,
   FaListAlt,
-  FaBoxOpen
+  FaBoxOpen,
+  FaCalendarAlt
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import NotificationBell from './NotificationBell';
 import Archive from './Archive';
 import '../styles/UserManagement.css';
+
+const DATE_PRESET_OPTIONS = [
+  { id: 'all', label: 'All Dates' },
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: '7days', label: 'Past 7 Days' },
+  { id: '30days', label: 'Past 30 Days' },
+  { id: 'thisMonth', label: 'This Month' }
+];
 
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('students'); // 'students' or 'staff'
@@ -66,6 +76,8 @@ const UserManagement = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [isBulkAction, setIsBulkAction] = useState(false);
+  const [bulkSuspendTargetState, setBulkSuspendTargetState] = useState(false);
 
   // Archiving state
   const [actionLoading, setActionLoading] = useState(false);
@@ -82,37 +94,161 @@ const UserManagement = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isOfficeOpen, setIsOfficeOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState({ preset: 'all', from: '', to: '' });
+  const [isDateOpen, setIsDateOpen] = useState(false);
   const filterWrapRef = useRef(null);
   const officeWrapRef = useRef(null);
   const sortWrapRef = useRef(null);
+  const dateWrapRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 8;
+  const PAGE_SIZE = 10;
 
   const resetPagination = () => setCurrentPage(1);
+
+  const getPageNumbers = (current, total) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages = [];
+    if (current <= 4) {
+      for (let i = 1; i <= 5; i++) pages.push(i);
+      pages.push('ellipsis');
+      pages.push(total);
+    } else if (current >= total - 3) {
+      pages.push(1);
+      pages.push('ellipsis');
+      for (let i = total - 4; i <= total; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push('ellipsis');
+      pages.push(current - 1);
+      pages.push(current);
+      pages.push(current + 1);
+      pages.push('ellipsis');
+      pages.push(total);
+    }
+    return pages;
+  };
+
+  const toLocalIsoDate = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const isDateFilterActive = dateFilter.preset !== 'all' || Boolean(dateFilter.from || dateFilter.to);
+
+  const getDateTriggerLabel = () => {
+    if (!isDateFilterActive) return 'Date Created';
+    if (dateFilter.preset === 'today') return 'Today';
+    if (dateFilter.preset === 'yesterday') return 'Yesterday';
+    if (dateFilter.preset === '7days') return 'Past 7 Days';
+    if (dateFilter.preset === '30days') return 'Past 30 Days';
+    if (dateFilter.preset === 'thisMonth') return 'This Month';
+    if (dateFilter.from && dateFilter.to) {
+      if (dateFilter.from === dateFilter.to) return dateFilter.from;
+      return `${dateFilter.from} to ${dateFilter.to}`;
+    }
+    if (dateFilter.from) return `From ${dateFilter.from}`;
+    if (dateFilter.to) return `Until ${dateFilter.to}`;
+    return 'Date Created';
+  };
+
+  const handleSelectDatePreset = (presetId) => {
+    const today = new Date();
+    resetPagination();
+
+    if (presetId === 'all') {
+      setDateFilter({ preset: 'all', from: '', to: '' });
+      setIsDateOpen(false);
+      return;
+    }
+
+    let fromStr = '';
+    let toStr = toLocalIsoDate(today);
+
+    if (presetId === 'today') {
+      fromStr = toStr;
+    } else if (presetId === 'yesterday') {
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      fromStr = toLocalIsoDate(yesterday);
+      toStr = fromStr;
+    } else if (presetId === '7days') {
+      const past7 = new Date(today);
+      past7.setDate(today.getDate() - 6);
+      fromStr = toLocalIsoDate(past7);
+    } else if (presetId === '30days') {
+      const past30 = new Date(today);
+      past30.setDate(today.getDate() - 29);
+      fromStr = toLocalIsoDate(past30);
+    } else if (presetId === 'thisMonth') {
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      fromStr = toLocalIsoDate(startOfMonth);
+    }
+
+    setDateFilter({ preset: presetId, from: fromStr, to: toStr });
+    setIsDateOpen(false);
+  };
+
+  const handleCustomDateChange = (field, val) => {
+    resetPagination();
+    setDateFilter((prev) => ({
+      ...prev,
+      preset: 'custom',
+      [field]: val
+    }));
+  };
+
+  const handleClearDateFilter = () => {
+    resetPagination();
+    setDateFilter({ preset: 'all', from: '', to: '' });
+    setIsDateOpen(false);
+  };
 
   const filterList = (items) => {
     const q = searchQuery.trim().toLowerCase();
     return items.filter((item) => {
       // Status filter (All / Active / Suspended)
-      if (statusFilter === 'Active' && item.isActive !== true) return false;
-      if (statusFilter === 'Suspended' && item.isActive !== false) return false;
+      // If isActive is undefined, default to true (active)
+      const isActive = item.isActive !== false;
+      if (statusFilter === 'Active' && !isActive) return false;
+      if (statusFilter === 'Suspended' && isActive) return false;
+
+      // Date of creation filter (students tab)
+      if (activeTab === 'students' && (dateFilter.from || dateFilter.to)) {
+        const itemTime = item.rawCreatedAt;
+        if (!itemTime) return false;
+
+        if (dateFilter.from) {
+          const fromTime = new Date(dateFilter.from + 'T00:00:00').getTime();
+          if (itemTime < fromTime) return false;
+        }
+
+        if (dateFilter.to) {
+          const toTime = new Date(dateFilter.to + 'T23:59:59.999').getTime();
+          if (itemTime > toTime) return false;
+        }
+      }
+
       // Office filter (staff tab only)
       if (officeFilter !== 'All' && item.office !== officeFilter) return false;
-      // Search — students match by name or student ID, staff by name or username
+      // Search — students match by name, student ID or email, staff by name, username, email, or office
       if (!q) return true;
       const searchFields =
         activeTab === 'students'
-          ? [item.name, item.firstName, item.lastName, item.id]
-          : [item.name, item.firstName, item.lastName, item.username];
+          ? [item.name, item.firstName, item.lastName, item.id, item.email]
+          : [item.name, item.firstName, item.lastName, item.username, item.email, item.office];
       return searchFields
         .filter(Boolean)
         .some((field) => String(field).toLowerCase().includes(q));
     });
   };
 
-  // Close the status / office / sort dropdowns when clicking outside or pressing Escape
+  // Close the status / office / sort / date dropdowns when clicking outside or pressing Escape
   useEffect(() => {
-    if (!isFilterOpen && !isOfficeOpen && !isSortOpen) return undefined;
+    if (!isFilterOpen && !isOfficeOpen && !isSortOpen && !isDateOpen) return undefined;
 
     const handleClickOutside = (e) => {
       if (filterWrapRef.current && !filterWrapRef.current.contains(e.target)) {
@@ -124,6 +260,9 @@ const UserManagement = () => {
       if (sortWrapRef.current && !sortWrapRef.current.contains(e.target)) {
         setIsSortOpen(false);
       }
+      if (dateWrapRef.current && !dateWrapRef.current.contains(e.target)) {
+        setIsDateOpen(false);
+      }
     };
 
     const handleKeyDown = (e) => {
@@ -131,6 +270,7 @@ const UserManagement = () => {
         setIsFilterOpen(false);
         setIsOfficeOpen(false);
         setIsSortOpen(false);
+        setIsDateOpen(false);
       }
     };
 
@@ -142,13 +282,11 @@ const UserManagement = () => {
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isFilterOpen, isOfficeOpen, isSortOpen]);
+  }, [isFilterOpen, isOfficeOpen, isSortOpen, isDateOpen]);
 
   const sortList = (items) => {
     if (sortOrder === 'recent') {
-      // Newest first — the list already loads newest-first from Firestore
-      // (orderBy createdAt desc), so keep the original order.
-      return [...items];
+      return [...items].sort((a, b) => (b.rawCreatedAt || 0) - (a.rawCreatedAt || 0));
     }
     const sorted = [...items].sort((a, b) =>
       String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
@@ -157,11 +295,94 @@ const UserManagement = () => {
   };
 
   const paginate = (items) => {
-    const start = (currentPage - 1) * PAGE_SIZE;
+    const totalItems = items.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    const safePage = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (safePage - 1) * PAGE_SIZE;
     return {
       pageItems: items.slice(start, start + PAGE_SIZE),
-      totalPages: Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+      totalPages,
+      totalItems,
+      startItem: totalItems === 0 ? 0 : start + 1,
+      endItem: Math.min(totalItems, start + PAGE_SIZE)
     };
+  };
+
+  const renderPagination = (paginationData, itemLabel) => {
+    const { totalItems, startItem, endItem, totalPages, currentPage: activePage = currentPage } = paginationData;
+    if (totalItems === 0) return null;
+
+    const pageNumbers = getPageNumbers(activePage, totalPages);
+
+    return (
+      <div className="pagination">
+        <span className="pagination-info">
+          Showing <strong>{startItem}–{endItem}</strong> of <strong>{totalItems}</strong> {itemLabel}{totalItems === 1 ? '' : 's'}
+        </span>
+        {totalPages > 1 && (
+          <div className="pagination-controls">
+            <button
+              type="button"
+              className="pagination-nav-btn"
+              onClick={() => setCurrentPage(1)}
+              disabled={activePage === 1}
+              aria-label="First page"
+              title="First page"
+            >
+              «
+            </button>
+            <button
+              type="button"
+              className="pagination-nav-btn"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={activePage === 1}
+              aria-label="Previous page"
+              title="Previous page"
+            >
+              ‹
+            </button>
+            {pageNumbers.map((pg, idx) =>
+              pg === 'ellipsis' ? (
+                <span key={`ellipsis-${idx}`} className="pagination-ellipsis" aria-hidden="true">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={pg}
+                  type="button"
+                  className={`pagination-num-btn ${activePage === pg ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(pg)}
+                  aria-label={`Page ${pg}`}
+                  aria-current={activePage === pg ? 'page' : undefined}
+                >
+                  {pg}
+                </button>
+              )
+            )}
+            <button
+              type="button"
+              className="pagination-nav-btn"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={activePage === totalPages}
+              aria-label="Next page"
+              title="Next page"
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              className="pagination-nav-btn"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={activePage === totalPages}
+              aria-label="Last page"
+              title="Last page"
+            >
+              »
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const activeStaffMembers = staffMembers.filter((s) => s.isArchived !== true);
@@ -208,58 +429,65 @@ const UserManagement = () => {
 
   const loadStaff = () => {
     try {
-      const staffQuery = query(
-        collection(db, 'staff'),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const unsubscribe = onSnapshot(staffQuery, (querySnapshot) => {
-        const staffData = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          let formattedCreatedAt = 'N/A';
-          let formattedArchivedAt = 'N/A';
+      const setupListener = (useOrderBy = true) => {
+        const staffQuery = useOrderBy
+          ? query(collection(db, 'staff'), orderBy('createdAt', 'desc'))
+          : collection(db, 'staff');
 
-          try {
-            if (data.createdAt) {
-              if (typeof data.createdAt.toDate === 'function') {
-                formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                });
-              } else if (typeof data.createdAt === 'string') {
-                formattedCreatedAt = data.createdAt;
+        return onSnapshot(staffQuery, (querySnapshot) => {
+          const staffData = querySnapshot.docs.map((docSnap) => {
+            const data = docSnap.data();
+            let formattedCreatedAt = 'N/A';
+            let formattedArchivedAt = 'N/A';
+
+            try {
+              if (data.createdAt) {
+                if (typeof data.createdAt.toDate === 'function') {
+                  formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  });
+                } else if (typeof data.createdAt === 'string') {
+                  formattedCreatedAt = data.createdAt;
+                }
               }
-            }
-            if (data.archivedAt) {
-              if (typeof data.archivedAt.toDate === 'function') {
-                formattedArchivedAt = data.archivedAt.toDate().toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                });
-              } else if (typeof data.archivedAt === 'string') {
-                formattedArchivedAt = data.archivedAt;
+              if (data.archivedAt) {
+                if (typeof data.archivedAt.toDate === 'function') {
+                  formattedArchivedAt = data.archivedAt.toDate().toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  });
+                } else if (typeof data.archivedAt === 'string') {
+                  formattedArchivedAt = data.archivedAt;
+                }
               }
+            } catch (err) {
+              console.warn('[Warning] Failed to format staff dates:', err);
             }
-          } catch (err) {
-            console.error('[Warning] Failed to format staff dates:', err);
+
+            return {
+              firestoreId: docSnap.id,
+              ...data,
+              name: data.name || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.username || '—',
+              createdAt: formattedCreatedAt,
+              archivedAt: formattedArchivedAt,
+              archivedBy: data.archivedBy || '—',
+              rawCreatedAt: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : (data.createdAt ? new Date(data.createdAt).getTime() : 0)
+            };
+          });
+          setStaffMembers(staffData);
+        }, (error) => {
+          console.error('[Error] loading staff:', error);
+          if (useOrderBy) {
+            console.warn('[Fallback] Retrying staff listener without orderBy...');
+            setupListener(false);
           }
-
-          return {
-            firestoreId: doc.id,
-            ...data,
-            createdAt: formattedCreatedAt,
-            archivedAt: formattedArchivedAt,
-            archivedBy: data.archivedBy || '—'
-          };
         });
-        setStaffMembers(staffData);
-      }, (error) => {
-        console.error('[Error] loading staff:', error);
-      });
-      
-      return unsubscribe;
+      };
+
+      return setupListener(true);
     } catch (error) {
       console.error('Error setting up staff listener:', error);
     }
@@ -267,153 +495,193 @@ const UserManagement = () => {
 
   const loadStudents = () => {
     try {
-      const studentsQuery = query(
-        collection(db, 'students'),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const unsubscribe = onSnapshot(studentsQuery, (querySnapshot) => {
-        const studentsData = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          let formattedCreatedAt = 'N/A';
-          
-          try {
-            if (data.createdAt) {
-              if (typeof data.createdAt.toDate === 'function') {
-                formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                });
-              } else if (typeof data.createdAt === 'string') {
-                formattedCreatedAt = data.createdAt;
+      const setupListener = (useOrderBy = true) => {
+        const studentsQuery = useOrderBy
+          ? query(collection(db, 'students'), orderBy('createdAt', 'desc'))
+          : collection(db, 'students');
+
+        return onSnapshot(studentsQuery, (querySnapshot) => {
+          const studentsData = querySnapshot.docs.map((docSnap) => {
+            const data = docSnap.data();
+            let formattedCreatedAt = 'N/A';
+
+            try {
+              if (data.createdAt) {
+                if (typeof data.createdAt.toDate === 'function') {
+                  formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  });
+                } else if (typeof data.createdAt === 'string') {
+                  formattedCreatedAt = data.createdAt;
+                }
               }
+            } catch (err) {
+              console.warn('[Warning] Failed to format student createdAt:', err);
             }
-          } catch (err) {
-            console.error('[Warning] Failed to format student createdAt:', err);
+
+            return {
+              firestoreId: docSnap.id,
+              ...data,
+              name: data.name || `${data.firstName || ''} ${data.lastName || ''}`.trim() || '—',
+              createdAt: formattedCreatedAt,
+              rawCreatedAt: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : (data.createdAt ? new Date(data.createdAt).getTime() : 0)
+            };
+          });
+          console.log('[Success] Loaded', studentsData.length, 'students');
+          setStudents(studentsData);
+        }, (error) => {
+          console.error('[Error] loading students:', error);
+          if (useOrderBy) {
+            console.warn('[Fallback] Retrying students listener without orderBy...');
+            setupListener(false);
           }
-          
-          return {
-            firestoreId: doc.id,
-            ...data,
-            createdAt: formattedCreatedAt
-          };
         });
-        console.log('[Success] Loaded', studentsData.length, 'students');
-        setStudents(studentsData);
-      }, (error) => {
-        console.error('[Error] loading students:', error);
-      });
-      
-      return unsubscribe;
+      };
+
+      return setupListener(true);
     } catch (error) {
       console.error('Error setting up students listener:', error);
     }
   };
 
-  // Archive selected accounts
-  const handleArchiveAccounts = async () => {
-    const accountsToArchive = activeTab === 'students' 
-      ? students.filter(s => selectedStudentIds.includes(s.firestoreId))
-      : staffMembers.filter(s => selectedStaffIds.includes(s.firestoreId));
-    
-    if (accountsToArchive.length === 0) {
-      showToast('Please select accounts to archive', 'error');
-      return;
-    }
-
-    if (!window.confirm(`Are you sure you want to archive ${accountsToArchive.length} ${activeTab}? ${activeTab === 'students' ? 'Their related requests will also be archived.' : ''}`)) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      for (const account of accountsToArchive) {
-        // If archiving a student, also archive their requests
-        if (activeTab === 'students') {
-          // Find all requests from this student
-          const requestsQuery = query(
-            collection(db, 'requests'),
-            where('studentUid', '==', account.uid)
-          );
-          
-          const requestsSnapshot = await getDocs(requestsQuery);
-          console.log(`[Archive] Found ${requestsSnapshot.size} requests for student ${account.name}`);
-          
-          // Archive each request
-          for (const requestDoc of requestsSnapshot.docs) {
-            const requestData = requestDoc.data();
-            await addDoc(collection(db, 'archivedRequests'), {
-              ...requestData,
-              archivedAt: serverTimestamp(),
-              archivedReason: 'Student account archived',
-              originalRequestId: requestDoc.id
-            });
-            
-            // Delete from original requests collection
-            await deleteDoc(doc(db, 'requests', requestDoc.id));
-          }
-        }
-
-        // Add account to archived collection
-        await addDoc(collection(db, 'archivedAccounts'), {
-          ...account,
-          accountType: activeTab === 'students' ? 'student' : 'staff',
-          archivedAt: serverTimestamp(),
-          originalCollection: activeTab
-        });
-
-        // Delete from original collection
-        const collectionName = activeTab === 'students' ? 'students' : 'staff';
-        await deleteDoc(doc(db, collectionName, account.firestoreId));
-      }
-
-      const message = activeTab === 'students' 
-        ? `Successfully archived ${accountsToArchive.length} student(s) and their related requests`
-        : `Successfully archived ${accountsToArchive.length} staff member(s)`;
-      
-      showToast(message);
-      setSelectedStudentIds([]);
-      setSelectedStaffIds([]);
-      setSelectAllStudents(false);
-      setSelectAllStaff(false);
-    } catch (error) {
-      console.error('[Error] archiving accounts:', error);
-      showToast('Failed to archive accounts: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle individual checkbox selection
+  // Handle individual checkbox selection for students
   const handleSelectAccount = (id) => {
-    if (activeTab === 'students') {
-      setSelectedStudentIds(prev =>
-        prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
-      );
-    } else {
-      setSelectedStaffIds(prev =>
-        prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
-      );
-    }
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
+    );
   };
 
-  // Handle select all checkbox
+  // Handle select all checkbox (toggles current page visible items)
   const handleSelectAll = () => {
     if (activeTab === 'students') {
-      if (selectAllStudents) {
-        setSelectedStudentIds([]);
+      const pageIds = visibleStudents.pageItems.map((s) => s.firestoreId).filter(Boolean);
+      if (pageIds.length === 0) return;
+
+      const isAllPageSelected = pageIds.every((id) => selectedStudentIds.includes(id));
+      if (isAllPageSelected) {
+        setSelectedStudentIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+        setSelectAllStudents(false);
       } else {
-        setSelectedStudentIds(visibleStudents.pageItems.map(s => s.firestoreId));
+        setSelectedStudentIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+        setSelectAllStudents(true);
       }
-      setSelectAllStudents(!selectAllStudents);
-    } else {
-      if (selectAllStaff) {
-        setSelectedStaffIds([]);
-      } else {
-        setSelectedStaffIds(visibleStaff.pageItems.map(s => s.firestoreId));
+    }
+  };
+
+  // Open bulk suspend/activate modal
+  const handleOpenBulkSuspend = () => {
+    const selectedList = students.filter((s) => selectedStudentIds.includes(s.firestoreId));
+    if (selectedList.length === 0) {
+      showToast('Please select at least one student account.', 'error');
+      return;
+    }
+    const shouldSuspend = selectedList.some((s) => s.isActive !== false);
+    setBulkSuspendTargetState(!shouldSuspend); // true = activate, false = suspend
+    setIsBulkAction(true);
+    setSelectedStudent(null);
+    setSelectedStaff(null);
+    setConfirmAction('suspend');
+    setShowConfirmModal(true);
+  };
+
+  // Open bulk archive modal
+  const handleOpenBulkArchive = () => {
+    const selectedList = students.filter((s) => selectedStudentIds.includes(s.firestoreId));
+    if (selectedList.length === 0) {
+      showToast('Please select at least one student account.', 'error');
+      return;
+    }
+    setIsBulkAction(true);
+    setSelectedStudent(null);
+    setSelectedStaff(null);
+    setConfirmAction('archive');
+    setShowConfirmModal(true);
+  };
+
+  // Open bulk delete modal
+  const handleOpenBulkDelete = () => {
+    const selectedList = students.filter((s) => selectedStudentIds.includes(s.firestoreId));
+    if (selectedList.length === 0) {
+      showToast('Please select at least one student account.', 'error');
+      return;
+    }
+    setIsBulkAction(true);
+    setSelectedStudent(null);
+    setSelectedStaff(null);
+    setConfirmAction('delete');
+    setShowConfirmModal(true);
+  };
+
+  // Execute the confirmed bulk action
+  const handleConfirmBulkAction = async () => {
+    const selectedList = students.filter((s) => selectedStudentIds.includes(s.firestoreId));
+    if (selectedList.length === 0) {
+      cancelConfirm();
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      if (confirmAction === 'suspend') {
+        const newStatus = bulkSuspendTargetState;
+        await Promise.all(
+          selectedList.map((student) =>
+            updateDoc(doc(db, 'students', student.firestoreId), {
+              isActive: newStatus
+            })
+          )
+        );
+        showToast(`Successfully ${newStatus ? 'activated' : 'suspended'} ${selectedList.length} student account(s).`);
+      } else if (confirmAction === 'archive') {
+        for (const account of selectedList) {
+          // If student has a uid, archive their requests
+          if (account.uid) {
+            const requestsQuery = query(
+              collection(db, 'requests'),
+              where('studentUid', '==', account.uid)
+            );
+            const requestsSnapshot = await getDocs(requestsQuery);
+            for (const requestDoc of requestsSnapshot.docs) {
+              const requestData = requestDoc.data();
+              await addDoc(collection(db, 'archivedRequests'), {
+                ...requestData,
+                archivedAt: serverTimestamp(),
+                archivedReason: 'Student account archived',
+                originalRequestId: requestDoc.id
+              });
+              await deleteDoc(doc(db, 'requests', requestDoc.id));
+            }
+          }
+
+          // Add student to archived accounts
+          await addDoc(collection(db, 'archivedAccounts'), {
+            ...account,
+            accountType: 'student',
+            archivedAt: serverTimestamp(),
+            originalCollection: 'students'
+          });
+
+          // Delete from students collection
+          await deleteDoc(doc(db, 'students', account.firestoreId));
+        }
+        showToast(`Successfully archived ${selectedList.length} student account(s) and their requests.`);
+      } else if (confirmAction === 'delete') {
+        for (const account of selectedList) {
+          await deleteDoc(doc(db, 'students', account.firestoreId));
+        }
+        showToast(`Successfully deleted ${selectedList.length} student account(s) from database.`);
       }
-      setSelectAllStaff(!selectAllStaff);
+
+      setSelectedStudentIds([]);
+      setSelectAllStudents(false);
+      cancelConfirm();
+    } catch (error) {
+      console.error('Error executing bulk action:', error);
+      showToast('Failed to execute bulk action: ' + error.message, 'error');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -873,6 +1141,7 @@ const UserManagement = () => {
     setShowConfirmModal(false);
     setSelectedStudent(null);
     setSelectedStaff(null);
+    setIsBulkAction(false);
     setConfirmAction(null);
   };
 
@@ -894,33 +1163,71 @@ const UserManagement = () => {
 
   const handleArchiveStaff = (staff) => {
     setSelectedStaff(staff);
+    setSelectedStudent(null);
+    setConfirmAction('archive');
+    setShowConfirmModal(true);
+  };
+
+  const handleArchiveStudent = (student) => {
+    setSelectedStudent(student);
+    setSelectedStaff(null);
     setConfirmAction('archive');
     setShowConfirmModal(true);
   };
 
   const handleRestoreStaff = (staff) => {
     setSelectedStaff(staff);
+    setSelectedStudent(null);
     setConfirmAction('restore');
     setShowConfirmModal(true);
   };
 
   const confirmArchiveOrRestore = async () => {
-    const target = selectedStaff;
+    const target = selectedStudent || selectedStaff;
     if (!target) return;
 
     setActionLoading(true);
     try {
       if (confirmAction === 'archive') {
-        // Archive a staff member — purely additive fields. Their Firestore doc
-        // and request history are left untouched (no delete).
-        const actorName = auth?.currentUser?.email || 'Super Admin';
-        await updateDoc(doc(db, 'staff', target.firestoreId), {
-          isArchived: true,
-          archivedAt: serverTimestamp(),
-          archivedBy: actorName
-        });
-        await loadStaff();
-        showToast(`${target.name} has been archived and moved to Archived Staff.`);
+        if (selectedStudent) {
+          // Archive student account & student requests
+          const requestsQuery = query(
+            collection(db, 'requests'),
+            where('studentUid', '==', target.uid)
+          );
+          const requestsSnapshot = await getDocs(requestsQuery);
+          for (const requestDoc of requestsSnapshot.docs) {
+            const requestData = requestDoc.data();
+            await addDoc(collection(db, 'archivedRequests'), {
+              ...requestData,
+              archivedAt: serverTimestamp(),
+              archivedReason: 'Student account archived',
+              originalRequestId: requestDoc.id
+            });
+            await deleteDoc(doc(db, 'requests', requestDoc.id));
+          }
+
+          await addDoc(collection(db, 'archivedAccounts'), {
+            ...target,
+            accountType: 'student',
+            archivedAt: serverTimestamp(),
+            originalCollection: 'students'
+          });
+
+          await deleteDoc(doc(db, 'students', target.firestoreId));
+          showToast(`${target.name} has been archived and moved to Archive.`);
+        } else {
+          // Archive a staff member — purely additive fields. Their Firestore doc
+          // and request history are left untouched (no delete).
+          const actorName = auth?.currentUser?.email || 'Super Admin';
+          await updateDoc(doc(db, 'staff', target.firestoreId), {
+            isArchived: true,
+            archivedAt: serverTimestamp(),
+            archivedBy: actorName
+          });
+          await loadStaff();
+          showToast(`${target.name} has been archived and moved to Archive.`);
+        }
       } else if (confirmAction === 'restore') {
         // Restore the member back to Active Staff. Request history is unchanged.
         await updateDoc(doc(db, 'staff', target.firestoreId), {
@@ -931,6 +1238,7 @@ const UserManagement = () => {
         showToast(`${target.name} has been restored to Active Staff.`);
       }
       setShowConfirmModal(false);
+      setSelectedStudent(null);
       setSelectedStaff(null);
       setConfirmAction(null);
     } catch (error) {
@@ -984,14 +1292,20 @@ const UserManagement = () => {
 
   const confirmBtnLabel =
     actionLoading
-      ? (confirmAction === 'archive' ? 'Archiving...' : 'Restoring...')
-      : confirmAction === 'suspend'
-        ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend' : 'Activate')
-        : confirmAction === 'delete'
-          ? 'Delete'
-          : confirmAction === 'archive'
-            ? 'Archive'
-            : 'Restore';
+      ? (confirmAction === 'archive' ? 'Archiving...' : confirmAction === 'delete' ? 'Deleting...' : 'Processing...')
+      : isBulkAction
+        ? (confirmAction === 'suspend'
+            ? `${bulkSuspendTargetState ? 'Activate' : 'Suspend'} (${selectedStudentIds.length})`
+            : confirmAction === 'delete'
+              ? `Delete (${selectedStudentIds.length})`
+              : `Archive (${selectedStudentIds.length})`)
+        : confirmAction === 'suspend'
+          ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend' : 'Activate')
+          : confirmAction === 'delete'
+            ? 'Delete'
+            : confirmAction === 'archive'
+              ? 'Archive'
+              : 'Restore';
 
   const confirmBtnClass =
     confirmAction === 'delete' ? 'delete-confirm-btn'
@@ -1004,10 +1318,14 @@ const UserManagement = () => {
       <div className="page-header">
         <div>
           <h1 className="user-management-title">User Management</h1>
-          <p className="page-subtitle">Create, suspend, or remove student and staff accounts</p>
+          <p className="page-subtitle">
+            {activeTab === 'archive'
+              ? 'View and restore archived student and staff accounts and their request history'
+              : 'Create, suspend, or remove student and staff accounts'}
+          </p>
         </div>
         <div className="header-actions">
-          {activeTab !== 'archivedStaff' && (
+          {(activeTab === 'students' || activeTab === 'staff') && (
             <button className="btn-primary create-student-btn" onClick={activeTab === 'students' ? handleNewStudent : handleNewStaff}>
               <FaUserPlus aria-hidden="true" />
               {activeTab === 'students' ? 'Create Student Account' : 'Create Staff Account'}
@@ -1106,6 +1424,82 @@ const UserManagement = () => {
             </div>
           )}
         </div>
+
+        {activeTab === 'students' && (
+          <div className="status-filter-wrap date-filter-wrap" ref={dateWrapRef}>
+            <button
+              type="button"
+              className={`filter-trigger ${isDateFilterActive ? 'active' : ''}`}
+              onClick={() => setIsDateOpen((prev) => !prev)}
+              aria-haspopup="dialog"
+              aria-expanded={isDateOpen}
+              aria-label="Filter students by date of creation"
+            >
+              <FaCalendarAlt className="filter-icon" aria-hidden="true" />
+              {getDateTriggerLabel()}
+              {isDateFilterActive && <span className="filter-active-dot" aria-hidden="true" />}
+              <FaChevronDown className={`filter-chevron ${isDateOpen ? 'open' : ''}`} aria-hidden="true" />
+            </button>
+
+            {isDateOpen && (
+              <div className="filter-dropdown-panel date-filter-panel" role="dialog" aria-label="Filter by date of creation">
+                <div className="filter-dropdown-title">Filter by Date of Creation</div>
+
+                <div className="date-presets-list">
+                  {DATE_PRESET_OPTIONS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className={`status-option ${dateFilter.preset === preset.id ? 'selected' : ''}`}
+                      onClick={() => handleSelectDatePreset(preset.id)}
+                    >
+                      <span className="status-option-check">
+                        {dateFilter.preset === preset.id && <FaCheck aria-hidden="true" />}
+                      </span>
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="custom-date-range-section">
+                  <div className="custom-date-range-header">Custom Date Range</div>
+                  <div className="date-filter-field">
+                    <label htmlFor="student-date-from">From</label>
+                    <input
+                      id="student-date-from"
+                      type="date"
+                      value={dateFilter.from}
+                      max={dateFilter.to || undefined}
+                      onChange={(e) => handleCustomDateChange('from', e.target.value)}
+                    />
+                  </div>
+                  <div className="date-filter-field">
+                    <label htmlFor="student-date-to">To</label>
+                    <input
+                      id="student-date-to"
+                      type="date"
+                      value={dateFilter.to}
+                      min={dateFilter.from || undefined}
+                      onChange={(e) => handleCustomDateChange('to', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {isDateFilterActive && (
+                  <div className="filter-dropdown-actions">
+                    <button
+                      type="button"
+                      className="filter-clear-btn"
+                      onClick={handleClearDateFilter}
+                    >
+                      <FaTimes aria-hidden="true" /> Clear Date Filter
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {activeTab === 'staff' || activeTab === 'archivedStaff' ? (
           <div className="status-filter-wrap" ref={officeWrapRef}>
@@ -1210,41 +1604,76 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {showConfirmModal && (selectedStudent || selectedStaff) && (
+      {showConfirmModal && (selectedStudent || selectedStaff || isBulkAction) && (
         <div className="create-student-modal">
           <div className="modal-content confirm-modal">
-            {(confirmAction === 'archive' || confirmAction === 'restore')
-              ? (confirmAction === 'archive'
-                  ? <FaArchive className="confirm-icon" aria-hidden="true" />
-                  : <FaUndo className="confirm-icon" aria-hidden="true" />)
-              : <FaBan className="confirm-icon" aria-hidden="true" />}
+            {confirmAction === 'archive' || confirmAction === 'restore' ? (
+              confirmAction === 'archive' ? (
+                <FaArchive className="confirm-icon" aria-hidden="true" />
+              ) : (
+                <FaUndo className="confirm-icon" aria-hidden="true" />
+              )
+            ) : confirmAction === 'delete' ? (
+              <FaKey className="confirm-icon" aria-hidden="true" />
+            ) : (
+              <FaBan className="confirm-icon" aria-hidden="true" />
+            )}
             <h2 className="confirm-title">
-              {confirmAction === 'archive'
-                ? 'Archive Staff Account?'
-                : confirmAction === 'restore'
-                  ? 'Restore Staff Account?'
-                  : confirmAction === 'suspend'
-                    ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend Account?' : 'Activate Account?')
-                    : 'Delete Account?'}
+              {isBulkAction
+                ? (confirmAction === 'archive'
+                    ? `Archive ${selectedStudentIds.length} Student Accounts?`
+                    : confirmAction === 'delete'
+                      ? `Delete ${selectedStudentIds.length} Student Accounts?`
+                      : `${bulkSuspendTargetState ? 'Activate' : 'Suspend'} ${selectedStudentIds.length} Student Accounts?`)
+                : confirmAction === 'archive'
+                  ? `Archive ${selectedStudent ? 'Student' : 'Staff'} Account?`
+                  : confirmAction === 'restore'
+                    ? 'Restore Staff Account?'
+                    : confirmAction === 'suspend'
+                      ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend Account?' : 'Activate Account?')
+                      : 'Delete Account?'}
             </h2>
             <p className="confirm-message">
-              {confirmAction === 'archive'
-                ? `Are you sure you want to archive ${selectedStaff?.name}'s account? They will be moved to Archived Staff and will no longer be able to log in. Their request history will be kept unchanged.`
-                : confirmAction === 'restore'
-                  ? `Are you sure you want to restore ${selectedStaff?.name} to Active Staff? They will be able to log in again and their request history stays intact.`
-                  : confirmAction === 'suspend'
-                    ? ((selectedStudent?.isActive || selectedStaff?.isActive)
-                        ? `Are you sure you want to suspend ${(selectedStudent || selectedStaff).name}'s account? They will not be able to log in until reactivated.`
-                        : `Are you sure you want to activate ${(selectedStudent || selectedStaff).name}'s account? They will be able to log in again.`)
-                    : `Are you sure you want to permanently delete ${(selectedStudent || selectedStaff).name}'s account? This action cannot be undone.`}
+              {isBulkAction
+                ? (confirmAction === 'archive'
+                    ? `Are you sure you want to archive ${selectedStudentIds.length} selected student account(s)? Their accounts and related requests will be moved to Archive.`
+                    : confirmAction === 'delete'
+                      ? `Are you sure you want to permanently delete ${selectedStudentIds.length} selected student account(s) from the database? This action cannot be undone.`
+                      : `Are you sure you want to ${bulkSuspendTargetState ? 'activate' : 'suspend'} ${selectedStudentIds.length} selected student account(s)? ${bulkSuspendTargetState ? 'They will be able to log in again.' : 'They will not be able to log in until reactivated.'}`)
+                : confirmAction === 'archive'
+                  ? (selectedStudent
+                      ? `Are you sure you want to archive ${selectedStudent.name}'s account? Their account and related requests will be moved to Archive.`
+                      : `Are you sure you want to archive ${selectedStaff?.name}'s account? They will be moved to Archive and will no longer be able to log in. Their request history will be kept unchanged.`)
+                  : confirmAction === 'restore'
+                    ? `Are you sure you want to restore ${selectedStaff?.name} to Active Staff? They will be able to log in again and their request history stays intact.`
+                    : confirmAction === 'suspend'
+                      ? ((selectedStudent?.isActive || selectedStaff?.isActive)
+                          ? `Are you sure you want to suspend ${(selectedStudent || selectedStaff).name}'s account? They will not be able to log in until reactivated.`
+                          : `Are you sure you want to activate ${(selectedStudent || selectedStaff).name}'s account? They will be able to log in again.`)
+                      : `Are you sure you want to permanently delete ${(selectedStudent || selectedStaff).name}'s account? This action cannot be undone.`}
             </p>
             <div className="student-info-box">
-              {confirmAction === 'archive' || confirmAction === 'restore' ? (
-                <>
-                  <p><strong>Name:</strong> {selectedStaff?.name}</p>
-                  <p><strong>Email:</strong> {selectedStaff?.email}</p>
-                  <p><strong>Office:</strong> {selectedStaff?.office}</p>
-                </>
+              {isBulkAction ? (
+                <div className="bulk-confirm-preview">
+                  <div className="bulk-confirm-subtitle">
+                    Selected Students ({selectedStudentIds.length}):
+                  </div>
+                  <div className="bulk-confirm-tags">
+                    {students
+                      .filter((s) => selectedStudentIds.includes(s.firestoreId))
+                      .slice(0, 6)
+                      .map((s) => (
+                        <span key={s.firestoreId} className="bulk-confirm-tag">
+                          {s.name} ({s.id})
+                        </span>
+                      ))}
+                    {selectedStudentIds.length > 6 && (
+                      <span className="bulk-confirm-tag more">
+                        +{selectedStudentIds.length - 6} more
+                      </span>
+                    )}
+                  </div>
+                </div>
               ) : selectedStudent ? (
                 <>
                   <p><strong>Student ID:</strong> {selectedStudent.id}</p>
@@ -1253,9 +1682,9 @@ const UserManagement = () => {
                 </>
               ) : (
                 <>
-                  <p><strong>Name:</strong> {selectedStaff.name}</p>
-                  <p><strong>Email:</strong> {selectedStaff.email}</p>
-                  <p><strong>Office:</strong> {selectedStaff.office}</p>
+                  <p><strong>Name:</strong> {selectedStaff?.name}</p>
+                  <p><strong>Email:</strong> {selectedStaff?.email}</p>
+                  {selectedStaff?.office && <p><strong>Office:</strong> {selectedStaff?.office}</p>}
                 </>
               )}
             </div>
@@ -1265,7 +1694,11 @@ const UserManagement = () => {
               </button>
               <button
                 className={confirmBtnClass}
-                onClick={confirmAction === 'archive' || confirmAction === 'restore' ? confirmArchiveOrRestore : confirmSuspendOrDelete}
+                onClick={
+                  isBulkAction
+                    ? handleConfirmBulkAction
+                    : (confirmAction === 'archive' || confirmAction === 'restore' ? confirmArchiveOrRestore : confirmSuspendOrDelete)
+                }
                 disabled={actionLoading}
               >
                 {confirmBtnLabel}
@@ -1725,11 +2158,68 @@ const UserManagement = () => {
 
       {activeTab === 'students' ? (
         <div className="card students-list-section">
-          <h2 className="section-title-super">Student Accounts</h2>
+          <div className="students-list-header-row">
+            <h2 className="section-title-super">Student Accounts</h2>
+
+            {selectedStudentIds.length > 0 && (
+              <div className="bulk-actions-toolbar" role="toolbar" aria-label="Student bulk actions">
+                <span className="bulk-actions-count">
+                  <strong>{selectedStudentIds.length}</strong> {selectedStudentIds.length === 1 ? 'student' : 'students'} selected
+                </span>
+                <div className="bulk-actions-buttons">
+                  <button
+                    type="button"
+                    className="bulk-action-btn suspend"
+                    onClick={handleOpenBulkSuspend}
+                    title={
+                      students.filter(s => selectedStudentIds.includes(s.firestoreId)).some(s => s.isActive !== false)
+                        ? `Suspend ${selectedStudentIds.length} selected student(s)`
+                        : `Activate ${selectedStudentIds.length} selected student(s)`
+                    }
+                  >
+                    <FaBan aria-hidden="true" />
+                    <span>
+                      {students.filter(s => selectedStudentIds.includes(s.firestoreId)).some(s => s.isActive !== false)
+                        ? 'Suspend'
+                        : 'Activate'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="bulk-action-btn archive"
+                    onClick={handleOpenBulkArchive}
+                    title={`Archive ${selectedStudentIds.length} selected student(s)`}
+                  >
+                    <FaArchive aria-hidden="true" />
+                    <span>Archive</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="bulk-action-btn delete"
+                    onClick={handleOpenBulkDelete}
+                    title={`Delete ${selectedStudentIds.length} selected student(s)`}
+                  >
+                    <FaKey aria-hidden="true" />
+                    <span>Delete</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="bulk-action-btn clear"
+                    onClick={() => { setSelectedStudentIds([]); setSelectAllStudents(false); }}
+                    title="Deselect all"
+                    aria-label="Deselect all"
+                  >
+                    <FaTimes aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {visibleStudents.pageItems.length === 0 ? (
             <div className="empty-state">
               <FaSearch className="empty-state-icon" aria-hidden="true" />
-              <p>{students.length === 0 ? 'No student accounts yet. Click "Create Student Account" to add one.' : 'No students match your search.'}</p>
+              <p>{students.length === 0 ? 'No student accounts yet. Click "Create Student Account" to add one.' : 'No students match your search or filter.'}</p>
             </div>
           ) : (
             <>
@@ -1739,9 +2229,12 @@ const UserManagement = () => {
                     <div className="table-cell checkbox-cell">
                       <input 
                         type="checkbox" 
-                        checked={selectAllStudents} 
+                        checked={
+                          visibleStudents.pageItems.length > 0 &&
+                          visibleStudents.pageItems.every((s) => selectedStudentIds.includes(s.firestoreId))
+                        } 
                         onChange={handleSelectAll}
-                        aria-label="Select all students"
+                        aria-label="Select all students on current page"
                       />
                     </div>
                     <div className="table-cell">Student ID</div>
@@ -1751,7 +2244,10 @@ const UserManagement = () => {
                     <div className="table-cell">Actions</div>
                   </div>
                   {visibleStudents.pageItems.map((student) => (
-                    <div key={student.firestoreId || student.id} className="table-row">
+                    <div
+                      key={student.firestoreId || student.id}
+                      className={`table-row ${selectedStudentIds.includes(student.firestoreId) ? 'row-selected' : ''}`}
+                    >
                       <div className="table-cell checkbox-cell">
                         <input 
                           type="checkbox" 
@@ -1771,13 +2267,23 @@ const UserManagement = () => {
                         <button
                           className="table-action-btn reset"
                           onClick={() => handleSuspendStudent(student)}
+                          title={student.isActive ? 'Suspend' : 'Activate'}
                         >
                           <FaBan aria-hidden="true" />
                           {student.isActive ? 'Suspend' : 'Activate'}
                         </button>
                         <button
+                          className="table-action-btn archive"
+                          onClick={() => handleArchiveStudent(student)}
+                          title="Archive this student"
+                        >
+                          <FaArchive aria-hidden="true" />
+                          Archive
+                        </button>
+                        <button
                           className="table-action-btn delete"
                           onClick={() => handleDeleteStudent(student)}
+                          title="Delete this student"
                         >
                           <FaKey aria-hidden="true" />
                           Delete
@@ -1787,32 +2293,7 @@ const UserManagement = () => {
                   ))}
                 </div>
               </div>
-              <div className="pagination">
-                <span className="pagination-info">
-                  Showing {filterList(students).length} student{filterList(students).length === 1 ? '' : 's'}
-                </span>
-                {visibleStudents.totalPages > 1 && (
-                  <>
-                    <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} aria-label="Previous page">
-                      ‹
-                    </button>
-                    {Array.from({ length: visibleStudents.totalPages }, (_, i) => i + 1).map((pg) => (
-                      <button
-                        key={pg}
-                        className={currentPage === pg ? 'active' : ''}
-                        onClick={() => setCurrentPage(pg)}
-                        aria-label={`Page ${pg}`}
-                        aria-current={currentPage === pg ? 'page' : undefined}
-                      >
-                        {pg}
-                      </button>
-                    ))}
-                    <button onClick={() => setCurrentPage((p) => Math.min(visibleStudents.totalPages, p + 1))} disabled={currentPage === visibleStudents.totalPages} aria-label="Next page">
-                      ›
-                    </button>
-                  </>
-                )}
-              </div>
+              {renderPagination(visibleStudents, 'student')}
             </>
           )}
         </div>
@@ -1873,32 +2354,7 @@ const UserManagement = () => {
                   ))}
                 </div>
               </div>
-              <div className="pagination">
-                <span className="pagination-info">
-                  Showing {filterList(archivedStaffMembers).length} archived staff member{filterList(archivedStaffMembers).length === 1 ? '' : 's'}
-                </span>
-                {visibleArchivedStaff.totalPages > 1 && (
-                  <>
-                    <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} aria-label="Previous page">
-                      ‹
-                    </button>
-                    {Array.from({ length: visibleArchivedStaff.totalPages }, (_, i) => i + 1).map((pg) => (
-                      <button
-                        key={pg}
-                        className={currentPage === pg ? 'active' : ''}
-                        onClick={() => setCurrentPage(pg)}
-                        aria-label={`Page ${pg}`}
-                        aria-current={currentPage === pg ? 'page' : undefined}
-                      >
-                        {pg}
-                      </button>
-                    ))}
-                    <button onClick={() => setCurrentPage((p) => Math.min(visibleArchivedStaff.totalPages, p + 1))} disabled={currentPage === visibleArchivedStaff.totalPages} aria-label="Next page">
-                      ›
-                    </button>
-                  </>
-                )}
-              </div>
+              {renderPagination(visibleArchivedStaff, 'archived staff member')}
             </>
           )}
         </div>
@@ -1915,14 +2371,6 @@ const UserManagement = () => {
               <div className="table-container">
                 <div className="students-table staff-table">
                   <div className="table-header">
-                    <div className="table-cell checkbox-cell">
-                      <input 
-                        type="checkbox" 
-                        checked={selectAllStaff} 
-                        onChange={handleSelectAll}
-                        aria-label="Select all staff"
-                      />
-                    </div>
                     <div className="table-cell">Username</div>
                     <div className="table-cell">Name</div>
                     <div className="table-cell">Email</div>
@@ -1932,14 +2380,6 @@ const UserManagement = () => {
                   </div>
                   {visibleStaff.pageItems.map((staff) => (
                     <div key={staff.firestoreId} className="table-row">
-                      <div className="table-cell checkbox-cell">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedStaffIds.includes(staff.firestoreId)} 
-                          onChange={() => handleSelectAccount(staff.firestoreId)}
-                          aria-label={`Select ${staff.name}`}
-                        />
-                      </div>
                       <div className="table-cell">{staff.username}</div>
                       <div className="table-cell">
                         {staff.name}
@@ -1950,6 +2390,18 @@ const UserManagement = () => {
                       <div className="table-cell">{staff.createdAt}</div>
                       <div className="table-cell">
                         <button
+                          className="table-action-btn reset"
+                          onClick={() => {
+                            setSelectedStaff(staff);
+                            setConfirmAction('suspend');
+                            setShowConfirmModal(true);
+                          }}
+                          title={staff.isActive ? 'Suspend' : 'Activate'}
+                        >
+                          <FaBan aria-hidden="true" />
+                          {staff.isActive ? 'Suspend' : 'Activate'}
+                        </button>
+                        <button
                           className="table-action-btn archive"
                           onClick={() => handleArchiveStaff(staff)}
                           title="Archive this staff member"
@@ -1958,23 +2410,13 @@ const UserManagement = () => {
                           Archive
                         </button>
                         <button
-                          className="table-action-btn reset"
-                          onClick={() => {
-                            setSelectedStaff(staff);
-                            setConfirmAction('suspend');
-                            setShowConfirmModal(true);
-                          }}
-                        >
-                          <FaBan aria-hidden="true" />
-                          {staff.isActive ? 'Suspend' : 'Activate'}
-                        </button>
-                        <button
                           className="table-action-btn delete"
                           onClick={() => {
                             setSelectedStaff(staff);
                             setConfirmAction('delete');
                             setShowConfirmModal(true);
                           }}
+                          title="Delete this staff member"
                         >
                           <FaKey aria-hidden="true" />
                           Delete
@@ -1984,32 +2426,7 @@ const UserManagement = () => {
                   ))}
                 </div>
               </div>
-              <div className="pagination">
-                <span className="pagination-info">
-                  Showing {filterList(staffMembers).length} staff member{filterList(staffMembers).length === 1 ? '' : 's'}
-                </span>
-                {visibleStaff.totalPages > 1 && (
-                  <>
-                    <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} aria-label="Previous page">
-                      ‹
-                    </button>
-                    {Array.from({ length: visibleStaff.totalPages }, (_, i) => i + 1).map((pg) => (
-                      <button
-                        key={pg}
-                        className={currentPage === pg ? 'active' : ''}
-                        onClick={() => setCurrentPage(pg)}
-                        aria-label={`Page ${pg}`}
-                        aria-current={currentPage === pg ? 'page' : undefined}
-                      >
-                        {pg}
-                      </button>
-                    ))}
-                    <button onClick={() => setCurrentPage((p) => Math.min(visibleStaff.totalPages, p + 1))} disabled={currentPage === visibleStaff.totalPages} aria-label="Next page">
-                      ›
-                    </button>
-                  </>
-                )}
-              </div>
+              {renderPagination(visibleStaff, 'staff member')}
             </>
           )}
         </div>

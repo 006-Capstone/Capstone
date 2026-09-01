@@ -1,6 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { FaPlus, FaDownload, FaUndo, FaExclamationTriangle } from 'react-icons/fa';
-import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  FaSearch,
+  FaTimes,
+  FaDownload,
+  FaUndo,
+  FaExclamationTriangle,
+  FaBoxOpen,
+  FaChevronDown,
+  FaChevronUp,
+  FaListAlt,
+  FaUserGraduate,
+  FaUserTie
+} from 'react-icons/fa';
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  doc,
+  updateDoc,
+  where,
+  getDocs,
+  serverTimestamp
+} from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import NotificationBell from './NotificationBell';
 import LoadingSpinner from './LoadingSpinner';
@@ -12,257 +36,315 @@ const Archive = ({ isEmbedded = false }) => {
   const [archivedRequests, setArchivedRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [archiveFilter, setArchiveFilter] = useState('All'); // 'All', 'Students', 'Staff'
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [unarchiving, setUnarchiving] = useState(false);
-  const [expandedAccountId, setExpandedAccountId] = useState(null); // Track which account is expanded
+  const [expandedAccountId, setExpandedAccountId] = useState(null);
+  const [staffRequestsMap, setStaffRequestsMap] = useState({});
+  const [loadingStaffRequests, setLoadingStaffRequests] = useState({});
+  const [accountToUnarchive, setAccountToUnarchive] = useState(null); // null means bulk selection
   const [showConfirmUnarchive, setShowConfirmUnarchive] = useState(false);
   const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
   const PAGE_SIZE = 10;
 
+  const formatDate = (dateVal) => {
+    if (!dateVal) return '—';
+    try {
+      if (typeof dateVal.toDate === 'function') {
+        return dateVal.toDate().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+      }
+      if (typeof dateVal === 'string') return dateVal;
+      if (dateVal instanceof Date) {
+        return dateVal.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to format date:', err);
+    }
+    return '—';
+  };
+
+  const formatDateTime = (dateVal) => {
+    if (!dateVal) return '—';
+    try {
+      if (typeof dateVal.toDate === 'function') {
+        return dateVal.toDate().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+      }
+      if (typeof dateVal === 'string') return dateVal;
+    } catch (err) {
+      console.warn('Failed to format datetime:', err);
+    }
+    return '—';
+  };
+
   // Load archived accounts and requests from Firestore
   useEffect(() => {
-    const loadArchivedAccounts = () => {
-      try {
-        const archivedQuery = query(
-          collection(db, 'archivedAccounts'),
-          orderBy('archivedAt', 'desc')
+    let accountsData = [];
+    let staffArchivedData = [];
+
+    const updateCombined = () => {
+      const map = new Map();
+      // First add accounts from archivedAccounts collection
+      accountsData.forEach((acc) => {
+        map.set(acc.firestoreId, acc);
+      });
+      // Then add staff with isArchived == true if not already in archivedAccounts
+      staffArchivedData.forEach((staff) => {
+        const alreadyExists = Array.from(map.values()).some(
+          (a) => a.accountType === 'staff' && (a.username === staff.username || (staff.email && a.email === staff.email))
         );
-        
-        const unsubscribe = onSnapshot(archivedQuery, (querySnapshot) => {
-          const archivedData = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            
-            // Safely format archivedAt
-            let formattedArchivedAt = 'N/A';
-            try {
-              if (data.archivedAt) {
-                if (typeof data.archivedAt.toDate === 'function') {
-                  formattedArchivedAt = data.archivedAt.toDate().toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric' 
-                  });
-                } else if (typeof data.archivedAt === 'string') {
-                  formattedArchivedAt = data.archivedAt;
-                }
-              }
-            } catch (err) {
-              console.error('[Warning] Failed to format archivedAt:', err);
-            }
-            
-            return {
-              firestoreId: doc.id,
-              ...data,
-              archivedAt: formattedArchivedAt
-            };
-          });
-          console.log('[Success] Loaded', archivedData.length, 'archived accounts');
-          setArchivedAccounts(archivedData);
-          setLoading(false);
-        }, (error) => {
-          console.error('[Error] loading archived accounts:', error);
-          setLoading(false);
-        });
-        
-        return unsubscribe;
-      } catch (error) {
-        console.error('[Error] setting up archived accounts listener:', error);
-        setLoading(false);
-      }
+        if (!alreadyExists) {
+          map.set(staff.firestoreId, staff);
+        }
+      });
+      setArchivedAccounts(Array.from(map.values()));
+      setLoading(false);
     };
 
-    const loadArchivedRequests = () => {
-      try {
-        const requestsQuery = query(
-          collection(db, 'archivedRequests'),
-          orderBy('archivedAt', 'desc')
-        );
-        
-        const unsubscribe = onSnapshot(requestsQuery, (querySnapshot) => {
-          const requestsData = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            
-            // Safely format dates
-            let formattedArchivedAt = 'N/A';
-            let formattedCreatedAt = 'N/A';
-            
-            try {
-              if (data.archivedAt) {
-                if (typeof data.archivedAt.toDate === 'function') {
-                  formattedArchivedAt = data.archivedAt.toDate().toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit'
-                  });
-                } else if (typeof data.archivedAt === 'string') {
-                  formattedArchivedAt = data.archivedAt;
-                }
-              }
-              
-              if (data.createdAt) {
-                if (typeof data.createdAt.toDate === 'function') {
-                  formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  });
-                } else if (typeof data.createdAt === 'string') {
-                  formattedCreatedAt = data.createdAt;
-                }
-              }
-            } catch (err) {
-              console.error('[Warning] Failed to format dates:', err);
-            }
-            
-            return {
-              ...data,
-              firestoreId: doc.id,
-              archivedAt: formattedArchivedAt,
-              createdAt: formattedCreatedAt
-            };
-          });
-          console.log('[Success] Loaded', requestsData.length, 'archived requests');
-          setArchivedRequests(requestsData);
-        }, (error) => {
-          console.error('[Error] loading archived requests:', error);
-        });
-        
-        return unsubscribe;
-      } catch (error) {
-        console.error('[Error] setting up archived requests listener:', error);
-      }
-    };
+    // 1. Listen to archivedAccounts collection
+    const archivedQuery = query(
+      collection(db, 'archivedAccounts'),
+      orderBy('archivedAt', 'desc')
+    );
+    const unsubAccounts = onSnapshot(archivedQuery, (snapshot) => {
+      accountsData = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          firestoreId: d.id,
+          ...data,
+          archivedAt: formatDate(data.archivedAt),
+          createdAt: formatDate(data.createdAt),
+          isStaffCollectionDoc: false
+        };
+      });
+      updateCombined();
+    }, (err) => {
+      console.error('[Archive] Error listening to archivedAccounts:', err);
+      setLoading(false);
+    });
 
-    const unsubscribeAccounts = loadArchivedAccounts();
-    const unsubscribeRequests = loadArchivedRequests();
-    
+    // 2. Listen to staff collection where isArchived is true
+    const staffArchivedQuery = query(
+      collection(db, 'staff'),
+      where('isArchived', '==', true)
+    );
+    const unsubStaff = onSnapshot(staffArchivedQuery, (snapshot) => {
+      staffArchivedData = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          firestoreId: d.id,
+          ...data,
+          accountType: 'staff',
+          name: data.name || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.username,
+          archivedAt: formatDate(data.archivedAt),
+          createdAt: formatDate(data.createdAt),
+          isStaffCollectionDoc: true
+        };
+      });
+      updateCombined();
+    }, (err) => {
+      console.error('[Archive] Error listening to archived staff:', err);
+    });
+
+    // 3. Listen to archivedRequests collection
+    const requestsQuery = query(
+      collection(db, 'archivedRequests')
+    );
+    const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
+      const reqs = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          firestoreId: d.id,
+          ...data,
+          archivedAt: formatDateTime(data.archivedAt),
+          createdAt: formatDate(data.createdAt)
+        };
+      });
+      setArchivedRequests(reqs);
+    }, (err) => {
+      console.error('[Archive] Error listening to archived requests:', err);
+    });
+
     return () => {
-      if (typeof unsubscribeAccounts === 'function') unsubscribeAccounts();
-      if (typeof unsubscribeRequests === 'function') unsubscribeRequests();
+      unsubAccounts();
+      unsubStaff();
+      unsubRequests();
     };
   }, []);
 
-  // Filter archived accounts
-  const filteredAccounts = archivedAccounts.filter(account => {
-    if (archiveFilter === 'All') return true;
-    if (archiveFilter === 'Students') return account.accountType === 'student';
-    if (archiveFilter === 'Staff') return account.accountType === 'staff';
-    return true;
-  });
+  // Filter archived accounts by tab & search query
+  const filteredAccounts = useMemo(() => {
+    return archivedAccounts.filter((account) => {
+      if (archiveFilter === 'Students' && account.accountType !== 'student') return false;
+      if (archiveFilter === 'Staff' && account.accountType !== 'staff') return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const name = String(account.name || `${account.firstName || ''} ${account.lastName || ''}`).toLowerCase();
+        const idOrUsername = String(account.accountType === 'student' ? (account.id || '') : (account.username || '')).toLowerCase();
+        const email = String(account.email || '').toLowerCase();
+        const office = String(account.office || '').toLowerCase();
+        return name.includes(q) || idOrUsername.includes(q) || email.includes(q) || office.includes(q);
+      }
+      return true;
+    });
+  }, [archivedAccounts, archiveFilter, searchQuery]);
+
+  // Account counts for filter pills
+  const studentCount = useMemo(() => archivedAccounts.filter((a) => a.accountType === 'student').length, [archivedAccounts]);
+  const staffCount = useMemo(() => archivedAccounts.filter((a) => a.accountType === 'staff').length, [archivedAccounts]);
+  const totalCount = archivedAccounts.length;
 
   // Pagination
-  const totalPages = Math.ceil(filteredAccounts.length / PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filteredAccounts.length / PAGE_SIZE));
   const startIndex = (currentPage - 1) * PAGE_SIZE;
   const paginatedAccounts = filteredAccounts.slice(startIndex, startIndex + PAGE_SIZE);
 
-  // Reset pagination and selections when filter changes
+  // Reset pagination and selections when filter or search changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedAccounts([]);
     setSelectAll(false);
-  }, [archiveFilter]);
+  }, [archiveFilter, searchQuery]);
 
   // Handle individual checkbox selection
   const handleSelectAccount = (id) => {
-    setSelectedAccounts(prev =>
-      prev.includes(id) ? prev.filter(aid => aid !== id) : [...prev, id]
+    setSelectedAccounts((prev) =>
+      prev.includes(id) ? prev.filter((aid) => aid !== id) : [...prev, id]
     );
   };
 
-  // Handle select all checkbox
+  // Handle select all checkbox on current page
   const handleSelectAll = () => {
     if (selectAll) {
       setSelectedAccounts([]);
     } else {
-      setSelectedAccounts(paginatedAccounts.map(a => a.firestoreId));
+      setSelectedAccounts(paginatedAccounts.map((a) => a.firestoreId));
     }
     setSelectAll(!selectAll);
   };
 
-  // Unarchive selected accounts
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     window.setTimeout(() => setToast(null), 4000);
   };
 
-  const requestUnarchive = () => {
-    const accountsToRestore = archivedAccounts.filter(a => selectedAccounts.includes(a.firestoreId));
-    if (accountsToRestore.length === 0) {
+  // Request unarchive for multiple selected accounts
+  const requestBulkUnarchive = () => {
+    const toRestore = archivedAccounts.filter((a) => selectedAccounts.includes(a.firestoreId));
+    if (toRestore.length === 0) {
       showToast('Please select accounts to unarchive', 'error');
       return;
     }
+    setAccountToUnarchive(null);
     setShowConfirmUnarchive(true);
   };
 
+  // Request unarchive for a single account from row action
+  const requestSingleUnarchive = (account) => {
+    setAccountToUnarchive(account);
+    setShowConfirmUnarchive(true);
+  };
+
+  // Execute restore
   const handleUnarchive = async () => {
-    const accountsToRestore = archivedAccounts.filter(a => selectedAccounts.includes(a.firestoreId));
+    const accountsToRestore = accountToUnarchive
+      ? [accountToUnarchive]
+      : archivedAccounts.filter((a) => selectedAccounts.includes(a.firestoreId));
+
+    if (accountsToRestore.length === 0) return;
 
     setShowConfirmUnarchive(false);
     setUnarchiving(true);
     try {
       const currentUser = auth.currentUser;
-      const restoredBy = currentUser ? currentUser.email : 'unknown';
+      const restoredBy = currentUser ? currentUser.email : 'Super Admin';
 
       for (const account of accountsToRestore) {
-        // Prepare account data for restoration
-        const { firestoreId, accountType, archivedAt, archivedReason, originalCollection, originalRequestId, ...accountData } = account;
+        if (account.isStaffCollectionDoc) {
+          // If staff document in 'staff' collection with isArchived: true
+          await updateDoc(doc(db, 'staff', account.firestoreId), {
+            isArchived: false,
+            restoredAt: serverTimestamp(),
+            restoredBy: restoredBy
+          });
+        } else {
+          // If in archivedAccounts collection
+          const {
+            firestoreId,
+            accountType,
+            archivedAt,
+            archivedReason,
+            originalCollection,
+            originalRequestId,
+            isStaffCollectionDoc,
+            source,
+            ...accountData
+          } = account;
 
-        // Add restoration metadata
-        const restoredAccountData = {
-          ...accountData,
-          restoredAt: serverTimestamp(),
-          restoredBy: restoredBy,
-          mustChangePassword: true, // Force password reset for security
-          // Keep original isActive status or default to false for manual review
-          isActive: accountData.isActive !== undefined ? accountData.isActive : false
-        };
+          const restoredAccountData = {
+            ...accountData,
+            restoredAt: serverTimestamp(),
+            restoredBy: restoredBy,
+            mustChangePassword: true,
+            isActive: accountData.isActive !== undefined ? accountData.isActive : true
+          };
 
-        // Restore account to original collection
-        const targetCollection = accountType === 'student' ? 'students' : 'staff';
-        await addDoc(collection(db, targetCollection), restoredAccountData);
-        console.log(`[Success] Restored ${accountType} ${accountData.name} to ${targetCollection}`);
+          const targetCollection = accountType === 'student' ? 'students' : 'staff';
+          await addDoc(collection(db, targetCollection), restoredAccountData);
 
-        // If student, restore their archived requests
-        if (accountType === 'student' && accountData.uid) {
-          const archivedRequestsQuery = query(
-            collection(db, 'archivedRequests'),
-            where('studentUid', '==', accountData.uid)
-          );
-          
-          const archivedRequestsSnapshot = await getDocs(archivedRequestsQuery);
-          console.log(`[Unarchive] Found ${archivedRequestsSnapshot.size} archived requests for student ${accountData.name}`);
-          
-          // Restore each request
-          for (const requestDoc of archivedRequestsSnapshot.docs) {
-            const { archivedAt, archivedReason, originalRequestId, ...requestData } = requestDoc.data();
-            
-            await addDoc(collection(db, 'requests'), {
-              ...requestData,
-              restoredAt: serverTimestamp(),
-              restoredBy: restoredBy
-            });
-            console.log(`[Success] Restored request ${requestData.requestId}`);
-            
-            // Delete request from archive
-            await deleteDoc(doc(db, 'archivedRequests', requestDoc.id));
+          // If student, restore their archived requests
+          if (accountType === 'student' && accountData.uid) {
+            const archivedRequestsQuery = query(
+              collection(db, 'archivedRequests'),
+              where('studentUid', '==', accountData.uid)
+            );
+            const archivedRequestsSnapshot = await getDocs(archivedRequestsQuery);
+            for (const requestDoc of archivedRequestsSnapshot.docs) {
+              const {
+                archivedAt: reqArchivedAt,
+                archivedReason: reqReason,
+                originalRequestId: origId,
+                ...requestData
+              } = requestDoc.data();
+
+              await addDoc(collection(db, 'requests'), {
+                ...requestData,
+                restoredAt: serverTimestamp(),
+                restoredBy: restoredBy
+              });
+
+              await deleteDoc(doc(db, 'archivedRequests', requestDoc.id));
+            }
           }
-        }
 
-        // Delete account from archive
-        await deleteDoc(doc(db, 'archivedAccounts', firestoreId));
-        console.log(`[Success] Deleted ${accountType} ${accountData.name} from archive`);
+          // Delete account from archive
+          await deleteDoc(doc(db, 'archivedAccounts', firestoreId));
+        }
       }
 
-      showToast(`Successfully restored ${accountsToRestore.length} account(s).`);
+      showToast(`Successfully restored ${accountsToRestore.length} account${accountsToRestore.length === 1 ? '' : 's'}.`);
       setSelectedAccounts([]);
       setSelectAll(false);
-      setExpandedAccountId(null); // Close any expanded rows
+      setAccountToUnarchive(null);
+      setExpandedAccountId(null);
     } catch (error) {
-      console.error('[Error] during unarchive:', error);
+      console.error('[Archive] Error during unarchive:', error);
       showToast('An error occurred while unarchiving. Please try again.', 'error');
     } finally {
       setUnarchiving(false);
@@ -271,45 +353,91 @@ const Archive = ({ isEmbedded = false }) => {
 
   // Get requests for a specific student
   const getStudentRequests = (studentUid) => {
-    return archivedRequests.filter(req => req.studentUid === studentUid);
+    if (!studentUid) return [];
+    return archivedRequests.filter((req) => req.studentUid === studentUid);
   };
 
-  // Toggle expanded account
-  const toggleExpandAccount = (accountId) => {
-    setExpandedAccountId(expandedAccountId === accountId ? null : accountId);
+  // Load handled requests for a staff member on demand
+  const loadStaffHandledRequests = async (staff) => {
+    const staffId = staff.firestoreId;
+    if (staffRequestsMap[staffId]) return;
+    setLoadingStaffRequests((prev) => ({ ...prev, [staffId]: true }));
+    try {
+      const queries = [];
+      if (staff.name) {
+        queries.push(
+          query(collection(db, 'requests'), where('assignedTo', '==', staff.name)),
+          query(collection(db, 'requests'), where('claimedBy', '==', staff.name))
+        );
+      }
+      const snapshots = await Promise.all(queries.map((q) => getDocs(q)));
+      const merged = new Map();
+      snapshots.forEach((snapshot) => {
+        snapshot.docs.forEach((reqDoc) => {
+          merged.set(reqDoc.id, { firestoreId: reqDoc.id, ...reqDoc.data() });
+        });
+      });
+      const list = Array.from(merged.values()).map((r) => ({
+        ...r,
+        createdAt: formatDate(r.createdAt),
+        archivedAt: formatDate(r.archivedAt)
+      }));
+      setStaffRequestsMap((prev) => ({ ...prev, [staffId]: list }));
+    } catch (err) {
+      console.error('[Archive] Failed to load staff requests:', err);
+    } finally {
+      setLoadingStaffRequests((prev) => ({ ...prev, [staffId]: false }));
+    }
   };
+
+  // Toggle expanded account row
+  const toggleExpandAccount = (account) => {
+    const targetId = account.firestoreId;
+    if (expandedAccountId === targetId) {
+      setExpandedAccountId(null);
+    } else {
+      setExpandedAccountId(targetId);
+      if (account.accountType === 'staff') {
+        loadStaffHandledRequests(account);
+      }
+    }
+  };
+
+  // Export to CSV
   const exportToCSV = () => {
     if (filteredAccounts.length === 0) {
       showToast('No data to export', 'error');
       return;
     }
 
-    // Create CSV content
-    const headers = ['Account Type', 'Name', 'Email', 'ID/Username', 'Archived Date', 'Request Count'];
-    const rows = filteredAccounts.map(account => {
-      const idOrUsername = account.accountType === 'student' ? account.id : account.username;
-      const requestCount = account.accountType === 'student' ? getStudentRequests(account.uid).length : 0;
+    const headers = ['Account Type', 'Name', 'Email', 'ID / Username', 'Office', 'Archived Date', 'Requests'];
+    const rows = filteredAccounts.map((account) => {
+      const isStudent = account.accountType === 'student';
+      const idOrUsername = isStudent ? (account.id || '—') : (account.username || '—');
+      const reqCount = isStudent
+        ? getStudentRequests(account.uid).length
+        : (staffRequestsMap[account.firestoreId]?.length || 0);
       return [
-        account.accountType,
+        isStudent ? 'Student' : 'Staff',
         account.name || `${account.firstName || ''} ${account.lastName || ''}`.trim(),
         account.email || '',
-        idOrUsername || '',
+        idOrUsername,
+        account.office || 'N/A',
         account.archivedAt || '',
-        requestCount
+        reqCount
       ];
     });
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n');
 
-    // Download CSV
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `archived_accounts_${archiveFilter}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `archived_accounts_${archiveFilter.toLowerCase()}_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -317,82 +445,130 @@ const Archive = ({ isEmbedded = false }) => {
   };
 
   return (
-    <div className={isEmbedded ? "archive-container" : "superadmin-page archive-container"}>
+    <div className={isEmbedded ? "archive-container archive-embedded" : "superadmin-page archive-container"}>
       {!isEmbedded && (
         <div className="page-header">
           <div>
             <h1 className="archive-title">Archive</h1>
-            <p className="page-subtitle">View archived accounts and their requests</p>
+            <p className="page-subtitle">View and restore archived student and staff accounts and their request history</p>
           </div>
           <div className="header-actions">
-            {selectedAccounts.length > 0 && (
-              <button className="btn-unarchive" onClick={requestUnarchive} disabled={unarchiving}>
-                <FaUndo aria-hidden="true" />
-                Unarchive ({selectedAccounts.length})
-              </button>
-            )}
-            <button className="btn-export" onClick={exportToCSV} disabled={filteredAccounts.length === 0}>
-              <FaDownload aria-hidden="true" />
-              Export to CSV
-            </button>
             <NotificationBell />
           </div>
         </div>
       )}
 
-      {isEmbedded && (
-        <div className="archive-embedded-actions">
-          {selectedAccounts.length > 0 && (
-            <button className="btn-unarchive" onClick={requestUnarchive} disabled={unarchiving}>
-              <FaUndo aria-hidden="true" />
-              Unarchive ({selectedAccounts.length})
-            </button>
-          )}
-          <button className="btn-export" onClick={exportToCSV} disabled={filteredAccounts.length === 0}>
-            <FaDownload aria-hidden="true" />
-            Export to CSV
-          </button>
-        </div>
-      )}
-
-      {/* Filter Buttons */}
-      <div className="archive-filters-row">
-        <div className="archive-filter-buttons">
+      {/* Controls Bar: Filter Pills, Search Bar, and Actions */}
+      <div className="archive-controls-bar">
+        <div className="archive-filter-pills" role="tablist" aria-label="Filter archived accounts">
           <button
-            className={`filter-btn ${archiveFilter === 'All' ? 'active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={archiveFilter === 'All'}
+            className={`filter-pill ${archiveFilter === 'All' ? 'active' : ''}`}
             onClick={() => setArchiveFilter('All')}
           >
             All Accounts
+            <span className="pill-badge">{totalCount}</span>
           </button>
           <button
-            className={`filter-btn ${archiveFilter === 'Students' ? 'active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={archiveFilter === 'Students'}
+            className={`filter-pill ${archiveFilter === 'Students' ? 'active' : ''}`}
             onClick={() => setArchiveFilter('Students')}
           >
-            Students Only
+            <FaUserGraduate className="pill-icon" aria-hidden="true" />
+            Students
+            <span className="pill-badge">{studentCount}</span>
           </button>
           <button
-            className={`filter-btn ${archiveFilter === 'Staff' ? 'active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={archiveFilter === 'Staff'}
+            className={`filter-pill ${archiveFilter === 'Staff' ? 'active' : ''}`}
             onClick={() => setArchiveFilter('Staff')}
           >
-            Staff Only
+            <FaUserTie className="pill-icon" aria-hidden="true" />
+            Staff
+            <span className="pill-badge">{staffCount}</span>
           </button>
         </div>
-        <div className="archive-count">
-          {filteredAccounts.length} account{filteredAccounts.length === 1 ? '' : 's'}
+
+        <div className="archive-actions-group">
+          <div className="search-bar archive-search">
+            <FaSearch className="search-icon" aria-hidden="true" />
+            <input
+              type="search"
+              placeholder="Search by name, ID, email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search archived accounts"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search query"
+              >
+                <FaTimes aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="btn-export"
+            onClick={exportToCSV}
+            disabled={filteredAccounts.length === 0}
+            title="Download archived accounts as CSV"
+          >
+            <FaDownload aria-hidden="true" />
+            <span>Export CSV</span>
+          </button>
+
+          {selectedAccounts.length > 0 && (
+            <button
+              type="button"
+              className="btn-unarchive-bulk"
+              onClick={requestBulkUnarchive}
+              disabled={unarchiving}
+              title={`Restore ${selectedAccounts.length} selected account(s)`}
+            >
+              <FaUndo aria-hidden="true" />
+              <span>Restore ({selectedAccounts.length})</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="table-section">
+      {/* Table Section Card */}
+      <div className="card archive-table-card">
         {loading ? (
-          <LoadingSpinner message="Loading archived accounts..." fullScreen={false} />
+          <LoadingSpinner message="Loading archive..." fullScreen={false} />
         ) : archivedAccounts.length === 0 ? (
           <div className="empty-state">
+            <FaBoxOpen className="empty-state-icon" aria-hidden="true" />
             <p>No archived accounts yet</p>
+            <span className="empty-state-hint">Accounts archived from the Students or Staff tabs will appear here.</span>
           </div>
         ) : filteredAccounts.length === 0 ? (
           <div className="empty-state">
-            <p>No {archiveFilter.toLowerCase()} accounts in archive</p>
+            <FaSearch className="empty-state-icon" aria-hidden="true" />
+            <p>No archived accounts match your search or filter</p>
+            {(searchQuery || archiveFilter !== 'All') && (
+              <button
+                type="button"
+                className="btn-clear-filter"
+                onClick={() => {
+                  setSearchQuery('');
+                  setArchiveFilter('All');
+                }}
+              >
+                Reset Filters
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -404,89 +580,159 @@ const Archive = ({ isEmbedded = false }) => {
                       type="checkbox"
                       checked={selectAll}
                       onChange={handleSelectAll}
-                      aria-label="Select all accounts"
+                      aria-label="Select all accounts on current page"
                     />
                   </div>
                   <div className="table-cell">Type</div>
-                  <div className="table-cell">ID/Username</div>
+                  <div className="table-cell">ID / Username</div>
                   <div className="table-cell">Name</div>
                   <div className="table-cell">Email</div>
                   <div className="table-cell">Requests</div>
                   <div className="table-cell">Archived Date</div>
+                  <div className="table-cell action-cell">Action</div>
                 </div>
+
                 {paginatedAccounts.map((account) => {
-                  const studentRequests = account.accountType === 'student' ? getStudentRequests(account.uid) : [];
+                  const isStudent = account.accountType === 'student';
+                  const studentRequests = isStudent ? getStudentRequests(account.uid) : [];
+                  const staffRequests = !isStudent ? (staffRequestsMap[account.firestoreId] || []) : [];
                   const isExpanded = expandedAccountId === account.firestoreId;
-                  
+                  const reqCount = isStudent ? studentRequests.length : (staffRequests.length || 0);
+
                   return (
                     <React.Fragment key={account.firestoreId}>
-                      <div 
-                        className={`table-row ${isExpanded ? 'expanded' : ''} ${account.accountType === 'student' && studentRequests.length > 0 ? 'clickable' : ''}`}
-                        onClick={() => {
-                          if (account.accountType === 'student') {
-                            toggleExpandAccount(account.firestoreId);
-                          }
-                        }}
+                      <div
+                        className={`table-row ${isExpanded ? 'expanded' : ''} clickable`}
+                        onClick={() => toggleExpandAccount(account)}
                       >
                         <div className="table-cell checkbox-cell" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedAccounts.includes(account.firestoreId)}
                             onChange={() => handleSelectAccount(account.firestoreId)}
-                            aria-label={`Select ${account.name}`}
+                            aria-label={`Select ${account.name || 'account'}`}
                           />
                         </div>
+
                         <div className="table-cell">
                           <span className={`account-type-badge ${account.accountType}`}>
-                            {account.accountType === 'student' ? 'Student' : 'Staff'}
+                            {isStudent ? 'Student' : 'Staff'}
                           </span>
                         </div>
-                        <div className="table-cell">{account.accountType === 'student' ? account.id : account.username}</div>
-                        <div className="table-cell">{account.name || `${account.firstName || ''} ${account.lastName || ''}`.trim()}</div>
-                        <div className="table-cell">{account.email}</div>
-                        <div className="table-cell">
-                          {account.accountType === 'student' ? (
-                            <span className="request-count">
-                              {studentRequests.length} {studentRequests.length === 1 ? 'request' : 'requests'}
-                            </span>
-                          ) : (
-                            <span className="no-requests">N/A</span>
-                          )}
+
+                        <div className="table-cell account-id-cell">
+                          {isStudent ? account.id : account.username}
                         </div>
-                        <div className="table-cell">{account.archivedAt}</div>
+
+                        <div className="table-cell account-name-cell">
+                          <span className="account-name-text">
+                            {account.name || `${account.firstName || ''} ${account.lastName || ''}`.trim() || '—'}
+                          </span>
+                          {account.office && <span className="account-office-badge">{account.office}</span>}
+                        </div>
+
+                        <div className="table-cell account-email-cell" title={account.email}>
+                          {account.email || '—'}
+                        </div>
+
+                        <div className="table-cell requests-cell" onClick={(e) => { e.stopPropagation(); toggleExpandAccount(account); }}>
+                          <span className={`request-count-badge ${isExpanded ? 'expanded' : ''}`} title="Click to view requests">
+                            <FaListAlt className="req-icon" aria-hidden="true" />
+                            <span>{isStudent ? `${studentRequests.length} reqs` : (reqCount > 0 ? `${reqCount} reqs` : 'View')}</span>
+                            {isExpanded ? (
+                              <FaChevronUp className="chevron-mini" aria-hidden="true" />
+                            ) : (
+                              <FaChevronDown className="chevron-mini" aria-hidden="true" />
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="table-cell date-cell">
+                          {account.archivedAt}
+                        </div>
+
+                        <div className="table-cell action-cell" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="table-action-btn restore"
+                            onClick={() => requestSingleUnarchive(account)}
+                            title="Restore this account to active status"
+                          >
+                            <FaUndo aria-hidden="true" />
+                            <span>Restore</span>
+                          </button>
+                        </div>
                       </div>
-                      
+
                       {/* Expanded Requests Section */}
-                      {isExpanded && account.accountType === 'student' && (
+                      {isExpanded && (
                         <div className="expanded-requests">
-                          {studentRequests.length === 0 ? (
-                            <div className="no-requests-message">No archived requests for this student</div>
-                          ) : (
-                            <div className="requests-list">
-                              <div className="requests-header">Archived Requests ({studentRequests.length})</div>
-                              <div className="requests-table">
-                                <div className="requests-table-header">
-                                  <div>Subject</div>
-                                  <div>Office</div>
-                                  <div>Status</div>
-                                  <div>Created</div>
-                                  <div>Archived</div>
+                          {isStudent ? (
+                            studentRequests.length === 0 ? (
+                              <div className="no-requests-message">No archived requests associated with this student account.</div>
+                            ) : (
+                              <div className="requests-list">
+                                <div className="requests-header">
+                                  <span>Archived Requests ({studentRequests.length})</span>
                                 </div>
-                                {studentRequests.map((request) => (
-                                  <div key={request.firestoreId} className="requests-table-row">
-                                    <div>{request.subject || 'N/A'}</div>
-                                    <div>{request.office || request.officeName || 'N/A'}</div>
-                                    <div>
-                                      <span className={`status-badge ${request.status}`}>
-                                        {request.status || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div>{request.createdAt}</div>
-                                    <div>{request.archivedAt}</div>
+                                <div className="requests-table">
+                                  <div className="requests-table-header">
+                                    <div>Subject</div>
+                                    <div>Office</div>
+                                    <div>Status</div>
+                                    <div>Created</div>
+                                    <div>Archived</div>
                                   </div>
-                                ))}
+                                  {studentRequests.map((request) => (
+                                    <div key={request.firestoreId} className="requests-table-row">
+                                      <div className="req-subject-cell">{request.subject || 'Untitled Request'}</div>
+                                      <div>{request.office || request.officeName || '—'}</div>
+                                      <div>
+                                        <span className={`status status-${(request.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                                          {request.status || 'Pending'}
+                                        </span>
+                                      </div>
+                                      <div>{request.createdAt}</div>
+                                      <div>{request.archivedAt}</div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
+                            )
+                          ) : (
+                            loadingStaffRequests[account.firestoreId] ? (
+                              <div className="no-requests-message">Loading requests handled by this staff member...</div>
+                            ) : staffRequests.length === 0 ? (
+                              <div className="no-requests-message">No requests were assigned to or handled by this staff member.</div>
+                            ) : (
+                              <div className="requests-list">
+                                <div className="requests-header">
+                                  <span>Handled Requests ({staffRequests.length})</span>
+                                </div>
+                                <div className="requests-table">
+                                  <div className="requests-table-header staff-requests">
+                                    <div>Request ID</div>
+                                    <div>Subject</div>
+                                    <div>Office</div>
+                                    <div>Status</div>
+                                    <div>Date</div>
+                                  </div>
+                                  {staffRequests.map((request) => (
+                                    <div key={request.firestoreId} className="requests-table-row staff-requests">
+                                      <div className="req-id-code">#{request.requestId || request.firestoreId?.slice(0, 6) || '—'}</div>
+                                      <div className="req-subject-cell">{request.subject || request.title || 'Untitled Request'}</div>
+                                      <div>{request.office || '—'}</div>
+                                      <div>
+                                        <span className={`status status-${(request.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                                          {request.status || 'Pending'}
+                                        </span>
+                                      </div>
+                                      <div>{request.createdAt}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )
                           )}
                         </div>
                       )}
@@ -496,63 +742,83 @@ const Archive = ({ isEmbedded = false }) => {
               </div>
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  aria-label="Previous page"
-                >
-                  ‹
-                </button>
-                <span className="pagination-info">
-                  Page {currentPage} of {totalPages}
-                </span>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+            {/* Pagination Controls */}
+            <div className="pagination">
+              <span className="pagination-info">
+                Showing {filteredAccounts.length === 0 ? 0 : startIndex + 1}–{Math.min(filteredAccounts.length, startIndex + PAGE_SIZE)} of {filteredAccounts.length} account{filteredAccounts.length === 1 ? '' : 's'}
+              </span>
+              {totalPages > 1 && (
+                <>
                   <button
-                    key={pg}
-                    className={currentPage === pg ? 'active' : ''}
-                    onClick={() => setCurrentPage(pg)}
-                    aria-label={`Page ${pg}`}
-                    aria-current={currentPage === pg ? 'page' : undefined}
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    aria-label="Previous page"
                   >
-                    {pg}
+                    ‹
                   </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  aria-label="Next page"
-                >
-                  ›
-                </button>
-              </div>
-            )}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                    <button
+                      key={pg}
+                      type="button"
+                      className={currentPage === pg ? 'active' : ''}
+                      onClick={() => setCurrentPage(pg)}
+                      aria-label={`Page ${pg}`}
+                      aria-current={currentPage === pg ? 'page' : undefined}
+                    >
+                      {pg}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    aria-label="Next page"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+            </div>
           </>
         )}
       </div>
 
+      {/* Confirmation Modal for Unarchive */}
       {showConfirmUnarchive && (
-        <div className="archive-modal-backdrop" onClick={() => setShowConfirmUnarchive(false)}>
+        <div className="archive-modal-backdrop" onClick={() => !unarchiving && setShowConfirmUnarchive(false)}>
           <div
             className="archive-confirm-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Confirm unarchive"
+            aria-label="Confirm restore"
             onClick={(e) => e.stopPropagation()}
           >
-            <FaExclamationTriangle className="archive-confirm-icon" aria-hidden="true" />
-            <h3 className="archive-confirm-title">Unarchive accounts</h3>
+            <div className="archive-confirm-icon-wrap">
+              <FaExclamationTriangle className="archive-confirm-icon" aria-hidden="true" />
+            </div>
+            <h3 className="archive-confirm-title">
+              {accountToUnarchive ? 'Restore Account' : 'Restore Selected Accounts'}
+            </h3>
             <p className="archive-confirm-message">
-              Are you sure you want to unarchive {selectedAccounts.length} account(s)?
-              Restored accounts will require a password reset for security.
+              {accountToUnarchive ? (
+                <>
+                  Are you sure you want to restore <strong>{accountToUnarchive.name || accountToUnarchive.username}</strong> ({accountToUnarchive.accountType === 'student' ? 'Student' : 'Staff'}) to active status?
+                  {accountToUnarchive.accountType === 'student' && ' Their archived requests will also be restored.'}
+                </>
+              ) : (
+                <>
+                  Are you sure you want to restore <strong>{selectedAccounts.length}</strong> selected account{selectedAccounts.length === 1 ? '' : 's'}?
+                  Any student requests linked to these accounts will also be restored.
+                </>
+              )}
             </p>
             <div className="archive-confirm-actions">
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => setShowConfirmUnarchive(false)}
+                disabled={unarchiving}
               >
                 Cancel
               </button>
@@ -562,8 +828,14 @@ const Archive = ({ isEmbedded = false }) => {
                 onClick={handleUnarchive}
                 disabled={unarchiving}
               >
-                <FaUndo aria-hidden="true" />
-                Unarchive
+                {unarchiving ? (
+                  <span>Restoring...</span>
+                ) : (
+                  <>
+                    <FaUndo aria-hidden="true" />
+                    <span>Confirm Restore</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -582,4 +854,3 @@ const Archive = ({ isEmbedded = false }) => {
 };
 
 export default Archive;
- 

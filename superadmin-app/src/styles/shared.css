@@ -215,15 +215,15 @@
 }
 
 .status-pending {
-  background-color: var(--status-pending-bg, #eff6ff);
-  color: var(--status-pending-text, #2563eb);
-  border-color: var(--status-pending-border, #bfdbfe);
+  background-color: var(--status-pending-bg, #f1f4f1);
+  color: var(--status-pending-text, #3e483f);
+  border-color: var(--status-pending-border, #d4ddd3);
 }
 
 .status-in-process {
-  background-color: var(--status-inprocess-bg, #fffbeb);
-  color: var(--status-inprocess-text, #d97706);
-  border-color: var(--status-inprocess-border, #fde68a);
+  background-color: var(--status-inprocess-bg, #eaf2e8);
+  color: var(--status-inprocess-text, #2b4528);
+  border-color: var(--status-inprocess-border, #c1dec0);
 }
 
 .status-archived {

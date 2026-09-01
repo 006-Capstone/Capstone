@@ -54,7 +54,12 @@ const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, on
         </button>
 
         <div className="sidebar-logo">
-          <img src="/school-logo.jpg" alt="Academia De San Jose school logo" />
+          <div className="sidebar-logo-img-wrap">
+            <img src="/school-logo.jpg" alt="Academia De San Jose school logo" />
+          </div>
+          <div className="sidebar-brand-text">
+            <h2 className="sidebar-brand-title">Academia De San Jose</h2>
+          </div>
         </div>
 
         <nav className="sidebar-menu" aria-label="Main">
@@ -70,23 +75,33 @@ const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, on
               >
                 <Icon className="sidebar-icon" aria-hidden="true" />
                 <span className="sidebar-label">{item.label}</span>
+                {activePage === item.key && (
+                  <span className="sidebar-active-indicator" aria-hidden="true" />
+                )}
               </button>
             );
           })}
         </nav>
 
         <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <FaUserCircle className="user-icon" aria-hidden="true" />
-            <span className="user-label">SUPER ADMIN</span>
+          <div className="sidebar-user-card">
+            <div className="sidebar-user-avatar">
+              <FaUserCircle className="user-icon" aria-hidden="true" />
+              <span className="user-online-pip" title="Active session" />
+            </div>
+            <div className="sidebar-user-details">
+              <span className="user-name">Super Admin</span>
+              <span className="user-role">System Administrator</span>
+            </div>
           </div>
 
           <button
+            type="button"
             className="logout-button"
             onClick={() => setShowLogoutConfirm(true)}
           >
             <FaSignOutAlt className="logout-icon" aria-hidden="true" />
-            <span>Logout</span>
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>

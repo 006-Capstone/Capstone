@@ -118,7 +118,7 @@
   background-color: var(--color-surface);
   border: 1px solid var(--gray-200);
   border-radius: var(--radius-md);
-  padding: var(--space-6);
+  padding: 26px 28px;
   box-shadow: var(--shadow-xs);
 }
 
@@ -127,16 +127,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-5);
+  margin-bottom: 24px;
+  gap: 16px;
 }
 
 .chart-card-title,
 .satisfaction-title {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
+  font-size: 17px;
+  font-weight: 700;
   color: var(--green-950);
   margin: 0;
-  letter-spacing: 0.2px;
+  letter-spacing: -0.01em;
 }
 
 /* Semester filter — segmented control in the card header. Acts as the filter
@@ -145,9 +146,9 @@
 .sem-filter {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 4px;
   background-color: var(--gray-100);
-  padding: 3px;
+  padding: 4px;
   border-radius: var(--radius-pill);
 }
 
@@ -157,7 +158,7 @@
   gap: 6px;
   border: none;
   background: transparent;
-  padding: var(--space-2) var(--space-3);
+  padding: 6px 14px;
   border-radius: var(--radius-pill);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
@@ -200,9 +201,10 @@
 
 .volume-chart {
   display: flex;
-  gap: var(--space-3);
-  height: 300px;
-  padding-top: var(--space-3);
+  gap: 20px;
+  height: 320px;
+  padding-top: 10px;
+  padding-bottom: 4px;
 }
 
 /* Left numeric axis */
@@ -211,16 +213,18 @@
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-end;
-  width: 34px;
+  width: 38px;
   flex-shrink: 0;
-  padding-bottom: var(--space-8); /* keep labels clear of the month row */
+  padding-bottom: 34px; /* keep labels clear of the month row */
+  padding-right: 4px;
 }
 
 .volume-y-label {
-  font-size: 11px;
-  font-weight: var(--font-weight-medium);
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--color-text-faint);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Plot area with horizontal gridlines at each y-tick (0, 5, 10, …) */
@@ -235,7 +239,7 @@
   left: 0;
   right: 0;
   top: 0;
-  bottom: var(--space-8); /* the 0 line — month labels live below it */
+  bottom: 34px; /* the 0 line — month labels live below it */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -254,12 +258,12 @@
 .volume-bars {
   position: absolute;
   inset: 0;
-  bottom: var(--space-8);
+  bottom: 34px;
   display: flex;
   align-items: flex-end;
   justify-content: space-around;
-  gap: var(--space-3);
-  padding: 0 var(--space-2);
+  gap: var(--space-4);
+  padding: 0 16px;
 }
 
 .volume-bar-group {
@@ -356,11 +360,12 @@
 }
 
 .volume-month-label {
-  font-size: var(--font-size-xs);
+  font-size: 11.5px;
   color: var(--color-text-muted);
-  margin-top: var(--space-3);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.5px;
+  margin-top: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 /* Satisfaction card — restrained solid brand surface */

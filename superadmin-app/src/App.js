@@ -84,7 +84,7 @@ function App() {
           </button>
           <img src="/school-logo.jpg" alt="School logo" className="mobile-logo" />
         </div>
-        {activePage === 'dashboard' && <SuperAdminDashboard />}
+        {activePage === 'dashboard' && <SuperAdminDashboard onNavigate={handleNavigate} />}
         {activePage === 'edit-request' && <EditRequestForm />}
         {activePage === 'analytics' && <Analytics />}
         {activePage === 'user-management' && <UserManagement />}
