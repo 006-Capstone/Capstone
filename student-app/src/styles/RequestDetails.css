@@ -7,31 +7,31 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--content-padding);
-  background-color: var(--color-bg);
+  padding: var(--content-padding, 24px 32px);
+  background-color: var(--color-bg, #f8f9f7);
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-/* Breadcrumb + page-header base styles live in shared.css */
+/* Breadcrumb + page-header base styles */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-6, 24px);
   flex-shrink: 0;
 }
 
 .page-header h1 {
-  font-size: var(--font-size-2xl);
-  color: var(--color-text);
-  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-2xl, 28px);
+  color: var(--color-text, #181b18);
+  font-weight: var(--font-weight-bold, 700);
   line-height: 1.2;
 }
 
 .details-container {
   display: flex;
-  gap: var(--space-6);
+  gap: var(--space-6, 24px);
   flex: 1;
 }
 
@@ -39,84 +39,53 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-5, 20px);
+  min-width: 0;
 }
 
 .request-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-sm);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  border-radius: var(--radius-md, 12px);
+  padding: var(--space-6, 24px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
 }
 
 .request-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-5);
-  border-bottom: 1px solid var(--color-divider);
+  margin-bottom: var(--space-6, 24px);
+  padding-bottom: var(--space-5, 20px);
+  border-bottom: 1px solid var(--color-divider, #e3e6e2);
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .request-title h2 {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-  margin-bottom: var(--space-2);
+  font-size: var(--font-size-lg, 20px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
+  margin-bottom: var(--space-2, 8px);
 }
 
 .request-id {
-  font-size: var(--font-size-base);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-base, 14px);
+  color: var(--color-text-faint, #7d857c);
+  font-variant-numeric: tabular-nums;
 }
 
 .request-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-3, 12px);
 }
 
-/* Pending requests only — stack the Cancel button below the status badge
-   (badge on the upper right, button beneath it). Claimed/resolved tickets
-   keep the side-by-side row above. */
+/* Pending requests only — stack the Cancel button below the status badge */
 .request-actions:has(.cancel-btn) {
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--space-3);
-}
-
-.status-badge {
-  padding: 7px 16px;
-  border-radius: var(--radius-pill);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.2px;
-  white-space: nowrap;
-}
-
-/* Status badge colors match the Figma ticket-details exports
-   (tokens in design-tokens.css) */
-.status-badge.pending {
-  background-color: var(--badge-pending-bg);
-  color: var(--badge-pending-text);
-}
-
-.status-badge.in-process,
-.status-badge.returned,
-.status-badge.for-follow-up {
-  background-color: var(--badge-inprocess-bg);
-  color: var(--badge-inprocess-text);
-}
-
-.status-badge.resolved {
-  background-color: var(--badge-resolved-bg);
-  color: var(--badge-resolved-text);
-}
-
-.status-badge.cancelled {
-  background-color: var(--red-100);
-  color: var(--red-700);
+  gap: var(--space-3, 12px);
 }
 
 /* Assigned staff + department shown beside the status badge (Figma header) */
@@ -125,39 +94,98 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
-  padding-right: var(--space-2);
-  border-right: 1px solid var(--color-divider);
+  padding-right: var(--space-3, 12px);
+  border-right: 1px solid var(--color-divider, #e3e6e2);
   text-align: right;
 }
 
 .assigned-office {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-muted, #5d645c);
+  text-transform: uppercase;
 }
 
 .assigned-staff {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
 }
 
 .assigned-staff svg {
   font-size: 14px;
-  color: var(--color-accent);
+  color: var(--color-accent, #8cb986);
+}
+
+/* ---- Reroute Banner ---- */
+.reroute-banner {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 4px solid #16a34a;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: var(--space-5, 20px);
+}
+
+.reroute-banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.reroute-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #166534;
+}
+
+.reroute-date {
+  font-size: 12px;
+  color: #15803d;
+}
+
+.reroute-prev-id {
+  font-size: 12px;
+  color: #4b5563;
+  margin: 2px 0 8px 0;
+}
+
+.reroute-note {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+}
+
+.reroute-note-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #166534;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.reroute-note-body {
+  font-size: 13px;
+  color: #14532d;
+  margin: 0;
+  font-style: italic;
 }
 
 /* ---- Green "Tell Us How We Did!" feedback banner (Figma, resolved only) ---- */
 .feedback-banner {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
-  padding: var(--space-5) var(--space-6);
-  background: linear-gradient(135deg, var(--green-bright) 0%, #128a04 55%, #0d7a00 100%);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  gap: var(--space-5, 20px);
+  padding: var(--space-5, 20px) var(--space-6, 24px);
+  background: linear-gradient(135deg, var(--green-800, #105e06) 0%, #128a04 55%, #0d7a00 100%);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.08));
   color: #fff;
 }
 
@@ -170,7 +198,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--green-bright);
+  color: var(--green-800, #105e06);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
@@ -184,29 +212,30 @@
 }
 
 .feedback-banner-copy h3 {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg, 18px);
+  font-weight: var(--font-weight-bold, 700);
   color: #fff;
   margin-bottom: 2px;
 }
 
 .feedback-banner-copy p {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-sm, 14px);
   color: rgba(255, 255, 255, 0.92);
   line-height: 1.5;
+  margin: 0;
 }
 
 .feedback-banner-btn {
   flex-shrink: 0;
   padding: 11px 24px;
   background: #fff;
-  color: var(--green-bright);
+  color: var(--green-800, #105e06);
   border: none;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-semibold, 600);
   cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease);
 }
 
 .feedback-banner-btn:hover {
@@ -218,7 +247,6 @@
   transform: translateY(0);
 }
 
-/* Feedback already provided variant - slightly different styling */
 .feedback-banner.feedback-provided {
   background: linear-gradient(135deg, #8CB986 0%, #669E5F 100%);
 }
@@ -228,28 +256,25 @@
   color: #fff;
 }
 
-/* Cancel button (ticket details only) — soft red / outlined destructive
-   style using the danger tokens: red-tinted fill, red text + border, and
-   the tint deepens on hover. Scoped under .request-actions so the shared
-   global .cancel-btn class on other pages is not affected. */
+/* Cancel button (ticket details only) */
 .request-actions .cancel-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   padding: 6px 14px;
-  background-color: var(--red-100);
-  color: var(--red-700);
-  border: 1px solid var(--red-500);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
+  background-color: var(--red-100, #fee2e2);
+  color: var(--red-700, #b91c1c);
+  border: 1px solid var(--red-500, #dc2626);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-xs, 12px);
   line-height: 1.2;
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast),
-    box-shadow var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease),
+    box-shadow var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
 }
 
 .request-actions .cancel-btn svg {
@@ -257,98 +282,92 @@
   flex-shrink: 0;
 }
 
-/* Hover deepens the red tint and darkens the border while keeping the red
-   text — never flashes white. */
-.request-actions .cancel-btn:hover {
+.request-actions .cancel-btn:hover:not(:disabled) {
   background-color: rgba(220, 53, 69, 0.14);
-  border-color: var(--red-700);
-  color: var(--red-700);
+  border-color: var(--red-700, #b91c1c);
+  color: var(--red-700, #b91c1c);
   box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
 }
 
-.request-actions .cancel-btn:active {
-  background-color: rgba(220, 53, 69, 0.24);
-  border-color: var(--red-700);
-  transform: translateY(1px);
-  box-shadow: none;
+.request-actions .cancel-btn:disabled {
+  background-color: var(--gray-200, #e3e6e2);
+  border-color: var(--gray-300, #cbd0ca);
+  color: var(--gray-500, #7d857c);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
-.request-actions .cancel-btn:focus-visible {
-  outline: 2px solid var(--red-500);
-  outline-offset: 2px;
-}
-
+/* Original Submission */
 .original-submission {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-5, 20px);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-4, 16px);
 }
 
 .section-header h3 {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
+  font-size: var(--font-size-md, 16px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
 }
 
 .created-date {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-faint, #7d857c);
 }
 
 .submission-text {
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-base, 14px);
   line-height: 1.6;
-  color: var(--color-text-body);
-  margin-bottom: var(--space-5);
-  padding: var(--space-4);
-  background-color: var(--sage-50);
-  border: 1px solid var(--sage-200);
-  border-radius: var(--radius-sm);
+  color: var(--color-text-body, #2d322c);
+  margin-bottom: var(--space-5, 20px);
+  padding: var(--space-4, 16px);
+  background-color: var(--sage-50, #f4f8f3);
+  border: 1px solid var(--sage-200, #dce9da);
+  border-radius: var(--radius-sm, 6px);
 }
 
 .attachments {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-3, 12px);
   flex-wrap: wrap;
 }
 
-/* Uploaded files shown as downloadable cards: file icon + name + download btn */
 .attachment-card {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-3, 12px);
   min-width: 0;
   max-width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  border-radius: var(--radius-md, 12px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+  transition: border-color var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease);
 }
 
 .attachment-card:hover {
-  border-color: var(--sage-500);
-  box-shadow: var(--shadow-md);
+  border-color: var(--sage-500, #8cb986);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.08));
 }
 
 .attachment-file-icon {
   flex-shrink: 0;
   font-size: 22px;
-  color: var(--color-accent);
+  color: var(--color-accent, #8cb986);
 }
 
 .attachment-name {
   flex: 1;
   min-width: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-body);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-body, #2d322c);
+  font-weight: var(--font-weight-medium, 500);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -360,20 +379,20 @@
   gap: 4px;
   flex-shrink: 0;
   padding: 6px 12px;
-  background: var(--sage-100);
-  color: var(--color-primary);
-  border: 1px solid var(--sage-300);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  background: var(--sage-100, #eaf2e8);
+  color: var(--color-primary, #105e06);
+  border: 1px solid var(--sage-300, #c2d9be);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-semibold, 600);
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: background var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
 }
 
 .attachment-download-btn:hover {
-  background: var(--color-primary);
+  background: var(--color-primary, #105e06);
   color: #fff;
-  border-color: var(--color-primary);
+  border-color: var(--color-primary, #105e06);
 }
 
 .attachment-download-btn svg {
@@ -382,56 +401,89 @@
 
 /* ---- Follow-up comment box ---- */
 .comment-section {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
-  box-shadow: var(--shadow-sm);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  border-radius: var(--radius-md, 12px);
+  padding: var(--space-5, 20px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
 }
 
 .comment-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  gap: var(--space-3, 12px);
+  margin-bottom: var(--space-4, 16px);
 }
 
 .comment-header .user-icon {
   font-size: 40px;
-  color: var(--gray-400);
+  color: var(--gray-400, #a1a8a0);
 }
 
 .comment-header h4 {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  font-size: var(--font-size-md, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text, #181b18);
   margin-bottom: 2px;
 }
 
 .comment-limit {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
 }
 
 .comment-section textarea {
   width: 100%;
   min-height: 120px;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-base);
+  padding: var(--space-4, 16px);
+  border: 1px solid var(--color-border, #cbd0ca);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-base, 14px);
   font-family: inherit;
-  background-color: var(--color-surface);
-  color: var(--color-text-body);
+  background-color: var(--color-surface, #ffffff);
+  color: var(--color-text-body, #2d322c);
   resize: vertical;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-4, 16px);
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease);
+  box-sizing: border-box;
 }
 
 .comment-section textarea:focus {
-  border-color: var(--color-accent);
+  border-color: var(--color-accent, #8cb986);
   box-shadow: 0 0 0 3px rgba(140, 185, 134, 0.15);
+}
+
+.uploaded-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--space-4, 16px);
+}
+
+.uploaded-file-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gray-100, #f0f2ef);
+  border: 1px solid var(--gray-300, #cbd0ca);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--gray-800, #2d322c);
+}
+
+.remove-file-btn {
+  background: none;
+  border: none;
+  color: var(--gray-500, #7d857c);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 2px;
+}
+
+.remove-file-btn:hover {
+  color: var(--red-600, #b91c1c);
 }
 
 .comment-footer {
@@ -443,20 +495,20 @@
 .attach-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  gap: var(--space-2, 8px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #cbd0ca);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-muted, #5d645c);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--transition-fast, 0.15s ease);
 }
 
 .attach-btn:hover {
-  background: var(--gray-100);
-  border-color: var(--gray-400);
+  background: var(--gray-100, #f0f2ef);
+  border-color: var(--gray-400, #a1a8a0);
 }
 
 .attach-btn svg {
@@ -464,25 +516,23 @@
 }
 
 .send-btn {
-  padding: var(--space-3) var(--space-6);
-  background-color: var(--green-btn);
+  padding: var(--space-3, 12px) var(--space-6, 24px);
+  background-color: var(--color-primary, #105e06);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-base, 14px);
+  font-weight: var(--font-weight-semibold, 600);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast, 0.15s ease);
 }
 
 .send-btn:hover:not(:disabled) {
-  background-color: var(--green-btn-hover);
+  background-color: var(--green-900, #0d4a05);
 }
 
 .send-btn:disabled {
-  /* Solid neutral gray — same gray-out treatment as the New Request submit
-     button, the Feedback submit button, and the admin Update Profile button. */
-  background-color: var(--gray-400);
+  background-color: var(--gray-400, #a1a8a0);
   color: #ffffff;
   cursor: not-allowed;
   box-shadow: none;
@@ -492,29 +542,29 @@
 /* ---- Staff & student conversation bubbles ---- */
 .staff-response,
 .student-followup {
-  background: var(--sage-50);
-  border: 1px solid var(--sage-200);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
-  margin-bottom: var(--space-4);
+  background: var(--sage-50, #f4f8f3);
+  border: 1px solid var(--sage-200, #dce9da);
+  border-radius: var(--radius-md, 12px);
+  padding: var(--space-5, 20px);
+  margin-bottom: var(--space-4, 16px);
 }
 
 .staff-response {
-  background: var(--color-surface);
-  border-color: var(--color-border-soft);
+  background: var(--color-surface, #ffffff);
+  border-color: var(--color-border-soft, #e3e6e2);
 }
 
 .response-header,
 .followup-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  gap: var(--space-3, 12px);
+  margin-bottom: var(--space-3, 12px);
 }
 
 .user-icon {
   font-size: 36px;
-  color: var(--gray-400);
+  color: var(--gray-400, #a1a8a0);
   flex-shrink: 0;
 }
 
@@ -522,7 +572,7 @@
 .staff-icon {
   font-size: 30px;
   color: #fff;
-  background: var(--color-primary);
+  background: var(--color-primary, #105e06);
   border-radius: 50%;
   padding: 3px;
   flex-shrink: 0;
@@ -531,29 +581,31 @@
 
 .response-header h4,
 .followup-header h4 {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  font-size: var(--font-size-base, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text, #181b18);
+  margin: 0;
 }
 
 .staff-name {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
 }
 
 .response-date,
 .followup-date {
   margin-left: auto;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
   white-space: nowrap;
 }
 
 .response-text,
 .followup-text {
-  font-size: var(--font-size-base);
-  color: var(--color-text-body);
+  font-size: var(--font-size-base, 14px);
+  color: var(--color-text-body, #2d322c);
   line-height: 1.6;
+  margin: 0 0 var(--space-3, 12px) 0;
 }
 
 /* ---- Details sidebar ---- */
@@ -561,37 +613,37 @@
   width: 320px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-5, 20px);
   flex-shrink: 0;
 }
 
 .details-card,
 .timeline-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
-  box-shadow: var(--shadow-sm);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  border-radius: var(--radius-md, 12px);
+  padding: var(--space-5, 20px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
 }
 
 .details-card h3,
 .timeline-card h3 {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-muted);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text-muted, #5d645c);
   text-transform: uppercase;
   letter-spacing: 1px;
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-divider);
+  padding-bottom: var(--space-3, 12px);
+  margin: 0 0 var(--space-3, 12px) 0;
+  border-bottom: 1px solid var(--color-divider, #e3e6e2);
 }
 
 .detail-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--gray-100);
+  padding: var(--space-3, 12px) 0;
+  border-bottom: 1px solid var(--gray-100, #f0f2ef);
 }
 
 .detail-row:last-child {
@@ -599,17 +651,17 @@
 }
 
 .detail-row .label {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-semibold, 600);
 }
 
 .detail-row .value {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-body);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-text-body, #2d322c);
+  font-weight: var(--font-weight-medium, 500);
   text-align: right;
 }
 
@@ -617,12 +669,12 @@
 .timeline {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-5, 20px);
 }
 
 .timeline-item {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-4, 16px);
   position: relative;
 }
 
@@ -633,11 +685,11 @@
   top: 30px;
   bottom: -20px;
   width: 2px;
-  background-color: var(--gray-300);
+  background-color: var(--gray-300, #cbd0ca);
 }
 
 .timeline-item.completed::before {
-  background-color: var(--sage-500);
+  background-color: var(--sage-500, #8cb986);
 }
 
 .timeline-icon {
@@ -647,14 +699,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--gray-300);
+  background-color: var(--gray-300, #cbd0ca);
   color: white;
   flex-shrink: 0;
 }
 
 .timeline-item.completed .timeline-icon,
 .timeline-item.active .timeline-icon {
-  background-color: var(--green-bright);
+  background-color: var(--color-primary, #105e06);
 }
 
 .timeline-icon svg {
@@ -662,21 +714,42 @@
 }
 
 .timeline-content h4 {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-  margin-bottom: 4px;
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
+  margin: 0 0 4px 0;
 }
 
 .timeline-date {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
-  margin-bottom: 2px;
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
+  margin: 0 0 2px 0;
 }
 
 .timeline-desc {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-muted, #5d645c);
+  margin: 0;
+}
+
+/* Sub-timeline items (reassigned/returned) */
+.timeline-sub-details {
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--sage-300, #c2d9be);
+}
+
+.timeline-change {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary, #105e06);
+  margin: 0 0 2px 0;
+}
+
+.timeline-handler {
+  font-size: 11px;
+  color: var(--color-text-faint, #7d857c);
+  margin: 0;
 }
 
 /* ==========================================================================
@@ -703,7 +776,7 @@
 @media (max-width: 639px) {
   .request-header {
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-3, 12px);
   }
 
   .request-actions {
@@ -715,8 +788,8 @@
     align-items: flex-start;
     text-align: left;
     border-right: none;
-    border-bottom: 1px solid var(--color-divider);
-    padding: 0 0 var(--space-2);
+    border-bottom: 1px solid var(--color-divider, #e3e6e2);
+    padding: 0 0 var(--space-2, 8px);
     width: 100%;
   }
 
@@ -724,8 +797,8 @@
     flex-direction: column;
     align-items: flex-start;
     text-align: left;
-    gap: var(--space-3);
-    padding: var(--space-5);
+    gap: var(--space-3, 12px);
+    padding: var(--space-5, 20px);
   }
 
   .feedback-banner-btn {
@@ -740,25 +813,11 @@
   .comment-footer {
     flex-direction: column;
     align-items: stretch;
-    gap: var(--space-3);
+    gap: var(--space-3, 12px);
   }
 
   .attach-btn,
   .send-btn {
     justify-content: center;
   }
-}
-
-
-/* Disabled cancel button */
-.cancel-btn:disabled {
-  background-color: #ccc;
-  color: #666;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.cancel-btn:disabled:hover {
-  background-color: #ccc;
-  transform: none;
 }

@@ -15,12 +15,17 @@ const STATUS_CLASS_MAP = {
 
 /**
  * Reusable request-status badge.
- * @param {{ status?: string }} props
+ * @param {{ status?: string, className?: string }} props
  */
-function StatusBadge({ status }) {
-  const key = String(status || 'Pending').toLowerCase();
-  const className = STATUS_CLASS_MAP[key] || 'status-pending';
-  return <span className={`status ${className}`}>{status || 'Pending'}</span>;
+function StatusBadge({ status, className = '' }) {
+  const key = String(status || 'Pending').toLowerCase().trim();
+  const statusModifier = STATUS_CLASS_MAP[key] || 'status-pending';
+  return (
+    <span className={`status-badge ${statusModifier} ${className}`.trim()}>
+      <span className="status-dot" aria-hidden="true"></span>
+      {status || 'Pending'}
+    </span>
+  );
 }
 
 export default StatusBadge;

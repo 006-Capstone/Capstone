@@ -1,43 +1,46 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { FaBell, FaCheck, FaCheckDouble, FaTimes, FaArrowRight } from 'react-icons/fa';
+import { 
+  FaBell, 
+  FaCheck, 
+  FaCheckDouble, 
+  FaTimes, 
+  FaArrowRight,
+  FaCommentDots,
+  FaCheckCircle,
+  FaTicketAlt,
+  FaExchangeAlt,
+  FaClock,
+  FaInfoCircle
+} from 'react-icons/fa';
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { markAsRead, markAllAsRead } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/Notifications.css';
 
-// Anchor the panel consistently just below the notification bell on every
-// page. The bell sits in the page header, which is positioned differently
-// per page, so we measure it at open time instead of using fixed offsets.
-// Hoisted outside the component: pure function of the DOM, no state needed.
+// Anchor the panel consistently just below the notification bell
 const computePanelPosition = () => {
-  const bell = document.querySelector('.notification-bell');
+  const bell = document.querySelector('.notification-bell') || document.querySelector('.figma-bell-wrap');
   const isMobile = window.innerWidth <= 768;
 
   if (!bell) {
-    // Fallback: sensible defaults if the bell isn't found
     return isMobile
-      ? { top: 60, left: 12, right: 12, width: 'auto' }
-      : { top: 70, right: 90 };
+      ? { top: 64, left: 12, right: 12, width: 'auto' }
+      : { top: 72, right: 80 };
   }
 
   const rect = bell.getBoundingClientRect();
-  const gap = 8;
+  const gap = 10;
   const top = Math.min(rect.bottom + gap, window.innerHeight - 32);
 
   if (isMobile) {
-    // Full-width-ish panel below the bell on small screens
     return { top, left: 12, right: 12, width: 'auto' };
   }
 
-  // Right edges align, so the panel drops straight down from the bell
-  const right = Math.max(12, window.innerWidth - rect.right);
+  const right = Math.max(16, window.innerWidth - rect.right);
   return { top, right };
 };
 
-// Look up the request a notification refers to (by its human-readable request
-// ID) so the app can open it. Tickets that were reassigned get a NEW requestId
-// while the notification keeps the old one, so fall back to previousRequestId.
 const fetchRequestByNotification = async (notif) => {
   const requestId = notif.metadata?.requestId;
   if (!requestId) return null;
@@ -58,21 +61,42 @@ const fetchRequestByNotification = async (notif) => {
   return null;
 };
 
+const getNotificationIcon = (notif) => {
+  const type = notif.type;
+  const newStatus = (notif.metadata?.newStatus || '').toLowerCase();
+
+  switch (type) {
+    case 'new_request':
+      // Standardized Blue/Indigo/Purple for New Request / Pending
+      return { icon: <FaTicketAlt />, className: 'type-request' };
+    case 'status_change':
+      if (newStatus.includes('process') || newStatus.includes('progress')) {
+        return { icon: <FaClock />, className: 'type-inprocess' };
+      }
+      return { icon: <FaCheckCircle />, className: 'type-status' };
+    case 'new_comment':
+    case 'student_followup':
+      return { icon: <FaCommentDots />, className: 'type-comment' };
+    case 'ticket_rerouted':
+      return { icon: <FaExchangeAlt />, className: 'type-rerouted' };
+    case 'etc_update':
+      return { icon: <FaClock />, className: 'type-etc' };
+    default:
+      return { icon: <FaInfoCircle />, className: 'type-default' };
+  }
+};
+
 const Notifications = ({ isOpen, onClose, onViewRequest }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [panelStyle, setPanelStyle] = useState({});
 
-  // useLayoutEffect so the measured position is applied before paint,
-  // avoiding a visible flash at the CSS fallback position.
   useLayoutEffect(() => {
     if (!isOpen) return undefined;
 
     setPanelStyle(computePanelPosition());
 
-    // Re-measure when the window resizes OR the page scrolls while the
-    // panel is open, so it always stays anchored to the bell.
     const handleResize = () => setPanelStyle(computePanelPosition());
     window.addEventListener('resize', handleResize);
     window.addEventListener('scroll', handleResize, true);
@@ -91,7 +115,6 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
       return;
     }
 
-    // Simplified query to avoid index requirement - we'll sort in JavaScript
     const q = query(
       collection(db, 'notifications'),
       where('recipientId', '==', staffData.uid),
@@ -112,13 +135,12 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
         if (!data.isRead) unread++;
       });
 
-      // Sort by date in JavaScript (newest first) and limit to 20
       notifs.sort((a, b) => {
         const timeA = a.createdAt?.getTime() || 0;
         const timeB = b.createdAt?.getTime() || 0;
         return timeB - timeA;
       });
-      const limitedNotifs = notifs.slice(0, 20);
+      const limitedNotifs = notifs.slice(0, 25);
 
       setNotifications(limitedNotifs);
       setUnreadCount(unread);
@@ -135,8 +157,6 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
     await markAsRead(notificationId);
   };
 
-  // Clicking a notification marks it read and, when it references a request,
-  // opens that request's details page (closing the dropdown on the way).
   const handleNotificationClick = async (notif) => {
     try {
       if (!notif.isRead) {
@@ -155,7 +175,9 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
 
   const handleMarkAllAsRead = async () => {
     const staffData = JSON.parse(localStorage.getItem('staffData'));
-    await markAllAsRead(staffData.uid, 'staff');
+    if (staffData?.uid) {
+      await markAllAsRead(staffData.uid, 'staff');
+    }
   };
 
   const getTimeAgo = (date) => {
@@ -169,6 +191,7 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
     return `${diffDays}d ago`;
   };
 
@@ -177,67 +200,113 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
   return (
     <div className="notifications-overlay" onClick={onClose}>
       <div className="notifications-panel" style={panelStyle} onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
         <div className="notifications-header">
           <div className="notifications-header-left">
-            <FaBell className="notifications-bell-icon" />
-            <h2>Notifications</h2>
-            {unreadCount > 0 && <span className="unread-badge">{unreadCount}</span>}
+            <div className="header-bell-badge">
+              <FaBell />
+            </div>
+            <div className="header-title-container">
+              <h2>Notifications</h2>
+              {unreadCount > 0 ? (
+                <span className="unread-badge">{unreadCount} new</span>
+              ) : (
+                <span className="all-read-badge">All caught up</span>
+              )}
+            </div>
           </div>
+          
           <div className="notifications-header-right">
             {unreadCount > 0 && (
-              <button className="mark-all-read-btn" onClick={handleMarkAllAsRead} title="Mark all as read">
+              <button 
+                className="mark-all-read-btn" 
+                onClick={handleMarkAllAsRead} 
+                title="Mark all as read"
+                aria-label="Mark all as read"
+              >
                 <FaCheckDouble />
+                <span>Mark all read</span>
               </button>
             )}
-            <button className="close-notifications-btn" onClick={onClose}>
+            <button 
+              className="close-notifications-btn" 
+              onClick={onClose} 
+              aria-label="Close notifications"
+              title="Close"
+            >
               <FaTimes />
             </button>
           </div>
         </div>
 
+        {/* Notification List */}
         <div className="notifications-list">
           {loading ? (
             <LoadingSpinner message="Loading notifications..." fullScreen={false} />
           ) : notifications.length === 0 ? (
             <div className="notifications-empty">
-              <FaBell className="empty-icon" />
-              <p>No notifications yet</p>
+              <div className="empty-bell-circle">
+                <FaBell className="empty-icon" />
+              </div>
+              <h3>No Notifications Yet</h3>
+              <p>You’re completely up to date. You will be notified when new requests or updates arrive.</p>
             </div>
           ) : (
-            notifications.map((notif) => (
-              <div
-                key={notif.id}
-                role="button"
-                tabIndex={0}
-                className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
-                onClick={() => handleNotificationClick(notif)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleNotificationClick(notif);
-                  }
-                }}
-                title={notif.metadata?.requestId ? 'Open request' : undefined}
-              >
-                <div className="notification-content">
-                  <div className="notification-title">{notif.title}</div>
-                  <div className="notification-message">{notif.message}</div>
-                  <div className="notification-time">{getTimeAgo(notif.createdAt)}</div>
+            notifications.map((notif) => {
+              const { icon, className: iconClass } = getNotificationIcon(notif);
+              const requestId = notif.metadata?.requestId;
+
+              return (
+                <div
+                  key={notif.id}
+                  role="button"
+                  tabIndex={0}
+                  className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
+                  onClick={() => handleNotificationClick(notif)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleNotificationClick(notif);
+                    }
+                  }}
+                  title={requestId ? `Open Request #${requestId}` : undefined}
+                >
+                  <div className={`notif-type-icon ${iconClass}`}>
+                    {icon}
+                  </div>
+
+                  <div className="notification-content">
+                    <div className="notification-top-row">
+                      <span className="notification-title">{notif.title}</span>
+                      {requestId && (
+                        <span className="notif-request-chip">#{requestId}</span>
+                      )}
+                    </div>
+                    <div className="notification-message">{notif.message}</div>
+                    <div className="notification-time">{getTimeAgo(notif.createdAt)}</div>
+                  </div>
+
+                  {requestId && (
+                    <div className="notification-open-indicator" aria-hidden="true">
+                      <FaArrowRight />
+                    </div>
+                  )}
+
+                  {!notif.isRead && (
+                    <span className="notification-unread-dot" title="Unread" />
+                  )}
                 </div>
-                {notif.metadata?.requestId && (
-                  <div className="notification-open-indicator" aria-hidden="true">
-                    <FaArrowRight />
-                  </div>
-                )}
-                {!notif.isRead && (
-                  <div className="notification-unread-indicator">
-                    <FaCheck className="mark-read-icon" />
-                  </div>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
+
+        {/* Footer */}
+        {notifications.length > 0 && (
+          <div className="notifications-footer">
+            <span>Showing recent notifications</span>
+          </div>
+        )}
       </div>
     </div>
   );

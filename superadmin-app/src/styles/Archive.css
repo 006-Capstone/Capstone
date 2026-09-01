@@ -14,31 +14,45 @@
 }
 
 /* ---- Filter Row ---- */
-.archive-filters-row {
+.archive-tabs-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-5);
-  flex-wrap: wrap;
-  gap: var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+  background-color: var(--gray-25, #fafafa);
 }
 
-.archive-filter-buttons {
+.archive-tabs {
   display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  padding: 0 var(--space-4);
 }
 
-.archive-filter-buttons .filter-btn {
-  padding: 10px 20px;
-  border: 1px solid var(--color-border-soft);
-  background-color: var(--color-surface);
-  color: var(--color-text-muted);
+.archive-tabs .tab {
+  padding: 14px 18px;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
   cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.archive-tabs .tab:hover {
+  color: var(--color-primary);
+}
+
+.archive-tabs .tab.active {
+  color: var(--color-primary);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.archive-count {
+  padding-right: var(--space-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
 }
 
 .archive-filter-buttons .filter-btn:hover {
@@ -77,13 +91,17 @@
 
 .btn-export:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-export:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn-export:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-unarchive {
@@ -103,43 +121,46 @@
 
 .btn-unarchive:hover:not(:disabled) {
   background-color: #1d4ed8;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-unarchive:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn-unarchive:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
-/* ---- Archive Table ---- */
+/* ---- Accounts & Staff Table (Grid layout) ---- */
 .archive-table {
-  display: flex;
-  flex-direction: column;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  width: 100%;
+  min-width: 800px;
 }
 
 .archive-table .table-header {
   display: grid;
-  grid-template-columns: 50px 120px 150px 1fr 1fr 120px 150px;
-  background: var(--color-bg);
-  border-bottom: 2px solid var(--color-border-soft);
-  padding: var(--space-4);
-  font-weight: var(--font-weight-bold);
+  gap: var(--space-4);
+  padding: 14px 20px;
+  background-color: var(--gray-50);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.archive-table .table-header .table-cell {
   font-size: var(--font-size-sm);
-  color: var(--color-text);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--color-text-body);
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .archive-table .table-row {
   display: grid;
-  grid-template-columns: 50px 120px 150px 1fr 1fr 120px 150px;
-  padding: var(--space-4);
+  gap: var(--space-4);
+  padding: 14px 20px;
   border-bottom: 1px solid var(--color-divider);
+  align-items: center;
   transition: background-color var(--transition-fast);
 }
 
@@ -147,21 +168,17 @@
   cursor: pointer;
 }
 
-.archive-table .table-row.clickable:hover {
-  background-color: var(--sage-100, #e8f0e8);
+.archive-table .table-row:hover {
+  background-color: var(--sage-50);
 }
 
 .archive-table .table-row.expanded {
-  background-color: var(--sage-50, #f0f4f0);
+  background-color: var(--gray-50);
   border-bottom: none;
 }
 
 .archive-table .table-row:last-child {
   border-bottom: none;
-}
-
-.archive-table .table-row:hover {
-  background-color: var(--sage-50, #f0f4f0);
 }
 
 .archive-table .table-cell {
@@ -324,15 +341,26 @@
 }
 
 /* ---- Empty State ---- */
-.empty-state {
+.archive-container .empty-state {
   text-align: center;
   padding: var(--space-12) var(--space-5);
   color: var(--color-text-muted);
   font-size: var(--font-size-md);
   background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
+  border: 1px dashed var(--gray-300);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+}
+
+.archive-container .empty-state-icon {
+  font-size: 40px;
+  color: var(--gray-300);
+  margin-bottom: var(--space-3);
+}
+
+.archive-container .empty-state-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-faint);
+  margin-top: var(--space-1);
 }
 
 /* ---- Pagination ---- */
@@ -432,4 +460,116 @@
   .pagination {
     flex-wrap: wrap;
   }
+}
+
+/* ---- Embedded (in User Management) action row ---- */
+.archive-embedded-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+/* ---- Unarchive confirmation modal ---- */
+.archive-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: archive-backdrop-fade 0.15s ease;
+}
+
+@keyframes archive-backdrop-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.archive-confirm-modal {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-7) var(--space-6);
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  animation: archive-confirm-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes archive-confirm-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.archive-confirm-icon {
+  font-size: 34px;
+  color: #2563eb;
+  margin-bottom: var(--space-4);
+}
+
+.archive-confirm-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.archive-confirm-message {
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0 0 var(--space-6) 0;
+}
+
+.archive-confirm-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+.archive-confirm-actions .btn-secondary {
+  min-width: 120px;
+  justify-content: center;
+}
+
+.btn-restore-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 120px;
+  padding: var(--space-3) var(--space-5);
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: #2563eb;
+  color: #fff;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: background-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-fast);
+}
+
+.btn-restore-confirm:hover:not(:disabled) {
+  background-color: #1d4ed8;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-restore-confirm:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-restore-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }

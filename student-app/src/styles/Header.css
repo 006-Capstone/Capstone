@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TOP HEADER — notification bell + user profile, hamburger on small screens
+   TOP HEADER — brand mark, notification bell + user profile
    ========================================================================== */
 
 .top-header {
@@ -11,8 +11,10 @@
   align-items: center;
   gap: var(--space-4);
   border-bottom: 1px solid var(--color-divider);
+  box-shadow: 0 1px 3px rgba(15, 23, 16, 0.03);
   flex-shrink: 0;
-  z-index: 10;
+  z-index: 50;
+  position: relative;
 }
 
 .header-left {
@@ -22,110 +24,71 @@
   min-width: 0;
 }
 
-/* Hamburger — hidden on desktop where the sidebar is static */
+/* Hamburger button for mobile/tablet */
 .menu-toggle {
   display: none;
   width: 40px;
   height: 40px;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text);
-  font-size: 20px;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  font-size: 18px;
+  transition: all var(--transition-fast);
 }
 
 .menu-toggle:hover {
-  background: var(--gray-100);
+  background: var(--sage-50);
+  border-color: var(--sage-300);
   color: var(--color-primary);
 }
 
-/* Header branding — always visible (Figma: logo + school name in header top-left) */
 .header-branding {
   display: block;
   min-width: 0;
 }
 
 .header-branding .brand-logo {
-  width: 60px;
-  height: 60px;
+  width: 46px;
+  height: 46px;
 }
 
 .header-branding .brand-name {
-  font-size: 20px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
-/* ---- Notification bell ---- */
-/* Anchor context for the notifications dropdown (positioned in Notifications.css) */
-.notification-wrapper {
-  position: relative;
-}
-
-.notification-bell {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--transition-fast), transform var(--transition-fast);
-}
-
-.notification-bell:hover {
-  background-color: var(--sage-50);
-}
-
-.notification-bell:active {
-  transform: scale(0.95);
-}
-
-.bell-icon {
-  font-size: 20px;
-  color: var(--color-primary);
-}
-
-.notification-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 18px;
-  padding: 2px 5px;
-  background-color: var(--red-400);
-  color: #fff;
-  border: 2px solid var(--color-surface);
-  border-radius: var(--radius-pill);
-  font-size: 11px;
-  font-weight: var(--font-weight-bold);
-  line-height: 1.2;
-  text-align: center;
-}
-
-/* ---- User profile ---- */
+/* ---- User Profile Button ---- */
 .user-profile {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-1);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
+  padding: 5px 12px 5px 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
+  cursor: pointer;
 }
 
 .user-profile:hover {
-  background: var(--gray-100);
+  background: var(--sage-50);
+  border-color: var(--sage-300);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.user-profile:active {
+  transform: translateY(0);
 }
 
 .user-text {
@@ -138,29 +101,33 @@
 .user-name {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
-  font-size: var(--font-size-base);
-  max-width: 180px;
+  font-size: var(--font-size-sm);
+  max-width: 170px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .student-id {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-2xs);
   color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .avatar {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  border: 2px solid var(--color-primary);
+  border: 2px solid var(--sage-300);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   background: var(--color-surface);
   color: var(--color-primary);
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .avatar svg {
@@ -175,6 +142,67 @@
   border-radius: 50%;
 }
 
+/* ---- Notification Bell ---- */
+.notification-wrapper {
+  position: relative;
+}
+
+.notification-bell {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.notification-bell:hover {
+  background-color: var(--sage-50);
+  border-color: var(--sage-300);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.notification-bell:active {
+  transform: scale(0.96);
+}
+
+.bell-icon {
+  font-size: 17px;
+  color: var(--color-primary);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background-color: #ef4444;
+  color: #ffffff;
+  border: 2px solid var(--color-surface);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  line-height: 14px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.35);
+  animation: badge-pulse 2.5s infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
 /* ==========================================================================
    RESPONSIVE
    ========================================================================== */
@@ -187,19 +215,22 @@
 
 @media (max-width: 639px) {
   .user-name {
-    max-width: 110px;
+    max-width: 100px;
   }
 
   .user-text {
-    display: none; /* avatar-only profile on very small screens */
+    display: none;
   }
 
-  .header-branding .brand-logo {
-    width: 40px;
-    height: 40px;
+  .user-profile {
+    padding: 2px;
   }
 
   .header-branding .brand-name {
-    font-size: var(--font-size-base);
+    font-size: var(--font-size-sm);
+  }
+
+  .header-branding .brand-subtitle {
+    display: none;
   }
 }

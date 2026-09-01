@@ -7,7 +7,10 @@ import {
   MdHelp,
   MdExpandMore,
   MdExpandLess,
-  MdClose
+  MdClose,
+  MdAccessTime,
+  MdEmail,
+  MdLocationOn
 } from 'react-icons/md';
 import '../styles/Sidebar.css';
 
@@ -44,8 +47,6 @@ function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = f
   const handleToggleFeedback = () => {
     setFeedbackOpen((prev) => {
       const next = !prev;
-      // On desktop, opening the submenu also navigates to the feedback overview.
-      // On mobile the drawer stays open so the user can pick a specific office.
       if (next && !isOpen && activePage !== 'feedback') {
         handleNavigate('feedback');
       }
@@ -63,7 +64,7 @@ function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = f
       />
 
       <aside id="primary-sidebar" className={`sidebar ${isOpen ? 'sidebar--open' : ''}`} aria-label="Primary navigation">
-        {/* Close button — only visible on the mobile drawer (Figma: no brand block in sidebar) */}
+        {/* Close button — only visible on mobile drawer */}
         <button
           type="button"
           ref={closeBtnRef}
@@ -87,9 +88,9 @@ function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = f
 
           <button
             type="button"
-            className={activePage === 'request' ? 'active' : ''}
+            className={(activePage === 'request' || activePage === 'request-details' || activePage === 'new-request') ? 'active' : ''}
             onClick={() => handleNavigate('request')}
-            aria-current={activePage === 'request' ? 'page' : undefined}
+            aria-current={(activePage === 'request' || activePage === 'request-details' || activePage === 'new-request') ? 'page' : undefined}
           >
             <MdDescription aria-hidden="true" />
             <span>My Request</span>
@@ -159,18 +160,21 @@ function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = f
 
         <address className="office-info">
           <div className="office-info-block">
-            <h4>Office Hours</h4>
-            <p>Mon - Fri: 7:00AM - 7:00PM</p>
-            <p>Sat: 9:00AM - 3:00PM</p>
+            <div className="office-info-title-row">
+              <MdAccessTime className="office-info-icon" aria-hidden="true" />
+              <h4>Office Hours</h4>
+            </div>
+            <p>Mon – Fri: 7:00 AM – 7:00 PM</p>
+            <p>Sat: 9:00 AM – 3:00 PM</p>
           </div>
           <div className="office-info-divider" aria-hidden="true" />
           <div className="office-info-row">
-            <span className="office-info-label">Email:</span>
+            <MdEmail className="office-info-icon" aria-hidden="true" />
             <span className="office-info-value">academiadesanjose@gmail.com</span>
           </div>
           <div className="office-info-row">
-            <span className="office-info-label">Location:</span>
-            <span className="office-info-value">8WHV+322, S.B. Cabahug, Mandaue, 6014 Cebu</span>
+            <MdLocationOn className="office-info-icon" aria-hidden="true" />
+            <span className="office-info-value">8WHV+322, S.B. Cabahug, Mandaue</span>
           </div>
         </address>
       </aside>

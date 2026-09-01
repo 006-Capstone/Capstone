@@ -107,6 +107,7 @@ const Analytics = () => {
 
   const calculateMonthlyTrends = (requests) => {
     const months = ['JUNE', 'JULY', 'AUG', 'SEP', 'OCT', 'NOV'];
+    const monthIndexMap = { 5: 'JUNE', 6: 'JULY', 7: 'AUG', 8: 'SEP', 9: 'OCT', 10: 'NOV' };
     const monthlyCount = {};
 
     // Initialize all months
@@ -118,7 +119,7 @@ const Analytics = () => {
     requests.forEach(req => {
       const createdAt = req.createdAt?.toDate?.() || new Date(req.createdAt);
       const monthIndex = createdAt.getMonth(); // 0-11
-      const monthName = months[monthIndex - 5]; // Adjust index (June = 5)
+      const monthName = monthIndexMap[monthIndex];
       
       if (monthName && monthlyCount[monthName]) {
         // Determine semester based on month (June-Oct = 2nd sem, Nov onwards = 1st sem)

@@ -21,6 +21,7 @@ import { db, auth } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import NotificationBell from './NotificationBell';
+import Archive from './Archive';
 import '../styles/UserManagement.css';
 
 const UserManagement = () => {
@@ -211,23 +212,54 @@ const UserManagement = () => {
         collection(db, 'staff'),
         orderBy('createdAt', 'desc')
       );
-      const querySnapshot = await getDocs(staffQuery);
-      const staffData = querySnapshot.docs.map(doc => ({
-        firestoreId: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate().toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          year: 'numeric' 
-        }) || 'N/A',
-        archivedAt: doc.data().archivedAt?.toDate().toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        }) || 'N/A',
-        archivedBy: doc.data().archivedBy || '—'
-      }));
-      setStaffMembers(staffData);
+      
+      const unsubscribe = onSnapshot(staffQuery, (querySnapshot) => {
+        const staffData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          let formattedCreatedAt = 'N/A';
+          let formattedArchivedAt = 'N/A';
+
+          try {
+            if (data.createdAt) {
+              if (typeof data.createdAt.toDate === 'function') {
+                formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                });
+              } else if (typeof data.createdAt === 'string') {
+                formattedCreatedAt = data.createdAt;
+              }
+            }
+            if (data.archivedAt) {
+              if (typeof data.archivedAt.toDate === 'function') {
+                formattedArchivedAt = data.archivedAt.toDate().toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                });
+              } else if (typeof data.archivedAt === 'string') {
+                formattedArchivedAt = data.archivedAt;
+              }
+            }
+          } catch (err) {
+            console.error('[Warning] Failed to format staff dates:', err);
+          }
+
+          return {
+            firestoreId: doc.id,
+            ...data,
+            createdAt: formattedCreatedAt,
+            archivedAt: formattedArchivedAt,
+            archivedBy: data.archivedBy || '—'
+          };
+        });
+        setStaffMembers(staffData);
+      }, (error) => {
+        console.error('[Error] loading staff:', error);
+      });
+      
+      return unsubscribe;
     } catch (error) {
       console.error('Error setting up staff listener:', error);
     }
@@ -286,7 +318,7 @@ const UserManagement = () => {
       : staffMembers.filter(s => selectedStaffIds.includes(s.firestoreId));
     
     if (accountsToArchive.length === 0) {
-      alert('Please select accounts to archive');
+      showToast('Please select accounts to archive', 'error');
       return;
     }
 
@@ -340,14 +372,14 @@ const UserManagement = () => {
         ? `Successfully archived ${accountsToArchive.length} student(s) and their related requests`
         : `Successfully archived ${accountsToArchive.length} staff member(s)`;
       
-      alert(message);
+      showToast(message);
       setSelectedStudentIds([]);
       setSelectedStaffIds([]);
       setSelectAllStudents(false);
       setSelectAllStaff(false);
     } catch (error) {
       console.error('[Error] archiving accounts:', error);
-      alert('Failed to archive accounts: ' + error.message);
+      showToast('Failed to archive accounts: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -815,7 +847,7 @@ const UserManagement = () => {
         
         // Wait a moment for Firestore real-time listeners to update
         await new Promise(resolve => setTimeout(resolve, 500));
-        alert(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
+        showToast(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
       } else if (confirmAction === 'delete') {
         // Delete from Firestore
         // Note: User will remain in Firebase Auth but cannot login without Firestore document
@@ -825,7 +857,7 @@ const UserManagement = () => {
         
         // Wait a moment for Firestore real-time listeners to update
         await new Promise(resolve => setTimeout(resolve, 500));
-        alert('Account deleted successfully from database!');
+        showToast('Account deleted successfully from database!');
       }
       setShowConfirmModal(false);
       setSelectedStudent(null);
@@ -833,7 +865,7 @@ const UserManagement = () => {
       setConfirmAction(null);
     } catch (error) {
       console.error('Error:', error);
-      alert('Failed to perform action: ' + error.message);
+      showToast('Failed to perform action: ' + error.message, 'error');
     }
   };
 
@@ -1001,22 +1033,26 @@ const UserManagement = () => {
             Staff Members
           </button>
           <button
-            className={`user-tab ${activeTab === 'archivedStaff' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('archivedStaff'); resetPagination(); }}
+            className={`user-tab ${activeTab === 'archive' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('archive'); resetPagination(); }}
           >
-            Archived Staff
+            Archive
           </button>
         </div>
       </div>
 
-      {/* Search + filter */}
-      <div className="user-filters-row">
-        <div className="search-bar">
-          <FaSearch className="search-icon" aria-hidden="true" />
-          <input
-            type="search"
-            name="account-search"
-            placeholder={activeTab === 'students' ? 'Search by student name or ID...' : activeTab === 'archivedStaff' ? 'Search archived staff by name or username...' : 'Search by staff name or username...'}
+      {activeTab === 'archive' ? (
+        <Archive isEmbedded={true} />
+      ) : (
+        <>
+          {/* Search + filter */}
+          <div className="user-filters-row">
+            <div className="search-bar">
+              <FaSearch className="search-icon" aria-hidden="true" />
+              <input
+                type="search"
+                name="account-search"
+                placeholder={activeTab === 'students' ? 'Search by student name or ID...' : 'Search by staff name or username...'}
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); resetPagination(); }}
             aria-label="Search accounts"
@@ -1977,6 +2013,8 @@ const UserManagement = () => {
             </>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   );

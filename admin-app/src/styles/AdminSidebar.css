@@ -1,34 +1,44 @@
+/* ==========================================================================
+   ADMIN SIDEBAR — Navigation Shell
+   ========================================================================== */
+
 .admin-sidebar {
-  width: 220px;
-  background-color: #ffffff; /* matches the white dashboard cards */
-  padding: 20px 0;
+  width: 230px;
+  background-color: #ffffff;
+  padding: 20px 0 16px;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  border-right: 1px solid #e0e0e0;
+  height: 100dvh;
+  border-right: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  position: relative;
+  box-sizing: border-box;
+  z-index: 40;
 }
 
-/* School crest at the very top of the sidebar — styled like the student
-   portal's circular brand logo, but without the school name text */
+/* ---- School Crest & Branding ---- */
 .sidebar-logo {
   display: flex;
-  justify-content: center;
-  padding: 20px 20px 24px;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 16px;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 14px;
 }
 
 .sidebar-logo-crest {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   background-color: #105e06;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
 }
 
 .sidebar-logo-crest img {
@@ -41,113 +51,207 @@
 }
 
 .sidebar-logo-fallback {
-  font-size: 24px;
-  font-weight: 700;
-  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
   letter-spacing: 1px;
 }
 
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.sidebar-school-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #166534;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-portal-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #15803d;
+  background-color: #f0fdf4;
+  border: 1px solid #dcfce7;
+  padding: 1px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ---- Navigation Menu ---- */
 .sidebar-menu {
   flex: 1;
-  padding: 0 15px;
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
-  padding: 12px 15px;
-  margin-bottom: 8px;
+  padding: 10px 14px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s;
   background-color: transparent;
-  text-decoration: none;
-  color: #333;
-}
-
-.sidebar-item:hover {
-  background-color: #e8f5e9;
-}
-
-.sidebar-item.active {
-  background-color: #c8e6c9;
-  font-weight: 600;
-  color: #2e7d32;
+  color: #374151;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  user-select: none;
+  border-left: 3px solid transparent;
 }
 
 .sidebar-icon {
-  font-size: 20px;
+  font-size: 18px;
   margin-right: 12px;
-  color: #666;
-}
-
-.sidebar-item.active .sidebar-icon {
-  color: #2e7d32;
+  color: #6b7280;
+  flex-shrink: 0;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .sidebar-label {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
 }
 
+/* Hover State */
+.sidebar-item:hover {
+  background-color: #f0fdf4;
+  color: #166534;
+  transform: translateX(2px);
+}
+
+.sidebar-item:hover .sidebar-icon {
+  color: #166534;
+}
+
+/* Active State — clean soft green pill with emerald accent */
+.sidebar-item.active {
+  background-color: #dcfce7;
+  color: #15803d;
+  font-weight: 600;
+  border-left-color: #16a34a;
+}
+
+.sidebar-item.active .sidebar-icon {
+  color: #15803d;
+}
+
+.sidebar-item.active:hover {
+  background-color: #d1fae5;
+  color: #166534;
+}
+
+/* ---- Footer & User Profile ---- */
 .sidebar-footer {
-  padding: 20px 15px;
-  border-top: 1px solid #e0e0e0;
+  padding: 14px 12px 6px;
+  border-top: 1px solid #f3f4f6;
   margin-top: auto;
+  box-sizing: border-box;
 }
 
 .sidebar-user {
   display: flex;
   align-items: center;
-  padding: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.sidebar-user:hover {
+  background-color: #f9fafb;
+  border-color: #e5e7eb;
 }
 
 .user-icon {
   font-size: 32px;
-  margin-right: 12px;
-  color: #999;
+  margin-right: 10px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.user-icon-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #bbf7d0;
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
 .user-info {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .user-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 2px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-department {
-  font-size: 11px;
-  color: #666;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #15803d;
+  background-color: #f0fdf4;
+  border: 1px solid #dcfce7;
+  padding: 1px 6px;
+  border-radius: 6px;
   text-transform: uppercase;
-  margin: 0;
+  letter-spacing: 0.04em;
+  width: fit-content;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Logout Button */
 .logout-button {
   width: 100%;
-  padding: 10px 12px;
-  margin-top: 15px;
-  background-color: #ef5350;
-  border: none;
+  padding: 9px 12px;
+  margin-top: 10px;
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
   border-radius: 8px;
-  color: white;
-  font-size: 13px;
-  font-weight: 500;
+  color: #dc2626;
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.2s;
+  transition: all 0.18s ease;
 }
 
 .logout-button:hover {
-  background-color: #d32f2f;
+  background-color: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(239, 83, 80, 0.3);
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.22);
 }
 
 .logout-button:active {
@@ -155,71 +259,91 @@
 }
 
 .logout-icon {
-  font-size: 16px;
+  font-size: 14px;
 }
 
-
-/* Profile picture in sidebar */
-.user-icon-img {
-  width: 45px;
-  height: 45px;
+/* Close button on mobile */
+.sidebar-close-btn {
+  display: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #e0e0e0;
+  color: #4b5563;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  transition: all 0.15s ease;
 }
 
-.sidebar-user:hover {
-  background-color: #f0f0f0;
-  border-radius: 8px;
+.sidebar-close-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.admin-sidebar-backdrop {
+  display: none;
 }
 
 /* ==========================================================================
-   RESPONSIVE — compact sidebar on tablets
+   RESPONSIVE — Compact on tablet, off-canvas drawer on mobile
    ========================================================================== */
 
-@media (max-width: 1024px) {
+@media (max-width: 1024px) and (min-width: 769px) {
   .admin-sidebar {
-    width: 184px;
+    width: 190px;
+    padding: 16px 0 12px;
   }
 
   .sidebar-logo {
-    padding: 14px 10px 16px;
-    margin-bottom: 12px;
+    padding: 4px 10px 14px;
+    margin-bottom: 10px;
   }
 
   .sidebar-logo-crest {
-    width: 60px;
-    height: 60px;
+    width: 62px;
+    height: 62px;
   }
 
   .sidebar-logo-fallback {
-    font-size: 15px;
+    font-size: 16px;
+  }
+
+  .sidebar-school-title {
+    font-size: 10px;
+  }
+
+  .sidebar-portal-badge {
+    font-size: 9px;
   }
 
   .sidebar-menu {
-    padding: 0 10px;
+    padding: 0 8px;
   }
 
   .sidebar-item {
-    padding: 10px 12px;
-    margin-bottom: 6px;
-  }
-
-  .sidebar-icon {
-    font-size: 17px;
-    margin-right: 8px;
-  }
-
-  .sidebar-label {
+    padding: 9px 10px;
     font-size: 13px;
   }
 
+  .sidebar-icon {
+    font-size: 16px;
+    margin-right: 8px;
+  }
+
   .sidebar-footer {
-    padding: 14px 10px;
+    padding: 10px 8px 4px;
   }
 
   .sidebar-user {
-    padding: 8px;
+    padding: 6px 8px;
   }
 
   .user-icon {
@@ -227,16 +351,63 @@
     margin-right: 8px;
   }
 
+  .user-icon-img {
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
+  }
+
   .user-name {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .user-department {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .logout-button {
     font-size: 12px;
-    padding: 9px 10px;
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(260px, 80vw);
+    z-index: 999;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.28s ease, visibility 0.28s ease;
+    box-shadow: none;
+  }
+
+  .admin-sidebar.sidebar--open {
+    transform: translateX(0);
+    visibility: visible;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  .admin-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.45);
+    z-index: 998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+
+  .admin-sidebar-backdrop.show {
+    opacity: 1;
+    pointer-events: auto;
   }
 }

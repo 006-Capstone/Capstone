@@ -1,228 +1,142 @@
+/* ==========================================================================
+   IDLE TIMEOUT MODAL — Session countdown warning
+   ========================================================================== */
+
 .idle-timeout-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.75);
+  background-color: rgba(15, 23, 16, 0.7);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  animation: fade-in 0.2s ease-out;
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  padding: var(--space-4);
+  animation: fadeIn 0.2s var(--ease-spring);
 }
 
 .idle-timeout-modal {
-  background-color: white;
-  border-radius: 16px;
-  padding: 40px;
-  max-width: 480px;
-  width: 90%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  max-width: 440px;
+  width: 100%;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-border-soft);
   text-align: center;
-  animation: slide-up 0.3s ease-out;
-}
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: modalSlideIn 0.25s var(--ease-spring);
 }
 
 .idle-timeout-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 24px;
-  background-color: #fff3e0;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto var(--space-4);
+  background-color: #fef3c7;
+  border: 2px solid #fde68a;
   border-radius: 50%;
-  color: #f57c00;
-  font-size: 40px;
-  animation: pulse-warning 2s infinite;
-}
-
-@keyframes pulse-warning {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(245, 124, 0, 0.4);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 10px rgba(245, 124, 0, 0);
-  }
+  color: #b45309;
+  font-size: 32px;
 }
 
 .idle-timeout-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #333;
-  margin: 0 0 16px 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 6px 0;
 }
 
 .idle-timeout-message {
-  font-size: 15px;
-  color: #666;
-  line-height: 1.6;
-  margin: 0 0 32px 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0 0 var(--space-6) 0;
 }
 
 .idle-timeout-countdown {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 24px;
-  background: linear-gradient(135deg, #f0f7f0 0%, #e8f5e9 100%);
-  border-radius: 12px;
-  margin-bottom: 32px;
-  border: 2px solid #66bb6a;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: linear-gradient(135deg, var(--green-50) 0%, var(--sage-100) 100%);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-6);
+  border: 1px solid var(--green-200);
 }
 
 .countdown-icon {
-  font-size: 32px;
-  color: #66bb6a;
-  animation: tick 1s infinite;
-}
-
-@keyframes tick {
-  0%, 50%, 100% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(-10deg);
-  }
-  75% {
-    transform: rotate(10deg);
-  }
+  font-size: 26px;
+  color: var(--color-primary);
 }
 
 .countdown-number {
-  font-size: 48px;
-  font-weight: 700;
-  color: #2e7d32;
+  font-size: 36px;
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-primary);
   line-height: 1;
-  min-width: 70px;
+  font-variant-numeric: tabular-nums;
+  min-width: 50px;
   text-align: center;
 }
 
 .countdown-label {
-  font-size: 16px;
-  color: #2e7d32;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
 }
 
 .idle-timeout-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: center;
 }
 
 .idle-timeout-btn {
-  padding: 14px 32px;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
+  padding: 11px 24px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   border: none;
   flex: 1;
-  max-width: 200px;
 }
 
 .idle-timeout-btn-primary {
-  background-color: #66bb6a;
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 187, 106, 0.3);
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(16, 94, 6, 0.25);
 }
 
 .idle-timeout-btn-primary:hover {
-  background-color: #4caf50;
-  box-shadow: 0 6px 16px rgba(102, 187, 106, 0.4);
-  transform: translateY(-2px);
-}
-
-.idle-timeout-btn-primary:active {
-  transform: translateY(0);
+  background: linear-gradient(135deg, var(--green-750) 0%, var(--green-850) 100%);
+  transform: translateY(-1px);
 }
 
 .idle-timeout-btn-secondary {
-  background-color: white;
-  color: #666;
-  border: 2px solid #e0e0e0;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .idle-timeout-btn-secondary:hover {
-  background-color: #f5f5f5;
-  border-color: #ccc;
-}
-
-/* ==========================================================================
-   RESPONSIVE
-   ========================================================================== */
-
-@media (max-width: 768px) {
-  .idle-timeout-modal {
-    padding: 32px 24px;
-  }
-
-  .idle-timeout-title {
-    font-size: 24px;
-  }
-
-  .idle-timeout-message {
-    font-size: 14px;
-  }
-
-  .countdown-number {
-    font-size: 40px;
-    min-width: 60px;
-  }
-
-  .countdown-label {
-    font-size: 14px;
-  }
-
-  .idle-timeout-actions {
-    flex-direction: column;
-  }
-
-  .idle-timeout-btn {
-    max-width: 100%;
-  }
+  background-color: var(--gray-100);
+  border-color: var(--gray-400);
 }
 
 @media (max-width: 480px) {
   .idle-timeout-modal {
-    padding: 24px 20px;
+    padding: var(--space-6) var(--space-4);
   }
 
-  .idle-timeout-icon {
-    width: 64px;
-    height: 64px;
-    font-size: 32px;
-  }
-
-  .idle-timeout-title {
-    font-size: 20px;
-  }
-
-  .countdown-number {
-    font-size: 36px;
+  .idle-timeout-actions {
+    flex-direction: column-reverse;
   }
 }

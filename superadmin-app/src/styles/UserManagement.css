@@ -201,18 +201,16 @@
   display: grid;
   grid-template-columns: 100px 1.4fr 1.6fr 130px 210px;
   gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--sage-100);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-1);
+  padding: 14px 20px;
+  background-color: var(--gray-50);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .students-table .table-header .table-cell {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--sage-ink);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 /* Staff table has 6 columns */
@@ -224,8 +222,8 @@
   display: grid;
   grid-template-columns: 100px 1.4fr 1.6fr 130px 210px;
   gap: var(--space-4);
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--gray-100);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-divider);
   align-items: center;
   transition: background-color var(--transition-fast);
 }
@@ -240,7 +238,7 @@
 
 .table-cell {
   font-size: var(--font-size-base);
-  color: var(--color-text-body);
+  color: var(--gray-800);
   min-width: 0;
   overflow-wrap: break-word;
 }
@@ -272,9 +270,13 @@
   color: var(--color-text);
 }
 
+.table-action-btn:active {
+  transform: scale(0.97);
+}
+
 .table-action-btn.reset {
   border-color: var(--sage-300);
-  color: var(--green-btn);
+  color: var(--green-700);
 }
 
 .table-action-btn.reset:hover {
@@ -325,7 +327,7 @@
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
-  animation: modal-pop 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: modal-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes modal-pop {
@@ -373,17 +375,35 @@
   color: var(--color-text);
   background-color: var(--color-surface);
   box-sizing: border-box;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+}
+
+.form-input-super:hover:not(:disabled) {
+  border-color: var(--gray-400);
 }
 
 .form-input-super:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.12);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+}
+
+.form-input-super:disabled {
+  background-color: var(--gray-100);
+  color: var(--color-text-faint);
+  cursor: not-allowed;
 }
 
 .form-input-super::placeholder {
   color: var(--color-text-faint);
+}
+
+.form-input-super.input-error {
+  border-color: var(--red-500);
+}
+
+.form-input-super.input-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
 }
 
 .error-message-super {
@@ -457,21 +477,28 @@
   padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--green-btn);
+  background-color: var(--green-700);
   color: white;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: background-color var(--transition-base);
+  box-shadow: var(--shadow-xs);
+  transition: background-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-fast);
 }
 
 .create-btn-super:hover:not(:disabled) {
-  background-color: var(--green-btn-hover);
+  background-color: var(--green-800);
+  box-shadow: var(--shadow-sm);
+}
+
+.create-btn-super:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .create-btn-super:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* ---- Success modal ---- */
@@ -574,7 +601,7 @@
   padding: var(--space-4);
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--green-btn);
+  background-color: var(--green-700);
   color: white;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
@@ -583,7 +610,7 @@
 }
 
 .success-close-btn:hover {
-  background-color: var(--green-btn-hover);
+  background-color: var(--green-800);
 }
 
 /* ---- Confirmation modal ---- */
@@ -593,7 +620,7 @@
 }
 
 .confirm-icon {
-  font-size: 52px;
+  font-size: 44px;
   color: var(--yellow-500);
   margin-bottom: var(--space-4);
 }
@@ -636,16 +663,22 @@
   padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--yellow-500);
+  background-color: var(--yellow-600);
   color: #fff;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: background-color var(--transition-base);
+  box-shadow: var(--shadow-xs);
+  transition: background-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-fast);
 }
 
 .suspend-confirm-btn:hover {
-  background-color: var(--yellow-600);
+  background-color: var(--yellow-800);
+  box-shadow: var(--shadow-sm);
+}
+
+.suspend-confirm-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .delete-confirm-btn {
@@ -657,11 +690,17 @@
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: background-color var(--transition-base);
+  box-shadow: var(--shadow-xs);
+  transition: background-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-fast);
 }
 
 .delete-confirm-btn:hover {
   background-color: var(--color-danger-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.delete-confirm-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 /* ---- Form rows for side-by-side fields ---- */
@@ -805,7 +844,7 @@
   padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--green-btn);
+  background-color: var(--green-700);
   color: #fff;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
@@ -814,14 +853,14 @@
 }
 
 .archive-confirm-btn:hover {
-  background-color: var(--green-btn-hover);
+  background-color: var(--green-800);
 }
 
 .restore-confirm-btn {
   padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--green-btn);
+  background-color: var(--green-700);
   color: #fff;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
@@ -830,7 +869,7 @@
 }
 
 .restore-confirm-btn:hover {
-  background-color: var(--green-btn-hover);
+  background-color: var(--green-800);
 }
 
 .archive-confirm-btn:disabled,
@@ -979,7 +1018,7 @@
 }
 
 .action-toast.success {
-  background-color: var(--green-btn);
+  background-color: var(--green-700);
 }
 
 .action-toast.error {

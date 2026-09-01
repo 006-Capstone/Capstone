@@ -169,14 +169,15 @@ const formatEtcForMessage = (etc) => {
 /**
  * Helper to notify student when staff updates the estimated time of completion
  */
-export const notifyStudentEtcChange = async (studentUid, requestId, requestSubject, etc) => {
+export const notifyStudentEtcChange = async (studentUid, requestId, requestSubject, etc, reason = '') => {
+  const reasonSuffix = reason ? `\nReason: "${reason}"` : '';
   await createNotification(
     studentUid,
     'student',
     'etc_update',
     'Estimated Completion Updated',
-    `Your request "${requestSubject}" is now estimated to be completed ${formatEtcForMessage(etc)}`,
-    { requestId, etc }
+    `Your request "${requestSubject}" is now estimated to be completed ${formatEtcForMessage(etc)}.${reasonSuffix}`,
+    { requestId, etc, reason }
   );
 };
 

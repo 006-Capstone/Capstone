@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MdStar, MdStarHalf, MdStarBorder } from 'react-icons/md';
+import { FaArrowLeft, FaChevronRight } from 'react-icons/fa';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
@@ -16,7 +17,9 @@ const DEFAULT_OFFICES = [
 function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }) {
   const [selectedOffice, setSelectedOffice] = useState(initialOffice || (selectedRequest?.officeId) || null);
   const [responseTime, setResponseTime] = useState(0);
+  const [responseTimeHover, setResponseTimeHover] = useState(0);
   const [helpfulness, setHelpfulness] = useState(0);
+  const [helpfulnessHover, setHelpfulnessHover] = useState(0);
   const [comments, setComments] = useState('');
   const [followUp, setFollowUp] = useState(false);
   const [offices, setOffices] = useState(DEFAULT_OFFICES);
@@ -47,7 +50,9 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
   // whenever the office changes (otherwise ratings/comments would leak over).
   useEffect(() => {
     setResponseTime(0);
+    setResponseTimeHover(0);
     setHelpfulness(0);
+    setHelpfulnessHover(0);
     setComments('');
     setFollowUp(false);
   }, [initialOffice]);
@@ -266,16 +271,36 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
     return stars;
   };
 
-  const renderStarRating = (value, setValue) => {
+  const RATING_LABELS = {
+    1: 'Poor',
+    2: 'Fair',
+    3: 'Good',
+    4: 'Very Good',
+    5: 'Excellent'
+  };
+
+  const renderStarRating = (value, setValue, hoverValue, setHoverValue, categoryLabel) => {
+    const activeValue = hoverValue || value;
     return (
       <div className="star-rating">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <MdStar
-            key={star}
-            className={value >= star ? 'filled' : ''}
-            onClick={() => setValue(star)}
-          />
-        ))}
+        <div className="stars-container" role="radiogroup" aria-label={categoryLabel}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              className={`star-btn ${activeValue >= star ? 'filled' : ''}`}
+              onClick={() => setValue(star)}
+              onMouseEnter={() => setHoverValue(star)}
+              onMouseLeave={() => setHoverValue(0)}
+              aria-label={`${star} star${star > 1 ? 's' : ''} - ${RATING_LABELS[star]}`}
+            >
+              <MdStar />
+            </button>
+          ))}
+        </div>
+        <span className="rating-text">
+          {activeValue ? RATING_LABELS[activeValue] : 'Click to rate'}
+        </span>
       </div>
     );
   };
@@ -284,70 +309,83 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
   if (!selectedOffice) {
     return (
       <div className="feedback-page">
-        <div className="page-header">
-          <h1>Share your feedback</h1>
-        </div>
-
-        {loadingRatings ? (
-          <LoadingSpinner message="Loading office ratings..." fullScreen={false} />
-        ) : (
-          <div className="office-grid">
-            {offices.map((office) => (
-              <div
-                key={office.id}
-                className="office-rating-card"
-                role="button"
-                tabIndex={0}
-                onClick={() => navigateToOffice(office.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    navigateToOffice(office.id);
-                  }
-                }}
-                aria-label={`Rate the ${office.name} office`}
-              >
-                <h3>{office.name}</h3>
-                <div className="rating-display">
-                  <span className="rating-number">
-                    {office.rating > 0 ? office.rating.toFixed(1) : 'N/A'}
-                    <span className="rating-total">/5</span>
-                  </span>
-                  <div className="stars" aria-hidden="true">
-                    {office.rating > 0 ? renderStars(office.rating) : (
-                      <>
-                        <MdStarBorder className="empty" />
-                        <MdStarBorder className="empty" />
-                        <MdStarBorder className="empty" />
-                        <MdStarBorder className="empty" />
-                        <MdStarBorder className="empty" />
-                      </>
-                    )}
-                  </div>
-                </div>
-                {office.totalFeedback > 0 && (
-                  <p className="feedback-count">{office.totalFeedback} feedback{office.totalFeedback !== 1 ? 's' : ''}</p>
-                )}
-                <div className="metrics">
-                  <div className="metric-row">
-                    <span className="metric-label">Response Time</span>
-                    <div className="metric-bar">
-                      <div className="metric-fill" style={{ width: `${office.responseTime}%` }}></div>
-                    </div>
-                    <span className="metric-value">{office.responseTime}%</span>
-                  </div>
-                  <div className="metric-row">
-                    <span className="metric-label">Helpfulness</span>
-                    <div className="metric-bar">
-                      <div className="metric-fill" style={{ width: `${office.helpfulness}%` }}></div>
-                    </div>
-                    <span className="metric-value">{office.helpfulness}%</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+        <div className="feedback-container">
+          <div className="page-header">
+            <div className="page-header-text">
+              <h1>Share your feedback</h1>
+              <p className="feedback-subtitle">
+                Rate your experience with campus offices to help us improve student services.
+              </p>
+            </div>
           </div>
-        )}
+
+          {loadingRatings ? (
+            <LoadingSpinner message="Loading office ratings..." fullScreen={false} />
+          ) : (
+            <div className="office-grid">
+              {offices.map((office) => (
+                <div
+                  key={office.id}
+                  className="office-rating-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigateToOffice(office.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigateToOffice(office.id);
+                    }
+                  }}
+                  aria-label={`Rate the ${office.name} office`}
+                >
+                  <div className="office-card-header">
+                    <h3>{office.name}</h3>
+                    <span className="rate-office-tag">
+                      Rate <FaChevronRight className="rate-arrow-icon" />
+                    </span>
+                  </div>
+
+                  <div className="rating-display">
+                    <span className="rating-number">
+                      {office.rating > 0 ? office.rating.toFixed(1) : 'N/A'}
+                      <span className="rating-total">/5</span>
+                    </span>
+                    <div className="stars" aria-hidden="true">
+                      {office.rating > 0 ? renderStars(office.rating) : (
+                        <>
+                          <MdStarBorder className="empty" />
+                          <MdStarBorder className="empty" />
+                          <MdStarBorder className="empty" />
+                          <MdStarBorder className="empty" />
+                          <MdStarBorder className="empty" />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {office.totalFeedback > 0 && (
+                    <p className="feedback-count">{office.totalFeedback} feedback{office.totalFeedback !== 1 ? 's' : ''}</p>
+                  )}
+                  <div className="metrics">
+                    <div className="metric-row">
+                      <span className="metric-label">Response Time</span>
+                      <div className="metric-bar">
+                        <div className="metric-fill" style={{ width: `${office.responseTime}%` }}></div>
+                      </div>
+                      <span className="metric-value">{office.responseTime}%</span>
+                    </div>
+                    <div className="metric-row">
+                      <span className="metric-label">Helpfulness</span>
+                      <div className="metric-bar">
+                        <div className="metric-fill" style={{ width: `${office.helpfulness}%` }}></div>
+                      </div>
+                      <span className="metric-value">{office.helpfulness}%</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -362,67 +400,81 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
   
   return (
     <div className="feedback-page">
-      <div className="page-header">
-        <h1>{isRequestFeedback ? 'Share your feedback' : `${officeName} Feedback`}</h1>
-        {isRequestFeedback && (
-          <p className="feedback-subtitle">Tell us about your experience with the {officeName} Department</p>
+      <div className="feedback-container">
+        {!isRequestFeedback && (
+          <div className="feedback-back-wrapper">
+            <button
+              type="button"
+              className="feedback-back-link"
+              onClick={goBackToOverview}
+            >
+              <FaArrowLeft />
+              <span>All Offices</span>
+            </button>
+          </div>
         )}
-      </div>
 
-      {/* Overall Satisfaction card — only show on office feedback pages, not request feedback */}
-      {!isRequestFeedback && (
-        <div className="satisfaction-card">
-          <div className="satisfaction-summary">
-            <MdStar className="satisfaction-star" aria-hidden="true" />
-            <div className="summary-copy">
+        <div className="page-header-figma">
+          <h1>Share your feedback</h1>
+        </div>
+
+        {/* Overall Satisfaction card */}
+        {!isRequestFeedback && (
+          <div className="satisfaction-card-figma">
+            <div className="satisfaction-header-figma">
+              <MdStar className="satisfaction-star-figma" aria-hidden="true" />
               <h3>Overall Satisfaction</h3>
-              <div className="summary-rating">
-                <span className="big-rating">{currentOffice ? currentOffice.rating.toFixed(1) : '—'}</span>
-                <div className="summary-stars" aria-hidden="true">
+            </div>
+            
+            <div className="satisfaction-body-figma">
+              <div className="satisfaction-rating-left">
+                <span className="big-rating-figma">{currentOffice ? currentOffice.rating.toFixed(1) : '—'}</span>
+                <div className="summary-stars-figma" aria-hidden="true">
                   {currentOffice ? renderStars(currentOffice.rating) : null}
                 </div>
+                <p className="summary-label-figma">Average Rating</p>
               </div>
-              <p className="summary-label">Average Rating</p>
+
+              <div className="rating-bars-figma" aria-label="Rating distribution">
+                {[5, 4, 3, 2, 1].map((star, i) => (
+                  <div className="rating-bar-row-figma" key={star}>
+                    <span className="star-label-figma">{star}</span>
+                    <div className="bar-figma">
+                      <div className="bar-fill-figma" style={{ width: `${breakdown[i]}%` }}></div>
+                    </div>
+                    <span className="percentage-figma">{breakdown[i]}%</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+        )}
 
-          <div className="rating-bars" aria-label="Rating distribution">
-            {[5, 4, 3, 2, 1].map((star, i) => (
-              <div className="rating-bar-row" key={star}>
-                <span className="star-label">{star}</span>
-                <MdStar className="bar-star" aria-hidden="true" />
-                <div className="bar">
-                  <div className="bar-fill" style={{ width: `${breakdown[i]}%` }}></div>
-                </div>
-                <span className="percentage">{breakdown[i]}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="feedback-form">
-        <div className="rating-categories">
-          <div className="rating-category">
+      {/* Remove .feedback-form wrapper and .form-header completely to match Figma */}
+        <div className="rating-categories-figma">
+          <div className="rating-category-card">
             <h4>Response Time</h4>
-            {renderStarRating(responseTime, setResponseTime)}
+            {renderStarRating(responseTime, setResponseTime, responseTimeHover, setResponseTimeHover, 'Response Time')}
           </div>
-          <div className="rating-category">
+          <div className="rating-category-card">
             <h4>Helpfulness</h4>
-            {renderStarRating(helpfulness, setHelpfulness)}
+            {renderStarRating(helpfulness, setHelpfulness, helpfulnessHover, setHelpfulnessHover, 'Helpfulness')}
           </div>
         </div>
 
-        <div className="comments-section">
-          <h4>Additional Comments</h4>
+        <div className="comments-card">
+          <div className="comments-header-row">
+            <h4>Additional Comments</h4>
+          </div>
           <textarea
-            placeholder="Share your experience..."
+            className="figma-textarea"
             value={comments}
+            maxLength={500}
             onChange={(e) => setComments(e.target.value)}
           />
         </div>
 
-        <div className="follow-up-section">
+        <div className="follow-up-card">
           <div className="follow-up-header">
             <div>
               <h4>Follow-up Contact</h4>
@@ -449,8 +501,9 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
           </div>
         </div>
 
-        <div className="form-actions">
+        <div className="form-actions-figma">
           <button 
+            type="button"
             className="cancel-btn-feedback" 
             onClick={() => isRequestFeedback ? onNavigate('request') : goBackToOverview()}
             disabled={submitting}
@@ -458,11 +511,13 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
             Cancel
           </button>
           <button
+            type="button"
             className="submit-feedback-btn"
             onClick={handleSubmitFeedback}
             disabled={!isFormValid || submitting}
             title={!isFormValid ? 'Rate Response Time and Helpfulness to submit' : undefined}
           >
+            {submitting && <span className="btn-spinner"></span>}
             {submitting ? 'Submitting...' : 'Submit Feedback'}
           </button>
         </div>

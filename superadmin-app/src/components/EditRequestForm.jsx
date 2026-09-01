@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
 import NotificationBell from './NotificationBell';
+import Toast from './Toast';
 import '../styles/EditRequestForm.css';
 
 const EditRequestForm = () => {
@@ -17,9 +18,16 @@ const EditRequestForm = () => {
   const [editingSubject, setEditingSubject] = useState(null);
   const [subjectDraft, setSubjectDraft] = useState('');
   const [newSubject, setNewSubject] = useState('');
+  const [toast, setToast] = useState(null);
+  const [confirmDeleteSubject, setConfirmDeleteSubject] = useState(null); // { officeId, subject }
   // Snapshot of the config as loaded — the Save Changes button stays grayed
   // out until something actually differs from this.
   const [originalOffices, setOriginalOffices] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 4000);
+  };
 
   const defaultOffices = [
     {
@@ -92,12 +100,12 @@ const EditRequestForm = () => {
       
       // Refresh the snapshot so the button re-grays until the next change
       setOriginalOffices(JSON.parse(JSON.stringify(offices)));
-      alert('Form configuration saved successfully!');
+      showToast('Form configuration saved successfully!');
     } catch (error) {
       console.error('[EditRequestForm] Error saving form config:', error);
       console.error('[EditRequestForm] Error code:', error.code);
       console.error('[EditRequestForm] Error message:', error.message);
-      alert('Failed to save configuration: ' + error.message);
+      showToast('Failed to save configuration: ' + error.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -120,7 +128,7 @@ const EditRequestForm = () => {
 
   const saveCardEdit = (officeId) => {
     if (!cardDraft.trim()) {
-      alert('Description cannot be empty.');
+      showToast('Description cannot be empty.', 'error');
       return;
     }
     handleOfficeDescriptionChange(officeId, cardDraft.trim());
@@ -140,7 +148,7 @@ const EditRequestForm = () => {
 
   const handleAddSubject = (officeId) => {
     if (!newSubject.trim()) {
-      alert('Please enter a subject');
+      showToast('Please enter a subject', 'error');
       return;
     }
     
@@ -154,7 +162,7 @@ const EditRequestForm = () => {
 
   const handleEditSubject = (officeId, oldSubject, newSubject) => {
     if (!newSubject.trim()) {
-      alert('Subject cannot be empty');
+      showToast('Subject cannot be empty', 'error');
       return;
     }
     
@@ -169,14 +177,20 @@ const EditRequestForm = () => {
     setEditingSubject(null);
   };
 
-  const handleDeleteSubject = (officeId, subject) => {
-    if (!window.confirm(`Delete subject "${subject}"?`)) return;
-    
+  const requestDeleteSubject = (officeId, subject) => {
+    setConfirmDeleteSubject({ officeId, subject });
+  };
+
+  const handleDeleteSubject = () => {
+    if (!confirmDeleteSubject) return;
+    const { officeId, subject } = confirmDeleteSubject;
+
     setOffices(offices.map(office => 
       office.id === officeId 
         ? { ...office, subjects: office.subjects.filter(s => s !== subject) }
         : office
     ));
+    setConfirmDeleteSubject(null);
   };
 
   // Switching offices dismisses any open subject editor — its key is tied
@@ -383,7 +397,7 @@ const EditRequestForm = () => {
                           </button>
                           <button
                             className="icon-btn-small delete-btn"
-                            onClick={() => handleDeleteSubject(selectedOffice, subject)}
+                            onClick={() => requestDeleteSubject(selectedOffice, subject)}
                             aria-label={`Delete subject ${subject}`}
                           >
                             <FaTrash />

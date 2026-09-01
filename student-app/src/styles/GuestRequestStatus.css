@@ -271,6 +271,241 @@
   line-height: 1.5;
 }
 
+/* ---- Top Hero Card ---- */
+.guest-hero-card {
+  background: #ffffff;
+  border: 1px solid #E7E5E5;
+  border-top: 4px solid var(--color-primary, #105E06);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  padding: 24px 28px;
+}
+
+.guest-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.guest-office-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary, #105E06);
+  background: #f0f9ee;
+  border: 1px solid #aee0a4;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.guest-request-subject {
+  font-size: 20px;
+  font-weight: 700;
+  color: #181b18;
+  margin: 0 0 6px 0;
+}
+
+.guest-id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guest-request-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5d645c;
+  background: #f0f2ef;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.guest-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #5d645c;
+  background: #ffffff;
+  border: 1px solid #cbd0ca;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.guest-copy-btn:hover {
+  background: #f0f9ee;
+  color: #105E06;
+  border-color: #81ca74;
+}
+
+.copied-check {
+  color: #16a34a;
+}
+
+.guest-handler-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #f4f8f3;
+  border: 1px solid #dce9da;
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+.handler-icon {
+  font-size: 20px;
+  color: var(--color-primary, #105E06);
+}
+
+.handler-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #7d857c;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.handler-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #181b18;
+}
+
+.guest-inquiry-box {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background-color: #fbfdfa;
+  border: 1px solid #dce9da;
+  border-left: 3px solid var(--color-primary, #105E06);
+  border-radius: 8px;
+}
+
+.inquiry-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #5d645c;
+  margin-bottom: 4px;
+}
+
+.inquiry-text {
+  font-size: 14px;
+  color: #2d322c;
+  line-height: 1.6;
+  margin: 0;
+  font-style: italic;
+}
+
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.est-completion-pill {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* Staff reply list */
+.guest-replies-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guest-staff-reply-card {
+  background: #ffffff;
+  border: 1px solid #E7E5E5;
+  border-left: 4px solid var(--color-primary, #105E06);
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.reply-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.reply-staff-icon {
+  font-size: 24px;
+  color: #ffffff;
+  background: var(--color-primary, #105E06);
+  border-radius: 50%;
+  padding: 4px;
+}
+
+.reply-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #181b18;
+  margin: 0;
+}
+
+.reply-author {
+  font-size: 11.5px;
+  color: #7d857c;
+}
+
+.reply-date {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: #7d857c;
+}
+
+.reply-text {
+  font-size: 14px;
+  color: #2d322c;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.guest-status-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.guest-outline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: #ffffff;
+  color: var(--color-primary, #105E06);
+  border: 1.5px solid var(--color-primary, #105E06);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.guest-outline-btn:hover {
+  background: #f0f9ee;
+}
+
 /* ---- Empty state ---- */
 .guest-status-empty {
   text-align: center;

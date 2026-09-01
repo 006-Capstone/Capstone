@@ -19,7 +19,7 @@ import '../styles/MyRequest.css';
 // so Returned / For Follow Up are included too).
 const STATUS_OPTIONS = ['All Status', 'Pending', 'In Process', 'Resolved', 'Cancelled', 'Returned', 'For Follow Up'];
 const OFFICE_OPTIONS = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 5;
 
 function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Status' }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -143,6 +143,8 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
+  const startIndex = filteredRequests.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const endIndex = Math.min(currentPage * PAGE_SIZE, filteredRequests.length);
 
   return (
     <div className="my-request">
@@ -266,8 +268,8 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
             {/* Results count — bottom-right corner of the table card */}
             <div className="table-footer">
               <p className="results-count">
-                Showing <strong>{filteredRequests.length}</strong> of {requests.length} request
-                {requests.length === 1 ? '' : 's'}
+                Showing <strong>{startIndex}–{endIndex}</strong> of {filteredRequests.length} request
+                {filteredRequests.length === 1 ? '' : 's'}
               </p>
             </div>
           </>

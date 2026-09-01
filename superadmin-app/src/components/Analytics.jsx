@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
 import NotificationBell from './NotificationBell';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
+import Toast from './Toast';
 import '../styles/Analytics.css';
 
 const EMPTY_FILTER = { from: '', to: '' };
@@ -72,6 +73,7 @@ const Analytics = () => {
   const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
   const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
   const [selectedSemester, setSelectedSemester] = useState('firstSem');
+  const [toast, setToast] = useState(null);
 
   // Keep fetched data in refs so filters can be applied without refetching
   const requestsRef = useRef([]);
@@ -275,7 +277,7 @@ const Analytics = () => {
 
   const applyDateFilter = () => {
     if (dateFilter.from && dateFilter.to && dateFilter.from > dateFilter.to) {
-      alert('The "From" date cannot be later than the "To" date.');
+      setToast({ type: 'error', message: 'The "From" date cannot be later than the "To" date.' });
       return false;
     }
     setAppliedFilter(dateFilter);
@@ -693,6 +695,14 @@ const Analytics = () => {
           </table>
         </div>
       </div>
+
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };

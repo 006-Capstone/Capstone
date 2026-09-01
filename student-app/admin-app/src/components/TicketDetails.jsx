@@ -21,6 +21,40 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const fileInputRef = useRef(null);
 
+  // Presentation-layer only: mirrors the student Status Timeline structure.
+  // These local state arrays drive the timeline sub-nodes for full workflow
+  // transparency. No backend routing or database schemas are read or written.
+  const [scheduleAdjustments] = useState([
+    {
+      id: 'adj-1',
+      fromDate: 'Aug 28, 2026',
+      toDate: 'Sep 3, 2026',
+      reason: 'Additional verification of submitted requirements delayed the processing timeline.',
+      adjustedAt: 'Sep 1, 2026'
+    }
+  ]);
+
+  const [reassignments] = useState([
+    {
+      id: 're-1',
+      previousOffice: 'Library Office',
+      newOffice: 'Finance Office',
+      reason: 'The request involves verifying outstanding book balances at the Library Office.',
+      reassignedAt: 'Sep 2, 2026',
+      handledBy: 'Finance Department Staff'
+    }
+  ]);
+
+  const [returnTransfers] = useState([
+    {
+      id: 'rt-1',
+      fromOffice: 'Finance Office',
+      toOffice: 'Library Office',
+      note: 'Outstanding book balances have been verified and settled. Returning the request to the Library Office for final resolution.',
+      returnedAt: 'Sep 5, 2026'
+    }
+  ]);
+
   useEffect(() => {
     if (ticketData) {
       loadTicketDetails();
@@ -548,56 +582,58 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
             
             {ticket.status !== 'Resolved' && ticket.status !== 'Cancelled' && (
               <div className="reply-section">
-                <div className="reply-header">
-                  <FaUserCircle className="reply-avatar" />
-                  <span className="reply-label">Reply to student</span>
-                </div>
-                
-                <textarea 
-                  className="reply-textarea"
-                  placeholder="Type your message here..."
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  disabled={sending}
-                />
-                
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                  accept="image/*,.pdf,.doc,.docx,.txt"
-                />
-                
-                {replyFiles.length > 0 && (
-                  <div className="uploaded-files-list">
-                    {replyFiles.map((file, index) => (
-                      <div key={index} className="uploaded-file-item">
-                        <span className="file-name">{file.name}</span>
-                        <button onClick={() => handleRemoveFile(index)} className="remove-file-btn">
-                          <FaTimes />
-                        </button>
-                      </div>
-                    ))}
+                <div className="reply-form-card">
+                  <div className="reply-header">
+                    <FaUserCircle className="reply-avatar" />
+                    <span className="reply-label">Add a follow-up comment</span>
                   </div>
-                )}
-                
-                <div className="reply-actions">
-                  <button 
-                    className="request-info-btn"
-                    onClick={() => fileInputRef.current?.click()}
+                  
+                  <textarea 
+                    className="reply-textarea"
+                    placeholder="Type your message here..."
+                    value={replyMessage}
+                    onChange={(e) => setReplyMessage(e.target.value)}
                     disabled={sending}
-                  >
-                    Attach Files
-                  </button>
-                  <button 
-                    className="send-message-btn"
-                    onClick={handleSendReply}
-                    disabled={sending}
-                  >
-                    {sending ? 'Sending...' : 'Send Message'}
-                  </button>
+                  />
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                    accept="image/*,.pdf,.doc,.docx,.txt"
+                  />
+                  
+                  {replyFiles.length > 0 && (
+                    <div className="uploaded-files-list">
+                      {replyFiles.map((file, index) => (
+                        <div key={index} className="uploaded-file-item">
+                          <span className="file-name">{file.name}</span>
+                          <button onClick={() => handleRemoveFile(index)} className="remove-file-btn">
+                            <FaTimes />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="reply-actions">
+                    <button 
+                      className="request-info-btn"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={sending}
+                    >
+                      Attach Files
+                    </button>
+                    <button 
+                      className="send-message-btn"
+                      onClick={handleSendReply}
+                      disabled={sending}
+                    >
+                      {sending ? 'Sending...' : 'Send Message'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -627,16 +663,67 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
                 <p className="timeline-status">PROCESSING</p>
                 {ticket.claimedAt && <p className="timeline-date">{formatDate(ticket.claimedAt)}</p>}
                 {ticket.claimedBy && <p className="timeline-description">Accepted and processed by {ticket.claimedBy}</p>}
+                {ticket.resolvedBy && (
+                  <p className="timeline-description" style={{ marginTop: '4px' }}>Rerouted ticket accepted by {ticket.resolvedBy} - {ticket.office}</p>
+                )}
               </div>
             </div>
+
+            {scheduleAdjustments.map((adj) => (
+              <div key={adj.id} className="timeline-item">
+                <div className="timeline-icon complete">
+                  <FaCheckCircle />
+                </div>
+                <div className="timeline-info">
+                  <p className="timeline-status">DATE ADJUSTED</p>
+                  <p className="timeline-date">{adj.adjustedAt}</p>
+                  <p className="timeline-description">{adj.fromDate} <span className="timeline-change-arrow">&rarr;</span> {adj.toDate}</p>
+                  <p className="timeline-description" style={{ marginTop: '4px' }}>Staff rationale: "{adj.reason}"</p>
+                </div>
+              </div>
+            ))}
+
+            {reassignments.map((re) => (
+              <div key={re.id} className="timeline-item">
+                <div className="timeline-icon complete">
+                  <FaCheckCircle />
+                </div>
+                <div className="timeline-info">
+                  <p className="timeline-status">REASSIGNED</p>
+                  <p className="timeline-date">{re.reassignedAt}</p>
+                  <p className="timeline-description">{re.previousOffice} <span className="timeline-change-arrow">&rarr;</span> {re.newOffice}</p>
+                  {re.handledBy && <p className="timeline-description" style={{ marginTop: '4px' }}>Accepted by {re.handledBy}</p>}
+                  <p className="timeline-description" style={{ marginTop: '4px' }}>"{re.reason}"</p>
+                </div>
+              </div>
+            ))}
+
+            {returnTransfers.map((rt) => (
+              <div key={rt.id} className="timeline-item">
+                <div className="timeline-icon complete">
+                  <FaCheckCircle />
+                </div>
+                <div className="timeline-info">
+                  <p className="timeline-status">REASSIGNED</p>
+                  <p className="timeline-date">{rt.returnedAt}</p>
+                  <p className="timeline-description">{rt.fromOffice} <span className="timeline-change-arrow">&rarr;</span> {rt.toOffice}</p>
+                  <p className="timeline-description" style={{ marginTop: '4px' }}>Staff note: "{rt.note}"</p>
+                </div>
+              </div>
+            ))}
             
             <div className="timeline-item">
               <div className={`timeline-icon ${ticket.status === 'Resolved' ? 'complete' : 'incomplete'}`}>
                 {ticket.status === 'Resolved' ? <FaCheckCircle /> : <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'white' }}></div>}
               </div>
               <div className="timeline-info">
-                <p className="timeline-status">RESOLVED/REJECTED</p>
+                <p className="timeline-status">RESOLVED</p>
                 {ticket.resolvedAt && <p className="timeline-date">{formatDate(ticket.resolvedAt)}</p>}
+                {ticket.status === 'Resolved' && (
+                  <p className="timeline-description">
+                    {ticket.resolvedBy ? `Resolved by ${ticket.resolvedBy}` : 'Request completed'}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -694,7 +781,7 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
               <div className="student-detail-row">{maskEmail(ticket.studentEmail)}</div>
             </div>
             
-            <button className="contact-student-btn">
+            <button className="contact-student-btn" onClick={() => window.location.href = `mailto:${ticket.studentEmail}`}>
               <FaEnvelope />
               CONTACT STUDENT
             </button>

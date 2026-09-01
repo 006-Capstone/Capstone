@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FaBars, FaUserCircle } from 'react-icons/fa';
 import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
 import ChangePasswordModal from './components/ChangePasswordModal';
@@ -43,6 +44,7 @@ function App() {
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [staffData, setStaffData] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Check if staff must change password on login
   useEffect(() => {
@@ -55,6 +57,21 @@ function App() {
       }
     }
   }, [isLoggedIn]);
+
+  // Close the mobile drawer on page changes
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [activePage]);
+
+  // Close the mobile drawer on Escape key
+  useEffect(() => {
+    if (!isSidebarOpen) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsSidebarOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSidebarOpen]);
 
   const handleLogin = (department) => {
     setSelectedDepartment(department);
@@ -72,6 +89,7 @@ function App() {
 
   const handleNavigate = (page, ticket = null) => {
     setActivePage(page);
+    setIsSidebarOpen(false);
     if (ticket) {
       setSelectedTicket(ticket);
       // Save to localStorage so it persists on page refresh
@@ -123,20 +141,87 @@ function App() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <AdminSidebar 
-        activePage={activePage} 
-        onNavigate={handleNavigate}
-        department={selectedDepartment.toUpperCase()}
-        onOpenProfile={() => setShowProfileSettings(true)}
-      />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {activePage === 'dashboard' && <AdminDashboard department={selectedDepartment} onNavigate={handleNavigate} onViewRequest={handleViewTicket} />}
-        {activePage === 'my-tickets' && <MyTickets department={selectedDepartment} onNavigate={handleNavigate} onViewRequest={handleViewTicket} />}
-        {activePage === 'ticket-details' && selectedTicket && <TicketDetails ticketData={selectedTicket} department={selectedDepartment} onNavigate={handleNavigate} onViewRequest={handleViewTicket} />}
-        {activePage === 'analytics' && <Analytics department={selectedDepartment} onViewRequest={handleViewTicket} />}
-        {activePage === 'bulletin' && <BulletinBoard department={selectedDepartment} onViewRequest={handleViewTicket} />}
-        {activePage === 'feedback' && <Feedback department={selectedDepartment} onViewRequest={handleViewTicket} />}
+    <div className="admin-app-layout">
+      {/* Mobile Topbar (visible only < 1024px) */}
+      <header className="admin-mobile-topbar">
+        <button
+          className="admin-hamburger-btn"
+          onClick={() => setIsSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          <FaBars />
+        </button>
+        <div className="admin-mobile-brand">
+          <img
+            src="/school-logo.jpg"
+            alt="ASJ Logo"
+            className="admin-mobile-logo"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <span className="admin-mobile-dept">{selectedDepartment} OFFICE</span>
+        </div>
+        <div className="admin-mobile-actions">
+          <button
+            className="admin-mobile-profile-btn"
+            onClick={() => setShowProfileSettings(true)}
+            aria-label="Profile Settings"
+          >
+            <FaUserCircle />
+          </button>
+        </div>
+      </header>
+
+      <div className="admin-app-body">
+        <AdminSidebar 
+          activePage={activePage} 
+          onNavigate={handleNavigate}
+          department={selectedDepartment.toUpperCase()}
+          onOpenProfile={() => setShowProfileSettings(true)}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+        <main className="admin-main-content">
+          {activePage === 'dashboard' && (
+            <AdminDashboard 
+              department={selectedDepartment} 
+              onNavigate={handleNavigate} 
+              onViewRequest={handleViewTicket} 
+            />
+          )}
+          {activePage === 'my-tickets' && (
+            <MyTickets 
+              department={selectedDepartment} 
+              onNavigate={handleNavigate} 
+              onViewRequest={handleViewTicket} 
+            />
+          )}
+          {activePage === 'ticket-details' && selectedTicket && (
+            <TicketDetails 
+              ticketData={selectedTicket} 
+              department={selectedDepartment} 
+              onNavigate={handleNavigate} 
+              onViewRequest={handleViewTicket} 
+            />
+          )}
+          {activePage === 'analytics' && (
+            <Analytics 
+              department={selectedDepartment} 
+              onViewRequest={handleViewTicket} 
+            />
+          )}
+          {activePage === 'bulletin' && (
+            <BulletinBoard 
+              department={selectedDepartment} 
+              onViewRequest={handleViewTicket} 
+            />
+          )}
+          {activePage === 'feedback' && (
+            <Feedback 
+              department={selectedDepartment} 
+              onViewRequest={handleViewTicket} 
+            />
+          )}
+        </main>
       </div>
       
       {showProfileSettings && (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { FaBell, FaInbox, FaTicketAlt, FaClipboard, FaCheckCircle, FaUserCircle } from 'react-icons/fa';
 import { db } from '../firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import Notifications from './Notifications';
 import ClaimETCModal from './ClaimETCModal';
 import { notifyStudentStatusChange, notifyStudentEtcChange } from '../utils/notificationHelper';
@@ -16,6 +16,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const [staffData, setStaffData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   // Ticket awaiting its Estimated Time of Completion in the claim modal.
   const [etcClaimTicket, setEtcClaimTicket] = useState(null);
   const ticketsSectionRef = useRef(null);
@@ -37,6 +39,29 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       setStaffData(parsedData);
     }
   }, [department]);
+
+  // Real-time unread notifications listener
+  useEffect(() => {
+    if (!staffData?.uid) return undefined;
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('recipientId', '==', staffData.uid),
+      where('recipientType', '==', 'staff')
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
+      setUnreadCount(unread);
+    });
+
+    return () => unsubscribe();
+  }, [staffData]);
+
+  // Reset pagination when switching tabs
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
 
   // Dashboard summary cards — derived straight from the shared live tickets
   const stats = useMemo(() => ({
@@ -64,11 +89,43 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return filtered;
   }, [activeTab, tickets]);
 
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage) || 1;
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedTickets = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredTickets.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredTickets, currentPage, itemsPerPage]);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
+
   // Stat cards double as quick filters: clicking one switches the ticket
   // table to the matching tab (All / New Tickets / In Progress / Resolved)
   // and scrolls it into view. Clicking the already-active card resets to All.
   const handleStatCardClick = (tab) => {
     setActiveTab((prev) => (prev === tab ? 'all' : tab));
+    setCurrentPage(1);
     ticketsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
@@ -103,12 +160,12 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       console.log('✅ Ticket claimed by', staffData.name, etc ? `with ETC ${etc}` : 'without ETC');
 
       // Create notification for the student about status change
-      if (selectedTicketForCompletion.studentUid) {
+      if (ticket.studentUid) {
         await notifyStudentStatusChange(
-          selectedTicketForCompletion.studentUid,
-          selectedTicketForCompletion.id,
-          selectedTicketForCompletion.title,
-          selectedTicketForCompletion.status || 'Pending',
+          ticket.studentUid,
+          ticket.id || ticket.requestId,
+          ticket.title || ticket.subject,
+          ticket.status || 'Pending',
           'In Process'
         );
         console.log('[Success] Notification sent to student');
@@ -119,10 +176,11 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       // Notify the student about the new estimated completion date when one
       // was set during claiming.
       if (etc && ticket.studentUid) {
-        await notifyStudentEtcChange(ticket.studentUid, ticket.id, ticket.title, etc);
+        await notifyStudentEtcChange(ticket.studentUid, ticket.id || ticket.requestId, ticket.title || ticket.subject, etc);
       }
 
       alert(`Request ${ticket.id} has been assigned to you!`);
+      window.location.reload();
     } catch (error) {
       console.error('[Error] Error claiming ticket:', error);
       alert('Failed to claim request: ' + error.message);
@@ -142,14 +200,6 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     const ticket = etcClaimTicket;
     setEtcClaimTicket(null);
     await handleClaimTicket(ticket, date);
-  };
-
-  // Secondary action: skip the manual ETC override and claim normally.
-  const handleEtcSkip = () => {
-    if (!etcClaimTicket) return;
-    const ticket = etcClaimTicket;
-    setEtcClaimTicket(null);
-    handleClaimTicket(ticket);
   };
 
   // Cancel: close the modal without claiming — the ticket stays unclaimed.
@@ -189,7 +239,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       <div className="stats-cards">
         <button
           type="button"
-          className={`stat-card ${activeTab === 'all' ? 'active' : ''}`}
+          className={`stat-card stat-total ${activeTab === 'all' ? 'active' : ''}`}
           onClick={() => handleStatCardClick('all')}
           aria-pressed={activeTab === 'all'}
           aria-label="Show all requests in the dashboard table"
@@ -206,16 +256,16 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
         <button
           type="button"
-          className={`stat-card ${activeTab === 'new' ? 'active' : ''}`}
+          className={`stat-card stat-pending ${activeTab === 'new' ? 'active' : ''}`}
           onClick={() => handleStatCardClick('new')}
           aria-pressed={activeTab === 'new'}
-          aria-label="Show new requests awaiting assignment in the dashboard table"
+          aria-label="Show pending requests awaiting assignment in the dashboard table"
         >
           <span className="stat-header">
             <span className="stat-icon-container">
               <FaTicketAlt className="stat-icon" />
             </span>
-            <span className="stat-label">Open</span>
+            <span className="stat-label">Pending</span>
           </span>
           <span className="stat-value">{stats.unassigned}</span>
           <span className="stat-subtext">Awaiting Assignment</span>
@@ -223,7 +273,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
         <button
           type="button"
-          className={`stat-card ${activeTab === 'progress' ? 'active' : ''}`}
+          className={`stat-card stat-inprogress ${activeTab === 'progress' ? 'active' : ''}`}
           onClick={() => handleStatCardClick('progress')}
           aria-pressed={activeTab === 'progress'}
           aria-label="Show in progress requests in the dashboard table"
@@ -240,7 +290,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
         <button
           type="button"
-          className={`stat-card ${activeTab === 'resolved' ? 'active' : ''}`}
+          className={`stat-card stat-resolved ${activeTab === 'resolved' ? 'active' : ''}`}
           onClick={() => handleStatCardClick('resolved')}
           aria-pressed={activeTab === 'resolved'}
           aria-label="Show resolved requests in the dashboard table"
@@ -289,7 +339,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTickets.map((ticket, index) => (
+                {paginatedTickets.map((ticket, index) => (
                   <tr key={ticket.firestoreId || index}>
                     <td>
                       <div className="ticket-info-cell">
@@ -304,11 +354,13 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                       </div>
                     </td>
                     <td>
-                      <span className={`status-badge status-${ticket.status.toLowerCase().replace(' ', '')}`}>
+                      <span className={`status-badge status-${(ticket.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                        <span className="status-dot" aria-hidden="true"></span>
                         {ticket.status === 'Pending' && 'New Request'}
                         {ticket.status === 'In Process' && 'In Progress'}
                         {ticket.status === 'Resolved' && 'Resolved'}
                         {ticket.status === 'Cancelled' && 'Cancelled'}
+                        {ticket.status !== 'Pending' && ticket.status !== 'In Process' && ticket.status !== 'Resolved' && ticket.status !== 'Cancelled' && ticket.status}
                       </span>
                     </td>
                     <td>
@@ -349,11 +401,41 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
               </tbody>
             </table>
 
-            <div className="pagination">
-              <button className="page-btn">&lt;</button>
-              <button className="page-btn active">1</button>
-              <button className="page-btn">&gt;</button>
-            </div>
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  className="page-btn"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  aria-label="Previous Page"
+                >
+                  &lt;
+                </button>
+                {getPageNumbers().map((page, idx) =>
+                  page === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="pagination-ellipsis">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+                <button
+                  className="page-btn"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  aria-label="Next Page"
+                >
+                  &gt;
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -364,7 +446,6 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         <ClaimETCModal
           ticket={etcClaimTicket}
           onConfirm={handleEtcConfirm}
-          onSkip={handleEtcSkip}
           onCancel={handleEtcCancel}
         />
       )}

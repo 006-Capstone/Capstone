@@ -8,12 +8,13 @@
 
 .dashboard-title {
   font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-extrabold);
   color: var(--color-text);
-  margin: 0;
+  margin: 0 0 2px 0;
+  letter-spacing: -0.02em;
 }
 
-/* ---- Stat cards (Figma: 4 white cards with green icon chips) ---- */
+/* ---- Stat cards ---- */
 .stats-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -23,10 +24,16 @@
 
 .superadmin-dashboard-container .stat-card {
   background-color: var(--color-surface);
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
   box-shadow: var(--shadow-sm);
+}
+
+.superadmin-dashboard-container .stat-card:hover {
+  /* No hover effect in admin-app stat cards */
 }
 
 .stat-header {
@@ -37,48 +44,52 @@
 }
 
 .stat-icon-container {
-  width: 46px;
-  height: 46px;
-  border-radius: var(--radius-md);
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--green-50);
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--sage-100);
+  margin-bottom: 16px;
 }
 
 .stat-icon {
-  font-size: 20px;
-  color: var(--color-primary);
+  font-size: 19px;
+  color: var(--green-800);
 }
 
 .stat-label {
   font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
+  color: var(--gray-500);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
 }
 
 .stat-value {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
+  font-size: 32px;
+  font-weight: var(--font-weight-extrabold);
   color: var(--color-text);
   line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
 }
 
 .stat-subtext {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  margin-top: var(--space-1);
+  color: var(--gray-600);
+  margin-top: var(--space-2);
+  font-weight: var(--font-weight-medium);
 }
 
 /* ---- Request-received-per-department chart card ---- */
 .chart-section {
   background-color: var(--color-surface);
   border: 1px solid var(--gray-200);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-md);
+  padding: var(--space-7);
+  box-shadow: var(--shadow-xs);
 }
 
 .chart-header {
@@ -86,61 +97,62 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-4);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
 
 .chart-title {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-900);
+  letter-spacing: -0.2px;
 }
 
 /* ---- Department bar value count ---- */
 .department-value {
-  width: 40px;
+  width: 44px;
   flex-shrink: 0;
-  margin-left: var(--space-3);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  margin-left: var(--space-4);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-900);
   text-align: right;
 }
 
 .chart-content {
   padding: var(--space-2) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .department-bar {
   display: flex;
   align-items: center;
-  margin-bottom: var(--space-5);
 }
 
 .department-label {
-  width: 52px;
+  width: 80px;
   flex-shrink: 0;
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-700);
   margin-right: var(--space-4);
 }
 
 .bar-container {
   flex: 1;
-  height: 26px;
-  background-color: var(--chart-track);
-  border-radius: var(--radius-sm);
+  height: 22px;
+  background-color: var(--gray-100);
+  border-radius: var(--radius-pill);
   position: relative;
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--chart-green-2), var(--chart-green));
-  border-radius: var(--radius-sm);
+  background-color: var(--green-600);
+  border-radius: var(--radius-pill);
   transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   min-width: 0;
 }
@@ -156,6 +168,7 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-faint);
   font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ==========================================================================

@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 /* ==========================================================================
    ACADEMIA DE SAN JOSE — ADMIN DESIGN TOKENS
    Deep forest green authority, warm sage secondary, porcelain & warm linen
@@ -200,28 +199,4 @@
   --sidebar-width: 230px;
   --header-height: 64px;
   --content-padding: var(--space-6) var(--space-8);
-}
-
-:root {
-  --red-100: #fee2e2;
-  --red-400: #f87171;
-  --red-700: #b91c1c;
-  --yellow-100: #fef3c7;
-  --yellow-400: #fbbf24;
-  --yellow-600: #d97706;
-  --yellow-800: #92400e;
-  --purple-100: #f3e8ff;
-  --purple-800: #6b21a8;
-}
-
-
-
-body {
-  font-family: var(--font-family);
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  margin: 0;
-  padding: 0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }

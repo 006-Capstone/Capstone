@@ -2,10 +2,7 @@
    SHARED COMPONENT CLASSES — Academia De San Jose Student Portal
    --------------------------------------------------------------------------
    Reusable building blocks (breadcrumb, page header, data tables, status
-   badges, empty states) used across pages. Imported once in index.js AFTER
-   design-tokens.css and BEFORE page styles, so pages can override when
-   needed. This eliminates the duplicated blocks that previously lived in
-   every page stylesheet.
+   badges, empty states) used across pages.
    ========================================================================== */
 
 /* ---- Breadcrumb ---- */
@@ -14,8 +11,8 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-1);
-  min-height: 29px;
-  margin-bottom: var(--space-2);
+  min-height: 28px;
+  margin-bottom: var(--space-3);
   font-size: var(--font-size-sm);
   color: var(--color-text-faint);
 }
@@ -23,34 +20,37 @@
 .breadcrumb-separator {
   margin: 0 var(--space-1);
   color: var(--gray-300);
+  font-size: 11px;
 }
 
 .breadcrumb-link {
   background: none;
   border: none;
-  padding: 0;
+  padding: 2px 4px;
   font-size: inherit;
   color: var(--color-text-faint);
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: color var(--transition-fast);
+  border-radius: var(--radius-xs);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .breadcrumb-link:hover {
   color: var(--color-primary);
+  background-color: var(--sage-50);
 }
 
 .breadcrumb-current {
-  color: var(--color-text-body);
-  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px 4px;
 }
 
-/* Non-current, non-interactive breadcrumb segment (e.g. intermediate page) */
 .breadcrumb-text {
   color: var(--color-text-faint);
+  padding: 2px 4px;
 }
 
-/* ---- Page header (title row) ---- */
+/* ---- Page Header (Title Row) ---- */
 .page-header {
   display: flex;
   align-items: center;
@@ -64,42 +64,77 @@
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
-/* ---- Data table ---- */
+.page-header-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* ---- Modern Data Table ---- */
 .table-container {
   overflow-x: auto;
+  border-radius: var(--radius-md);
 }
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   text-align: left;
-  padding: var(--space-4);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--sage-ink);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--green-900);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  border-bottom: 1px solid var(--color-divider);
-  background-color: var(--sage-100);
+  letter-spacing: 0.06em;
+  border-bottom: 1.5px solid var(--color-border);
+  background-color: #f6f8f5;
   white-space: nowrap;
 }
 
+.data-table thead th:first-child {
+  border-top-left-radius: var(--radius-md);
+  padding-left: var(--space-5);
+}
+
+.data-table thead th:last-child {
+  border-top-right-radius: var(--radius-md);
+  padding-right: var(--space-5);
+}
+
 .data-table tbody td {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--gray-100);
+  padding: 14px var(--space-4);
+  border-bottom: 1px solid var(--color-border-soft);
   font-size: var(--font-size-base);
   color: var(--color-text-body);
   vertical-align: middle;
+  transition: background-color var(--transition-fast);
+}
+
+.data-table tbody td:first-child {
+  padding-left: var(--space-5);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table tbody td:last-child {
+  padding-right: var(--space-5);
 }
 
 .data-table tbody tr {
-  transition: background-color var(--transition-fast);
+  background-color: var(--color-surface);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .data-table tbody tr:hover {
@@ -110,9 +145,9 @@
   border-bottom: none;
 }
 
-/* Row action (details) cell — real button inside the clickable row */
+/* Row Action (Details) Cell */
 .row-action {
-  text-align: center;
+  text-align: right;
   color: var(--color-text-faint);
   font-size: var(--font-size-lg);
   white-space: nowrap;
@@ -128,14 +163,15 @@
   border: none;
   border-radius: var(--radius-sm);
   color: var(--color-text-faint);
-  font-size: var(--font-size-lg);
+  font-size: 18px;
   cursor: pointer;
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .row-action-btn:hover {
   color: var(--color-primary);
-  background: var(--gray-100);
+  background: var(--green-100);
+  transform: translateX(2px);
 }
 
 .data-table tbody tr:hover .row-action,
@@ -143,65 +179,231 @@
   color: var(--color-primary);
 }
 
-/* ---- Status badges (Figma status colors) ---- */
-.status {
-  display: inline-block;
-  padding: 5px 14px;
+/* ---- Status Badges ---- */
+/* ---- Standardized Status Badges ---- */
+.status-badge,
+.status,
+.figma-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
   border-radius: var(--radius-pill);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  line-height: 1.4;
+  line-height: 1.35;
   white-space: nowrap;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  box-sizing: border-box;
 }
 
-.status-pending {
-  background-color: var(--purple-100);
-  color: var(--purple-800);
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
-.status-in-process {
-  background-color: var(--yellow-100);
-  color: var(--yellow-800);
+/* If no child dot element is present, render via pseudo-element */
+.status-badge:not(:has(.status-dot))::before,
+.status:not(:has(.status-dot))::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
-.status-resolved {
-  background-color: var(--sage-100);
-  color: var(--color-primary);
+/* 1. Pending / New Ticket (Blue/Indigo/Purple) */
+.status-pending,
+.status-badge.status-pending,
+.status-badge.pending,
+.status-badge.new,
+.status-badge.badge-new,
+.status-badge.badge-new-ticket,
+.status.status-pending {
+  background-color: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  border-color: var(--status-pending-border);
 }
 
-.status-cancelled {
-  background-color: var(--red-100);
-  color: var(--red-700);
+.status-pending .status-dot,
+.status-badge.status-pending .status-dot,
+.status-badge.pending .status-dot,
+.status-badge.new .status-dot,
+.status.status-pending .status-dot {
+  background-color: var(--status-pending-dot);
 }
 
-.status-returned {
-  background-color: var(--yellow-100);
-  color: var(--yellow-800);
+/* 2. In Process / In Progress (Warm Yellow/Amber) */
+.status-in-process,
+.status-inprocess,
+.status-in-progress,
+.status-inprogress,
+.status-badge.status-in-process,
+.status-badge.status-inprocess,
+.status-badge.status-in-progress,
+.status-badge.in-process,
+.status-badge.in-progress,
+.status.status-in-process,
+.status.status-in-progress {
+  background-color: var(--status-inprocess-bg);
+  color: var(--status-inprocess-text);
+  border-color: var(--status-inprocess-border);
 }
 
-.status-for-follow-up {
-  background-color: var(--yellow-100);
-  color: var(--yellow-800);
+.status-in-process .status-dot,
+.status-inprocess .status-dot,
+.status-badge.status-in-process .status-dot,
+.status-badge.status-inprocess .status-dot,
+.status-badge.in-process .status-dot,
+.status.status-in-process .status-dot {
+  background-color: var(--status-inprocess-dot);
+  animation: pulse-dot 2s infinite;
 }
 
-/* ---- Empty & error states ---- */
+/* 3. Resolved / Completed (Emerald Green) */
+.status-resolved,
+.status-completed,
+.status-badge.status-resolved,
+.status-badge.resolved,
+.status-badge.completed,
+.status-badge.badge-resolved,
+.status.status-resolved {
+  background-color: var(--status-resolved-bg);
+  color: var(--status-resolved-text);
+  border-color: var(--status-resolved-border);
+}
+
+.status-resolved .status-dot,
+.status-badge.status-resolved .status-dot,
+.status-badge.resolved .status-dot,
+.status-badge.completed .status-dot,
+.status.status-resolved .status-dot {
+  background-color: var(--status-resolved-dot);
+}
+
+/* 4. Cancelled / Rejected (Crimson Red) */
+.status-cancelled,
+.status-rejected,
+.status-badge.status-cancelled,
+.status-badge.status-rejected,
+.status-badge.cancelled,
+.status-badge.rejected,
+.status-badge.badge-cancelled,
+.status-badge.badge-rejected,
+.status.status-cancelled,
+.status.status-rejected {
+  background-color: var(--status-cancelled-bg);
+  color: var(--status-cancelled-text);
+  border-color: var(--status-cancelled-border);
+}
+
+.status-cancelled .status-dot,
+.status-rejected .status-dot,
+.status-badge.status-cancelled .status-dot,
+.status-badge.cancelled .status-dot,
+.status.status-cancelled .status-dot {
+  background-color: var(--status-cancelled-dot);
+}
+
+/* 5. Returned / Follow-up */
+.status-returned,
+.status-for-follow-up,
+.status-badge.status-returned,
+.status-badge.status-for-follow-up,
+.status-badge.returned,
+.status-badge.follow-up,
+.status.status-returned,
+.status.status-for-follow-up {
+  background-color: var(--status-returned-bg);
+  color: var(--status-returned-text);
+  border-color: var(--status-returned-border);
+}
+
+.status-returned .status-dot,
+.status-for-follow-up .status-dot,
+.status-badge.status-returned .status-dot,
+.status.status-returned .status-dot {
+  background-color: var(--status-returned-dot);
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+/* ---- Empty & Error States ---- */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  padding: var(--space-12) var(--space-5);
+  padding: var(--space-12) var(--space-6);
   color: var(--color-text-muted);
   text-align: center;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
 }
 
 .empty-state .empty-state-icon {
-  font-size: 48px;
-  color: var(--gray-300);
+  font-size: 52px;
+  color: var(--sage-400);
+  background: var(--sage-50);
+  padding: 12px;
+  border-radius: 50%;
+  margin-bottom: var(--space-2);
+}
+
+.empty-state h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin: 0;
 }
 
 .empty-state p {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-base);
+  color: var(--color-text-muted);
+  max-width: 420px;
   margin: 0;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   GLOBAL RESPONSIVE UTILITIES
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  :root {
+    --content-padding: var(--space-4);
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    font-size: var(--font-size-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --content-padding: var(--space-3);
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 8px 10px;
+  }
 }

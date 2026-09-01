@@ -2,10 +2,9 @@ import '../styles/Brand.css';
 
 /**
  * Reusable school brand mark: crest image (when available) with a styled
- * monogram fallback, plus the school name and an optional subtitle.
- * Used by the Sidebar (large) and the mobile Header (small).
+ * monogram fallback, plus the school name and portal label.
  */
-function Brand({ size = 'md', subtitle }) {
+function Brand({ size = 'md', subtitle = 'Student Portal' }) {
   return (
     <div className={`brand ${size === 'lg' ? 'brand-lg' : ''}`}>
       <div className="brand-logo" aria-hidden="true">

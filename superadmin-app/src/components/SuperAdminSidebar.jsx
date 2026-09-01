@@ -1,22 +1,27 @@
-import React from 'react';
-import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt, FaTimes, FaArchive } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 import '../styles/SuperAdminSidebar.css';
 
 const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, onLogout }) => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      // For superadmin, just clear any stored data and reload
-      localStorage.clear();
-      window.location.reload();
-    }
+    // For superadmin, just clear any stored data and reload (fallback if
+    // no onLogout handler is provided by the parent)
+    localStorage.clear();
+    window.location.reload();
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    (onLogout || handleLogout)();
   };
 
   const NAV_ITEMS = [
     { key: 'dashboard', label: 'Dashboard', icon: FaThLarge },
     { key: 'edit-request', label: 'Edit Request Form', icon: FaEdit },
     { key: 'analytics', label: 'Analytics', icon: FaChartLine },
-    { key: 'user-management', label: 'User Management', icon: FaUsers },
-    { key: 'archive', label: 'Archive', icon: FaArchive }
+    { key: 'user-management', label: 'User Management', icon: FaUsers }
   ];
 
   const handleNavigate = (page) => {
@@ -76,12 +81,53 @@ const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, on
             <span className="user-label">SUPER ADMIN</span>
           </div>
 
-          <button className="logout-button" onClick={onLogout || handleLogout}>
+          <button
+            className="logout-button"
+            onClick={() => setShowLogoutConfirm(true)}
+          >
             <FaSignOutAlt className="logout-icon" aria-hidden="true" />
             <span>Logout</span>
           </button>
         </div>
       </aside>
+
+      {showLogoutConfirm && (
+        <div
+          className="logout-modal-backdrop"
+          onClick={() => setShowLogoutConfirm(false)}
+        >
+          <div
+            className="logout-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm logout"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FaExclamationTriangle className="logout-confirm-icon" aria-hidden="true" />
+            <h3 className="logout-confirm-title">Logout</h3>
+            <p className="logout-confirm-message">
+              Are you sure you want to sign out? You'll need to log in again to
+              access the super admin dashboard.
+            </p>
+            <div className="logout-confirm-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={confirmLogout}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -1,34 +1,40 @@
 import React, { useState, useRef } from 'react';
-import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes } from 'react-icons/fa';
-import { MdExitToApp, MdHome } from 'react-icons/md';
+import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignOutAlt } from 'react-icons/fa';
+import { MdHome, MdTrackChanges } from 'react-icons/md';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore';
+import { notifyStaffNewRequest } from '../utils/notificationHelper';
 import GuestSubmitted from './GuestSubmitted';
 import GuestRequestStatus from './GuestRequestStatus';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/GuestLogin.css';
 
 const guestOffices = [
   {
     id: 'finance',
     name: 'Finance',
+    code: 'FIN-001',
     description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.',
     subjects: ['Balance Verification', 'Payment Plan', 'Refund Request', 'Billing Inquiry']
   },
   {
     id: 'library',
     name: 'Library',
+    code: 'LIB-001',
     description: 'Manages book borrowing/returning, library accounts, and student concerns related to library services and resources.',
     subjects: ['Book Request', 'Lost Book Report', 'Library Card Issue', 'Resource Access']
   },
   {
     id: 'registrar',
     name: 'Registrar',
+    code: 'REG-001',
     description: 'Handles student records such as enrollment, grades, certificates, transcripts, and other official academic documents.',
     subjects: ['Document Request', 'Grade Inquiry', 'Enrollment Issue', 'Transcript Request']
   },
   {
     id: 'guidance',
     name: 'Guidance',
+    code: 'GUI-001',
     description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
     subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
   }
@@ -77,13 +83,16 @@ const formatFileSize = (bytes) => {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 };
 
-const officeNameFromCode = (code) => {
-  const prefix = String(code || '').replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase();
-  const match = guestOffices.find((o) => o.name.substring(0, 3).toUpperCase() === prefix);
-  return match ? match.name : 'School Office';
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };
 
-const GuestLogin = ({ onLogin }) => {
+const GuestLogin = () => {
   const [view, setView] = useState('home'); // 'home' | 'status' | 'submitted'
   const [requestId, setRequestId] = useState('');
   const [officeCode, setOfficeCode] = useState('');
@@ -94,8 +103,9 @@ const GuestLogin = ({ onLogin }) => {
   const [selectedOffice, setSelectedOffice] = useState('finance');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState([]);
   const [authFile, setAuthFile] = useState(null);
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [statusData, setStatusData] = useState(null);
   const [submissionData, setSubmissionData] = useState(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
@@ -104,32 +114,23 @@ const GuestLogin = ({ onLogin }) => {
   const authInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
 
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
+  const handleExitGuestMode = () => {
+    if (window.confirm('Exit Guest Mode and return to Student Login?')) {
       localStorage.removeItem('studentLoggedIn');
       localStorage.removeItem('studentIsGuest');
-      window.location.href = '/';
+      window.location.reload();
     }
   };
 
   const selectOffice = (officeId) => {
     setSelectedOffice(officeId);
-    setSubject(''); // Reset subject when office changes
+    setSubject('');
   };
 
   const handleOfficeKeyDown = (e, officeId) => {
-    // Enter/Space activate like a click; arrow keys move within the group
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       selectOffice(officeId);
-    } else if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && e.target === e.currentTarget) {
-      e.preventDefault();
-      const next = e.currentTarget.nextElementSibling;
-      if (next) next.focus();
-    } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && e.target === e.currentTarget) {
-      e.preventDefault();
-      const prev = e.currentTarget.previousElementSibling;
-      if (prev) prev.focus();
     }
   };
 
@@ -137,12 +138,24 @@ const GuestLogin = ({ onLogin }) => {
   const openAttachmentPicker = () => attachmentInputRef.current?.click();
 
   const handleAuthChange = (e) => {
-    setAuthFile(e.target.files[0] || null);
+    const file = e.target.files[0];
+    if (file && file.size > 5 * 1024 * 1024) {
+      alert('Authorization file exceeds 5MB limit');
+      e.target.value = '';
+      return;
+    }
+    setAuthFile(file || null);
     e.target.value = '';
   };
 
   const handleAttachmentChange = (e) => {
-    setAttachmentFile(e.target.files[0] || null);
+    const file = e.target.files[0];
+    if (file && file.size > 5 * 1024 * 1024) {
+      alert('Attachment file exceeds 5MB limit');
+      e.target.value = '';
+      return;
+    }
+    setAttachmentFile(file || null);
     e.target.value = '';
   };
 
@@ -158,25 +171,9 @@ const GuestLogin = ({ onLogin }) => {
     if (attachmentInputRef.current) attachmentInputRef.current.value = '';
   };
 
-  const buildSubmissionData = () => {
-    const office = guestOffices.find((o) => o.id === selectedOffice);
-    const officeName = office ? office.name : 'School Office';
-    const prefix = officeName.substring(0, 3).toUpperCase();
-    const created = new Date();
-    return {
-      requestNumber: `#${prefix}-${random3()}-${random3()}-${random3()}`,
-      officeCode: `${prefix}-${random3()}`,
-      officeName,
-      subject: subject.trim(),
-      description: description.trim(),
-      dateCreated: formatShortDate(created),
-      estimatedCompletion: formatShortDate(addDays(created, 2))
-    };
-  };
-
   const buildStatusData = (docData, enteredCode) => {
     const status = docData.status || 'Pending';
-    const officeName = docData.office || officeNameFromCode(enteredCode);
+    const officeName = docData.office || 'Office';
     const isInProcess = status === 'In Process';
     const isResolved = status === 'Resolved';
     const processingActive = isInProcess || isResolved || status === 'Returned' || status === 'For Follow Up';
@@ -188,43 +185,89 @@ const GuestLogin = ({ onLogin }) => {
     else if (status === 'Cancelled') statusClass = 'is-cancelled';
     else if (status === 'Returned' || status === 'For Follow Up') statusClass = 'is-follow-up';
 
-    const estimatedCompletion = docData.etc
-      ? docData.etc
-      : (isResolved ? toShort(docData.resolvedAt) : 'To be set');
+    let estimatedCompletion = 'To be determined';
+    if (docData.etc) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(docData.etc)) {
+        const [y, m, d] = docData.etc.split('-').map(Number);
+        estimatedCompletion = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } else {
+        estimatedCompletion = docData.etc;
+      }
+    } else if (docData.createdAt) {
+      const createdDate = toDate(docData.createdAt);
+      if (createdDate) {
+        const est = new Date(createdDate);
+        est.setDate(est.getDate() + 2);
+        estimatedCompletion = formatShortDate(est);
+      }
+    }
+
+    const timeline = [
+      {
+        status: 'SUBMITTED',
+        date: toLong(docData.createdAt),
+        description: 'Initial Student Request',
+        completed: true,
+        active: false
+      },
+      {
+        status: 'PROCESSING',
+        completed: processingActive,
+        active: isInProcess,
+        date: toLong(docData.claimedAt || docData.updatedAt),
+        description: processingActive
+          ? (handler ? `Being Processed by ${handler}` : 'Being processed by staff')
+          : 'Waiting for staff to process'
+      }
+    ];
+
+    if (docData.reassignedFrom) {
+      timeline.push({
+        status: 'REASSIGNED',
+        completed: true,
+        active: false,
+        date: toLong(docData.reassignedAt || docData.updatedAt),
+        description: `Transferred from ${docData.reassignedFrom} to ${docData.office}`
+      });
+    }
+
+    if (status === 'Returned' || status === 'For Follow Up') {
+      timeline.push({
+        status: 'RETURNED/FOR FOLLOW UP',
+        completed: true,
+        active: true,
+        date: toLong(docData.returnedAt || docData.updatedAt),
+        description: docData.returnedReason || 'Additional documents required'
+      });
+    }
+
+    timeline.push({
+      status: 'RESOLVED',
+      completed: isResolved,
+      active: isResolved,
+      date: isResolved ? toLong(docData.resolvedAt || docData.updatedAt) : '',
+      description: isResolved ? 'Request completed' : ''
+    });
 
     return {
       requestNumber: `#${docData.requestId || ''}`,
-      officeCode: String(enteredCode || '').replace(/[#\s]/g, ''),
+      rawRequestId: docData.requestId || '',
+      officeCode: docData.officeCode || String(enteredCode || '').replace(/[#\s]/g, '') || `${docData.office?.substring(0, 3).toUpperCase()}-001`,
       officeName,
+      subject: docData.subject || 'Student Inquiry',
+      description: docData.description || '',
+      studentName: docData.studentName || 'Guest Student',
+      grade: docData.grade || '',
+      section: docData.section || '',
+      handler: handler || '',
       status,
       statusClass,
       dateCreated: toShort(docData.createdAt),
+      fullDateCreated: toLong(docData.createdAt),
       estimatedCompletion,
-      timeline: [
-        {
-          status: 'SUBMITTED',
-          date: toLong(docData.createdAt),
-          description: 'Initial Student Request',
-          completed: true,
-          active: false
-        },
-        {
-          status: 'PROCESSING',
-          completed: processingActive,
-          active: isInProcess,
-          date: toLong(docData.claimedAt || docData.updatedAt),
-          description: processingActive
-            ? (handler ? `Being Processed by ${handler}` : 'Being processed by staff')
-            : 'Awaiting assignment'
-        },
-        {
-          status: 'RESOLVED',
-          completed: isResolved,
-          active: isResolved,
-          date: toLong(docData.resolvedAt),
-          description: isResolved ? 'Request completed' : ''
-        }
-      ]
+      timeline,
+      followUps: docData.followUps || [],
+      attachments: docData.attachments || []
     };
   };
 
@@ -237,6 +280,7 @@ const GuestLogin = ({ onLogin }) => {
       const cleanId = String(reqId || '').replace(/[#\s]/g, '').toUpperCase();
       if (!cleanId) {
         setStatusData(null);
+        setTrackNotFound(true);
         return;
       }
       const q = query(collection(db, 'requests'), where('requestId', '==', cleanId), limit(1));
@@ -257,15 +301,13 @@ const GuestLogin = ({ onLogin }) => {
   };
 
   const handleBrowseConfirm = () => {
-    if (requestId.trim() && officeCode.trim()) {
+    if (requestId.trim()) {
       trackRequest(requestId, officeCode);
     }
   };
 
   const openStatus = () => {
     if (statusData) {
-      setTrackNotFound(false);
-      setTrackError('');
       setView('status');
       return;
     }
@@ -273,22 +315,98 @@ const GuestLogin = ({ onLogin }) => {
       trackRequest(submissionData.requestNumber, submissionData.officeCode);
       return;
     }
-    if (requestId.trim() && officeCode.trim()) {
+    if (requestId.trim()) {
       trackRequest(requestId, officeCode);
       return;
     }
-    setStatusData(null);
-    setTrackNotFound(false);
-    setTrackError('');
     setView('status');
   };
 
   const goHome = () => setView('home');
 
-  const handleSubmitRequest = () => {
-    if (!canSubmit) return;
-    setSubmissionData(buildSubmissionData());
-    setView('submitted');
+  const handleSubmitRequest = async () => {
+    if (!canSubmit || submitting) return;
+
+    try {
+      setSubmitting(true);
+      const office = guestOffices.find((o) => o.id === selectedOffice);
+      const officeName = office ? office.name : 'Finance';
+      const officeCodeVal = office ? office.code : 'FIN-001';
+      const prefix = officeName.substring(0, 3).toUpperCase();
+      const generatedRequestId = `${prefix}-${random3()}-${random3()}-${random3()}`;
+
+      // Encode attachments to base64
+      const attachments = [];
+      if (authFile) {
+        const base64 = await fileToBase64(authFile);
+        attachments.push({
+          name: authFile.name,
+          data: base64,
+          size: authFile.size,
+          type: authFile.type,
+          isAuthProof: true,
+          uploadedAt: new Date().toISOString()
+        });
+      }
+      if (attachmentFile) {
+        const base64 = await fileToBase64(attachmentFile);
+        attachments.push({
+          name: attachmentFile.name,
+          data: base64,
+          size: attachmentFile.size,
+          type: attachmentFile.type,
+          uploadedAt: new Date().toISOString()
+        });
+      }
+
+      const newRequestDoc = {
+        requestId: generatedRequestId,
+        studentName: `${firstName.trim()} ${lastName.trim()}`,
+        studentUid: `guest_${Date.now()}`,
+        grade: grade.trim(),
+        section: section.trim(),
+        isGuest: true,
+        subject: subject.trim(),
+        description: description.trim(),
+        office: officeName,
+        officeCode: officeCodeVal,
+        status: 'Pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        attachments: attachments,
+        followUps: []
+      };
+
+      await addDoc(collection(db, 'requests'), newRequestDoc);
+
+      // Notify office staff in background
+      await notifyStaffNewRequest(
+        officeName,
+        generatedRequestId,
+        subject.trim(),
+        `${firstName.trim()} ${lastName.trim()} (Guest)`
+      );
+
+      const created = new Date();
+      const submissionInfo = {
+        requestNumber: `#${generatedRequestId}`,
+        rawRequestId: generatedRequestId,
+        officeCode: officeCodeVal,
+        officeName,
+        subject: subject.trim(),
+        description: description.trim(),
+        dateCreated: formatShortDate(created),
+        estimatedCompletion: formatShortDate(addDays(created, 2))
+      };
+
+      setSubmissionData(submissionInfo);
+      setView('submitted');
+    } catch (error) {
+      console.error('[Error] Error submitting guest request:', error);
+      alert('Failed to submit request: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const resetGuestForm = () => {
@@ -304,7 +422,7 @@ const GuestLogin = ({ onLogin }) => {
     setView('home');
   };
 
-  const canBrowse = requestId.trim() !== '' && officeCode.trim() !== '';
+  const canBrowse = requestId.trim() !== '';
   const canSubmit =
     firstName.trim() !== '' &&
     lastName.trim() !== '' &&
@@ -317,31 +435,49 @@ const GuestLogin = ({ onLogin }) => {
 
   return (
     <div className="guest-login-container">
-      <div className="guest-header">
+      {/* Top Header */}
+      <header className="guest-header">
         <div className="guest-header-content">
-          <img src="/school-logo.jpg" alt="Academia De San Jose" className="guest-logo" onError={(e) => e.target.style.display = 'none'} />
+          <img 
+            src="/logo.jpg" 
+            alt="Academia De San Jose" 
+            className="guest-logo" 
+            onError={(e) => { 
+              if (!e.currentTarget.src.includes('school-logo.jpg')) {
+                e.currentTarget.src = '/school-logo.jpg';
+              }
+            }} 
+          />
           <h1 className="guest-school-name">Academia De San Jose</h1>
         </div>
         <div className="guest-header-right">
           <div className="guest-account-badge">
-            <span>Guest Account</span>
+            <span>Guest Portal</span>
             <FaUserCircle className="guest-icon" />
           </div>
+          <button 
+            type="button" 
+            className="guest-exit-btn" 
+            onClick={handleExitGuestMode}
+            title="Exit guest mode and return to student login"
+          >
+            <FaSignOutAlt /> Back to Login
+          </button>
         </div>
-      </div>
+      </header>
 
-      <div className="guest-content">
+      <main className="guest-content">
         {view !== 'home' && (
           <nav className="guest-top-nav" aria-label="Guest navigation">
             <button type="button" className="guest-nav-link" onClick={goHome}>
-              <MdHome /> Guest Log In
+              <MdHome /> Guest Home
             </button>
             <button
               type="button"
               className={`guest-nav-link ${view === 'status' ? 'active' : ''}`}
               onClick={openStatus}
             >
-              Track Request Status
+              <MdTrackChanges /> Track Request Status
             </button>
           </nav>
         )}
@@ -355,81 +491,93 @@ const GuestLogin = ({ onLogin }) => {
             onHome={goHome}
           />
         ) : view === 'submitted' ? (
-          <GuestSubmitted data={submissionData} onHome={resetGuestForm} />
+          <GuestSubmitted 
+            data={submissionData} 
+            onHome={resetGuestForm} 
+            onTrack={() => trackRequest(submissionData.rawRequestId, submissionData.officeCode)}
+          />
         ) : (
           <>
+            {/* Section 1: Track existing request */}
             <section className="guest-section">
               <h2 className="section-title-guest">Check Request Status</h2>
-              <p className="section-subtitle-guest">Track an existing request.</p>
+              <p className="section-subtitle-guest">Track the live progress of an existing request using your Request ID.</p>
 
               <div className="form-group-guest">
-                <label className="form-label-guest" htmlFor="guestOfficeCode">Enter Office Code</label>
-                <input
-                  id="guestOfficeCode"
-                  type="text"
-                  className="form-input-guest"
-                  value={officeCode}
-                  onChange={(e) => setOfficeCode(e.target.value)}
-                  placeholder="LIB-001"
-                />
-              </div>
-
-              <div className="form-group-guest">
-                <label className="form-label-guest" htmlFor="guestRequestId">Enter Request ID</label>
+                <label className="form-label-guest" htmlFor="guestRequestId">Enter Request ID <span className="required-star">*</span></label>
                 <input
                   id="guestRequestId"
                   type="text"
                   className="form-input-guest"
                   value={requestId}
                   onChange={(e) => setRequestId(e.target.value)}
-                  placeholder="#LIB-100-010-001"
+                  placeholder="e.g. #FIN-100-010-001 or FIN-100-010-001"
+                />
+              </div>
+
+              <div className="form-group-guest">
+                <label className="form-label-guest" htmlFor="guestOfficeCode">Office Code <span className="optional-guest">(Optional)</span></label>
+                <input
+                  id="guestOfficeCode"
+                  type="text"
+                  className="form-input-guest"
+                  value={officeCode}
+                  onChange={(e) => setOfficeCode(e.target.value)}
+                  placeholder="e.g. FIN-001, LIB-001"
                 />
               </div>
 
               <div className="form-actions-guest">
-                <button className="cancel-btn-guest" onClick={() => window.location.reload()}>
-                  Cancel
+                <button 
+                  type="button" 
+                  className="cancel-btn-guest" 
+                  onClick={() => { setRequestId(''); setOfficeCode(''); }}
+                >
+                  Clear
                 </button>
                 <button
+                  type="button"
                   className="confirm-btn-guest"
                   onClick={handleBrowseConfirm}
                   disabled={!canBrowse || trackingLoading}
                 >
-                  {trackingLoading ? 'Checking...' : 'Confirm'}
+                  {trackingLoading ? 'Checking...' : 'Check Status'}
                 </button>
               </div>
             </section>
 
+            {/* Section 2: Submit New Guest Request */}
             <section className="guest-section">
               <h2 className="section-title-guest">Submit New Request</h2>
+              <p className="section-subtitle-guest">Submit an inquiry or document request directly to any school department.</p>
 
               <div className="form-section-guest">
-                <h3 className="guest-subheading">Personal Information</h3>
+                <h3 className="guest-subheading">1. Personal Information</h3>
                 <div className="field-grid">
                   <div className="form-group-guest">
-                    <label className="form-label-guest" htmlFor="guestFirstName">First Name</label>
+                    <label className="form-label-guest" htmlFor="guestFirstName">First Name <span className="required-star">*</span></label>
                     <input
                       id="guestFirstName"
                       type="text"
                       className="form-input-guest"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Enter your first name"
+                      placeholder="Enter first name"
                     />
                   </div>
                   <div className="form-group-guest">
-                    <label className="form-label-guest" htmlFor="guestLastName">Last Name</label>
+                    <label className="form-label-guest" htmlFor="guestLastName">Last Name <span className="required-star">*</span></label>
                     <input
                       id="guestLastName"
                       type="text"
                       className="form-input-guest"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Enter your last name"
+                      placeholder="Enter last name"
                     />
                   </div>
                   <div className="form-group-guest">
-                    <label className="form-label-guest" htmlFor="guestGrade">Grade</label>
+                    <label className="form-label-guest" htmlFor="guestGrade">Grade Level <span className="required-star">*</span></label>
                     <input
                       id="guestGrade"
                       type="text"
@@ -440,21 +588,21 @@ const GuestLogin = ({ onLogin }) => {
                     />
                   </div>
                   <div className="form-group-guest">
-                    <label className="form-label-guest" htmlFor="guestSection">Section</label>
+                    <label className="form-label-guest" htmlFor="guestSection">Section <span className="required-star">*</span></label>
                     <input
                       id="guestSection"
                       type="text"
                       className="form-input-guest"
                       value={section}
                       onChange={(e) => setSection(e.target.value)}
-                      placeholder="e.g. Section A"
+                      placeholder="e.g. St. Augustine"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="form-section-guest">
-                <h3 className="guest-subheading">Select Office</h3>
+                <h3 className="guest-subheading">2. Select Target Office</h3>
                 <div className="office-grid" role="radiogroup" aria-label="Select Office">
                   {guestOffices.map((office) => (
                     <div
@@ -470,7 +618,10 @@ const GuestLogin = ({ onLogin }) => {
                         {selectedOffice === office.id && <div className="radio-dot"></div>}
                       </div>
                       <div className="office-info">
-                        <h4 className="office-name">{office.name}</h4>
+                        <div className="office-header-row">
+                          <h4 className="office-name">{office.name}</h4>
+                          <span className="office-code-badge">{office.code}</span>
+                        </div>
                         <p className="office-description">{office.description}</p>
                       </div>
                     </div>
@@ -479,10 +630,10 @@ const GuestLogin = ({ onLogin }) => {
               </div>
 
               <div className="form-section-guest">
-                <h3 className="guest-subheading">Request Details</h3>
+                <h3 className="guest-subheading">3. Request Details</h3>
 
                 <div className="form-group-guest">
-                  <label className="form-label-guest" htmlFor="guestSubject">Subject</label>
+                  <label className="form-label-guest" htmlFor="guestSubject">Subject <span className="required-star">*</span></label>
                   <select
                     id="guestSubject"
                     className="form-select-guest"
@@ -491,7 +642,7 @@ const GuestLogin = ({ onLogin }) => {
                     disabled={!selectedOffice}
                   >
                     <option value="">
-                      {selectedOffice ? 'Select a subject' : 'Please select an office first'}
+                      {selectedOffice ? 'Select a subject...' : 'Please select an office first'}
                     </option>
                     {selectedOffice && guestOffices.find(o => o.id === selectedOffice)?.subjects.map((subj, index) => (
                       <option key={index} value={subj}>
@@ -502,23 +653,25 @@ const GuestLogin = ({ onLogin }) => {
                 </div>
 
                 <div className="form-group-guest">
-                  <label className="form-label-guest" htmlFor="guestDescription">Detailed Description</label>
+                  <label className="form-label-guest" htmlFor="guestDescription">Detailed Description <span className="required-star">*</span></label>
                   <textarea
                     id="guestDescription"
                     className="form-textarea-guest"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Please provide as much detail as possible..."
+                    placeholder="Provide a detailed explanation of your request or inquiry..."
                     rows="5"
                   />
                 </div>
               </div>
 
               <div className="form-section-guest">
-                <h3 className="guest-subheading">Attachments</h3>
+                <h3 className="guest-subheading">4. Attachments</h3>
 
                 <div className="form-group-guest">
-                  <label className="form-label-guest" htmlFor="authProofUpload">Attach Authorization Proof</label>
+                  <label className="form-label-guest" htmlFor="authProofUpload">
+                    Authorization / Identification Proof <span className="required-badge">Required</span>
+                  </label>
                   <div
                     className={`upload-box-auth ${authFile ? 'has-file' : ''}`}
                     id="authProofUpload"
@@ -532,7 +685,6 @@ const GuestLogin = ({ onLogin }) => {
                       }
                     }}
                   >
-                    <span className="required-badge">Required</span>
                     {authFile ? (
                       <div className="guest-attached-file">
                         <FaFileAlt className="guest-file-icon" />
@@ -552,17 +704,16 @@ const GuestLogin = ({ onLogin }) => {
                     ) : (
                       <>
                         <FaFileUpload className="upload-icon-large upload-icon-green" />
-                        <p className="upload-text-main">Click to upload or drag and drop</p>
-                        <p className="upload-text-sub">Attach documents (Max 5MB)</p>
+                        <p className="upload-text-main">Click to upload student ID or authorization document</p>
+                        <p className="upload-text-sub">PDF, PNG, JPG, or DOC (Max 5MB)</p>
                       </>
                     )}
-                    <p className="upload-file-status">{authFile ? 'Click to replace file' : ''}</p>
                     <input
                       ref={authInputRef}
                       type="file"
                       className="file-input-hidden"
                       onChange={handleAuthChange}
-                      accept=".pdf,.doc,.docx,.jpg,.png"
+                      accept=".pdf,.doc,.docx,.jpg,.png,.jpeg"
                       aria-label="Upload authorization proof (required)"
                       style={{ pointerEvents: 'none' }}
                     />
@@ -570,7 +721,9 @@ const GuestLogin = ({ onLogin }) => {
                 </div>
 
                 <div className="form-group-guest">
-                  <label className="form-label-guest" htmlFor="optionalUpload">Attach File <span className="optional-guest">(Optional)</span></label>
+                  <label className="form-label-guest" htmlFor="optionalUpload">
+                    Additional Supporting File <span className="optional-guest">(Optional)</span>
+                  </label>
                   <div
                     className={`upload-box-dashed ${attachmentFile ? 'has-file' : ''}`}
                     id="optionalUpload"
@@ -603,17 +756,16 @@ const GuestLogin = ({ onLogin }) => {
                     ) : (
                       <>
                         <FaFileUpload className="upload-icon-large" />
-                        <p className="upload-text-main">Click to upload or drag and drop</p>
-                        <p className="upload-text-sub">Attach documents (Max 5MB)</p>
+                        <p className="upload-text-main">Click to attach supporting receipt or document</p>
+                        <p className="upload-text-sub">PDF, PNG, JPG, or DOC (Max 5MB)</p>
                       </>
                     )}
-                    <p className="upload-file-status">{attachmentFile ? 'Click to replace file' : ''}</p>
                     <input
                       ref={attachmentInputRef}
                       type="file"
                       className="file-input-hidden"
                       onChange={handleAttachmentChange}
-                      accept=".pdf,.doc,.docx,.jpg,.png"
+                      accept=".pdf,.doc,.docx,.jpg,.png,.jpeg"
                       aria-label="Attach an optional file"
                       style={{ pointerEvents: 'none' }}
                     />
@@ -622,19 +774,28 @@ const GuestLogin = ({ onLogin }) => {
               </div>
 
               <div className="form-actions-guest">
-                <button className="cancel-btn-guest" onClick={() => window.location.reload()}>
-                  Cancel
+                <button 
+                  type="button" 
+                  className="cancel-btn-guest" 
+                  onClick={resetGuestForm}
+                >
+                  Reset
                 </button>
-                <button className="submit-btn-guest" onClick={handleSubmitRequest} disabled={!canSubmit}>
-                  Submit Request
+                <button 
+                  type="button" 
+                  className="submit-btn-guest" 
+                  onClick={handleSubmitRequest} 
+                  disabled={!canSubmit || submitting}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
             </section>
           </>
         )}
-      </div>
+      </main>
       
-      {loading && <LoadingSpinner message="Submitting your request..." fullScreen={true} />}
+      {submitting && <LoadingSpinner message="Submitting your request to school offices..." fullScreen={true} />}
     </div>
   );
 };

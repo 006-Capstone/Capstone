@@ -330,8 +330,8 @@ const AdminDashboard = ({ department }) => {
                         <button className="action-btn disabled" disabled>
                           Cancelled
                         </button>
-                      ) : ticket.assignedTo ? (
-                        <button className="action-btn">View Ticket</button>
+                      ) :                       ticket.assignedTo ? (
+                        <button className="action-btn" onClick={() => onNavigate('ticket-details', ticket)}>View Ticket</button>
                       ) : (
                         <button 
                           className="action-btn claim"

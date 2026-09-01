@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
 import NotificationBell from './NotificationBell';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
+import Toast from './Toast';
 import '../styles/SuperAdminDashboard.css';
 
 const EMPTY_FILTER = { from: '', to: '' };
@@ -28,6 +29,7 @@ const SuperAdminDashboard = () => {
   const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
   const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
   const [filteredTotal, setFilteredTotal] = useState(0);
+  const [toast, setToast] = useState(null);
   
   // Keep all fetched requests in a ref so filters can be applied without refetching
   const allRequestsRef = useRef([]);
@@ -146,7 +148,7 @@ const SuperAdminDashboard = () => {
   const applyDateFilter = () => {
     // Validate range: From cannot be after To
     if (dateFilter.from && dateFilter.to && dateFilter.from > dateFilter.to) {
-      alert('The "From" date cannot be later than the "To" date.');
+      setToast({ type: 'error', message: 'The "From" date cannot be later than the "To" date.' });
       return false;
     }
     setAppliedFilter(dateFilter);
@@ -282,6 +284,14 @@ const SuperAdminDashboard = () => {
             </div>
           </div>
         </>
+      )}
+
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

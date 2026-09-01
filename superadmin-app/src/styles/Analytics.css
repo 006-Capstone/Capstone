@@ -56,9 +56,9 @@
 .analytics-stats .stat-card {
   background-color: var(--color-surface);
   border: 1px solid var(--gray-200);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-6);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .analytics-stats .stat-header {
@@ -69,17 +69,18 @@
 }
 
 .analytics-stats .stat-icon-container {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--sage-100);
+  background-color: var(--sage-50);
+  border: 1px solid var(--sage-200);
 }
 
 .analytics-stats .stat-icon {
-  font-size: 20px;
+  font-size: 19px;
   color: var(--color-primary);
 }
 
@@ -116,9 +117,9 @@
 .satisfaction-card {
   background-color: var(--color-surface);
   border: 1px solid var(--gray-200);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-6);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .chart-card-header,
@@ -362,15 +363,13 @@
   letter-spacing: 0.5px;
 }
 
-/* Satisfaction card — Figma designs this as a green banner */
+/* Satisfaction card — restrained solid brand surface */
 .satisfaction-card {
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: visible;
-  border: none;
-  background: linear-gradient(165deg, var(--sage-500) 0%, var(--sage-hero) 55%, var(--sage-hero-deep) 130%);
-  box-shadow: 0 8px 24px rgba(60, 119, 83, 0.22);
+  border: 1px solid var(--sage-300);
+  background-color: var(--sage-100);
 }
 
 /* ---- Office filter dropdown on the satisfaction card ---- */
@@ -384,9 +383,9 @@
   gap: var(--space-2);
   font-size: var(--font-size-xs);
   color: var(--green-900);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--color-surface);
   padding: var(--space-1) var(--space-3);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--sage-300);
   border-radius: var(--radius-pill);
   cursor: pointer;
   white-space: nowrap;
@@ -394,13 +393,13 @@
 }
 
 .satisfaction-filter:hover {
-  background: rgba(255, 255, 255, 0.85);
-  color: var(--green-950);
+  border-color: var(--green-800);
+  color: var(--green-800);
 }
 
 .satisfaction-filter.active {
-  background: #fff;
-  border-color: var(--green-900);
+  background: var(--color-surface);
+  border-color: var(--green-800);
   color: var(--green-800);
   font-weight: var(--font-weight-semibold);
 }
@@ -451,33 +450,32 @@
   align-items: center;
   justify-content: center;
   flex: 1;
+  padding: var(--space-4) 0;
 }
 
 .satisfaction-percentage {
-  font-size: 64px;
+  font-size: 56px;
   font-weight: var(--font-weight-bold);
-  color: #fff;
-  text-shadow: 0 2px 10px rgba(8, 58, 3, 0.28);
+  color: var(--green-950);
   line-height: 1;
   margin-bottom: var(--space-2);
 }
 
 .satisfaction-label {
   font-size: var(--font-size-sm);
-  color: var(--green-950);
+  color: var(--sage-ink);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-5);
 }
 
 .satisfaction-total {
   font-size: var(--font-size-xs);
   color: var(--green-800);
   font-weight: var(--font-weight-medium);
-  margin-top: -12px;
-  margin-bottom: var(--space-5);
-  font-style: italic;
+  margin-top: -10px;
+  margin-bottom: var(--space-4);
 }
 
 .stars-breakdown {
@@ -489,10 +487,10 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) var(--space-4);
-  background-color: rgba(255, 255, 255, 0.55);
+  background-color: var(--color-surface);
+  border: 1px solid var(--sage-200);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-3);
-  backdrop-filter: blur(4px);
 }
 
 .star-info {
@@ -510,7 +508,7 @@
 
 .star-label {
   font-size: var(--font-size-sm);
-  color: var(--green-950);
+  color: var(--sage-ink);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -518,6 +516,7 @@
   font-size: var(--font-size-sm);
   color: var(--green-950);
   font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---- Department efficiency table ---- */

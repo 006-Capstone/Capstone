@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaBell, FaCheck, FaCheckDouble, FaTimes, FaArrowRight } from 'react-icons/fa';
+import { 
+  FaBell, 
+  FaCheck, 
+  FaCheckDouble, 
+  FaTimes, 
+  FaArrowRight,
+  FaCommentDots,
+  FaCheckCircle,
+  FaTicketAlt,
+  FaExchangeAlt,
+  FaClock,
+  FaInfoCircle
+} from 'react-icons/fa';
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { markAsRead, markAllAsRead } from '../utils/notificationHelper';
@@ -8,9 +20,6 @@ import '../styles/Notifications.css';
 
 const CLOSE_ANIMATION_MS = 180;
 
-// Look up the request a notification refers to (by its human-readable request
-// ID) so the app can open it. Tickets that were reassigned get a NEW requestId
-// while the notification keeps the old one, so fall back to previousRequestId.
 const fetchRequestByNotification = async (notif) => {
   const requestId = notif.metadata?.requestId;
   if (!requestId) return null;
@@ -31,15 +40,38 @@ const fetchRequestByNotification = async (notif) => {
   return null;
 };
 
+const getNotificationIcon = (notif) => {
+  const type = notif.type;
+  const newStatus = (notif.metadata?.newStatus || '').toLowerCase();
+
+  switch (type) {
+    case 'new_request':
+      // Standardized Blue/Indigo/Purple for New Request
+      return { icon: <FaTicketAlt />, className: 'type-request' };
+    case 'status_change':
+      if (newStatus.includes('process') || newStatus.includes('progress')) {
+        return { icon: <FaClock />, className: 'type-inprocess' };
+      }
+      return { icon: <FaCheckCircle />, className: 'type-status' };
+    case 'new_comment':
+    case 'student_followup':
+      return { icon: <FaCommentDots />, className: 'type-comment' };
+    case 'ticket_rerouted':
+      return { icon: <FaExchangeAlt />, className: 'type-rerouted' };
+    case 'etc_update':
+      return { icon: <FaClock />, className: 'type-etc' };
+    default:
+      return { icon: <FaInfoCircle />, className: 'type-default' };
+  }
+};
+
 const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
-  // Stays true briefly after close so the fade-out animation can play
   const [visible, setVisible] = useState(false);
   const panelRef = useRef(null);
 
-  // Keep the panel mounted for the close animation, then unmount
   useEffect(() => {
     if (isOpen) {
       setVisible(true);
@@ -52,8 +84,6 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
     return undefined;
   }, [isOpen, visible]);
 
-  // Click outside the dropdown (or on the bell itself) closes it;
-  // Escape closes it and returns focus to the bell
   useEffect(() => {
     if (!visible) return undefined;
 
@@ -64,7 +94,6 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
         !event.target.closest('.notification-bell')
       ) {
         onClose();
-        // Return focus to the trigger, per the disclosure/dialog pattern
         bellRef?.current?.focus();
       }
     };
@@ -84,7 +113,6 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
     };
   }, [visible, onClose, bellRef]);
 
-  // Move focus into the dropdown when it opens (no scroll jump)
   useEffect(() => {
     if (visible) {
       panelRef.current?.focus({ preventScroll: true });
@@ -100,7 +128,6 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
       return;
     }
 
-    // Simplified query to avoid index requirement - we'll sort in JavaScript
     const q = query(
       collection(db, 'notifications'),
       where('recipientId', '==', studentData.uid),
@@ -121,13 +148,12 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
         if (!data.isRead) unread++;
       });
 
-      // Sort by date in JavaScript (newest first) and limit to 20
       notifs.sort((a, b) => {
         const timeA = a.createdAt?.getTime() || 0;
         const timeB = b.createdAt?.getTime() || 0;
         return timeB - timeA;
       });
-      const limitedNotifs = notifs.slice(0, 20);
+      const limitedNotifs = notifs.slice(0, 25);
 
       setNotifications(limitedNotifs);
       setUnreadCount(unread);
@@ -144,8 +170,6 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
     await markAsRead(notificationId);
   };
 
-  // Clicking a notification marks it read and, when it references a request,
-  // opens that request's details page (closing the dropdown on the way).
   const handleNotificationClick = async (notif) => {
     try {
       if (!notif.isRead) {
@@ -156,7 +180,6 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
       if (request && onViewRequest) {
         onViewRequest(request);
         onClose();
-        // Return focus to the bell, per the disclosure/dialog pattern
         bellRef?.current?.focus();
       }
     } catch (error) {
@@ -166,7 +189,9 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
 
   const handleMarkAllAsRead = async () => {
     const studentData = JSON.parse(localStorage.getItem('studentData'));
-    await markAllAsRead(studentData.uid, 'student');
+    if (studentData?.uid) {
+      await markAllAsRead(studentData.uid, 'student');
+    }
   };
 
   const getTimeAgo = (date) => {
@@ -180,6 +205,7 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
     return `${diffDays}d ago`;
   };
 
@@ -194,67 +220,113 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
       aria-label="Notifications"
       className={`notifications-panel${isOpen ? '' : ' closing'}`}
     >
+      {/* Header */}
       <div className="notifications-header">
         <div className="notifications-header-left">
-          <FaBell className="notifications-bell-icon" />
-          <h2>Notifications</h2>
-          {unreadCount > 0 && <span className="unread-badge">{unreadCount}</span>}
+          <div className="header-bell-badge">
+            <FaBell />
+          </div>
+          <div className="header-title-container">
+            <h2>Notifications</h2>
+            {unreadCount > 0 ? (
+              <span className="unread-badge">{unreadCount} new</span>
+            ) : (
+              <span className="all-read-badge">All caught up</span>
+            )}
+          </div>
         </div>
+
         <div className="notifications-header-right">
           {unreadCount > 0 && (
-            <button className="mark-all-read-btn" onClick={handleMarkAllAsRead} title="Mark all as read" aria-label="Mark all as read">
+            <button 
+              className="mark-all-read-btn" 
+              onClick={handleMarkAllAsRead} 
+              title="Mark all as read" 
+              aria-label="Mark all as read"
+            >
               <FaCheckDouble />
+              <span>Mark all read</span>
             </button>
           )}
-          <button className="close-notifications-btn" onClick={onClose} aria-label="Close notifications">
+          <button 
+            className="close-notifications-btn" 
+            onClick={onClose} 
+            aria-label="Close notifications"
+            title="Close"
+          >
             <FaTimes />
           </button>
         </div>
       </div>
 
+      {/* Notifications List */}
       <div className="notifications-list">
         {loading ? (
           <LoadingSpinner message="Loading notifications..." fullScreen={false} />
         ) : notifications.length === 0 ? (
           <div className="notifications-empty">
-            <FaBell className="empty-icon" />
-            <p>No notifications yet</p>
+            <div className="empty-bell-circle">
+              <FaBell className="empty-icon" />
+            </div>
+            <h3>No Notifications Yet</h3>
+            <p>You’re completely up to date. You will be notified when staff update your requests.</p>
           </div>
         ) : (
-          notifications.map((notif) => (
-            <div
-              key={notif.id}
-              role="button"
-              tabIndex={0}
-              className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
-              onClick={() => handleNotificationClick(notif)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleNotificationClick(notif);
-                }
-              }}
-              title={notif.metadata?.requestId ? 'Open request' : undefined}
-            >
-              <div className="notification-content">
-                <div className="notification-title">{notif.title}</div>
-                <div className="notification-message">{notif.message}</div>
-                <div className="notification-time">{getTimeAgo(notif.createdAt)}</div>
+          notifications.map((notif) => {
+            const { icon, className: iconClass } = getNotificationIcon(notif);
+            const requestId = notif.metadata?.requestId;
+
+            return (
+              <div
+                key={notif.id}
+                role="button"
+                tabIndex={0}
+                className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
+                onClick={() => handleNotificationClick(notif)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleNotificationClick(notif);
+                  }
+                }}
+                title={requestId ? `Open Request #${requestId}` : undefined}
+              >
+                <div className={`notif-type-icon ${iconClass}`}>
+                  {icon}
+                </div>
+
+                <div className="notification-content">
+                  <div className="notification-top-row">
+                    <span className="notification-title">{notif.title}</span>
+                    {requestId && (
+                      <span className="notif-request-chip">#{requestId}</span>
+                    )}
+                  </div>
+                  <div className="notification-message">{notif.message}</div>
+                  <div className="notification-time">{getTimeAgo(notif.createdAt)}</div>
+                </div>
+
+                {requestId && (
+                  <div className="notification-open-indicator" aria-hidden="true">
+                    <FaArrowRight />
+                  </div>
+                )}
+
+                {!notif.isRead && (
+                  <span className="notification-unread-dot" title="Unread" />
+                )}
               </div>
-              {notif.metadata?.requestId && (
-                <div className="notification-open-indicator" aria-hidden="true">
-                  <FaArrowRight />
-                </div>
-              )}
-              {!notif.isRead && (
-                <div className="notification-unread-indicator">
-                  <FaCheck className="mark-read-icon" />
-                </div>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      {/* Footer */}
+      {notifications.length > 0 && (
+        <div className="notifications-footer">
+          <span>Showing recent updates</span>
+        </div>
+      )}
     </div>
   );
 };

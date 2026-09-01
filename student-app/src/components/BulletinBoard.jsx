@@ -145,22 +145,23 @@ function BulletinBoard() {
         </div>
       </div>
 
+      <div className="announcements-header">
+        <h3>Announcements</h3>
+        <div className="office-filters">
+          {offices.map(office => (
+            <button
+              key={office}
+              className={`filter-btn ${selectedOffice === office ? 'active' : ''}`}
+              onClick={() => setSelectedOffice(office)}
+            >
+              {office}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="bulletin-content">
         <div className="announcements-section">
-          <div className="announcements-header">
-            <h3>Announcements</h3>
-            <div className="office-filters">
-              {offices.map(office => (
-                <button
-                  key={office}
-                  className={`filter-btn ${selectedOffice === office ? 'active' : ''}`}
-                  onClick={() => setSelectedOffice(office)}
-                >
-                  {office}
-                </button>
-              ))}
-            </div>
-          </div>
           
           {loading ? (
             <LoadingSpinner message="Loading announcements..." fullScreen={false} />

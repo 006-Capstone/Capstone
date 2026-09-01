@@ -17,35 +17,34 @@ import StatusBadge from './StatusBadge';
 import '../styles/Dashboard.css';
 
 // Each card opens Request History pre-filtered to the matching status
-// ('All Status' = no filter). Values match the MyRequest dropdown options.
 const STAT_CARDS = [
   {
     id: 'total',
-    top: 'TOTAL',
-    title: 'All Request',
+    top: 'TOTAL REQUESTS',
+    title: 'All Requests',
     icon: <MdConfirmationNumber aria-hidden="true" />,
     getValue: (s) => s.total,
     filter: 'All Status'
   },
   {
     id: 'submitted',
-    top: 'SUBMITTED',
-    title: 'Pending Request',
+    top: 'AWAITING REVIEW',
+    title: 'Pending',
     icon: <HiOutlineDocumentAdd aria-hidden="true" />,
     getValue: (s) => s.pending,
     filter: 'Pending'
   },
   {
     id: 'active',
-    top: 'ACTIVE',
-    title: 'In Progress',
+    top: 'IN PROGRESS',
+    title: 'Processing',
     icon: <HiOutlineDocumentText aria-hidden="true" />,
     getValue: (s) => s.inProgress,
     filter: 'In Process'
   },
   {
     id: 'complete',
-    top: 'COMPLETE',
+    top: 'COMPLETED',
     title: 'Resolved',
     icon: <HiOutlineCheckCircle aria-hidden="true" />,
     getValue: (s) => s.resolved,
@@ -66,7 +65,6 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Get student info from localStorage
     const studentData = localStorage.getItem('studentData');
     if (studentData) {
       const student = JSON.parse(studentData);
@@ -75,7 +73,6 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
         : student.name || 'Student';
       setStudentName(fullName);
 
-      // Use studentId, fallback to id or uid
       const identifier = student.studentId || student.id || student.uid;
       loadRequests(identifier, student.uid);
     }
@@ -86,7 +83,6 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
       setLoading(true);
       setError('');
 
-      // Query all requests for this student
       const requestsRef = collection(db, 'requests');
       let q = query(
         requestsRef,
@@ -95,7 +91,6 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
 
       let querySnapshot = await getDocs(q);
 
-      // If no results, try with studentUid
       if (querySnapshot.empty && studentUid) {
         q = query(
           requestsRef,
@@ -112,7 +107,7 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
           office: data.office,
           subject: data.subject,
           date: data.createdAt?.toDate().toLocaleDateString('en-US', {
-            month: 'long',
+            month: 'short',
             day: 'numeric',
             year: 'numeric'
           }) || 'N/A',
@@ -122,10 +117,8 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
         };
       });
 
-      // Sort by date manually (newest first)
       allRequests.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
 
-      // Calculate stats
       const newStats = {
         total: allRequests.length,
         pending: allRequests.filter(r => r.status === 'Pending').length,
@@ -134,8 +127,6 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
       };
 
       setStats(newStats);
-
-      // Get recent 5 requests
       setRequests(allRequests.slice(0, 5));
     } catch (loadError) {
       console.error('[Error] Error loading dashboard:', loadError);
@@ -145,13 +136,24 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
     }
   };
 
+  const currentDateFormatted = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
   return (
     <div className="dashboard">
-      <div className="page-header">
-        <h1>Welcome back, {studentName}</h1>
+      <div className="page-header dashboard-header">
+        <div className="dashboard-welcome">
+          <span className="dashboard-date-badge">{currentDateFormatted}</span>
+          <h1>Welcome back, {studentName}</h1>
+          <p className="page-header-subtitle">Track your requests, check office announcements, and submit feedback.</p>
+        </div>
         <button type="button" className="create-btn" onClick={() => onNavigate('new-request')}>
           <MdAdd aria-hidden="true" />
-          CREATE NEW REQUEST
+          <span>CREATE NEW REQUEST</span>
         </button>
       </div>
 
@@ -164,19 +166,31 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
             onClick={() => onViewRequests?.(card.filter)}
             aria-label={`View ${card.title} in Request History`}
           >
-            <span className="stat-card-label">{card.top}</span>
-            <div className="icon">{card.icon}</div>
-            <h2>{card.title}</h2>
-            <div className="number">{card.getValue(stats)}</div>
+            <div className="stat-card-top-row">
+              <span className="stat-card-label">{card.top}</span>
+              <div className="stat-card-action-icon" aria-hidden="true">
+                <MdKeyboardArrowRight />
+              </div>
+            </div>
+            <div className="stat-card-body">
+              <div className="icon">{card.icon}</div>
+              <div className="stat-card-numbers">
+                <div className="number">{card.getValue(stats)}</div>
+                <h2>{card.title}</h2>
+              </div>
+            </div>
           </button>
         ))}
       </div>
 
       <section className="recent-requests" aria-labelledby="recent-requests-title">
         <div className="section-header">
-          <h2 id="recent-requests-title">Recent Request</h2>
+          <div className="section-header-title-group">
+            <h2 id="recent-requests-title">Recent Requests</h2>
+            <span className="section-header-chip">{requests.length} of {stats.total}</span>
+          </div>
           <button type="button" className="view-all-btn" onClick={() => onNavigate('request')}>
-            View all My Request
+            <span>View All Requests</span>
             <MdKeyboardArrowRight aria-hidden="true" />
           </button>
         </div>
@@ -187,12 +201,14 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
           ) : error ? (
             <div className="empty-state">
               <MdInbox className="empty-state-icon" aria-hidden="true" />
+              <h3>Could not load requests</h3>
               <p>{error}</p>
             </div>
           ) : requests.length === 0 ? (
             <div className="empty-state">
               <MdInbox className="empty-state-icon" aria-hidden="true" />
-              <p>No requests yet. Create your first request to get started!</p>
+              <h3>No Requests Yet</h3>
+              <p>You haven't submitted any requests yet. Click the button above to create your first academic request.</p>
             </div>
           ) : (
             <table className="data-table">

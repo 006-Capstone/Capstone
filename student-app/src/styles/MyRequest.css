@@ -1,76 +1,94 @@
 /* ==========================================================================
-   MY REQUEST — request history with search, filters, table, pagination
-   (breadcrumb, page-header, data-table, status badges and empty-state
-   styles now live in shared.css)
+   MY REQUEST — Request History Design System
+   • Aligned with Academia De San Jose Figma tokens
+   • Clean, modern data table without clutter or AI bloat
+   • Sticky headers and fluid full-width search filter bar
    ========================================================================== */
 
 .my-request {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--content-padding);
-  background-color: var(--color-bg);
+  padding: var(--content-padding, 24px 32px);
+  background-color: var(--color-bg, #f8f9f7);
   overflow-y: auto;
   overflow-x: hidden;
+  gap: var(--space-4, 16px);
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-/* ---- Filter bar ---- */
+.my-request::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---- Filter Bar ---- */
 .filters {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: 14px;
   align-items: center;
-  margin-bottom: var(--space-6);
+  margin-bottom: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .search-box {
-  flex: 1 1 280px;
+  flex: 1;
+  min-width: 0;
+  height: 44px;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md); /* matches the Filter dropdown trigger */
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  gap: 10px;
+  padding: 0 16px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #dce0db);
+  border-radius: var(--radius-sm, 8px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
 }
 
 .search-box:focus-within {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(140, 185, 134, 0.15);
+  border-color: var(--color-primary, #105e06);
+  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.12);
+  background: #ffffff;
 }
 
 .search-box svg {
-  color: var(--color-text-faint);
-  font-size: 20px;
+  color: var(--gray-500, #737971);
+  font-size: 19px;
   flex-shrink: 0;
+  transition: color 0.15s ease;
 }
 
-/* Clear-search "×" inside the search box (replaces the old Reset button
-   for the search term — the dropdown's Clear only resets status/office) */
+.search-box:focus-within svg {
+  color: var(--color-primary, #105e06);
+}
+
 .search-clear-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border: none;
   border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-faint);
+  background: var(--gray-100, #ecefe9);
+  color: var(--color-text-faint, #7d857c);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  padding: 0;
 }
 
 .search-clear-btn:hover {
-  background: var(--gray-100);
-  color: var(--color-text-muted);
+  background: var(--gray-200, #dce0db);
+  color: var(--color-text-body, #2d322c);
 }
 
 .search-clear-btn svg {
-  font-size: 16px;
-  color: inherit;
+  font-size: 13px;
 }
 
 .search-box input {
@@ -79,105 +97,74 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: var(--font-size-base);
-  color: var(--color-text-body);
+  font-size: 14px;
+  color: var(--color-text-body, #2d322c);
+  font-family: inherit;
 }
 
 .search-box input::placeholder {
-  color: var(--color-text-faint);
+  color: var(--gray-400, #9aa298);
 }
 
-.filters select {
-  padding: var(--space-3) var(--space-4);
-  background: var(--sage-100);
-  border: 1px solid var(--sage-200);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-base);
-  color: var(--color-text-body);
-  cursor: pointer;
-  min-width: 150px;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
-}
-
-.filters select:focus {
-  outline: none;
-  border-color: var(--color-accent);
-  background: var(--color-surface);
-  box-shadow: 0 0 0 3px rgba(140, 185, 134, 0.15);
-}
-
-/* Results count pinned to the bottom-right corner of the table card */
-.table-footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-divider);
-  background-color: var(--color-surface-warm);
-}
-
-.results-count {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-faint);
-}
-
-.results-count strong {
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-semibold);
-}
-/* ---- Filter dropdowns (same UI as admin-app My Tickets) ---- */
+/* ---- Filter Dropdowns ---- */
 .filter-dropdown {
   position: relative;
+  flex-shrink: 0;
 }
 
 .filter-trigger {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  border: 1px solid #e0dcd9;
-  border-radius: 10px;
-  background-color: #ffffff;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border, #dce0db);
+  border-radius: var(--radius-sm, 8px);
+  background-color: var(--color-surface, #ffffff);
   cursor: pointer;
-  font-size: 14px;
-  color: #666666;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #424841);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
 }
 
 .filter-trigger:hover {
-  background-color: #f4f2f0;
-  color: #1a1a1a;
+  background-color: var(--sage-50, #f4f8f3);
+  border-color: var(--sage-300, #cbd0ca);
+  color: var(--color-primary, #105e06);
 }
 
 .filter-trigger.active {
-  border-color: #105e06;
-  color: #105e06;
-  background-color: #f0f7f0;
+  border-color: var(--color-primary, #105e06);
+  color: var(--color-primary, #105e06);
+  background-color: var(--green-50, #f0fdf4);
+  font-weight: 600;
 }
 
 .filter-icon {
-  font-size: 14px;
-  color: #999999;
+  font-size: 13px;
+  color: var(--gray-500, #737971);
 }
 
 .filter-trigger.active .filter-icon {
-  color: #105e06;
+  color: var(--color-primary, #105e06);
 }
 
 .filter-active-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background-color: #105e06;
+  background-color: var(--color-primary, #105e06);
   flex-shrink: 0;
 }
 
 .filter-chevron {
-  font-size: 12px;
-  color: #999999;
-  transition: transform 0.2s ease;
+  font-size: 11px;
+  color: var(--gray-500, #737971);
+  transition: transform 0.15s ease;
 }
 
 .filter-chevron.open {
@@ -186,7 +173,7 @@
 
 .filter-dropdown-panel {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: 60;
   width: 280px;
@@ -194,26 +181,24 @@
   max-height: 60vh;
   overflow-y: auto;
   background-color: #ffffff;
-  border: 1px solid #eeebea;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
   padding: 12px;
-  animation: filter-dropdown-pop 0.18s ease;
+  animation: filter-dropdown-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes filter-dropdown-pop {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-6px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
-/* Group heading row inside the combined panel (Status / Office) — the
-   Clear button sits at the right end of the first group's header. */
 .filter-section-header {
   display: flex;
   align-items: center;
@@ -223,17 +208,17 @@
 }
 
 .filter-section-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #999999;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-500, #737971);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
 }
 
 .filter-section + .filter-section {
-  margin-top: 6px;
+  margin-top: 8px;
   padding-top: 10px;
-  border-top: 1px solid #f0eeee;
+  border-top: 1px solid #f0f2ef;
 }
 
 .filter-option {
@@ -241,24 +226,25 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 8px;
+  padding: 8px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background-color: transparent;
-  color: #444444;
-  font-size: 14px;
+  color: var(--color-text-secondary, #424841);
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .filter-option:hover {
-  background-color: #f4f2f0;
+  background-color: var(--sage-50, #f4f8f3);
+  color: var(--color-primary, #105e06);
 }
 
 .filter-option.selected {
-  background-color: #f0f7f0;
-  color: #105e06;
+  background-color: var(--green-50, #f0fdf4);
+  color: var(--color-primary, #105e06);
   font-weight: 600;
 }
 
@@ -266,58 +252,193 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: 1px solid #d0d0d0;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--gray-300, #cbd0ca);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 9px;
   color: #ffffff;
   flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
 .filter-option.selected .filter-option-check {
-  background-color: #105e06;
-  border-color: #105e06;
+  background-color: var(--color-primary, #105e06);
+  border-color: var(--color-primary, #105e06);
 }
 
-/* Compact text-button tucked into the header row's right corner */
 .filter-clear-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 3px 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background-color: transparent;
-  color: #ef5350;
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--red-500, #dc2626);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .filter-clear-btn:hover {
-  background-color: #ffebee;
-  color: #c62828;
+  background-color: #fee2e2;
+  color: #b91c1c;
 }
 
-/* ---- Table card ---- */
+/* ---- Table Card ---- */
 .request-table {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  border-radius: var(--radius-md, 12px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  margin-bottom: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 .table-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.data-table tbody tr {
+.table-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.table-scroll .data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-scroll .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #f4f8f3;
+  padding: 13px 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green-900, #105e06);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1.5px solid var(--color-border, #dce0db);
+  white-space: nowrap;
+}
+
+.table-scroll .data-table thead th:first-child {
+  padding-left: 24px;
+}
+
+.table-scroll .data-table thead th:last-child {
+  padding-right: 24px;
+}
+
+.table-scroll .data-table tbody td {
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--color-border-soft, #eef2ed);
+  font-size: 13.5px;
+  color: var(--color-text-body, #2d322c);
+  vertical-align: middle;
+  transition: background-color 0.12s ease;
+}
+
+.table-scroll .data-table tbody td:first-child {
+  padding-left: 24px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  color: var(--color-primary, #105e06);
+}
+
+.table-scroll .data-table tbody td:last-child {
+  padding-right: 24px;
+}
+
+.table-scroll .data-table tbody tr {
+  background-color: var(--color-surface, #ffffff);
   cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.table-scroll .data-table tbody tr:hover {
+  background-color: #f8fbf7;
+}
+
+.table-scroll .data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Row Action Button */
+.row-action {
+  text-align: right;
+  color: var(--color-text-faint, #7d857c);
+  white-space: nowrap;
+}
+
+.row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-faint, #7d857c);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.data-table tbody tr:hover .row-action-btn {
+  color: var(--color-primary, #105e06);
+  background-color: var(--sage-50, #f4f8f3);
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--color-text-muted, #5d645c);
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  color: var(--sage-500, #8cb986);
+  margin-bottom: 12px;
+}
+
+/* Table Footer */
+.table-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 24px;
+  border-top: 1px solid var(--color-border-soft, #eef2ed);
+  background-color: #fafbfa;
+}
+
+.results-count {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-faint, #7d857c);
+}
+
+.results-count strong {
+  color: var(--color-text-body, #2d322c);
+  font-weight: 700;
 }
 
 /* ---- Pagination ---- */
@@ -325,46 +446,52 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-4) 0 var(--space-6);
+  gap: 6px;
+  padding: 8px 0 16px;
+  flex-wrap: wrap;
 }
 
 .page-btn,
 .page-num {
-  width: 36px;
-  height: 36px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #dce0db);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-text-secondary, #424841);
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast),
-    border-color var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.15s ease;
 }
 
 .page-btn svg {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .page-btn:hover:not(:disabled),
 .page-num:hover {
-  background: var(--gray-100);
+  background: var(--sage-50, #f4f8f3);
+  border-color: var(--sage-300, #cbd0ca);
+  color: var(--color-primary, #105e06);
 }
 
 .page-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.35;
   cursor: not-allowed;
+  background: #f0f2ef;
 }
 
 .page-num.active {
-  background: var(--green-btn);
-  border-color: var(--green-btn);
-  color: #fff;
+  background: var(--color-primary, #105e06);
+  border-color: var(--color-primary, #105e06);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(16, 94, 6, 0.2);
 }
 
 /* ==========================================================================
@@ -372,17 +499,43 @@
    ========================================================================== */
 
 @media (max-width: 767px) {
-  .filter-dropdown {
-    flex: 1 1 42%;
-    min-width: 0;
+  .my-request {
+    padding: 16px 14px;
+    gap: 12px;
   }
 
-  .filter-dropdown .filter-trigger {
-    width: 100%;
-    justify-content: center;
+  .filters {
+    gap: 8px;
   }
 
   .search-box {
-    flex: 1 1 100%;
+    flex: 1 1 180px;
+    max-width: 100%;
+  }
+
+  .filter-trigger {
+    padding: 0 12px;
+  }
+
+  .table-scroll .data-table {
+    min-width: 580px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box,
+  .filter-dropdown,
+  .filter-trigger {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .filter-trigger {
+    justify-content: center;
   }
 }

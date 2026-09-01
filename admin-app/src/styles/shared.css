@@ -1,0 +1,418 @@
+/* ==========================================================================
+   ACADEMIA DE SAN JOSE — ADMIN SHARED UI SYSTEM
+   Shared components: Status Badges, Data Tables, Breadcrumbs,
+   Buttons, Form Inputs, Empty States, and Scrollbars.
+   ========================================================================== */
+
+/* ---- Custom Smooth Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
+/* ---- Page Header & Titles ---- */
+.admin-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.admin-page-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text);
+  margin: 0 0 2px 0;
+  letter-spacing: -0.02em;
+}
+
+.admin-page-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ---- Standardized Status Badges ---- */
+.status-badge,
+.status,
+.figma-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.35;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* If no child dot element is present, render via pseudo-element */
+.status-badge:not(:has(.status-dot))::before,
+.status:not(:has(.status-dot))::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* 1. Pending / New Ticket / Awaiting Assignment (Blue/Indigo/Purple) */
+.status-badge.status-pending,
+.status-badge.status-new,
+.status-badge.status-newrequest,
+.status-badge.pending,
+.status-badge.is-pending,
+.status-badge.new,
+.status-badge.badge-new,
+.status-badge.badge-new-ticket,
+.figma-status-badge.badge-new,
+.figma-status-badge.badge-new-ticket,
+.status.status-pending,
+.status-pending {
+  background-color: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  border-color: var(--status-pending-border);
+}
+
+.status-badge.status-pending .status-dot,
+.status-badge.pending .status-dot,
+.status-badge.new .status-dot,
+.badge-new .status-dot,
+.badge-new-ticket .status-dot,
+.status-pending .status-dot {
+  background-color: var(--status-pending-dot);
+}
+
+/* 2. In Process / In Progress / Active Processing (Warm Yellow/Amber) */
+.status-badge.status-inprocess,
+.status-badge.status-inprogress,
+.status-badge.status-in-process,
+.status-badge.status-in-progress,
+.status-badge.in-process,
+.status-badge.in-progress,
+.status-badge.is-in-process,
+.status-badge.badge-in-process,
+.status-badge.badge-in-progress,
+.figma-status-badge.badge-in-process,
+.figma-status-badge.badge-in-progress,
+.status.status-in-process,
+.status.status-in-progress,
+.status-in-process,
+.status-in-progress {
+  background-color: var(--status-inprocess-bg);
+  color: var(--status-inprocess-text);
+  border-color: var(--status-inprocess-border);
+}
+
+.status-badge.status-inprocess .status-dot,
+.status-badge.status-in-process .status-dot,
+.status-badge.in-process .status-dot,
+.status-badge.in-progress .status-dot,
+.badge-in-process .status-dot,
+.badge-in-progress .status-dot,
+.status-in-process .status-dot {
+  background-color: var(--status-inprocess-dot);
+  animation: pulse-dot 2s infinite;
+}
+
+/* 3. Resolved / Completed (Emerald Green) */
+.status-badge.status-resolved,
+.status-badge.status-completed,
+.status-badge.resolved,
+.status-badge.is-resolved,
+.status-badge.completed,
+.status-badge.badge-resolved,
+.status-badge.badge-completed,
+.figma-status-badge.badge-resolved,
+.figma-status-badge.badge-completed,
+.status.status-resolved,
+.status-resolved {
+  background-color: var(--status-resolved-bg);
+  color: var(--status-resolved-text);
+  border-color: var(--status-resolved-border);
+}
+
+.status-badge.status-resolved .status-dot,
+.status-badge.resolved .status-dot,
+.status-badge.completed .status-dot,
+.badge-resolved .status-dot,
+.badge-completed .status-dot,
+.status-resolved .status-dot {
+  background-color: var(--status-resolved-dot);
+}
+
+/* 4. Cancelled / Rejected / Returned (Crimson Red) */
+.status-badge.status-cancelled,
+.status-badge.status-rejected,
+.status-badge.cancelled,
+.status-badge.is-cancelled,
+.status-badge.rejected,
+.status-badge.badge-rejected,
+.status-badge.badge-cancelled,
+.figma-status-badge.badge-rejected,
+.figma-status-badge.badge-cancelled,
+.status.status-cancelled,
+.status.status-rejected,
+.status-cancelled,
+.status-rejected {
+  background-color: var(--status-cancelled-bg);
+  color: var(--status-cancelled-text);
+  border-color: var(--status-cancelled-border);
+}
+
+.status-badge.status-cancelled .status-dot,
+.status-badge.cancelled .status-dot,
+.status-badge.rejected .status-dot,
+.badge-rejected .status-dot,
+.badge-cancelled .status-dot,
+.status-cancelled .status-dot {
+  background-color: var(--status-cancelled-dot);
+}
+
+/* 5. Returned / Follow-up */
+.status-badge.status-returned,
+.status-badge.returned,
+.status-badge.follow-up,
+.status-badge.is-follow-up,
+.status-badge.badge-returned,
+.status.status-returned,
+.status.status-for-follow-up,
+.status-returned {
+  background-color: var(--status-returned-bg);
+  color: var(--status-returned-text);
+  border-color: var(--status-returned-border);
+}
+
+.status-badge.status-returned .status-dot,
+.status-badge.returned .status-dot,
+.status-badge.follow-up .status-dot,
+.status-returned .status-dot {
+  background-color: var(--status-returned-dot);
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+/* ---- Standard Data Tables ---- */
+.admin-table-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.admin-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.admin-data-table th {
+  padding: 14px 20px;
+  background-color: var(--gray-50);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--color-divider);
+  white-space: nowrap;
+}
+
+.admin-data-table td {
+  padding: 14px 20px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: middle;
+}
+
+.admin-data-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.admin-data-table tbody tr:hover {
+  background-color: var(--sage-50);
+}
+
+.admin-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Tabular numbers for dates & request IDs */
+.tabular-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Primary & Secondary Action Buttons ---- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(16, 94, 6, 0.25);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--green-750) 0%, var(--green-850) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 94, 6, 0.35);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  background: var(--gray-300);
+  color: var(--gray-500);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-secondary:hover {
+  background: var(--sage-50);
+  border-color: var(--sage-300);
+  color: var(--color-primary);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* ---- Empty State Container ---- */
+.admin-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-soft);
+}
+
+.admin-empty-icon {
+  font-size: 52px;
+  color: var(--sage-400);
+  background: var(--sage-50);
+  padding: 14px;
+  border-radius: 50%;
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-xs);
+}
+
+.admin-empty-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 4px 0;
+}
+
+.admin-empty-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+  max-width: 400px;
+}
+
+/* ==========================================================================
+   GLOBAL RESPONSIVE UTILITIES
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  :root {
+    --content-padding: var(--space-4);
+  }
+
+  .admin-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .admin-data-table th,
+  .admin-data-table td {
+    padding: 10px 12px;
+    font-size: var(--font-size-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --content-padding: var(--space-3);
+  }
+
+  .admin-data-table th,
+  .admin-data-table td {
+    padding: 8px 10px;
+  }
+}

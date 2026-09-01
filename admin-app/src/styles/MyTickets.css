@@ -1,388 +1,295 @@
+/* ==========================================================================
+   MY TICKETS — Queue Management & Filtering
+   ========================================================================== */
+
 .my-tickets-container {
   flex: 1;
-  background-color: #f5f5f5;
-  padding: 30px 40px;
+  background-color: var(--color-bg);
+  padding: var(--content-padding);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
 }
 
 .breadcrumb {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  font-size: 14px;
-  color: #999;
-}
-
-.breadcrumb-item {
-  cursor: default;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
 }
 
 .breadcrumb-item.clickable {
   cursor: pointer;
-  transition: color 0.2s;
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  transition: color var(--transition-fast);
 }
 
 .breadcrumb-item.clickable:hover {
-  color: #2e7d32;
+  text-decoration: underline;
 }
 
 .breadcrumb-separator {
-  color: #ccc;
+  color: var(--gray-300);
 }
 
+/* ---- Page Header ---- */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-1);
 }
 
 .page-title {
-  font-size: 32px;
-  font-weight: bold;
-  color: #333;
-  margin: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text);
+  margin: 0 0 2px 0;
+  letter-spacing: -0.02em;
 }
 
 .page-subtitle {
-  font-size: 14px;
-  color: #8a8a8a;
-  margin: 4px 0 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin: 0;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: var(--space-3);
 }
 
 .time-filter {
   display: flex;
-  background-color: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 2px;
+  box-shadow: var(--shadow-xs);
 }
 
 .filter-btn {
-  padding: 8px 20px;
+  padding: 6px 14px;
   border: none;
-  background-color: white;
-  color: #666;
+  background-color: transparent;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-pill);
+  transition: all var(--transition-fast);
 }
 
 .filter-btn.active {
-  background-color: #66bb6a;
-  color: white;
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
+  color: #ffffff;
+  box-shadow: var(--shadow-xs);
 }
 
+.filter-btn:hover:not(.active) {
+  background-color: var(--sage-50);
+  color: var(--color-primary);
+}
+
+/* Notification Bell */
 .notification-bell {
   position: relative;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background-color: #f5f5f5;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xs);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .notification-bell:hover {
-  background-color: #e8f5e9;
+  background-color: var(--sage-50);
+  border-color: var(--sage-300);
+  transform: translateY(-1px);
 }
 
 .bell-icon {
-  font-size: 20px;
-  color: #2e7d32;
+  font-size: 17px;
+  color: var(--color-primary);
 }
 
 .notification-badge {
   position: absolute;
   top: -4px;
   right: -4px;
-  background-color: #ef5350;
-  color: white;
-  border-radius: 10px;
+  background-color: var(--red-500, #ef4444);
+  color: #ffffff;
+  border-radius: var(--radius-pill, 9999px);
   padding: 2px 6px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   min-width: 18px;
   text-align: center;
-  border: 2px solid white;
-  animation: pulse 2s infinite;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.45);
+  animation: badge-pulse 2s infinite;
+  z-index: 10;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-}
-
+/* ---- 3 Summary Cards ---- */
 .ticket-summary-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 30px;
+  gap: var(--space-4);
 }
 
-/* ==========================================================================
-   SUMMARY CARDS — same anatomy as the Admin Dashboard stat cards (white
-   card, icon chip + label row, big value, subtext), color-coded per ticket
-   status so each card reads as a stage of the workflow at a glance. Colors
-   match the status badges in the table directly below.
-   ========================================================================== */
 .summary-card {
   position: relative;
   width: 100%;
-  background-color: #ffffff;
-  border: 1px solid #eeebea;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 14px;
-  overflow: hidden; /* clip the stage rail to the rounded corners */
-  text-align: left;
-  font-family: inherit;
-  color: inherit;
+  gap: 10px;
   cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  /* Gentle staggered entrance; 'backwards' fill so delayed cards don't
-     flash before their animation starts, and hover transforms still work
-     once it completes. */
-  animation: summary-card-in 0.4s ease-out backwards;
-}
-
-.summary-card:focus-visible {
-  outline: 2px solid #2e7d32;
-  outline-offset: 2px;
-}
-
-.summary-card:nth-child(2) {
-  animation-delay: 0.06s;
-}
-
-.summary-card:nth-child(3) {
-  animation-delay: 0.12s;
-}
-
-@keyframes summary-card-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .summary-card {
-    animation: none;
-  }
-}
-
-/* Stage rail — a colored edge that marks which workflow stage this card is */
-.summary-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 18px;
-  bottom: 18px;
-  width: 4px;
-  border-radius: 0 4px 4px 0;
+  border-left: 4px solid transparent;
+  transition: all var(--transition-fast);
 }
 
 .summary-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+}
+
+.summary-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 1. My Request (ALL) Card */
+.summary-card.total {
+  border-left-color: #166534;
+}
+.summary-card.total .summary-icon-container {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #dcfce7;
+}
+.summary-card.total .summary-count {
+  color: #166534;
+}
+.summary-card.total .summary-dot {
+  background-color: #166534;
+}
+.summary-card.total.active {
+  border-color: #166534;
+  box-shadow: 0 4px 14px rgba(22, 101, 52, 0.18);
+}
+
+/* 2. In Process Card (Warm Yellow/Amber) */
+.summary-card.progress {
+  border-left-color: #ca8a04;
+}
+.summary-card.progress .summary-icon-container {
+  background-color: var(--status-inprocess-bg, #fef9c3);
+  color: var(--status-inprocess-text, #854d0e);
+  border: 1px solid var(--status-inprocess-border, #fde047);
+}
+.summary-card.progress .summary-count {
+  color: var(--status-inprocess-text, #854d0e);
+}
+.summary-card.progress .summary-dot {
+  background-color: var(--status-inprocess-dot, #ca8a04);
+}
+.summary-card.progress.active {
+  border-color: #ca8a04;
+  box-shadow: 0 4px 14px rgba(202, 138, 4, 0.18);
+}
+
+/* 3. Resolved Card (Emerald Green) */
+.summary-card.resolved {
+  border-left-color: #16a34a;
+}
+.summary-card.resolved .summary-icon-container {
+  background-color: var(--status-resolved-bg, #dcfce7);
+  color: var(--status-resolved-text, #14532d);
+  border: 1px solid var(--status-resolved-border, #86efac);
+}
+.summary-card.resolved .summary-count {
+  color: var(--status-resolved-text, #14532d);
+}
+.summary-card.resolved .summary-dot {
+  background-color: var(--status-resolved-dot, #16a34a);
+}
+.summary-card.resolved.active {
+  border-color: #16a34a;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.18);
 }
 
 .summary-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
 }
 
 .summary-icon-container {
-  width: 46px;
-  height: 46px;
-  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
-}
-
-.summary-icon {
-  font-size: 20px;
-  transition: transform 0.2s ease;
+  font-size: 16px;
 }
 
 .summary-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #999999;
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  white-space: nowrap;
+  letter-spacing: 0.08em;
 }
 
 .summary-count {
-  font-size: 34px;
-  font-weight: 700;
+  font-size: 30px;
+  font-weight: var(--font-weight-extrabold);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
   margin: 0;
 }
 
 .summary-footer {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-top: auto;
 }
 
 .summary-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .summary-subtext {
-  font-size: 13px;
-  color: #666666;
-  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
-/* ---- New Tickets (indigo, matches the Pending badge) ---- */
-.summary-card.new::before {
-  background-color: #3730a3;
-}
-
-.summary-card.new .summary-icon-container {
-  background-color: #e0e7ff;
-  color: #3730a3;
-}
-
-.summary-card.new .summary-count {
-  color: #3730a3;
-}
-
-.summary-card.new .summary-dot {
-  background-color: #3730a3;
-}
-
-.summary-card.new:hover {
-  border-color: #c7d2fe;
-}
-
-.summary-card.new:hover .summary-icon-container {
-  background-color: #d3dcf9;
-}
-
-/* ---- In Process (amber, matches the In Progress badge) ---- */
-.summary-card.progress::before {
-  background-color: #92400e;
-}
-
-.summary-card.progress .summary-icon-container {
-  background-color: #fef3c7;
-  color: #92400e;
-}
-
-.summary-card.progress .summary-count {
-  color: #92400e;
-}
-
-.summary-card.progress .summary-dot {
-  background-color: #92400e;
-}
-
-.summary-card.progress:hover {
-  border-color: #fde68a;
-}
-
-.summary-card.progress:hover .summary-icon-container {
-  background-color: #fbe7a9;
-}
-
-/* ---- Resolved (emerald, matches the Resolved badge) ---- */
-.summary-card.resolved::before {
-  background-color: #065f46;
-}
-
-.summary-card.resolved .summary-icon-container {
-  background-color: #d1fae5;
-  color: #065f46;
-}
-
-.summary-card.resolved .summary-count {
-  color: #065f46;
-}
-
-.summary-card.resolved .summary-dot {
-  background-color: #065f46;
-}
-
-.summary-card.resolved:hover {
-  border-color: #a7f3d0;
-}
-
-.summary-card.resolved:hover .summary-icon-container {
-  background-color: #b7efd3;
-}
-
-/* Icon nudge on hover — same micro-interaction for every card */
-.summary-card:hover .summary-icon {
-  transform: scale(1.08);
-}
-
-/* ---- Active state — this card's filter is applied to the table ---- */
-.summary-card.new.active {
-  border-color: #3730a3;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(55, 48, 163, 0.18);
-}
-
-.summary-card.progress.active {
-  border-color: #92400e;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(146, 64, 14, 0.18);
-}
-
-.summary-card.resolved.active {
-  border-color: #065f46;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(6, 95, 70, 0.18);
-}
-
-/* Active + hover: keep the ring while showing the lifted shadow */
-.summary-card.new.active:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(55, 48, 163, 0.18);
-}
-
-.summary-card.progress.active:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(146, 64, 14, 0.18);
-}
-
-.summary-card.resolved.active:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(6, 95, 70, 0.18);
-}
-
+/* ---- Filters Toolbar ---- */
 .filters-section {
   display: flex;
-  gap: 15px;
-  margin-bottom: 25px;
+  gap: var(--space-3);
 }
 
 .search-box {
@@ -392,28 +299,32 @@
 
 .search-icon {
   position: absolute;
-  left: 15px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: #999;
-  font-size: 16px;
+  color: var(--gray-400);
+  font-size: 14px;
 }
 
 .search-box input {
   width: 100%;
-  padding: 12px 15px 12px 45px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  background-color: white;
+  padding: 10px 14px 10px 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: #66bb6a;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-glow-primary);
 }
 
-/* ---- Status filter dropdown (matches Super Admin filter trigger) ---- */
+/* Status Filter Dropdown */
 .status-filter-wrap {
   position: relative;
 }
@@ -422,49 +333,39 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  border: 1px solid #e0dcd9;
-  border-radius: 10px;
-  background-color: #ffffff;
+  padding: 10px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
   cursor: pointer;
-  font-size: 14px;
-  color: #666666;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .filter-trigger:hover {
-  background-color: #f4f2f0;
-  color: #1a1a1a;
+  background-color: var(--sage-50);
+  border-color: var(--sage-300);
+  color: var(--color-primary);
 }
 
 .filter-trigger.active {
-  border-color: #105e06;
-  color: #105e06;
-  background-color: #f0f7f0;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--sage-50);
 }
 
 .filter-icon {
-  font-size: 14px;
-  color: #999999;
-}
-
-.filter-trigger.active .filter-icon {
-  color: #105e06;
-}
-
-.filter-active-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #105e06;
-  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--sage-500);
 }
 
 .filter-chevron {
-  font-size: 12px;
-  color: #999999;
-  transition: transform 0.2s ease;
+  font-size: 11px;
+  transition: transform var(--transition-fast);
 }
 
 .filter-chevron.open {
@@ -473,156 +374,131 @@
 
 .filter-dropdown-panel {
   position: absolute;
-  top: calc(100% + 8px);
-  /* Right-anchored so the panel never spills past the viewport — the
-     trigger hugs the container's right edge on desktop (search box is
-     flex:1), so left:0 would push the 240px panel off-screen. */
+  top: calc(100% + 6px);
   right: 0;
-  z-index: 60;
-  width: 240px;
-  max-width: calc(100vw - 32px);
-  background-color: #ffffff;
-  border: 1px solid #eeebea;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  padding: 12px;
-  animation: filter-dropdown-pop 0.18s ease;
-}
-
-@keyframes filter-dropdown-pop {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  width: 200px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .filter-dropdown-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #999999;
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 4px 8px 10px;
+  letter-spacing: 0.05em;
+  padding: 8px 10px 4px;
 }
 
 .status-option {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 8px;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
   border: none;
-  border-radius: 8px;
-  background-color: transparent;
-  color: #444444;
-  font-size: 14px;
-  text-align: left;
+  background: transparent;
+  color: var(--color-text-body);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  text-align: left;
+  transition: all var(--transition-fast);
 }
 
 .status-option:hover {
-  background-color: #f4f2f0;
+  background-color: var(--sage-50);
+  color: var(--color-primary);
 }
 
 .status-option.selected {
-  background-color: #f0f7f0;
-  color: #105e06;
-  font-weight: 600;
+  background-color: var(--green-50);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
 }
 
 .status-option-check {
+  width: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: 1px solid #d0d0d0;
-  border-radius: 4px;
-  font-size: 10px;
-  color: #ffffff;
-  flex-shrink: 0;
-  transition: all 0.15s ease;
-}
-
-.status-option.selected .status-option-check {
-  background-color: #105e06;
-  border-color: #105e06;
+  color: var(--color-primary);
 }
 
 .filter-dropdown-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 10px 8px 4px;
-  border-top: 1px solid #f0eeee;
-  margin-top: 8px;
+  padding-top: 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--color-divider);
 }
 
 .filter-clear-btn {
-  display: inline-flex;
+  width: 100%;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid #e0dcd9;
-  border-radius: 8px;
-  background-color: #ffffff;
-  color: #666666;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
   cursor: pointer;
-  transition: all 0.15s ease;
+  border-radius: var(--radius-xs);
 }
 
 .filter-clear-btn:hover {
-  background-color: #f4f2f0;
-  color: #1a1a1a;
+  background-color: var(--gray-100);
+  color: var(--color-text);
 }
 
+/* ---- Tickets Table Section ---- */
 .tickets-list-section {
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
 .tickets-list-table {
   width: 100%;
   border-collapse: collapse;
-}
-
-.tickets-list-table thead {
-  background-color: transparent;
-  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
 }
 
 .tickets-list-table th {
-  padding: 16px 24px;
-  text-align: left;
-  font-size: 11px;
-  font-weight: 700;
-  color: #9ca3af;
+  padding: 12px 20px;
+  background-color: var(--gray-50);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--color-divider);
+  white-space: nowrap;
 }
 
 .tickets-list-table td {
-  padding: 20px 24px;
-  font-size: 14px;
-  color: #374151;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 14px 20px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+  border-bottom: 1px solid var(--color-divider);
   vertical-align: middle;
 }
 
 .tickets-list-table tbody tr {
-  transition: background-color 0.15s ease;
+  transition: background-color var(--transition-fast);
 }
 
 .tickets-list-table tbody tr:hover {
-  background-color: #f9fafb;
+  background-color: var(--sage-50);
 }
 
 .tickets-list-table tbody tr:last-child td {
@@ -630,245 +506,178 @@
 }
 
 .ticket-info-text {
-  font-weight: 600;
-  color: #111827;
-  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
 }
 
 .ticket-number {
-  font-size: 12px;
-  color: #9ca3af;
-  font-weight: 400;
-  display: block;
-  margin-top: 4px;
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  font-family: var(--font-family-mono);
 }
 
 .student-cell {
-  font-weight: 500;
-  color: #374151;
-  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-body);
 }
 
 .student-id-text {
-  font-size: 12px;
-  color: #9ca3af;
-  font-weight: 400;
-  display: block;
-  margin-top: 4px;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.status-badge.status-inprocess,
-.status-badge.status-inprogress {
-  background-color: #fef3c7;
-  color: #92400e;
-}
-
-.status-badge.status-pending,
-.status-badge.status-newticket {
-  background-color: #e0e7ff;
-  color: #3730a3;
-}
-
-.status-badge.status-resolved {
-  background-color: #d1fae5;
-  color: #065f46;
-}
-
-.status-badge.status-cancelled {
-  background-color: #fde8e8;
-  color: #b91c1c;
-}
-
-.status-badge.status-rejected {
-  background-color: #fde8e8;
-  color: #b91c1c;
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .assigned-to-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.user-icon {
-  font-size: 20px;
-  color: #6b7280;
-  flex-shrink: 0;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
 }
 
 .assigned-name {
-  font-weight: 500;
-  color: #374151;
-}
-
-.unassigned-text {
-  color: #10b981;
-  font-style: italic;
-  font-size: 13px;
-  font-weight: 500;
+  font-weight: var(--font-weight-semibold);
 }
 
 .view-ticket-btn {
-  padding: 8px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background-color: white;
-  color: #374151;
-  font-size: 13px;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+  transition: all var(--transition-fast);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xs);
 }
 
 .view-ticket-btn:hover {
-  background-color: #f9fafb;
-  border-color: #d1d5db;
+  background-color: var(--sage-50);
+  border-color: var(--sage-300);
+  color: var(--color-primary);
 }
 
-.view-ticket-btn:active {
-  transform: scale(0.98);
-}
-
+/* Pagination */
 .pagination-tickets {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  padding: 20px;
+  gap: 6px;
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+  background-color: var(--gray-25);
 }
 
 .page-btn-tickets {
-  width: 35px;
-  height: 35px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  background-color: white;
-  color: #666;
-  font-size: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all var(--transition-fast);
 }
 
-.page-btn-tickets:hover {
-  background-color: #f5f5f5;
+.page-btn-tickets:hover:not(.active) {
+  background-color: var(--sage-50);
+  border-color: var(--sage-300);
+  color: var(--color-primary);
 }
 
 .page-btn-tickets.active {
-  background-color: #66bb6a;
-  color: white;
-  border-color: #66bb6a;
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
+  color: #ffffff;
+  border-color: var(--green-800);
 }
 
-.loading-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999;
-  font-size: 16px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #666;
-  font-size: 16px;
+.page-btn-tickets:disabled {
+  background-color: var(--gray-100);
+  color: var(--gray-400);
+  border-color: var(--gray-200);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* ==========================================================================
    RESPONSIVE
    ========================================================================== */
 
-/* Laptop */
-@media (max-width: 1365px) {
-  .my-tickets-container {
-    padding: 24px 28px;
+@media (max-width: 1024px) {
+  .ticket-summary-cards {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-/* Tablet */
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .my-tickets-container {
-    padding: 20px;
+    padding: var(--space-4);
+  }
+
+  .ticket-summary-cards {
+    grid-template-columns: 1fr;
   }
 
   .page-header {
-    flex-wrap: wrap;
-    gap: 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 
-  .page-title {
-    font-size: 24px;
-  }
-
-  .ticket-summary-cards {
-    gap: 14px;
-  }
-
-  .summary-card {
-    padding: 18px;
-  }
-
-  .summary-icon-container {
-    width: 42px;
-    height: 42px;
-  }
-
-  .summary-icon {
-    font-size: 18px;
-  }
-
-  .summary-label {
-    font-size: 11px;
-  }
-
-  .summary-count {
-    font-size: 28px;
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .filters-section {
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 10px;
   }
 
-  .search-box {
-    flex: 1 1 100%;
+  .search-wrapper,
+  .status-filter-select {
+    width: 100%;
   }
 
-  /* Once the search box wraps to its own row (<=1024px), the filter
-     trigger moves to the LEFT side, so re-anchor the panel leftward. */
-  .filter-dropdown-panel {
-    left: 0;
-    right: auto;
-  }
-
-  .tickets-list-section {
+  .tickets-table-card {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
   }
 
   .tickets-list-table {
-    min-width: 720px;
-  }
-
-  .tickets-list-table th,
-  .tickets-list-table td {
-    padding: 14px 16px;
+    min-width: 650px;
   }
 }
 
-/* Small tablets — summary cards stack for breathing room */
-@media (max-width: 900px) {
-  .ticket-summary-cards {
-    grid-template-columns: 1fr;
+@media (max-width: 480px) {
+  .my-tickets-container {
+    padding: 12px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .pagination-tickets {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }

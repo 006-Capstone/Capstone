@@ -131,7 +131,7 @@ const Login = ({ onLogin }) => {
               <div className="form-group">
                 <div className="password-label-row">
                   <label className="form-label">Password</label>
-                  <a href="#" className="forgot-password">Forgot Password?</a>
+                  <a href="#forgot-password" className="forgot-password" onClick={(e) => { e.preventDefault(); alert('Please contact IT support to reset your password.'); }}>Forgot Password?</a>
                 </div>
                 <div className="password-input-wrapper">
                   <input
@@ -162,7 +162,7 @@ const Login = ({ onLogin }) => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                 />
                 <label htmlFor="remember" className="remember-label">
-                  Remember this decive
+                  Remember this device
                 </label>
               </div>
               

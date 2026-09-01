@@ -140,7 +140,7 @@ const MyTickets = ({ department, onNavigate }) => {
       <div className="breadcrumb">
         <span className="breadcrumb-item">Tickets</span>
         <span className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-item clickable" onClick={handleTicketClick}>
+        <span className="breadcrumb-item">
           Ticket Details
         </span>
       </div>

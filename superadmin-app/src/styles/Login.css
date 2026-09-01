@@ -253,12 +253,11 @@ html, body, #root {
 
 .sign-in-button:hover:not(:disabled) {
   background-color: #256d29;
-  transform: translateY(-1px);
   box-shadow: 0 8px 20px rgba(46, 125, 50, 0.38);
 }
 
 .sign-in-button:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .sign-in-button:disabled {

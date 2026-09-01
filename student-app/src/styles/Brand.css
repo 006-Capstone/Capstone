@@ -1,6 +1,5 @@
 /* ==========================================================================
    BRAND — reusable school brand mark (crest image + monogram fallback)
-   Used by the Sidebar (large) and the mobile Header (small).
    ========================================================================== */
 
 .brand {
@@ -8,20 +7,29 @@
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
+  user-select: none;
 }
 
 .brand-logo {
   position: relative;
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #fff;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid var(--sage-200);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.brand:hover .brand-logo {
+  transform: scale(1.03);
+  box-shadow: var(--shadow-md);
 }
 
 .brand-logo img {
@@ -35,8 +43,9 @@
 
 .brand-logo-fallback {
   font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 1px;
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: 0.08em;
+  color: #ffffff;
 }
 
 .brand-text {
@@ -46,20 +55,31 @@
 }
 
 .brand-name {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--green-900);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .brand-subtitle {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-2xs);
+  color: var(--sage-600);
+  font-weight: var(--font-weight-semibold);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
+}
+
+.brand-lg .brand-logo {
+  width: 52px;
+  height: 52px;
+}
+
+.brand-lg .brand-name {
+  font-size: var(--font-size-xl);
 }

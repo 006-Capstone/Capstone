@@ -1,522 +1,941 @@
 /* ==========================================================================
    FEEDBACK — office rating cards, star ratings, feedback form
-   Matches the Figma export (/Capstone Figma/Student/feedback.png):
-   white rounded cards on a warm grey canvas, dark-green stars & metric
-   bars, no card buttons (the whole card is the click target).
-   (breadcrumb + page-header base styles live in shared.css)
    ========================================================================== */
 
 .feedback-page {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--content-padding);
-  background-color: var(--color-bg);
+  padding: var(--content-padding, clamp(16px, 3vw, 32px));
+  background-color: var(--color-bg, #f4f6f4);
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-.page-header {
+.feedback-container {
+  width: 100%;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-6);
-  flex-shrink: 0;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 12px;
 }
 
-.page-header h1 {
-  font-size: var(--font-size-2xl);
-  color: var(--color-text);
-  font-weight: var(--font-weight-bold);
-  line-height: 1.2;
+.feedback-page .page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  margin-bottom: var(--space-3, 12px);
+  width: 100%;
+}
+
+.feedback-page .page-header-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+}
+
+.feedback-page .page-header h1 {
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: var(--font-weight-extrabold, 800);
+  color: var(--color-text, #181b18);
+  margin: 0;
+  letter-spacing: -0.02em;
+  text-align: left;
 }
 
 .feedback-subtitle {
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
-  margin-top: var(--space-2);
-  font-weight: var(--font-weight-normal);
+  font-size: var(--font-size-sm, 13.5px);
+  color: var(--color-text-muted, #5d645c);
+  margin: 0;
+  line-height: 1.5;
+  text-align: left;
 }
 
-/* ---- Office selection grid (Figma: 2x2, generous gaps) ---- */
+.feedback-back-wrapper {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: -4px; /* Slight pull up so it doesn't add too much gap */
+}
 
+.feedback-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #dce0db);
+  border-radius: var(--radius-pill, 9999px);
+  color: var(--color-text-secondary, #424841);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-semibold, 600);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all var(--transition-fast, 0.15s ease);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(0, 0, 0, 0.03));
+  margin-bottom: 2px;
+}
+
+.feedback-back-link:hover {
+  background-color: var(--sage-50, #f4f8f3);
+  border-color: var(--sage-300, #cbd0ca);
+  color: var(--color-primary, #105e06);
+  transform: translateX(-2px);
+}
+
+/* ---- 2x2 Office Selection Grid ---- */
 .office-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-7);
-  margin-bottom: var(--space-6);
+  gap: var(--space-5, 20px);
+  margin-bottom: var(--space-4, 16px);
 }
 
 .office-rating-card {
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: var(--space-7) var(--space-6);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 4px 14px rgba(0, 0, 0, 0.05);
+  background: var(--color-surface, #ffffff);
+  border-radius: var(--radius-md, 12px);
+  padding: var(--space-6, 24px);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.04));
   cursor: pointer;
-  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  transition: all var(--transition-base, 0.18s ease);
+  display: flex;
+  flex-direction: column;
 }
 
 .office-rating-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(16, 94, 6, 0.13);
+  box-shadow: var(--shadow-lg, 0 10px 24px -4px rgba(16, 94, 6, 0.1));
+  border-color: var(--sage-300, #cbd0ca);
 }
 
 .office-rating-card:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-primary, #105e06);
   outline-offset: 2px;
 }
 
+.office-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4, 16px);
+  gap: 12px;
+}
+
 .office-rating-card h3 {
-  font-size: 22px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-  margin-bottom: var(--space-5);
+  font-size: var(--font-size-lg, 18px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
+  margin: 0;
+}
+
+.rate-office-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-primary, #105e06);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill, 9999px);
+  background-color: var(--sage-50, #f4f8f3);
+  border: 1px solid var(--sage-200, #dce9da);
+  transition: all var(--transition-fast, 0.15s ease);
+  flex-shrink: 0;
+}
+
+.rate-arrow-icon {
+  font-size: 9px;
+  transition: transform var(--transition-fast, 0.15s ease);
+}
+
+.office-rating-card:hover .rate-office-tag {
+  background-color: var(--color-primary, #105e06);
+  color: #ffffff;
+  border-color: var(--color-primary, #105e06);
+}
+
+.office-rating-card:hover .rate-arrow-icon {
+  transform: translateX(2px);
 }
 
 .feedback-count {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  margin-top: -12px;
-  margin-bottom: var(--space-4);
-  font-style: italic;
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
+  margin-top: -10px;
+  margin-bottom: var(--space-4, 16px);
 }
 
 .rating-display {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--space-5, 20px);
 }
 
 .rating-number {
   display: flex;
   align-items: baseline;
-  gap: var(--space-1);
-  font-size: 34px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
+  gap: 4px;
+  font-size: clamp(26px, 3.5vw, 32px);
+  font-weight: var(--font-weight-extrabold, 800);
+  color: var(--color-text, #181b18);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .rating-number .rating-total {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-faint, #7d857c);
 }
 
 .stars {
   display: flex;
-  gap: 2px;
+  align-items: center;
+  gap: 3px;
 }
 
 .stars svg {
   font-size: 18px;
-  color: var(--green-700);
+  color: #eab308;
 }
 
 .stars svg.empty,
 .summary-stars svg.empty {
-  color: var(--color-star-empty);
+  color: var(--color-star-empty, #cbd5e1);
 }
 
 .metrics {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3, 12px);
+  margin-top: auto;
 }
 
 .metric-row {
   display: grid;
-  grid-template-columns: 108px 1fr 44px;
+  grid-template-columns: 110px 1fr 38px;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3, 12px);
 }
 
 .metric-label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-muted);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-muted, #5d645c);
+  white-space: nowrap;
 }
 
 .metric-bar {
-  height: 8px;
-  background-color: var(--gray-300);
-  border-radius: var(--radius-pill);
+  height: 6px;
+  background-color: var(--gray-200, #e3e6e2);
+  border-radius: var(--radius-pill, 9999px);
   overflow: hidden;
 }
 
 .metric-fill {
   height: 100%;
-  background-color: var(--green-700);
-  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #166534 0%, #15803d 100%);
+  border-radius: var(--radius-pill, 9999px);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .metric-value {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-body);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text-body, #2d322c);
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---- Feedback form ---- */
-
-.feedback-form {
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: var(--space-10);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 4px 14px rgba(0, 0, 0, 0.05);
-  margin-bottom: var(--space-6);
-}
-
-/* ---- Overall Satisfaction card (Figma staff dept view) ---- */
+/* ---- Overall Satisfaction Card ---- */
 .satisfaction-card {
   display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: var(--space-8);
+  grid-template-columns: 270px 1fr;
+  gap: var(--space-8, 32px);
   align-items: center;
-  padding: var(--space-7) var(--space-6);
-  background-color: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 4px 14px rgba(0, 0, 0, 0.05);
-  margin-bottom: var(--space-6);
+  padding: var(--space-6, 24px);
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  border-radius: var(--radius-md, 12px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.04));
+  margin-bottom: var(--space-4, 16px);
 }
 
 .satisfaction-summary {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
+  gap: var(--space-4, 16px);
 }
 
 .satisfaction-star {
   font-size: 28px;
-  color: var(--green-700);
+  color: #eab308;
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .summary-copy h3 {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-body);
-  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-base, 15px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
+  margin: 0 0 var(--space-2, 8px) 0;
 }
 
 .summary-rating {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
+  gap: var(--space-3, 12px);
+  margin-bottom: var(--space-1, 4px);
 }
 
 .big-rating {
-  font-size: 40px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: var(--font-weight-extrabold, 800);
+  color: var(--color-text, #181b18);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .summary-stars {
   display: flex;
+  align-items: center;
   gap: 3px;
 }
 
 .summary-stars svg {
-  font-size: 20px;
-  color: var(--green-700);
+  font-size: 18px;
+  color: #eab308;
 }
 
 .summary-label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-faint);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
   margin: 0;
 }
 
 .rating-bars {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 6px;
 }
 
 .rating-bar-row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-3, 12px);
 }
 
 .star-label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-muted, #5d645c);
   min-width: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .bar-star {
   font-size: 14px;
-  color: var(--green-700);
-  flex-shrink: 0;
+  color: #eab308;
 }
 
 .bar {
   flex: 1;
-  height: 10px;
-  background-color: var(--gray-300);
-  border-radius: var(--radius-pill);
+  height: 6px;
+  background-color: var(--gray-200, #e3e6e2);
+  border-radius: var(--radius-pill, 9999px);
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  background-color: var(--green-700);
-  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #166534 0%, #15803d 100%);
+  border-radius: var(--radius-pill, 9999px);
 }
 
 .percentage {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-body);
-  min-width: 40px;
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-faint, #7d857c);
+  min-width: 32px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Feedback Submission Form ---- */
+.feedback-form {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
+  border-radius: var(--radius-md, 12px);
+  padding: var(--space-8, 32px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.04));
+}
+
+.form-header {
+  margin-bottom: var(--space-5, 20px);
+  padding-bottom: var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-divider, #eef2ed);
+}
+
+.form-header h3 {
+  font-size: var(--font-size-md, 16px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
+  margin: 0 0 4px 0;
+}
+
+.form-subtitle {
+  font-size: var(--font-size-sm, 13.5px);
+  color: var(--color-text-muted, #5d645c);
+  margin: 0;
+  line-height: 1.5;
 }
 
 .rating-categories {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-8);
-  margin-bottom: var(--space-10);
+  gap: var(--space-6, 24px);
+  margin-bottom: var(--space-6, 24px);
+}
+
+.rating-category {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  padding: var(--space-4, 16px);
+  background: var(--gray-50, #f8f9f7);
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
 }
 
 .rating-category h4 {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-body);
-  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
+  margin: 0;
 }
 
 .star-rating {
   display: flex;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: 6px;
 }
 
-.star-rating svg {
-  font-size: 40px;
-  color: var(--gray-400);
+.stars-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.star-btn {
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  color: var(--color-star-empty, #cbd5e1);
   cursor: pointer;
-  transition: color var(--transition-fast), transform var(--transition-fast);
+  transition: transform 0.15s ease, color 0.15s ease;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  line-height: 1;
+  min-width: 36px;
+  min-height: 36px;
 }
 
-.star-rating svg:hover,
-.star-rating svg.filled {
-  color: var(--green-700);
-  transform: scale(1.1);
+.star-btn svg {
+  font-size: 28px;
+  fill: currentColor;
+}
+
+.star-btn.filled {
+  color: #eab308;
+}
+
+.star-btn:hover {
+  transform: scale(1.2);
+  color: #f59e0b;
+}
+
+.star-btn:focus-visible {
+  outline: 2px solid var(--color-primary, #105e06);
+  outline-offset: 2px;
+}
+
+.rating-text {
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-primary, #105e06);
+  min-height: 18px;
 }
 
 .comments-section {
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-6, 24px);
 }
 
-.comments-section h4 {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-body);
-  margin-bottom: var(--space-4);
+.comments-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2, 8px);
+}
+
+.comments-header-row h4 {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
+  margin: 0;
+}
+
+.comments-char-count {
+  font-size: var(--font-size-2xs, 11px);
+  color: var(--color-text-faint, #7d857c);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-medium, 500);
 }
 
 .comments-section textarea {
   width: 100%;
-  min-height: 140px;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-bg);
-  font-size: var(--font-size-base);
+  min-height: 110px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border, #dce0db);
+  border-radius: var(--radius-sm, 8px);
+  font-size: var(--font-size-base, 14px);
   font-family: inherit;
-  color: var(--color-text-body);
+  background-color: var(--color-surface, #ffffff);
+  color: var(--color-text-body, #2d322c);
   resize: vertical;
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+  transition: all var(--transition-fast, 0.15s ease);
+  line-height: 1.6;
 }
 
 .comments-section textarea:focus {
-  border-color: var(--green-600);
-  background-color: var(--color-surface);
-  box-shadow: 0 0 0 3px rgba(45, 138, 31, 0.15);
+  border-color: var(--color-primary, #105e06);
+  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.12);
 }
 
-.comments-section textarea::placeholder {
-  color: var(--color-text-faint);
-}
-
+/* Follow-up permission switch */
 .follow-up-section {
-  margin-bottom: var(--space-6);
-  padding: var(--space-5) var(--space-6);
-  background-color: var(--sage-50);
-  border-radius: var(--radius-md);
+  margin-bottom: var(--space-8, 32px);
+  padding: var(--space-4, 16px);
+  background-color: var(--gray-50, #f8f9f7);
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--color-border-soft, #e3e6e2);
 }
 
 .follow-up-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-4, 16px);
 }
 
 .follow-up-header h4 {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-body);
-  margin: 0 0 4px 0;
+  font-size: var(--font-size-sm, 14px);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #181b18);
+  margin-bottom: 2px;
 }
 
 .follow-up-header p {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  font-size: var(--font-size-xs, 12px);
+  color: var(--color-text-muted, #5d645c);
   margin: 0;
 }
 
-/* Scoped switch classes (follow-up-*) — the generic .toggle-switch names
-   collide with ProfileSettings.css's 2FA toggle, so this switch is namespaced */
 .follow-up-switch {
-  position: relative;
-  width: 50px;
-  height: 26px;
-  background-color: var(--gray-400);
-  border-radius: var(--radius-pill);
+  width: 44px;
+  height: 24px;
+  background-color: var(--gray-300, #cbd0ca);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 2px;
   cursor: pointer;
+  transition: background-color var(--transition-fast, 0.15s ease);
   flex-shrink: 0;
-  transition: background-color var(--transition-base);
 }
 
 .follow-up-switch.active {
-  background-color: var(--green-700);
+  background-color: var(--color-primary, #105e06);
 }
 
 .follow-up-slider {
-  position: absolute;
-  top: 3px;
-  left: 3px;
   width: 20px;
   height: 20px;
-  background-color: white;
+  background-color: #ffffff;
   border-radius: 50%;
-  transition: transform var(--transition-base);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform var(--transition-fast, 0.15s ease);
 }
 
 .follow-up-switch.active .follow-up-slider {
-  transform: translateX(24px);
-}
-
-.follow-up-switch:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  transform: translateX(20px);
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-4);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--color-divider);
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding-top: var(--space-5, 20px);
+  border-top: 1px solid var(--color-divider, #eef2ed);
 }
 
-/* Kept for any other page that still relies on the global .cancel-btn name
-   (e.g. Request Details has no definition of its own). */
-.cancel-btn {
-  padding: var(--space-3) var(--space-8);
-  background-color: var(--sage-100);
-  border: none;
-  border-radius: var(--radius-pill);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--green-800);
-  cursor: pointer;
-  transition: background-color var(--transition-fast), transform var(--transition-fast);
-}
-
-.cancel-btn:hover {
-  background-color: var(--sage-200);
-}
-
-/* Scoped class (.cancel-btn-feedback) so this button can never pick up the
-   other global .cancel-btn definitions (NewRequest.css, ProfileSettings.css)
-   — the class collision made it render with the wrong style. */
 .cancel-btn-feedback {
-  padding: var(--space-3) var(--space-8);
-  background-color: transparent;
-  border: none;
-  border-radius: var(--radius-pill);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted); /* gray font */
+  padding: 10px 22px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #dce0db);
+  border-radius: var(--radius-sm, 8px);
+  font-size: var(--font-size-sm, 13.5px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-secondary, #424841);
   cursor: pointer;
-  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  transition: all var(--transition-fast, 0.15s ease);
 }
 
 .cancel-btn-feedback:hover {
-  background-color: var(--gray-100);
+  background: var(--gray-100, #f0f2ef);
+  border-color: var(--gray-400, #a1a8a0);
 }
 
 .submit-feedback-btn {
-  padding: var(--space-3) var(--space-8);
-  background-color: var(--green-btn);
-  border: none;
-  border-radius: var(--radius-pill);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 26px;
+  background: linear-gradient(135deg, var(--green-800, #166534) 0%, var(--green-900, #14532d) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm, 8px);
+  font-size: var(--font-size-sm, 13.5px);
+  font-weight: var(--font-weight-bold, 700);
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(16, 94, 6, 0.25);
+  transition: all var(--transition-fast, 0.15s ease);
 }
 
 .submit-feedback-btn:hover:not(:disabled) {
-  background-color: var(--green-btn-hover);
-  box-shadow: 0 4px 12px rgba(60, 119, 53, 0.35);
-}
-
-.submit-feedback-btn:active:not(:disabled) {
-  transform: translateY(1px);
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+  transform: translateY(-1px);
 }
 
 .submit-feedback-btn:disabled {
-  /* Solid neutral gray — same gray-out treatment as the admin Update Profile
-     button and the student New Request submit button. */
-  background-color: var(--gray-400);
-  color: #ffffff;
+  background: var(--gray-300, #cbd0ca);
+  color: var(--gray-500, #7d857c);
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
 }
 
+.submit-feedback-btn .btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: feedback-spin 0.6s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes feedback-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ==========================================================================
-   RESPONSIVE
+   FIGMA LAYOUT STYLES
    ========================================================================== */
 
-@media (max-width: 767px) {
+.page-header-figma {
+  margin-bottom: var(--space-4, 16px);
+}
+
+.page-header-figma h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #000;
+  margin: 0;
+}
+
+.satisfaction-card-figma {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.satisfaction-header-figma {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.satisfaction-star-figma {
+  font-size: 24px;
+  color: #15803d; /* Dark green star */
+}
+
+.satisfaction-header-figma h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: #000;
+}
+
+.satisfaction-body-figma {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.satisfaction-rating-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0px;
+}
+
+.big-rating-figma {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  color: #000;
+}
+
+.summary-stars-figma {
+  display: flex;
+  gap: 4px;
+}
+
+.summary-stars-figma svg {
+  font-size: 20px;
+  color: #15803d; /* Green stars under 4.8 */
+}
+
+.summary-label-figma {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+}
+
+.rating-bars-figma {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rating-bar-row-figma {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.star-label-figma {
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+  min-width: 12px;
+}
+
+.bar-figma {
+  flex: 1;
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.bar-fill-figma {
+  height: 100%;
+  background-color: #86efac; /* Light green fill */
+  border-radius: 9999px;
+}
+
+.percentage-figma {
+  font-size: 14px;
+  color: #6b7280;
+  min-width: 32px;
+  text-align: right;
+}
+
+.rating-categories-figma {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.rating-category-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rating-category-card h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  margin: 0;
+}
+
+.comments-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comments-header-row {
+  display: flex;
+  align-items: center;
+}
+
+.comments-header-row h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  margin: 0;
+}
+
+.figma-textarea {
+  width: 100%;
+  min-height: 100px;
+  background-color: #e5e7eb; /* Light gray box for comments */
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  color: #000;
+  resize: vertical;
+  outline: none;
+}
+
+.follow-up-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.form-actions-figma {
+  display: flex;
+  justify-content: space-between; /* Space out cancel and submit */
+  align-items: center;
+  padding-top: 16px;
+  padding-bottom: 32px;
+}
+
+.cancel-btn-feedback {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  color: #4b5563;
+  cursor: pointer;
+  padding: 12px 24px;
+}
+
+.submit-feedback-btn {
+  background-color: #3b82f6; /* Will change this to green later if needed, but wait figma has dark green */
+  background: #3f7b3f; /* Darkish green from figma */
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 16px 48px; /* Wide button */
+  cursor: pointer;
+  flex: 0.8; /* Takes up lots of space on right? Let's check image */
+}
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+
+/* Tablet & small laptops */
+@media (max-width: 960px) {
   .office-grid {
     grid-template-columns: 1fr;
-    gap: var(--space-5);
   }
 
   .satisfaction-card {
     grid-template-columns: 1fr;
-    gap: var(--space-5);
+    gap: var(--space-5, 20px);
+  }
+
+  .satisfaction-summary {
+    padding-bottom: var(--space-4, 16px);
+    border-bottom: 1px solid var(--color-divider, #eef2ed);
+  }
+
+  .rating-categories-figma {
+    grid-template-columns: 1fr;
+  }
+
+  .satisfaction-body-figma {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Mobile Devices */
+@media (max-width: 639px) {
+  .feedback-page {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .office-rating-card {
+    padding: 18px;
+  }
+
+  .feedback-form {
+    padding: 20px 16px;
   }
 
   .rating-categories {
     grid-template-columns: 1fr;
-    gap: var(--space-6);
+    gap: 14px;
   }
 
-  .feedback-form {
-    padding: var(--space-6);
+  .follow-up-header {
+    flex-direction: row;
+    align-items: center;
   }
 
   .form-actions {
     flex-direction: column-reverse;
+    gap: 10px;
   }
 
-  .cancel-btn,
   .cancel-btn-feedback,
   .submit-feedback-btn {
     width: 100%;
+    justify-content: center;
+    padding: 12px;
+    flex: unset;
+  }
+
+  .form-actions-figma {
+    flex-direction: column-reverse;
+    gap: 16px;
   }
 }
+

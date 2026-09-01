@@ -1,8 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaBell, FaUndo, FaCheck, FaFileAlt, FaDownload, FaUserCircle, FaEnvelope, FaCheckCircle, FaTimes } from 'react-icons/fa';
+import { 
+  FaBell, 
+  FaUndo, 
+  FaCheck, 
+  FaFileAlt, 
+  FaDownload, 
+  FaUserCircle, 
+  FaEnvelope, 
+  FaTimes, 
+  FaPencilAlt, 
+  FaInfoCircle,
+  FaPaperclip
+} from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { notifyStudentStatusChange, notifyStudentComment, notifyStaffReassignment } from '../utils/notificationHelper';
+import { 
+  notifyStudentStatusChange, 
+  notifyStudentComment, 
+  notifyStudentEtcChange,
+  notifyStaffReassignment 
+} from '../utils/notificationHelper';
 import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/TicketDetails.css';
@@ -14,8 +31,48 @@ const formatEtcLabel = (value) => {
   if (!isISODate(value)) return value;
   const [y, m, d] = value.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-    weekday: 'short',
     month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+const MONTHS = [
+  { value: '01', label: '01 - January' },
+  { value: '02', label: '02 - February' },
+  { value: '03', label: '03 - March' },
+  { value: '04', label: '04 - April' },
+  { value: '05', label: '05 - May' },
+  { value: '06', label: '06 - June' },
+  { value: '07', label: '07 - July' },
+  { value: '08', label: '08 - August' },
+  { value: '09', label: '09 - September' },
+  { value: '10', label: '10 - October' },
+  { value: '11', label: '11 - November' },
+  { value: '12', label: '12 - December' }
+];
+
+const getDaysInSelectedMonth = (year, month) => {
+  const y = parseInt(year, 10) || new Date().getFullYear();
+  const m = parseInt(month, 10) || (new Date().getMonth() + 1);
+  return new Date(y, m, 0).getDate();
+};
+
+const getYearOptions = () => {
+  const currentYear = new Date().getFullYear();
+  return [currentYear, currentYear + 1, currentYear + 2];
+};
+
+const getFormattedPreviewDate = (year, month, day) => {
+  const y = parseInt(year, 10);
+  const m = parseInt(month, 10);
+  const d = parseInt(day, 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return '';
+  const date = new Date(y, m - 1, d);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'long',
     day: 'numeric',
     year: 'numeric'
   });
@@ -36,22 +93,44 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [unreadCount, setUnreadCount] = useState(0);
   const fileInputRef = useRef(null);
   
-  // Estimated Completion Date editing state
+  // Action Modals
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resolveNote, setResolveNote] = useState('');
+  const [resolving, setResolving] = useState(false);
+
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [returning, setReturning] = useState(false);
+
+  // Month / Day / Year ETC editing state
   const [showEstimatedCompletionModal, setShowEstimatedCompletionModal] = useState(false);
-  const [completionOption, setCompletionOption] = useState('1-3');
-  const [customCompletionDate, setCustomCompletionDate] = useState('');
+  const [etcMonth, setEtcMonth] = useState('08');
+  const [etcDay, setEtcDay] = useState('31');
+  const [etcYear, setEtcYear] = useState('2026');
+  const [completionReason, setCompletionReason] = useState('');
+  const [updatingEtc, setUpdatingEtc] = useState(false);
+
+  // Toast feedback
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   useEffect(() => {
     if (ticketData) {
       loadTicketDetails();
     } else {
-      // If no ticketData provided, navigate back to dashboard
-      console.warn('No ticket data provided to TicketDetails');
       setLoading(false);
       onNavigate('dashboard');
     }
     
-    // Listen for unread notifications
+    // Notifications listener
     const staffData = JSON.parse(localStorage.getItem('staffData'));
     if (staffData?.uid) {
       const q = query(
@@ -72,7 +151,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const loadTicketDetails = async () => {
     try {
       setLoading(true);
-      
       const docRef = doc(db, 'requests', ticketData.firestoreId);
       const docSnap = await getDoc(docRef);
       
@@ -85,21 +163,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         setReassignOffice(data.office || '');
         setUrgencyLevel(data.urgencyLevel || 'Normal');
         setEtc(data.etc || '');
-        console.log('✅ Loaded ticket details:', {
-          requestId: data.requestId,
-          office: data.office,
-          assignedTo: data.assignedTo,
-          claimedBy: data.claimedBy,
-          status: data.status,
-          officeHistory: data.officeHistory
-        });
       } else {
-        console.error('[Error] Ticket not found');
-        alert('Request not found');
+        showToast('Request not found', 'error');
       }
     } catch (error) {
-      console.error('[Error] Error loading ticket:', error);
-      alert('Failed to load request details');
+      console.error('Error loading ticket:', error);
+      showToast('Failed to load request details', 'error');
     } finally {
       setLoading(false);
     }
@@ -110,7 +179,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     const validFiles = files.filter(file => file.size <= 5 * 1024 * 1024);
     
     if (validFiles.length < files.length) {
-      alert('Some files exceed 5MB and were not added');
+      showToast('Some files exceed 5MB limit and were skipped', 'error');
     }
     
     setReplyFiles(prev => [...prev, ...validFiles]);
@@ -123,14 +192,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   const handleSendReply = async () => {
     if (!replyMessage.trim() && replyFiles.length === 0) {
-      alert('Please add a message or attach files');
+      showToast('Please enter a message or attach files', 'error');
       return;
     }
 
     try {
       setSending(true);
       
-      // Convert files to base64
       const attachments = [];
       for (let file of replyFiles) {
         const base64 = await new Promise((resolve, reject) => {
@@ -149,9 +217,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         });
       }
 
-      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
       
-      // Add follow-up to Firestore
       const docRef = doc(db, 'requests', ticket.firestoreId);
       await updateDoc(docRef, {
         followUps: arrayUnion({
@@ -159,186 +226,353 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           attachments: attachments,
           sentBy: 'staff',
           sentByName: staffData.name,
+          staffOffice: department || ticket.office,
           sentAt: new Date().toISOString()
         }),
         updatedAt: serverTimestamp()
       });
 
-      // Notify student about the reply
-      await notifyStudentComment(
-        ticket.studentUid,
-        ticket.requestId,
-        ticket.subject,
-        staffData.name
-      );
+      if (ticket.studentUid) {
+        await notifyStudentComment(
+          ticket.studentUid,
+          ticket.requestId,
+          ticket.subject,
+          staffData.name
+        );
+      }
 
-      alert('Reply sent successfully!');
+      showToast('Message sent to student successfully!', 'success');
       setReplyMessage('');
       setReplyFiles([]);
       loadTicketDetails();
       
     } catch (error) {
-      console.error('[Error] Error sending reply:', error);
-      alert('Failed to send reply: ' + error.message);
+      console.error('Error sending reply:', error);
+      showToast('Failed to send reply: ' + error.message, 'error');
     } finally {
       setSending(false);
     }
   };
 
+  const openEstimatedCompletionModal = () => {
+    let targetDate = new Date();
+    if (ticket?.etc && isISODate(ticket.etc)) {
+      const [y, m, d] = ticket.etc.split('-').map(Number);
+      targetDate = new Date(y, m - 1, d);
+    } else if (ticket?.estimatedCompletion) {
+      const d = ticket.estimatedCompletion.toDate ? ticket.estimatedCompletion.toDate() : new Date(ticket.estimatedCompletion);
+      if (!isNaN(d.getTime())) targetDate = d;
+    } else {
+      targetDate.setDate(targetDate.getDate() + 3);
+    }
+
+    setEtcMonth(String(targetDate.getMonth() + 1).padStart(2, '0'));
+    setEtcDay(String(targetDate.getDate()).padStart(2, '0'));
+    setEtcYear(String(targetDate.getFullYear()));
+    setCompletionReason(ticket?.estimatedCompletionReason || '');
+    setShowEstimatedCompletionModal(true);
+  };
+
+  const applyDaysPreset = (days) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setEtcMonth(String(d.getMonth() + 1).padStart(2, '0'));
+    setEtcDay(String(d.getDate()).padStart(2, '0'));
+    setEtcYear(String(d.getFullYear()));
+  };
+
   const handleUpdateEstimatedCompletion = async () => {
     if (!ticket) return;
 
-    let completionDate;
-    
-    if (completionOption === 'custom') {
-      if (!customCompletionDate) {
-        alert('Please select a custom date');
-        return;
-      }
-      completionDate = new Date(customCompletionDate);
-    } else if (completionOption === '1-3') {
-      completionDate = new Date();
-      completionDate.setDate(completionDate.getDate() + 3);
-    } else if (completionOption === '4-7') {
-      completionDate = new Date();
-      completionDate.setDate(completionDate.getDate() + 7);
+    const y = parseInt(etcYear, 10);
+    const m = parseInt(etcMonth, 10);
+    const d = parseInt(etcDay, 10);
+
+    if (isNaN(y) || isNaN(m) || isNaN(d)) {
+      showToast('Please specify a valid Month, Day, and Year', 'error');
+      return;
     }
 
-    try {
-      const staffData = JSON.parse(localStorage.getItem('staffData'));
-      const docRef = doc(db, 'requests', ticket.firestoreId);
-      
-      await updateDoc(docRef, {
-        estimatedCompletion: completionDate,
-        estimatedCompletionSetAt: new Date(),
-        estimatedCompletionSetBy: staffData.name,
-        updatedAt: serverTimestamp()
-      });
-
-      console.log('[Success] Estimated Completion Date updated by', staffData.name, 'to:', completionDate);
-      alert('Estimated Completion Date updated successfully!');
-      
-      // Close modal and reload ticket details
-      setShowEstimatedCompletionModal(false);
-      setCompletionOption('1-3');
-      setCustomCompletionDate('');
-      loadTicketDetails();
-      
-    } catch (error) {
-      console.error('[Error] Error updating Estimated Completion Date:', error);
-      alert('Failed to update Estimated Completion Date: ' + error.message);
+    const completionDate = new Date(y, m - 1, d);
+    if (isNaN(completionDate.getTime())) {
+      showToast('Invalid date selected', 'error');
+      return;
     }
-  };
 
-  const handleReturnTicket = async () => {
-    const reason = prompt('Please provide a reason for returning this request:');
-    if (!reason) return;
+    const formattedEtc = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const trimmedReason = completionReason.trim();
 
-    try {
-      const docRef = doc(db, 'requests', ticket.firestoreId);
-      await updateDoc(docRef, {
-        status: 'Returned',
-        returnedAt: serverTimestamp(),
-        returnedReason: reason,
-        updatedAt: serverTimestamp()
-      });
-      
-      alert('Request returned successfully');
-      onNavigate('my-tickets');
-    } catch (error) {
-      console.error('[Error] Error returning ticket:', error);
-      alert('Failed to return request');
-    }
-  };
-
-  const handleResolveTicket = async () => {
-    if (!window.confirm('Are you sure you want to resolve this request?')) {
+    if (!trimmedReason) {
+      showToast('Please provide a reason for the student', 'error');
       return;
     }
 
     try {
-      const oldStatus = ticket.status;
+      setUpdatingEtc(true);
+      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
       const docRef = doc(db, 'requests', ticket.firestoreId);
+      
+      const updateData = {
+        etc: formattedEtc,
+        estimatedCompletion: completionDate,
+        estimatedCompletionSetAt: new Date(),
+        estimatedCompletionSetBy: staffData.name,
+        estimatedCompletionReason: trimmedReason,
+        updatedAt: serverTimestamp(),
+        followUps: arrayUnion({
+          message: `Estimated completion date set to ${m}/${d}/${y} (${formatEtcLabel(formattedEtc)}) by ${staffData.name}.\nReason: ${trimmedReason}`,
+          sentBy: 'system',
+          sentByName: 'System',
+          sentAt: new Date().toISOString()
+        })
+      };
+      
+      await updateDoc(docRef, updateData);
+
+      if (ticket.studentUid) {
+        await notifyStudentEtcChange(
+          ticket.studentUid,
+          ticket.requestId,
+          ticket.subject,
+          formattedEtc,
+          trimmedReason
+        );
+      }
+
+      showToast('Estimated Completion Date updated successfully!', 'success');
+      setShowEstimatedCompletionModal(false);
+      loadTicketDetails();
+    } catch (error) {
+      console.error('Error updating Estimated Completion Date:', error);
+      showToast('Failed to update date: ' + error.message, 'error');
+    } finally {
+      setUpdatingEtc(false);
+    }
+  };
+
+  const confirmReturnTicket = async () => {
+    if (!returnReason.trim()) {
+      showToast('Please provide a reason for returning this request', 'error');
+      return;
+    }
+
+    try {
+      setReturning(true);
+      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
+      const docRef = doc(db, 'requests', ticket.firestoreId);
+      
       await updateDoc(docRef, {
-        status: 'Resolved',
-        resolvedAt: serverTimestamp(),
+        status: 'Returned',
+        returnedAt: serverTimestamp(),
+        returnedBy: staffData.name,
+        returnedReason: returnReason.trim(),
+        followUps: arrayUnion({
+          message: `Request returned by ${staffData.name}.\nReason: ${returnReason.trim()}`,
+          sentBy: 'system',
+          sentByName: 'System',
+          sentAt: new Date().toISOString()
+        }),
         updatedAt: serverTimestamp()
       });
       
-      // Notify student about status change
-      await notifyStudentStatusChange(
-        ticket.studentUid,
-        ticket.requestId,
-        ticket.subject,
-        oldStatus,
-        'Resolved'
-      );
+      if (ticket.studentUid) {
+        await notifyStudentStatusChange(
+          ticket.studentUid,
+          ticket.requestId,
+          ticket.subject,
+          ticket.status,
+          'Returned'
+        );
+      }
       
-      alert('Request resolved successfully');
+      showToast('Request returned successfully', 'success');
+      setShowReturnModal(false);
+      setReturnReason('');
       onNavigate('my-tickets');
     } catch (error) {
-      console.error('[Error] Error resolving ticket:', error);
-      alert('Failed to resolve request');
+      console.error('Error returning ticket:', error);
+      showToast('Failed to return request: ' + error.message, 'error');
+    } finally {
+      setReturning(false);
+    }
+  };
+
+  // Check if the current office is the original department where the request originated
+  const isOriginalDepartment = () => {
+    if (!ticket) return false;
+    // If ticket was never rerouted, the current office is the original department
+    if (!ticket.reassignedFrom && !ticket.officeHistory) {
+      return true;
+    }
+
+    if (ticket.originalOffice) {
+      return (ticket.office || '').toLowerCase() === ticket.originalOffice.toLowerCase();
+    }
+
+    // Check officeHistory for the earliest recorded office
+    if (ticket.officeHistory && Object.keys(ticket.officeHistory).length > 0) {
+      const historyEntries = Object.entries(ticket.officeHistory);
+      historyEntries.sort((a, b) => {
+        const timeA = a[1]?.handledAt ? new Date(a[1].handledAt).getTime() : 0;
+        const timeB = b[1]?.handledAt ? new Date(b[1].handledAt).getTime() : 0;
+        return timeA - timeB;
+      });
+      const originalOfficeName = historyEntries[0][0];
+      return (ticket.office || '').toLowerCase() === originalOfficeName.toLowerCase();
+    }
+
+    // If reassignedFrom is present, current office must match the origin
+    if (ticket.reassignedFrom) {
+      return (ticket.office || '').toLowerCase() === (ticket.reassignedFrom || '').toLowerCase();
+    }
+
+    return true;
+  };
+
+  const confirmResolveTicket = async () => {
+    try {
+      setResolving(true);
+      const oldStatus = ticket.status;
+      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
+      const docRef = doc(db, 'requests', ticket.firestoreId);
+      
+      const updateData = {
+        status: 'Resolved',
+        resolvedAt: serverTimestamp(),
+        resolvedBy: staffData.name,
+        updatedAt: serverTimestamp()
+      };
+
+      if (resolveNote.trim()) {
+        updateData.resolutionNote = resolveNote.trim();
+        updateData.followUps = arrayUnion({
+          message: `Request marked as Resolved by ${staffData.name}.\nResolution Note: ${resolveNote.trim()}`,
+          sentBy: 'staff',
+          sentByName: staffData.name,
+          staffOffice: department || ticket.office,
+          sentAt: new Date().toISOString()
+        });
+      }
+      
+      await updateDoc(docRef, updateData);
+      
+      if (ticket.studentUid) {
+        await notifyStudentStatusChange(
+          ticket.studentUid,
+          ticket.requestId,
+          ticket.subject,
+          oldStatus,
+          'Resolved'
+        );
+      }
+      
+      showToast('Request resolved successfully!', 'success');
+      setShowResolveModal(false);
+      setResolveNote('');
+      onNavigate('my-tickets');
+    } catch (error) {
+      console.error('Error resolving ticket:', error);
+      showToast('Failed to resolve request: ' + error.message, 'error');
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const confirmRejectTicket = async () => {
+    if (!rejectReason.trim()) {
+      showToast('Please provide a reason for rejecting this request', 'error');
+      return;
+    }
+
+    try {
+      setRejecting(true);
+      const oldStatus = ticket.status;
+      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
+      const docRef = doc(db, 'requests', ticket.firestoreId);
+      
+      const updateData = {
+        status: 'Rejected',
+        rejectedAt: serverTimestamp(),
+        rejectedBy: staffData.name,
+        rejectedReason: rejectReason.trim(),
+        updatedAt: serverTimestamp(),
+        followUps: arrayUnion({
+          message: `Request rejected by ${staffData.name}.\nReason: ${rejectReason.trim()}`,
+          sentBy: 'staff',
+          sentByName: staffData.name,
+          staffOffice: department || ticket.office,
+          sentAt: new Date().toISOString()
+        })
+      };
+      
+      await updateDoc(docRef, updateData);
+      
+      if (ticket.studentUid) {
+        await notifyStudentStatusChange(
+          ticket.studentUid,
+          ticket.requestId,
+          ticket.subject,
+          oldStatus,
+          'Rejected'
+        );
+      }
+      
+      showToast('Request rejected successfully', 'success');
+      setShowRejectModal(false);
+      setRejectReason('');
+      onNavigate('my-tickets');
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      showToast('Failed to reject request: ' + error.message, 'error');
+    } finally {
+      setRejecting(false);
     }
   };
 
   const generateRequestId = (officeName) => {
-    // Generate format: FIN-123-654-789
     const officePrefix = officeName.substring(0, 3).toUpperCase();
-    const randomNum1 = Math.floor(100 + Math.random() * 900); // 3 digits
-    const randomNum2 = Math.floor(100 + Math.random() * 900); // 3 digits
-    const randomNum3 = Math.floor(100 + Math.random() * 900); // 3 digits
+    const randomNum1 = Math.floor(100 + Math.random() * 900);
+    const randomNum2 = Math.floor(100 + Math.random() * 900);
+    const randomNum3 = Math.floor(100 + Math.random() * 900);
     return `${officePrefix}-${randomNum1}-${randomNum2}-${randomNum3}`;
   };
 
   const handleUrgencyChange = async (newUrgency) => {
     setUrgencyLevel(newUrgency);
-    
-    // Save urgency level change to database
     try {
       const docRef = doc(db, 'requests', ticket.firestoreId);
       await updateDoc(docRef, {
         urgencyLevel: newUrgency,
         updatedAt: serverTimestamp()
       });
+      showToast(`Urgency level updated to ${newUrgency}`, 'info');
     } catch (error) {
       console.error('Error updating urgency level:', error);
+      showToast('Failed to update urgency level', 'error');
     }
   };
 
-  const handleReassign = async () => {
+  const handleReassign = () => {
     if (reassignOffice === ticket.office) {
-      alert('Request is already assigned to this office');
+      showToast('Request is already assigned to this office', 'info');
       return;
     }
-
-    // Show modal to get reassignment note
     setShowReassignModal(true);
   };
 
   const confirmReassign = async () => {
-    if (!reassignNote.trim()) {
-      alert('Please provide a reason for reassigning this request');
-      return;
-    }
-
-    if (reassignNote.trim().length < 10) {
-      alert('Please provide a more detailed reason (at least 10 characters)');
+    if (!reassignNote.trim() || reassignNote.trim().length < 10) {
+      showToast('Please provide a detailed reason (at least 10 characters)', 'error');
       return;
     }
 
     try {
       setShowReassignModal(false);
-      
-      // Generate new request ID based on new office
       const newRequestId = generateRequestId(reassignOffice);
-      const staffData = JSON.parse(localStorage.getItem('staffData'));
-      
-      // Create or update office history to track who handled it in each office
+      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
       const currentOfficeHistory = ticket.officeHistory || {};
-      
-      // Save current handler before reassigning (use claimedBy if available, otherwise assignedTo)
       const currentHandler = ticket.claimedBy || ticket.assignedTo || staffData.name;
+      
       if (currentHandler) {
         currentOfficeHistory[ticket.office] = {
           handledBy: currentHandler,
@@ -346,41 +580,32 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         };
       }
       
-      console.log('[Data] Office History:', currentOfficeHistory);
-      console.log('[Search] Checking for previous handler in', reassignOffice);
-      
-      // Check if the ticket was previously in the target office
       const previousHandler = currentOfficeHistory[reassignOffice];
-      console.log('[User] Previous Handler:', previousHandler);
-      
       const updateData = {
         office: reassignOffice,
-        requestId: newRequestId, // Update request ID to match new office
+        requestId: newRequestId,
         officeId: reassignOffice.toLowerCase(),
-        reassignedFrom: ticket.office, // Track original office
-        reassignedBy: staffData.name, // Track who reassigned it
+        reassignedFrom: ticket.office,
+        reassignedBy: staffData.name,
         reassignedAt: serverTimestamp(),
-        reassignmentNote: reassignNote.trim(), // Store the reason
-        previousRequestId: ticket.requestId, // Keep old request ID for reference
-        previousOffice: ticket.office, // Track for history
-        officeHistory: currentOfficeHistory, // Save office history
-        urgencyLevel: urgencyLevel, // Use selected urgency level
+        reassignmentNote: reassignNote.trim(),
+        previousRequestId: ticket.requestId,
+        previousOffice: ticket.office,
+        officeHistory: currentOfficeHistory,
+        urgencyLevel: urgencyLevel,
         updatedAt: serverTimestamp()
       };
       
-      // If ticket was previously in this office, auto-assign to previous handler
       if (previousHandler && previousHandler.handledBy) {
-        console.log('[Success] Auto-assigning to previous handler:', previousHandler.handledBy);
         updateData.assignedTo = previousHandler.handledBy;
         updateData.claimedBy = previousHandler.handledBy;
         updateData.claimedAt = new Date().toISOString();
-        updateData.status = 'In Process'; // Auto-set to In Process since it's claimed
-        updateData.assignedToStaff = previousHandler.handledBy; // Add this field too
+        updateData.status = 'In Process';
+        updateData.assignedToStaff = previousHandler.handledBy;
         
-        // Add follow-ups for reassignment and auto-assignment
         updateData.followUps = arrayUnion(
           {
-            message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\n\nReason: ${reassignNote.trim()}`,
+            message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nReason: ${reassignNote.trim()}`,
             sentBy: 'system',
             sentByName: 'System',
             sentAt: new Date().toISOString()
@@ -393,17 +618,14 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           }
         );
       } else {
-        console.log('❌ No previous handler found. Setting to Pending.');
-        // New office - clear assignments
         updateData.assignedTo = null;
         updateData.claimedBy = null;
         updateData.claimedAt = null;
         updateData.assignedToStaff = null;
-        updateData.status = 'Pending'; // Reset to pending for new office
+        updateData.status = 'Pending';
         
-        // Add follow-up for reassignment only
         updateData.followUps = arrayUnion({
-          message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\n\nReason: ${reassignNote.trim()}`,
+          message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nReason: ${reassignNote.trim()}`,
           sentBy: 'system',
           sentByName: 'System',
           sentAt: new Date().toISOString()
@@ -413,16 +635,16 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       const docRef = doc(db, 'requests', ticket.firestoreId);
       await updateDoc(docRef, updateData);
       
-      // Notify student about the reassignment
-      await notifyStudentStatusChange(
-        ticket.studentUid,
-        ticket.requestId,
-        ticket.subject,
-        ticket.status,
-        updateData.status
-      );
+      if (ticket.studentUid) {
+        await notifyStudentStatusChange(
+          ticket.studentUid,
+          ticket.requestId,
+          ticket.subject,
+          ticket.status,
+          updateData.status
+        );
+      }
       
-      // Notify staff in the target office about the rerouted ticket
       await notifyStaffReassignment(
         reassignOffice,
         newRequestId,
@@ -431,18 +653,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         staffData.name
       );
       
-      setReassignNote(''); // Clear the note
-      
-      if (previousHandler && previousHandler.handledBy) {
-        alert(`Request reassigned successfully!\nNew Request ID: ${newRequestId}\nAuto-assigned to ${previousHandler.handledBy} in ${reassignOffice}.`);
-      } else {
-        alert(`Request reassigned successfully!\nNew Request ID: ${newRequestId}\nThe request will appear in ${reassignOffice}'s dashboard for claiming.`);
-      }
-      
+      setReassignNote('');
+      showToast(`Request reassigned to ${reassignOffice}!`, 'success');
       onNavigate('my-tickets');
     } catch (error) {
-      console.error('[Error] Error reassigning ticket:', error);
-      alert('Failed to reassign request: ' + error.message);
+      console.error('Error reassigning ticket:', error);
+      showToast('Failed to reassign request: ' + error.message, 'error');
     }
   };
 
@@ -477,19 +693,57 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0].toUpperCase())
+      .join('');
+  };
+
   const maskEmail = (email) => {
     if (!email) return '';
     const [username, domain] = email.split('@');
+    if (!domain) return email;
     if (username.length <= 3) return email;
     return `${username.substring(0, 2)}.*****${username.substring(username.length - 2)}@${domain}`;
   };
 
-  // Once a ticket is resolved or cancelled, management actions no longer apply —
-  // lock the Management Control card so nothing there can be changed.
-  const isTicketClosed = ticket?.status === 'Resolved' || ticket?.status === 'Cancelled';
+  // Precise Status Badges
+  const getStatusBadge = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'resolved') {
+      return (
+        <span className="figma-status-badge badge-resolved">
+          <span className="status-dot"></span> Resolved
+        </span>
+      );
+    }
+    if (s === 'returned' || s === 'rejected' || s === 'cancelled') {
+      return (
+        <span className="figma-status-badge badge-rejected">
+          <span className="status-dot"></span> {status}
+        </span>
+      );
+    }
+    if (s === 'in process' || s === 'in progress' || s === 'processing') {
+      return (
+        <span className="figma-status-badge badge-in-process">
+          <span className="status-dot"></span> In Process
+        </span>
+      );
+    }
+    return (
+      <span className="figma-status-badge badge-new-ticket">
+        <span className="status-dot"></span> New Ticket
+      </span>
+    );
+  };
 
-  // Without a selected ticket there is nothing to load — show a navigable
-  // fallback instead of blocking the whole app behind the full-screen spinner.
+  const isTicketClosed = ticket?.status === 'Resolved' || ticket?.status === 'Cancelled' || ticket?.status === 'Returned';
+
   if (!ticketData) {
     return (
       <div className="ticket-details-container">
@@ -497,7 +751,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           <p className="ticket-details-empty-title">No request selected</p>
           <p className="ticket-details-empty-text">Go back to your request list to open a request.</p>
           <button className="ticket-details-back-btn" onClick={() => onNavigate('my-tickets')}>
-            Back to My Requests
+            Back to My Tickets
           </button>
         </div>
       </div>
@@ -508,7 +762,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     return <LoadingSpinner message="Loading request details..." fullScreen={true} />;
   }
 
-  // Ticket data was requested but the document doesn't exist (or couldn't load)
   if (!ticket) {
     return (
       <div className="ticket-details-container">
@@ -516,7 +769,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           <p className="ticket-details-empty-title">Request not found</p>
           <p className="ticket-details-empty-text">This request may have been removed, or you no longer have access to it.</p>
           <button className="ticket-details-back-btn" onClick={() => onNavigate('my-tickets')}>
-            Back to My Requests
+            Back to My Tickets
           </button>
         </div>
       </div>
@@ -525,181 +778,244 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   return (
     <div className="ticket-details-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Request Details</h1>
-          <p className="page-subtitle">Review the student's request, timeline, and reply to keep it moving</p>
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`figma-toast toast-${toast.type}`}>
+          {toast.type === 'success' && <FaCheck className="toast-icon" />}
+          {toast.type === 'error' && <FaTimes className="toast-icon" />}
+          {toast.type === 'info' && <FaInfoCircle className="toast-icon" />}
+          <span>{toast.message}</span>
         </div>
-        <div className="notification-bell" onClick={() => setShowNotifications(true)}>
-          <FaBell className="bell-icon" />
-          {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-        </div>
+      )}
+
+      {/* Breadcrumb Navigation & Notification Bell */}
+      <div className="figma-breadcrumbs-row">
+        <nav className="figma-breadcrumbs" aria-label="Breadcrumb">
+          <span className="crumb-link" onClick={() => onNavigate('my-tickets')}>All Ticket</span>
+          <span className="crumb-slash">/</span>
+          <span className="crumb-active">Ticket Details</span>
+        </nav>
+        
+        <button 
+          type="button"
+          className="figma-bell-wrap" 
+          onClick={() => setShowNotifications(true)} 
+          title="View notifications"
+          aria-label="View notifications"
+        >
+          <FaBell className="figma-bell-icon" />
+          {unreadCount > 0 && <span className="figma-bell-badge" />}
+        </button>
       </div>
 
-      <div className="ticket-details-content">
-        <div className="main-ticket-section">
-          <div className="ticket-card">
-            <div className="ticket-card-header">
-              <div className="ticket-title-section">
-                <h2>{ticket.subject?.toUpperCase()}</h2>
-                <p className="ticket-number-display">#{ticket.requestId}</p>
-              </div>
-              <div className="ticket-badges">
-                <span className="ticket-status-badge">{ticket.status}</span>
-                {ticket.etc && (
-                  <span className="etc-chip" title="Estimated time of completion">
-                    ETC: {formatEtcLabel(ticket.etc)}
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <div className="ticket-action-buttons">
-              {ticket.status !== 'Resolved' && ticket.status !== 'Cancelled' && (
-                <>
-                  <button className="return-btn" onClick={handleReturnTicket}>
-                    <FaUndo />
-                    Return Request
-                  </button>
-                  <button className="resolve-btn" onClick={handleResolveTicket}>
-                    <FaCheck />
-                    Resolve Request
-                  </button>
-                </>
-              )}
-            </div>
-            
-            <p className="submitted-time">Submitted {getTimeAgo(ticket.createdAt)}</p>
-          </div>
+      {/* Page Title */}
+      <div className="figma-header-title-row">
+        <h1 className="figma-page-title">Ticket Details</h1>
+      </div>
 
-          <div className="submission-section">
-            <div className="section-header-row">
-              <h3 className="section-title">Original Submission</h3>
-              <span className="created-date">Created on {formatDate(ticket.createdAt)}</span>
+      {/* 2-Column Responsive Grid */}
+      <div className="ticket-details-grid">
+        
+        {/* Left Column (Main Subject & Conversation) */}
+        <div className="figma-left-column">
+          
+          {/* Top Hero / Summary Card */}
+          <div className="figma-card ticket-summary-card">
+            <div className="summary-top-row">
+              <div className="summary-title-group">
+                <h2 className="ticket-subject-heading">{ticket.subject?.toUpperCase() || 'REQUEST INQUIRY'}</h2>
+                <span className="ticket-id-display">#{ticket.requestId}</span>
+              </div>
+              <div className="status-badge-wrap">
+                {getStatusBadge(ticket.status)}
+              </div>
             </div>
-            
-            {/* Show reassignment note if ticket was reassigned */}
-            {ticket.reassignedFrom && ticket.reassignmentNote && (
-              <div className="reassignment-notice">
-                <div className="reassignment-notice-header">
-                  <FaCheckCircle className="reassignment-icon" />
-                  <div>
-                    <strong>Rerouted from {ticket.reassignedFrom}</strong>
-                    <span className="reassignment-date"> on {formatDate(ticket.reassignedAt)}</span>
-                  </div>
-                </div>
-                <div className="reassignment-note-content">
-                  <p className="reassignment-note-label">Note from {ticket.reassignedFrom}:</p>
-                  <p className="reassignment-note-text">"{ticket.reassignmentNote}"</p>
-                  {ticket.previousRequestId && (
-                    <p className="reassignment-previous-id">Previous Request ID: #{ticket.previousRequestId}</p>
+
+            <div className="summary-bottom-row">
+              <span className="submitted-time-text">Submitted {getTimeAgo(ticket.createdAt)}</span>
+
+              {!isTicketClosed && (
+                <div className="summary-actions-wrap">
+                  <button type="button" className="btn-figma-reject" onClick={() => setShowRejectModal(true)}>
+                    <FaTimes className="btn-icon" />
+                    <span>Reject Request</span>
+                  </button>
+                  {isOriginalDepartment() && (
+                    <button type="button" className="btn-figma-resolve" onClick={() => setShowResolveModal(true)}>
+                      <FaCheck className="btn-icon" />
+                      <span>Resolve Request</span>
+                    </button>
                   )}
                 </div>
-              </div>
-            )}
-            
-            <div className="submission-message">
-              "{ticket.description}"
+              )}
             </div>
-            
-            {ticket.attachments && ticket.attachments.length > 0 && (
-              <div className="attachments">
-                {ticket.attachments.map((file, index) => (
-                  <div key={index} className="attachment-file" onClick={() => downloadAttachment(file)}>
-                    <FaFileAlt className="file-icon" />
-                    <span className="file-name">{file.name}</span>
-                    <FaDownload className="download-icon" />
+          </div>
+
+          {/* Original Submission & Chat Card */}
+          <div className="figma-card original-submission-card">
+            <div className="submission-card-header">
+              <h3 className="submission-section-title">Original Message from Student</h3>
+              <span className="submission-date-label">Created on {formatDate(ticket.createdAt)}</span>
+            </div>
+
+            {/* Student Inquiry Message Box (ABOVE - Highlighted) */}
+            <div className="student-quote-container highlighted-student-inquiry">
+              <div className="student-quote-header">
+                <div className="student-author-tag">
+                  <FaUserCircle className="student-author-icon" />
+                  <span className="student-author-title">{ticket.studentName || 'Student'}’s Inquiry</span>
+                </div>
+                <span className="student-inquiry-badge">Primary Message</span>
+              </div>
+
+              <p className="student-quote-text">
+                “{ticket.description || 'Good day! I would like to kindly ask about the book distribution in the school library. May I know when and how can I receive the books? Thank you!'}”
+              </p>
+              
+              {ticket.attachments && ticket.attachments.length > 0 && (
+                <div className="submission-attachments-row">
+                  {ticket.attachments.map((file, idx) => (
+                    <div 
+                      key={idx} 
+                      className="attachment-chip" 
+                      onClick={() => downloadAttachment(file)}
+                      title={`Download ${file.name}`}
+                    >
+                      <FaFileAlt className="att-chip-icon" />
+                      <span className="att-chip-name">{file.name}</span>
+                      <FaDownload className="att-chip-dl" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Rerouted Alert if ticket was transferred (BELOW) */}
+            {ticket.reassignedFrom && (
+              <div className="reroute-inline-banner" style={{ marginTop: '16px', marginBottom: '0' }}>
+                <div className="reroute-banner-top">
+                  <span className="reroute-tag">Rerouted from {ticket.reassignedFrom}</span>
+                  {ticket.reassignedAt && <span className="reroute-date">{formatDate(ticket.reassignedAt)}</span>}
+                </div>
+                {ticket.previousRequestId && (
+                  <span className="reroute-prev-ref">Previous ID: #{ticket.previousRequestId}</span>
+                )}
+                {ticket.reassignmentNote && (
+                  <div className="reroute-note">
+                    <span className="reroute-note-label">Note from {ticket.reassignedFrom}:</span>
+                    <div className="reroute-note-body">{ticket.reassignmentNote}</div>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
-            {/* Display follow-ups (exclude system reassignment messages since we show them in the notice box) */}
+            {/* Threaded Follow-up Messages */}
             {ticket.followUps && ticket.followUps
-              .filter(followUp => {
-                // Filter out system messages about reassignment since we display them in the notice box
-                if (followUp.sentBy === 'system') {
-                  return !(
-                    followUp.message.includes('reassigned from') ||
-                    followUp.message.includes('automatically assigned to')
-                  );
-                }
-                return true;
-              })
-              .map((followUp, index) => (
-              <div key={index} className={`followup-message ${followUp.sentBy === 'staff' ? 'staff-message' : 'student-message'}`}>
-                <div className="followup-header">
-                  <FaUserCircle className="followup-avatar" />
-                  <div>
-                    <span className="followup-sender">{followUp.sentBy === 'staff' ? followUp.sentByName : ticket.studentName}</span>
-                    <span className="followup-date">{formatDate(followUp.sentAt)}</span>
-                  </div>
-                </div>
-                <p className="followup-text">{followUp.message}</p>
-                {followUp.attachments && followUp.attachments.length > 0 && (
-                  <div className="attachments">
-                    {followUp.attachments.map((file, idx) => (
-                      <div key={idx} className="attachment-file" onClick={() => downloadAttachment(file)}>
-                        <FaFileAlt className="file-icon" />
-                        <span className="file-name">{file.name}</span>
-                        <FaDownload className="download-icon" />
+              .filter(f => f.sentBy !== 'system' || (!f.message?.includes('reassigned from') && !f.message?.includes('automatically assigned to')))
+              .length > 0 && (
+              <div className="conversation-thread-list">
+                {ticket.followUps
+                  .filter(f => f.sentBy !== 'system' || (!f.message?.includes('reassigned from') && !f.message?.includes('automatically assigned to')))
+                  .map((followUp, i) => {
+                    const isStaff = followUp.sentBy === 'staff';
+                    return (
+                      <div key={i} className={`thread-bubble ${isStaff ? 'staff-thread-bubble' : 'student-thread-bubble'}`}>
+                        <div className="thread-bubble-header">
+                          <div className="thread-bubble-author">
+                            {isStaff ? (
+                              <div className="thread-staff-badge">{getInitials(followUp.sentByName)}</div>
+                            ) : (
+                              <FaUserCircle className="thread-student-avatar" />
+                            )}
+                            <span className="thread-author-name">
+                              {isStaff ? `${ticket.office || department} (${followUp.sentByName})` : (ticket.studentName || 'Student')}
+                            </span>
+                          </div>
+                          <span className="thread-time">{formatDate(followUp.sentAt)}</span>
+                        </div>
+                        <p className="thread-body-text">{followUp.message}</p>
+                        {followUp.attachments && followUp.attachments.length > 0 && (
+                          <div className="submission-attachments-row">
+                            {followUp.attachments.map((file, fIdx) => (
+                              <div key={fIdx} className="attachment-chip" onClick={() => downloadAttachment(file)}>
+                                <FaFileAlt className="att-chip-icon" />
+                                <span className="att-chip-name">{file.name}</span>
+                                <FaDownload className="att-chip-dl" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
               </div>
-            ))}
-            
-            {ticket.status !== 'Resolved' && ticket.status !== 'Cancelled' && (
-              <div className="reply-section">
-                <div className="reply-header">
-                  <FaUserCircle className="reply-avatar" />
-                  <span className="reply-label">Reply to student</span>
+            )}
+
+            {/* Dashed Separator */}
+            {!isTicketClosed && <div className="card-dashed-divider" />}
+
+            {/* Reply to Student Composer */}
+            {!isTicketClosed && (
+              <div className="reply-composer-section">
+                <div className="reply-composer-header">
+                  <FaUserCircle className="reply-composer-avatar" />
+                  <span className="reply-composer-title">Reply to student</span>
                 </div>
-                
-                <textarea 
-                  className="reply-textarea"
-                  placeholder="Type your message here..."
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  disabled={sending}
-                />
-                
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                  accept="image/*,.pdf,.doc,.docx,.txt"
-                />
-                
-                {replyFiles.length > 0 && (
-                  <div className="uploaded-files-list">
-                    {replyFiles.map((file, index) => (
-                      <div key={index} className="uploaded-file-item">
-                        <span className="file-name">{file.name}</span>
-                        <button onClick={() => handleRemoveFile(index)} className="remove-file-btn">
-                          <FaTimes />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                <div className="reply-actions">
+
+                <div className="reply-textarea-wrapper">
+                  <textarea
+                    className="reply-native-textarea"
+                    placeholder="Type your message here...."
+                    value={replyMessage}
+                    onChange={(e) => setReplyMessage(e.target.value)}
+                    disabled={sending}
+                  />
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                    accept="image/*,.pdf,.doc,.docx,.txt"
+                  />
+
+                  {replyFiles.length > 0 && (
+                    <div className="composer-staged-row">
+                      {replyFiles.map((file, index) => (
+                        <div key={index} className="staged-file-badge">
+                          <FaFileAlt className="staged-icon" />
+                          <span className="staged-text">{file.name}</span>
+                          <button 
+                            type="button" 
+                            className="staged-close-btn" 
+                            onClick={() => handleRemoveFile(index)}
+                          >
+                            <FaTimes />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="reply-composer-actions">
                   <button 
-                    className="request-info-btn"
+                    type="button" 
+                    className="btn-attach-action"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={sending}
+                    title="Attach files to message"
                   >
-                    Attach Files
+                    <FaPaperclip className="attach-action-icon" />
+                    <span>Attach Files</span>
                   </button>
+
                   <button 
-                    className="send-message-btn"
+                    type="button" 
+                    className="btn-primary-action"
                     onClick={handleSendReply}
                     disabled={sending || (!replyMessage.trim() && replyFiles.length === 0)}
-                    title={!replyMessage.trim() && replyFiles.length === 0 ? 'Type a message or attach a file to enable sending' : undefined}
                   >
                     {sending ? 'Sending...' : 'Send Message'}
                   </button>
@@ -709,60 +1025,224 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           </div>
         </div>
 
-        <div className="sidebar-section">
-          <div className="status-timeline-card">
-            <h3 className="timeline-title">Status Timeline</h3>
-            
-            <div className="timeline-item">
-              <div className="timeline-icon complete">
-                <FaCheckCircle />
+        {/* Right Column (Sidebar Cards) */}
+        <div className="figma-right-column">
+
+          {/* Status Timeline Card */}
+          <div className="figma-card timeline-card">
+            <h3 className="figma-sidebar-title">Status Timeline</h3>
+
+            <div className="figma-timeline-stepper">
+              
+              {/* Milestone 1: SUBMITTED */}
+              <div className="timeline-step step-complete">
+                <div className="step-circle complete">
+                  <FaCheck />
+                </div>
+                <div className="step-content">
+                  <h4 className="step-status-name">SUBMITTED</h4>
+                  <p className="step-date-label">{formatDate(ticket.createdAt)}</p>
+                  <p className="step-sub-desc">Initial Student Request</p>
+                </div>
               </div>
-              <div className="timeline-info">
-                <p className="timeline-status">SUBMITTED</p>
-                <p className="timeline-date">{formatDate(ticket.createdAt)}</p>
-                <p className="timeline-description">Initial Student Request</p>
+
+              {/* Milestone 2: PROCESSING */}
+              <div className={`timeline-step ${ticket.claimedBy ? 'step-complete' : 'step-pending'}`}>
+                <div className={`step-circle ${ticket.claimedBy ? 'complete' : 'pending'}`}>
+                  {ticket.claimedBy ? <FaCheck /> : null}
+                </div>
+                <div className="step-content">
+                  <h4 className="step-status-name">PROCESSING</h4>
+                  {ticket.claimedAt && <p className="step-date-label">{formatDate(ticket.claimedAt)}</p>}
+                  {ticket.claimedBy && <p className="step-sub-desc">Accepted and processed by {ticket.claimedBy}</p>}
+                  
+                  {ticket.etc ? (
+                    <button
+                      type="button"
+                      className="figma-etc-pill"
+                      onClick={openEstimatedCompletionModal}
+                      title="Edit estimated completion date"
+                    >
+                      <span>Estimated time of completion: {formatEtcLabel(ticket.etc)}</span>
+                      <FaPencilAlt className="etc-edit-pencil" />
+                    </button>
+                  ) : !isTicketClosed ? (
+                    <button
+                      type="button"
+                      className="figma-etc-pill btn-set-etc"
+                      onClick={openEstimatedCompletionModal}
+                      title="Set estimated completion date"
+                    >
+                      <span>+ Set Estimated Completion Date</span>
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-            
-            <div className="timeline-item">
-              <div className={`timeline-icon ${ticket.claimedBy ? 'complete' : 'incomplete'}`}>
-                {ticket.claimedBy ? <FaCheckCircle /> : <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'white' }}></div>}
+
+              {/* Milestone Sub-Node: Date Adjusted */}
+              {ticket.estimatedCompletionSetAt && (
+                <div className="timeline-step step-sub-node step-complete">
+                  <div className="step-circle sub-complete">
+                    <FaCheck />
+                  </div>
+                  <div className="step-content">
+                    <h4 className="step-status-name sub-highlight">DATE ADJUSTED</h4>
+                    <p className="step-date-label">{formatDate(ticket.estimatedCompletionSetAt)}</p>
+                    <p className="step-sub-desc">
+                      Estimated completion updated to {formatDate(ticket.estimatedCompletion)}
+                      {ticket.estimatedCompletionSetBy && ` by ${ticket.estimatedCompletionSetBy}`}
+                    </p>
+                    {ticket.estimatedCompletionReason && (
+                      <p className="step-sub-desc italic">"{ticket.estimatedCompletionReason}"</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Milestone Sub-Node: Office Reassignment Trail */}
+              {(() => {
+                const events = [];
+                
+                // 1. Check if followUps has logged reassignment messages
+                if (ticket.followUps && Array.isArray(ticket.followUps)) {
+                  ticket.followUps.forEach((f) => {
+                    if (f && f.message && typeof f.message === 'string' && f.message.toLowerCase().includes('reassigned from')) {
+                      const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
+                      if (match) {
+                        let reason = '';
+                        const reasonMatch = f.message.match(/Reason:\s*([\s\S]*)$/i);
+                        if (reasonMatch) reason = reasonMatch[1].trim();
+
+                        const fromOffice = match[1].trim();
+                        const toOffice = match[2].trim();
+                        const byStaff = match[3].trim();
+
+                        if (fromOffice && toOffice && fromOffice.toLowerCase() !== toOffice.toLowerCase()) {
+                          events.push({
+                            from: fromOffice,
+                            to: toOffice,
+                            by: byStaff,
+                            reason: reason,
+                            date: f.sentAt
+                          });
+                        }
+                      }
+                    }
+                  });
+                }
+
+                // 2. If no events parsed from followUps, build from ticket reroute metadata
+                if (events.length === 0 && ticket.reassignedFrom) {
+                  const currentOffice = ticket.office || 'Office';
+                  const fromOffice = ticket.reassignedFrom;
+                  const history = ticket.officeHistory || {};
+
+                  // Check if there was an earlier origin before fromOffice
+                  const originOffice = (ticket.previousOffice && ticket.previousOffice !== fromOffice && ticket.previousOffice !== currentOffice)
+                    ? ticket.previousOffice
+                    : null;
+
+                  if (originOffice) {
+                    events.push({
+                      from: originOffice,
+                      to: fromOffice,
+                      by: (history[originOffice] && history[originOffice].handledBy) || '',
+                      date: (history[originOffice] && history[originOffice].handledAt) || ticket.createdAt
+                    });
+                  }
+
+                  // Main reassignment leg (From -> To)
+                  if (fromOffice.toLowerCase() !== currentOffice.toLowerCase()) {
+                    events.push({
+                      from: fromOffice,
+                      to: currentOffice,
+                      by: ticket.reassignedBy || (history[fromOffice] && history[fromOffice].handledBy) || '',
+                      reason: ticket.reassignmentNote || '',
+                      date: ticket.reassignedAt || (history[fromOffice] && history[fromOffice].handledAt)
+                    });
+                  } else {
+                    const otherOffice = Object.keys(history).find(k => k.toLowerCase() !== currentOffice.toLowerCase()) || 'Other Office';
+                    events.push({
+                      from: otherOffice,
+                      to: currentOffice,
+                      by: ticket.reassignedBy || (history[otherOffice] && history[otherOffice].handledBy) || '',
+                      reason: ticket.reassignmentNote || '',
+                      date: ticket.reassignedAt || (history[otherOffice] && history[otherOffice].handledAt)
+                    });
+                  }
+                }
+
+                const filteredEvents = events.filter(e => e.from && e.to && e.from.trim().toLowerCase() !== e.to.trim().toLowerCase());
+                if (filteredEvents.length === 0) return null;
+
+                return filteredEvents.map((event, idx) => {
+                  const isReturn = idx > 0 && event.to === filteredEvents[0].from;
+                  return (
+                    <div key={`reassign-${idx}`} className="timeline-step step-sub-node step-complete">
+                      <div className="step-circle sub-complete">
+                        <FaCheck />
+                      </div>
+                      <div className="step-content">
+                        <h4 className="step-status-name sub-highlight">{isReturn ? 'RETURNED' : 'REASSIGNED'}</h4>
+                        {event.date && <p className="step-date-label">{formatDate(event.date)}</p>}
+                        <p className="step-sub-desc">
+                          {event.from} → {event.to}
+                          {event.by ? ` by ${event.by}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+              {/* Milestone: RETURNED/FOR FOLLOW UP */}
+              {(ticket.status === 'Returned' || ticket.status === 'For Follow Up') && (
+                <div className="timeline-step step-complete">
+                  <div className="step-circle complete">
+                    <FaCheck />
+                  </div>
+                  <div className="step-content">
+                    <h4 className="step-status-name">RETURNED/FOR FOLLOW UP</h4>
+                    {ticket.returnedAt && (
+                      <p className="step-date-label">{formatDate(ticket.returnedAt)}</p>
+                    )}
+                    <p className="step-sub-desc">Action required: {ticket.returnedReason || 'See details'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Milestone 3: RESOLVED */}
+              <div className={`timeline-step ${ticket.status === 'Resolved' ? 'step-complete' : 'step-dashed'}`}>
+                <div className={`step-circle ${ticket.status === 'Resolved' ? 'complete' : 'dashed'}`}>
+                  {ticket.status === 'Resolved' && <FaCheck />}
+                </div>
+                <div className="step-content">
+                  <h4 className="step-status-name">RESOLVED</h4>
+                  {ticket.resolvedAt && (
+                    <p className="step-date-label">{formatDate(ticket.resolvedAt)}</p>
+                  )}
+                  {ticket.status === 'Resolved' ? (
+                    <p className="step-sub-desc">Resolved {ticket.resolvedBy ? `by ${ticket.resolvedBy}` : ''}</p>
+                  ) : null}
+                </div>
               </div>
-              <div className="timeline-info">
-                <p className="timeline-status">PROCESSING</p>
-                {ticket.claimedAt && <p className="timeline-date">{formatDate(ticket.claimedAt)}</p>}
-                {ticket.claimedBy && <p className="timeline-description">Accepted and processed by {ticket.claimedBy}</p>}
-                {ticket.etc && (
-                  <p className="timeline-description timeline-etc">
-                    Estimated time of completion: {formatEtcLabel(ticket.etc)}
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            <div className="timeline-item">
-              <div className={`timeline-icon ${ticket.status === 'Resolved' ? 'complete' : 'incomplete'}`}>
-                {ticket.status === 'Resolved' ? <FaCheckCircle /> : <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'white' }}></div>}
-              </div>
-              <div className="timeline-info">
-                <p className="timeline-status">RESOLVED/REJECTED</p>
-                {ticket.resolvedAt && <p className="timeline-date">{formatDate(ticket.resolvedAt)}</p>}
-              </div>
+
             </div>
           </div>
 
-          <div className={`management-card ${isTicketClosed ? 'management-card--locked' : ''}`}>
-            <h3 className="management-title">Management Control</h3>
+          {/* Management Control Card */}
+          <div className={`figma-card management-card ${isTicketClosed ? 'card-locked' : ''}`}>
+            <h3 className="figma-sidebar-title">Management Control</h3>
+
             {isTicketClosed && (
-              <p className="management-lock-note">
-                This request is {ticket.status === 'Resolved' ? 'resolved' : 'cancelled'} — management actions are locked.
+              <p className="mgmt-lock-message">
+                This request is {ticket.status === 'Resolved' ? 'resolved' : 'closed'} — management controls are locked.
               </p>
             )}
-            
-            <div className="management-field">
-              <p className="field-label">URGENCY LEVEL</p>
-              <select 
-                className="field-select"
+
+            <div className="mgmt-form-item">
+              <label className="mgmt-input-label">URGENCY LEVEL</label>
+              <select
+                className="figma-select-input"
                 value={urgencyLevel}
                 onChange={(e) => handleUrgencyChange(e.target.value)}
                 disabled={isTicketClosed}
@@ -772,11 +1252,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 <option value="High">High - Process within the day</option>
               </select>
             </div>
-            
-            <div className="management-field">
-              <p className="field-label">REASSIGN TO</p>
-              <select 
-                className="field-select"
+
+            <div className="mgmt-form-item">
+              <label className="mgmt-input-label">REASSIGN TO</label>
+              <select
+                className="figma-select-input"
                 value={reassignOffice}
                 onChange={(e) => setReassignOffice(e.target.value)}
                 disabled={isTicketClosed}
@@ -786,103 +1266,239 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 <option value="Library">Library</option>
                 <option value="Guidance">Guidance Office</option>
               </select>
+
               {!isTicketClosed && reassignOffice !== ticket.office && (
-                <button className="reassign-btn" onClick={handleReassign}>
+                <button type="button" className="btn-figma-reassign-action" onClick={handleReassign}>
                   Reassign Request
                 </button>
               )}
             </div>
+          </div>
 
-            {/* Estimated Completion Date */}
-            {ticket.status === 'In Process' && (
-              <div className="management-field">
-                <p className="field-label">ESTIMATED COMPLETION DATE</p>
-                <div className="estimated-completion-display">
-                  {ticket.estimatedCompletion ? (
-                    <>
-                      <p className="field-value completion-date">
-                        {formatDate(ticket.estimatedCompletion)}
-                      </p>
-                      {ticket.estimatedCompletionSetBy && (
-                        <p className="completion-metadata">
-                          Set by {ticket.estimatedCompletionSetBy} on {formatDate(ticket.estimatedCompletionSetAt)}
-                        </p>
-                      )}
-                      {!isTicketClosed && (
-                        <button className="edit-completion-btn" onClick={() => setShowEstimatedCompletionModal(true)}>
-                          Edit Completion Date
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="field-value completion-not-set">Not set</p>
-                      {!isTicketClosed && (
-                        <button className="edit-completion-btn" onClick={() => setShowEstimatedCompletionModal(true)}>
-                          Set Completion Date
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
+          {/* Student Profile Card */}
+          <div className="figma-card student-profile-card">
+            <div className="student-profile-avatar-circle">
+              {ticket.studentProfilePicture ? (
+                <img src={ticket.studentProfilePicture} alt="Student" className="student-profile-photo" />
+              ) : (
+                <FaUserCircle className="student-profile-icon" />
+              )}
+            </div>
+
+            <h4 className="student-name-heading">{ticket.studentName || 'Ricky Liam'}</h4>
+            <p className="student-level-tag">JUNIOR HIGH SCHOOL</p>
+
+            <div className="student-details-list">
+              <div className="student-detail-item">{ticket.studentId || '05-2324-12345'}</div>
+              <div className="student-detail-item">
+                {ticket.studentGradeLevel || 'Grade 10'} - {ticket.studentSection || 'St. Valerius'}
               </div>
+              <div className="student-detail-item">{maskEmail(ticket.studentEmail) || 'rl.*****am@gmail.com'}</div>
+            </div>
+
+            {ticket.studentEmail ? (
+              <a 
+                href={`mailto:${ticket.studentEmail}?subject=Regarding Request %23${ticket.requestId}: ${encodeURIComponent(ticket.subject || '')}`}
+                className="btn-figma-contact"
+              >
+                <FaEnvelope className="contact-envelope-icon" />
+                <span>CONTACT STUDENT</span>
+              </a>
+            ) : (
+              <button type="button" className="btn-figma-contact" disabled>
+                <FaEnvelope className="contact-envelope-icon" />
+                <span>CONTACT STUDENT</span>
+              </button>
             )}
           </div>
 
-          <div className="student-info-card">
-            <div className="student-avatar">
-              {ticket.studentProfilePicture ? (
-                <img src={ticket.studentProfilePicture} alt="Student" className="student-avatar-img" />
-              ) : (
-                <FaUserCircle className="student-avatar-icon" />
-              )}
-            </div>
-            <h4 className="student-name">{ticket.studentName}</h4>
-            <p className="student-school">Junior High School</p>
-            
-            <div className="student-details">
-              <div className="student-detail-row">{ticket.studentId || 'N/A'}</div>
-              <div className="student-detail-row">{ticket.studentGradeLevel || 'Grade N/A'} - {ticket.studentSection || 'Section N/A'}</div>
-              <div className="student-detail-row">{maskEmail(ticket.studentEmail)}</div>
-            </div>
-            
-            <button className="contact-student-btn">
-              <FaEnvelope />
-              CONTACT STUDENT
-            </button>
-          </div>
         </div>
+
       </div>
 
-      {/* Reassign Modal */}
-      {showReassignModal && (
-        <div className="reassign-modal-overlay">
-          <div className="reassign-modal">
-            <h3 className="reassign-modal-title">Reassign Request to {reassignOffice}</h3>
-            <p className="reassign-modal-subtitle">Please provide a reason for reassigning this request</p>
-            
-            <textarea
-              className="reassign-note-textarea"
-              placeholder="Example: This request is related to tuition payment and should be handled by the Finance Office..."
-              value={reassignNote}
-              onChange={(e) => setReassignNote(e.target.value)}
-              rows={5}
-              maxLength={500}
-            />
-            
-            <div className="reassign-note-counter">
-              {reassignNote.length}/500 characters
-              {reassignNote.length < 10 && reassignNote.length > 0 && (
-                <span className="note-warning"> (minimum 10 characters)</span>
-              )}
+      {/* =========================================================================
+          MODALS
+         ========================================================================= */}
+
+      {/* Modal: Resolve Ticket */}
+      {showResolveModal && (
+        <div className="figma-modal-overlay" onClick={() => setShowResolveModal(false)}>
+          <div className="figma-modal-window" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-heading green-heading">Resolve Request</h3>
+            <p className="modal-explainer">
+              Mark request <strong>#{ticket.requestId}</strong> as resolved.
+            </p>
+
+            <div className="modal-field-group">
+              <label className="modal-label">Resolution Note (Optional):</label>
+              <textarea
+                className="modal-input-area"
+                placeholder="Example: Documents processed and ready for pickup..."
+                value={resolveNote}
+                onChange={(e) => setResolveNote(e.target.value)}
+                rows={4}
+              />
             </div>
-            
-            <div className="reassign-modal-actions">
-              <button className="reassign-cancel-btn" onClick={cancelReassign}>
+
+            <div className="modal-btn-row">
+              <button 
+                type="button"
+                className="btn-modal-back" 
+                onClick={() => setShowResolveModal(false)}
+                disabled={resolving}
+              >
                 Cancel
               </button>
               <button 
-                className="reassign-confirm-btn" 
+                type="button"
+                className="btn-modal-submit btn-submit-green" 
+                onClick={confirmResolveTicket}
+                disabled={resolving}
+              >
+                {resolving ? 'Resolving...' : 'Confirm Resolve'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Reject Request */}
+      {showRejectModal && (
+        <div className="figma-modal-overlay" onClick={() => setShowRejectModal(false)}>
+          <div className="figma-modal-window" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-row">
+              <h3 className="modal-heading danger-heading">Reject Request</h3>
+              <button 
+                type="button" 
+                className="modal-close-icon-btn" 
+                onClick={() => setShowRejectModal(false)}
+                title="Close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <p className="modal-explainer">
+              Reject request <strong>#{ticket.requestId}</strong>. The student will receive a notification with this rejection reason.
+            </p>
+
+            <div className="modal-field-group">
+              <label className="modal-label">
+                Reason for Rejection <span className="required-marker">(Required):</span>
+              </label>
+              <textarea
+                className="modal-input-area"
+                placeholder="Specify the reason why this request cannot be fulfilled..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={4}
+                maxLength={400}
+                required
+              />
+              <div className="modal-char-counter">
+                {rejectReason.trim().length === 0 && (
+                  <span className="reason-required-text">Reason is required &bull; </span>
+                )}
+                {rejectReason.length}/400 characters
+              </div>
+            </div>
+
+            <div className="modal-btn-row">
+              <button 
+                type="button" 
+                className="btn-modal-back" 
+                onClick={() => setShowRejectModal(false)}
+                disabled={rejecting}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn-modal-submit btn-submit-danger" 
+                onClick={confirmRejectTicket}
+                disabled={rejecting || !rejectReason.trim()}
+              >
+                {rejecting ? 'Rejecting...' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Return Ticket */}
+      {showReturnModal && (
+        <div className="figma-modal-overlay" onClick={() => setShowReturnModal(false)}>
+          <div className="figma-modal-window" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-heading slate-heading">Return Request</h3>
+            <p className="modal-explainer">
+              Return request <strong>#{ticket.requestId}</strong> to the student for corrections.
+            </p>
+
+            <div className="modal-field-group">
+              <label className="modal-label">Reason for Return (Required):</label>
+              <textarea
+                className="modal-input-area"
+                placeholder="Specify what corrections or documents are needed..."
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+
+            <div className="modal-btn-row">
+              <button 
+                type="button"
+                className="btn-modal-back" 
+                onClick={() => setShowReturnModal(false)}
+                disabled={returning}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                className="btn-modal-submit btn-submit-slate" 
+                onClick={confirmReturnTicket}
+                disabled={returning || !returnReason.trim()}
+              >
+                {returning ? 'Returning...' : 'Confirm Return'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Reassign Office */}
+      {showReassignModal && (
+        <div className="figma-modal-overlay" onClick={cancelReassign}>
+          <div className="figma-modal-window" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-heading green-heading">Reassign to {reassignOffice}</h3>
+            <p className="modal-explainer">
+              Please provide a reason for reassigning request #{ticket.requestId}
+            </p>
+            
+            <div className="modal-field-group">
+              <textarea
+                className="modal-input-area"
+                placeholder="Example: This inquiry belongs to the Finance Office..."
+                value={reassignNote}
+                onChange={(e) => setReassignNote(e.target.value)}
+                rows={5}
+                maxLength={500}
+              />
+              <div className="modal-char-counter">
+                {reassignNote.length}/500 characters
+                {reassignNote.length < 10 && reassignNote.length > 0 && (
+                  <span className="warning-text"> (minimum 10 characters)</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="modal-btn-row">
+              <button type="button" className="btn-modal-back" onClick={cancelReassign}>
+                Cancel
+              </button>
+              <button 
+                type="button"
+                className="btn-modal-submit btn-submit-green" 
                 onClick={confirmReassign}
                 disabled={reassignNote.trim().length < 10}
               >
@@ -893,71 +1509,161 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         </div>
       )}
 
-      {/* Estimated Completion Date Edit Modal */}
+      {/* Modal: Estimated Completion Date (Month / Day / Year) */}
       {showEstimatedCompletionModal && (
-        <div className="reassign-modal-overlay" onClick={() => setShowEstimatedCompletionModal(false)}>
-          <div className="reassign-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="reassign-modal-title">Edit Estimated Completion Date</h3>
-            <p className="reassign-modal-subtitle">
-              Update the expected completion date for request #{ticket.requestId}
-            </p>
+        <div className="figma-modal-overlay" onClick={() => setShowEstimatedCompletionModal(false)}>
+          <div className="figma-modal-window modal-etc-window" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-row">
+              <h3 className="modal-heading green-heading">Edit Estimated Completion Date</h3>
+              <button 
+                type="button" 
+                className="modal-close-icon-btn" 
+                onClick={() => setShowEstimatedCompletionModal(false)}
+                title="Close"
+              >
+                <FaTimes />
+              </button>
+            </div>
             
-            <div className="completion-options">
-              <label className="completion-option">
-                <input
-                  type="radio"
-                  name="completion"
-                  value="1-3"
-                  checked={completionOption === '1-3'}
-                  onChange={(e) => setCompletionOption(e.target.value)}
-                />
-                <span>1 to 3 days</span>
-              </label>
-              
-              <label className="completion-option">
-                <input
-                  type="radio"
-                  name="completion"
-                  value="4-7"
-                  checked={completionOption === '4-7'}
-                  onChange={(e) => setCompletionOption(e.target.value)}
-                />
-                <span>4 to 7 days</span>
-              </label>
-              
-              <label className="completion-option">
-                <input
-                  type="radio"
-                  name="completion"
-                  value="custom"
-                  checked={completionOption === 'custom'}
-                  onChange={(e) => setCompletionOption(e.target.value)}
-                />
-                <span>Custom date</span>
-              </label>
+            <p className="modal-explainer">
+              Set or adjust the target completion date for request <strong>#{ticket.requestId}</strong>.
+            </p>
+
+            {/* Quick Presets */}
+            <div className="etc-presets-section">
+              <span className="etc-presets-label">QUICK PRESETS</span>
+              <div className="etc-presets-grid">
+                <button
+                  type="button"
+                  className="etc-preset-btn"
+                  onClick={() => applyDaysPreset(3)}
+                >
+                  +3 Days (Normal)
+                </button>
+                <button
+                  type="button"
+                  className="etc-preset-btn"
+                  onClick={() => applyDaysPreset(5)}
+                >
+                  +5 Days
+                </button>
+                <button
+                  type="button"
+                  className="etc-preset-btn"
+                  onClick={() => applyDaysPreset(7)}
+                >
+                  +7 Days (1 Week)
+                </button>
+                <button
+                  type="button"
+                  className="etc-preset-btn"
+                  onClick={() => applyDaysPreset(14)}
+                >
+                  +14 Days (2 Weeks)
+                </button>
+              </div>
             </div>
 
-            {completionOption === 'custom' && (
-              <div className="custom-date-input">
-                <label>Select completion date:</label>
-                <input
-                  type="date"
-                  value={customCompletionDate}
-                  onChange={(e) => setCustomCompletionDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                />
+            {/* Target Date: Month / Day / Year Selectors */}
+            <div className="etc-mdy-container">
+              <label className="modal-label">Target Date (Month / Day / Year):</label>
+              <div className="etc-mdy-inputs-row">
+                
+                {/* Month */}
+                <div className="etc-mdy-field field-month">
+                  <span className="mdy-field-tag">MONTH</span>
+                  <select
+                    className="etc-select-box"
+                    value={etcMonth}
+                    onChange={(e) => setEtcMonth(e.target.value)}
+                  >
+                    {MONTHS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Day */}
+                <div className="etc-mdy-field field-day">
+                  <span className="mdy-field-tag">DAY</span>
+                  <select
+                    className="etc-select-box"
+                    value={etcDay}
+                    onChange={(e) => setEtcDay(e.target.value)}
+                  >
+                    {Array.from({ length: getDaysInSelectedMonth(etcYear, etcMonth) }, (_, i) => {
+                      const dayNum = String(i + 1).padStart(2, '0');
+                      return <option key={dayNum} value={dayNum}>{dayNum}</option>;
+                    })}
+                  </select>
+                </div>
+
+                {/* Year */}
+                <div className="etc-mdy-field field-year">
+                  <span className="mdy-field-tag">YEAR</span>
+                  <select
+                    className="etc-select-box"
+                    value={etcYear}
+                    onChange={(e) => setEtcYear(e.target.value)}
+                  >
+                    {getYearOptions().map(yr => (
+                      <option key={yr} value={String(yr)}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
+
               </div>
-            )}
+
+              {/* Formatted Date Banner */}
+              <div className="etc-date-preview-banner">
+                <span className="preview-label">Selected Date:</span>
+                <strong className="preview-value">
+                  {etcMonth}/{etcDay}/{etcYear} &bull; {getFormattedPreviewDate(etcYear, etcMonth, etcDay)}
+                </strong>
+              </div>
+            </div>
+
+            {/* Reason Text Area */}
+            <div className="modal-field-group reason-field-group">
+              <div className="reason-label-row">
+                <label className="modal-label">
+                  Reason for student <span className="required-marker">(Required):</span>
+                </label>
+                <span className="reason-hint">Visible to student in update notice</span>
+              </div>
+              <textarea
+                className="modal-input-area reason-textarea"
+                placeholder="Specify why this target date was scheduled or adjusted (e.g., Awaiting clearance from Registrar, peak period queue)..."
+                value={completionReason}
+                onChange={(e) => setCompletionReason(e.target.value)}
+                rows={3}
+                maxLength={300}
+                required
+              />
+              <div className="modal-char-counter">
+                {completionReason.trim().length === 0 && (
+                  <span className="reason-required-text">Reason is required &bull; </span>
+                )}
+                {completionReason.length}/300 characters
+              </div>
+            </div>
             
-            <div className="reassign-modal-actions">
-              <button className="reassign-cancel-btn" onClick={() => setShowEstimatedCompletionModal(false)}>
+            <div className="modal-btn-row">
+              <button 
+                type="button"
+                className="btn-modal-back" 
+                onClick={() => setShowEstimatedCompletionModal(false)}
+                disabled={updatingEtc}
+              >
                 Cancel
               </button>
               <button 
-                className="reassign-confirm-btn" 
+                type="button"
+                className="btn-modal-submit btn-submit-green" 
                 onClick={handleUpdateEstimatedCompletion}
+                disabled={updatingEtc || !completionReason.trim()}
               >
-                Update Completion Date
+                {updatingEtc ? 'Saving...' : 'Save Target Date'}
               </button>
             </div>
           </div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaCalendarAlt, FaCheck, FaTimes, FaUserCheck } from 'react-icons/fa';
 import '../styles/ClaimETCModal.css';
 
-// Default estimate: two days from today (mirrors the old static "2 days").
+// Default estimate: two days from today
 const isoDateFromOffset = (offsetDays) => {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -12,12 +12,18 @@ const isoDateFromOffset = (offsetDays) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-const ClaimETCModal = ({ ticket, onConfirm, onSkip, onCancel }) => {
+const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
   const [date, setDate] = useState(isoDateFromOffset(2));
 
   return (
-    <div className="etc-modal-overlay">
-      <div className="etc-modal" role="dialog" aria-modal="true" aria-labelledby="etc-modal-title">
+    <div className="etc-modal-overlay" onClick={onCancel}>
+      <div 
+        className="etc-modal" 
+        role="dialog" 
+        aria-modal="true" 
+        aria-labelledby="etc-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button className="etc-modal-close" onClick={onCancel} aria-label="Close">
           <FaTimes />
         </button>
@@ -42,15 +48,19 @@ const ClaimETCModal = ({ ticket, onConfirm, onSkip, onCancel }) => {
             value={date}
             min={isoDateFromOffset(0)}
             onChange={(e) => setDate(e.target.value)}
+            required
           />
 
           <div className="etc-notice">
             <FaUserCheck className="etc-notice-icon" />
-            <span>Confirming this date will automatically notify the student.</span>
+            <span>Setting this date notifies the student about the estimated turnaround time.</span>
           </div>
         </div>
 
         <div className="etc-modal-actions">
+          <button type="button" className="etc-btn-cancel" onClick={onCancel}>
+            Cancel
+          </button>
           <button
             type="button"
             className="etc-btn-primary"
@@ -58,12 +68,6 @@ const ClaimETCModal = ({ ticket, onConfirm, onSkip, onCancel }) => {
             disabled={!date}
           >
             <FaCheck /> Confirm & Claim Request
-          </button>
-          <button type="button" className="etc-btn-secondary" onClick={onSkip}>
-            Skip — Claim Without a Date
-          </button>
-          <button type="button" className="etc-btn-cancel" onClick={onCancel}>
-            Cancel
           </button>
         </div>
       </div>

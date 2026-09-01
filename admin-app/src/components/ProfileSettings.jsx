@@ -4,13 +4,13 @@ import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
 import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload } from 'react-icons/fa';
+import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
 import { encryptCredentials } from '../utils/qrEncryption';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/ProfileSettings.css';
 
 // Only the fields the user can actually edit count toward "changed"
-// (read-only fields like email/office/staff ID and the derived M.I. don't).
 const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix', 'phoneNumber', 'twoFactorEnabled'];
 
 function ProfileSettings({ onClose }) {
@@ -27,25 +27,25 @@ function ProfileSettings({ onClose }) {
     officeId: '',
     username: '',
     staffId: '',
-    username: '', // Add username field
     email: '',
     phoneNumber: '',
     profilePicture: '',
     twoFactorEnabled: false,
     lastPasswordUpdate: null,
-    qrCodeData: '' // Store encrypted QR data
+    qrCodeData: ''
   });
 
   const [profilePicture, setProfilePicture] = useState(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
-  // Snapshot of the values loaded from Firestore — used to detect unsaved changes
   const [originalProfileData, setOriginalProfileData] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [qrCodeDataURL, setQrCodeDataURL] = useState('');
   const [showQRPasswordPrompt, setShowQRPasswordPrompt] = useState(false);
   const [qrPassword, setQrPassword] = useState('');
   const [showQRPassword, setShowQRPassword] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
   const qrCodeRef = useRef(null);
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -59,7 +59,6 @@ function ProfileSettings({ onClose }) {
 
   useEffect(() => {
     let active = true;
-    // Safety net: a stalled fetch must not leave the modal stuck on a spinner
     const timer = setTimeout(() => {
       if (active) setLoading(false);
     }, 12000);
@@ -71,7 +70,6 @@ function ProfileSettings({ onClose }) {
   }, []);
 
   useEffect(() => {
-    // Generate QR code image from stored encrypted data
     if (profileData.qrCodeData) {
       generateQRCodeImage(profileData.qrCodeData);
     }
@@ -79,7 +77,6 @@ function ProfileSettings({ onClose }) {
 
   const generateQRCodeImage = async (encryptedData) => {
     try {
-      // Generate QR code image from encrypted data
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
         width: 300,
         margin: 2,
@@ -90,30 +87,24 @@ function ProfileSettings({ onClose }) {
         errorCorrectionLevel: 'H'
       });
       setQrCodeDataURL(qrDataURL);
-      console.log('✅ QR code image generated from stored data');
     } catch (error) {
-      console.error('❌ Error generating QR code image:', error);
+      console.error('Error generating QR code image:', error);
     }
   };
 
   const generateQRCode = async (username, officeId, password) => {
     try {
-      console.log('🔲 Generating encrypted QR code for username:', username);
-
       if (!username || !officeId) {
-        console.error('❌ Username and office are required for QR generation');
+        alert('Missing username or office. Please contact support.');
         return;
       }
-
       if (!password) {
-        console.error('❌ Password required for QR generation');
+        alert('Password is required for QR generation');
         return;
       }
 
-      // Encrypt the credentials
       const encryptedData = encryptCredentials(username, officeId, password);
 
-      // Generate QR code image with encrypted data
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
         width: 300,
         margin: 2,
@@ -121,30 +112,24 @@ function ProfileSettings({ onClose }) {
           dark: '#105E06',
           light: '#FFFFFF'
         },
-        errorCorrectionLevel: 'H' // High error correction for encrypted data
+        errorCorrectionLevel: 'H'
       });
       setQrCodeDataURL(qrDataURL);
 
-      // Save encrypted data to Firestore so QR persists
       const staffData = JSON.parse(localStorage.getItem('staffData'));
-      if (staffData.firestoreDocId) {
+      if (staffData?.firestoreDocId) {
         const docRef = doc(db, 'staff', staffData.firestoreDocId);
         await updateDoc(docRef, {
           qrCodeData: encryptedData,
           qrCodeGeneratedAt: new Date().toISOString()
         });
-        // Update local state
         setProfileData(prev => ({
           ...prev,
           qrCodeData: encryptedData
         }));
-
-        console.log('✅ QR code saved to Firestore');
       }
-
-      console.log('✅ QR code generated successfully with encrypted credentials');
     } catch (error) {
-      console.error('❌ Error generating QR code:', error);
+      console.error('Error generating QR code:', error);
       alert('Failed to generate QR code. Please try again.');
     }
   };
@@ -160,26 +145,22 @@ function ProfileSettings({ onClose }) {
       return;
     }
 
-    // Validate username and office before proceeding
     if (!profileData.username || !profileData.officeId) {
       alert('Missing username or office. Please contact support.');
       return;
     }
 
     try {
-      // Verify password by attempting to reauthenticate
       const credential = EmailAuthProvider.credential(profileData.email, qrPassword);
       await reauthenticateWithCredential(auth.currentUser, credential);
 
-      // Password is correct, generate QR code
-      console.log('🎫 Generating QR for username:', profileData.username);
       await generateQRCode(profileData.username, profileData.officeId, qrPassword);
       setShowQRPasswordPrompt(false);
       setQrPassword('');
 
       const message = profileData.qrCodeData
-        ? 'QR code regenerated successfully! Your old QR code will no longer work.'
-        : 'QR code generated successfully! You can now download it.';
+        ? '✓ QR code regenerated successfully! Your old QR code is now invalidated.'
+        : '✓ QR code generated successfully! You can now download it.';
       alert(message);
     } catch (error) {
       console.error('Password verification failed:', error);
@@ -189,10 +170,9 @@ function ProfileSettings({ onClose }) {
 
   const handleDownloadQRCode = () => {
     if (!qrCodeDataURL) return;
-
     const link = document.createElement('a');
     link.href = qrCodeDataURL;
-    link.download = `staff-qr-${profileData.username || profileData.staffId}.png`;
+    link.download = `staff-qr-${profileData.username || profileData.staffId || 'login'}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -206,33 +186,22 @@ function ProfileSettings({ onClose }) {
         return;
       }
 
-      console.log('[Data] Loading profile for staff:', staffData);
-
-      // Try to get the document using the Firestore document ID
       let docSnap = null;
-      
       if (staffData.firestoreDocId) {
         const docRef = doc(db, 'staff', staffData.firestoreDocId);
         docSnap = await getDoc(docRef);
-        console.log('[Success] Found using firestoreDocId:', staffData.firestoreDocId);
       }
       
-      // If not found or no firestoreDocId, try using uid as document ID
       if (!docSnap || !docSnap.exists()) {
         if (staffData.uid) {
           const docRef = doc(db, 'staff', staffData.uid);
           docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            console.log('[Success] Found using uid as document ID:', staffData.uid);
-          }
         }
       }
       
-      // If still not found, query by uid field
       if (!docSnap || !docSnap.exists()) {
         const { collection, query, where, getDocs } = await import('firebase/firestore');
         const staffRef = collection(db, 'staff');
-        
         if (staffData.uid) {
           const q = query(staffRef, where('uid', '==', staffData.uid));
           const querySnapshot = await getDocs(q);
@@ -240,20 +209,15 @@ function ProfileSettings({ onClose }) {
             docSnap = querySnapshot.docs[0];
             staffData.firestoreDocId = docSnap.id;
             localStorage.setItem('staffData', JSON.stringify(staffData));
-            console.log('[Success] Found by querying uid field, docId:', docSnap.id);
           }
         }
       }
 
       if (docSnap && docSnap.exists()) {
         const data = docSnap.data();
-        console.log('[File] Staff document data:', data);
-        
-        // Handle different name field formats
         let firstName = data.firstName || '';
         let lastName = data.lastName || '';
         
-        // If name exists but firstName/lastName don't, parse name
         if (data.name && !firstName && !lastName) {
           const nameParts = data.name.trim().split(' ');
           if (nameParts.length >= 2) {
@@ -264,7 +228,6 @@ function ProfileSettings({ onClose }) {
           }
         }
         
-        // If fullName exists but firstName/lastName still don't, parse fullName
         if (data.fullName && !firstName && !lastName) {
           const nameParts = data.fullName.trim().split(' ');
           if (nameParts.length >= 2) {
@@ -286,19 +249,17 @@ function ProfileSettings({ onClose }) {
           officeId: data.officeId || '',
           username: data.username || '',
           staffId: data.staffId || '',
-          username: data.username || '',
           email: data.email || '',
           phoneNumber: data.phoneNumber || '',
           profilePicture: data.profilePicture || '',
           twoFactorEnabled: data.twoFactorEnabled || false,
           lastPasswordUpdate: data.lastPasswordUpdate || null,
-          qrCodeData: data.qrCodeData || '' // Load existing QR data
+          qrCodeData: data.qrCodeData || ''
         };
         setProfileData(loadedProfile);
         setOriginalProfileData(loadedProfile);
         setProfilePicturePreview(data.profilePicture || '');
       } else {
-        console.error('[Error] Staff document not found');
         alert('Profile data not found. Please contact admin.');
       }
     } catch (error) {
@@ -316,7 +277,6 @@ function ProfileSettings({ onClose }) {
       [name]: value
     }));
 
-    // Auto-generate middle initial
     if (name === 'middleName' && value) {
       setProfileData(prev => ({
         ...prev,
@@ -355,7 +315,7 @@ function ProfileSettings({ onClose }) {
       setSaving(true);
       const staffData = JSON.parse(localStorage.getItem('staffData'));
       
-      if (!staffData.firestoreDocId) {
+      if (!staffData?.firestoreDocId) {
         alert('Session error. Please log in again.');
         setSaving(false);
         return;
@@ -363,14 +323,12 @@ function ProfileSettings({ onClose }) {
       
       let profilePictureURL = profileData.profilePicture;
 
-      // Upload profile picture if changed
       if (profilePicture) {
         const storageRef = ref(storage, `staff-profile-pictures/${staffData.uid || staffData.firestoreDocId}`);
         await uploadBytes(storageRef, profilePicture);
         profilePictureURL = await getDownloadURL(storageRef);
       }
 
-      // Prepare update data
       const updateData = {
         lastName: profileData.lastName,
         firstName: profileData.firstName,
@@ -383,16 +341,13 @@ function ProfileSettings({ onClose }) {
         updatedAt: new Date().toISOString()
       };
 
-      // Also update name and fullName fields for compatibility
       const fullNameValue = `${profileData.firstName} ${profileData.lastName}`.trim();
       updateData.name = fullNameValue;
       updateData.fullName = fullNameValue;
 
-      // Update Firestore
       const docRef = doc(db, 'staff', staffData.firestoreDocId);
       await updateDoc(docRef, updateData);
 
-      // Update localStorage
       const updatedStaffData = {
         ...staffData,
         ...profileData,
@@ -402,8 +357,7 @@ function ProfileSettings({ onClose }) {
       };
       
       localStorage.setItem('staffData', JSON.stringify(updatedStaffData));
-
-      alert('Profile updated successfully!');
+      alert('✓ Profile updated successfully!');
       window.location.reload();
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -428,29 +382,25 @@ function ProfileSettings({ onClose }) {
       setSaving(true);
       const user = auth.currentUser;
       
-      // Re-authenticate user
       const credential = EmailAuthProvider.credential(
         user.email,
         passwordForm.currentPassword
       );
       await reauthenticateWithCredential(user, credential);
 
-      // Update password
       await updatePassword(user, passwordForm.newPassword);
 
-      // Update last password change date
       const staffData = JSON.parse(localStorage.getItem('staffData'));
       const docRef = doc(db, 'staff', staffData.firestoreDocId);
       await updateDoc(docRef, {
         lastPasswordUpdate: new Date().toISOString(),
-        qrCodeData: '' // Clear old QR code data
+        qrCodeData: ''
       });
 
-      alert('Password changed successfully!\n\n⚠ IMPORTANT: Your old QR code will no longer work. Please regenerate your QR code with the new password.');
+      alert('✓ Password changed successfully!\n\n⚠ IMPORTANT: Your old QR code will no longer work. Please regenerate your QR code with the new password.');
       setShowPasswordModal(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
-      // Clear QR code display
       setQrCodeDataURL('');
       setProfileData(prev => ({
         ...prev,
@@ -476,7 +426,17 @@ function ProfileSettings({ onClose }) {
     }
     const lastUpdate = new Date(profileData.lastPasswordUpdate);
     const monthsAgo = Math.floor((new Date() - lastUpdate) / (1000 * 60 * 60 * 24 * 30));
-    return `Last updated ${monthsAgo} months ago. We recommend updating regularly.`;
+    if (monthsAgo === 0) return 'Updated recently (less than a month ago).';
+    return `Last updated ${monthsAgo} month${monthsAgo > 1 ? 's' : ''} ago. We recommend updating regularly.`;
+  };
+
+  const maskEmail = (email) => {
+    if (!email) return '';
+    const parts = email.split('@');
+    if (parts.length !== 2) return email;
+    const name = parts[0];
+    const maskedName = name.length > 2 ? `${name.slice(0, 2)}••••••` : `${name}•••`;
+    return `${maskedName}@${parts[1]}`;
   };
 
   if (loading) {
@@ -488,7 +448,9 @@ function ProfileSettings({ onClose }) {
       <div className="profile-settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="profile-settings-header">
           <h2>Settings</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close settings">
+            <MdClose />
+          </button>
         </div>
 
         <div className="profile-settings-content">
@@ -506,7 +468,7 @@ function ProfileSettings({ onClose }) {
                       <span>{profileData.firstName?.charAt(0)}{profileData.lastName?.charAt(0)}</span>
                     </div>
                   )}
-                  <label className="upload-btn">
+                  <label className="upload-btn" title="Upload new photo">
                     <FaCamera />
                     <input
                       type="file"
@@ -546,12 +508,19 @@ function ProfileSettings({ onClose }) {
                     <label>EMAIL ADDRESS <span className="required">*</span></label>
                     <div className="input-with-icon">
                       <input
-                        type="email"
-                        value={profileData.email}
+                        type="text"
+                        value={showEmail ? profileData.email : maskEmail(profileData.email)}
                         readOnly
-                        className="readonly-field masked-field"
+                        className={`readonly-field ${!showEmail ? 'masked-field email-masked' : ''}`}
                       />
-                      <FaEyeSlash className="eye-icon" />
+                      <button 
+                        type="button" 
+                        className="eye-icon-btn"
+                        onClick={() => setShowEmail(!showEmail)}
+                        title={showEmail ? 'Hide email' : 'Show email'}
+                      >
+                        {showEmail ? <FaEyeSlash /> : <FaEye />}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -581,16 +550,13 @@ function ProfileSettings({ onClose }) {
 
                   <div className="form-group">
                     <label>PHONE NUMBER <span className="required">*</span></label>
-                    <div className="input-with-icon">
-                      <input
-                        type="tel"
-                        name="phoneNumber"
-                        value={profileData.phoneNumber}
-                        onChange={handleInputChange}
-                        className="masked-field"
-                      />
-                      <FaEyeSlash className="eye-icon" />
-                    </div>
+                    <input
+                      type="tel"
+                      name="phoneNumber"
+                      value={profileData.phoneNumber}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 0912 345 6789"
+                    />
                   </div>
                 </div>
 
@@ -614,11 +580,21 @@ function ProfileSettings({ onClose }) {
                       className="readonly-field"
                     />
                   </div>
+
+                  <div className="form-group">
+                    <label>USERNAME <span className="required">*</span></label>
+                    <input
+                      type="text"
+                      value={profileData.username}
+                      readOnly
+                      className="readonly-field"
+                    />
+                  </div>
                 </div>
 
                 <div className="form-row small-fields">
                   <div className="form-group small">
-                    <label>M.I</label>
+                    <label>M.I.</label>
                     <input
                       type="text"
                       name="middleInitial"
@@ -663,13 +639,13 @@ function ProfileSettings({ onClose }) {
                 <h4>Two-Factor Authentication (2FA)</h4>
                 <p>Secure your account by adding an additional security layer via SMS</p>
               </div>
-              <label className="toggle-switch">
+              <label className="settings-toggle">
                 <input
                   type="checkbox"
                   checked={profileData.twoFactorEnabled}
                   onChange={handleToggle2FA}
                 />
-                <span className="toggle-slider"></span>
+                <span className="settings-toggle-slider"></span>
               </label>
             </div>
           </div>
@@ -687,14 +663,16 @@ function ProfileSettings({ onClose }) {
             <div className="qr-code-container">
               <div className="qr-code-display">
                 {qrCodeDataURL ? (
-                  <img ref={qrCodeRef} src={qrCodeDataURL} alt="Staff QR Code" className="qr-code-image" />
+                  <div className="qr-code-box">
+                    <img ref={qrCodeRef} src={qrCodeDataURL} alt="Staff QR Code" className="qr-code-image" />
+                    <p className="qr-code-id">Username: {profileData.username}</p>
+                  </div>
                 ) : (
                   <div className="qr-code-placeholder">
                     <FaQrcode className="qr-placeholder-icon" />
                     <p>No QR code generated yet</p>
                   </div>
                 )}
-                {qrCodeDataURL && <p className="qr-code-id">Username: {profileData.username}</p>}
               </div>
               <div className="qr-code-info">
                 <div className="info-item">
@@ -716,7 +694,7 @@ function ProfileSettings({ onClose }) {
                         <p>4. This QR code will work until you regenerate it</p>
                       </>
                     )}
-                    <p style={{ color: '#ef5350', marginTop: '10px', fontWeight: 600 }}>
+                    <p className="qr-warning-text">
                       ⚠ Keep your QR code secure - it contains your login credentials!
                     </p>
                     {!qrCodeDataURL && (
@@ -746,13 +724,14 @@ function ProfileSettings({ onClose }) {
           {/* Action Buttons */}
           <div className="settings-actions">
             <button
+              type="button"
               className="cancel-btn-settings"
               onClick={onClose}
-              title="Discard changes and close"
             >
               Cancel
             </button>
             <button
+              type="button"
               className="update-btn"
               onClick={handleUpdateProfile}
               disabled={saving || !hasChanges}
@@ -769,13 +748,14 @@ function ProfileSettings({ onClose }) {
             <div className="password-modal" onClick={(e) => e.stopPropagation()}>
               <h3>Change Password</h3>
               
-              <div className="form-group">
+              <div className="form-group-modal">
                 <label>Current Password</label>
                 <div className="password-input-wrapper">
                   <input
                     type={showPasswords.current ? 'text' : 'password'}
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    placeholder="Enter current password"
                   />
                   <button
                     type="button"
@@ -787,13 +767,14 @@ function ProfileSettings({ onClose }) {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group-modal">
                 <label>New Password</label>
                 <div className="password-input-wrapper">
                   <input
                     type={showPasswords.new ? 'text' : 'password'}
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                    placeholder="Enter new password (min. 6 chars)"
                   />
                   <button
                     type="button"
@@ -805,13 +786,14 @@ function ProfileSettings({ onClose }) {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group-modal">
                 <label>Confirm New Password</label>
                 <div className="password-input-wrapper">
                   <input
                     type={showPasswords.confirm ? 'text' : 'password'}
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="Re-enter new password"
                   />
                   <button
                     type="button"
@@ -830,7 +812,7 @@ function ProfileSettings({ onClose }) {
                 <button 
                   className="confirm-btn" 
                   onClick={handleChangePassword}
-                  disabled={saving}
+                  disabled={saving || !passwordForm.currentPassword || !passwordForm.newPassword}
                 >
                   {saving ? 'Changing...' : 'Change Password'}
                 </button>
@@ -846,12 +828,12 @@ function ProfileSettings({ onClose }) {
               <h3>{profileData.qrCodeData ? 'Regenerate QR Code' : 'Generate QR Code'}</h3>
               <p className="modal-description">
                 {profileData.qrCodeData
-                  ? 'Enter your password to regenerate your QR code. Your old QR code will stop working.'
+                  ? 'Enter your password to regenerate your QR code. Your old QR code will no longer work.'
                   : 'Enter your password to generate an encrypted QR code'
                 }
               </p>
 
-              <div className="form-group">
+              <div className="form-group-modal">
                 <label>Password</label>
                 <div className="password-input-wrapper">
                   <input
@@ -859,7 +841,7 @@ function ProfileSettings({ onClose }) {
                     value={qrPassword}
                     onChange={(e) => setQrPassword(e.target.value)}
                     placeholder="Enter your password"
-                    onKeyPress={(e) => e.key === 'Enter' && handleQRPasswordSubmit()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleQRPasswordSubmit()}
                   />
                   <button
                     type="button"
@@ -878,6 +860,7 @@ function ProfileSettings({ onClose }) {
                 <button 
                   className="confirm-btn" 
                   onClick={handleQRPasswordSubmit}
+                  disabled={!qrPassword}
                 >
                   {profileData.qrCodeData ? 'Regenerate QR Code' : 'Generate QR Code'}
                 </button>

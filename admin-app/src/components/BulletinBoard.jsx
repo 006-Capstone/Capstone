@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaBell, FaPlus, FaCalendarAlt, FaTimes, FaUpload, FaTrash, FaEllipsisV, FaEdit, FaInfoCircle } from 'react-icons/fa';
+import { FaBell, FaPlus, FaCalendarAlt, FaTimes, FaUpload, FaTrash, FaEllipsisV, FaEdit, FaInfoCircle, FaChevronDown } from 'react-icons/fa';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, setDoc, serverTimestamp, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import Notifications from './Notifications';
 import '../styles/BulletinBoard.css';
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const OFFICES = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
+const ITEMS_PER_PAGE = 5;
 
 // Featured (semestral) announcement shown in the green hero card
 const DEFAULT_HERO_TITLE = 'Announcements & Deadlines';
@@ -62,6 +64,133 @@ const formatPostedDate = (value) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+function AdminAnnouncementCard({
+  announcement,
+  canDelete,
+  onEdit,
+  onDelete,
+  openMenuId,
+  setOpenMenuId
+}) {
+  const clampRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+  const [fullHeight, setFullHeight] = useState(null);
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+
+  useEffect(() => {
+    const el = clampRef.current;
+    if (!el || !announcement.body) {
+      setCanExpand(false);
+      return undefined;
+    }
+
+    let raf = null;
+    const measure = () => {
+      if (!el) return;
+      setFullHeight(`${el.scrollHeight}px`);
+      if (!expandedRef.current) {
+        setCanExpand(el.scrollHeight > el.clientHeight + 1);
+      }
+    };
+    const measureNextFrame = () => {
+      raf = requestAnimationFrame(measure);
+    };
+
+    measure();
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(measure).catch(() => {});
+    }
+    window.addEventListener('load', measureNextFrame);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('load', measureNextFrame);
+      window.removeEventListener('resize', measure);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [announcement.body]);
+
+  const isMenuOpen = openMenuId === announcement.id;
+
+  return (
+    <div className="announcement-card">
+      {announcement.photo && (
+        <div className="announcement-image">
+          <img src={announcement.photo} alt="" className="announcement-photo" />
+        </div>
+      )}
+      <div className="announcement-details">
+        <div className="announcement-header-row">
+          <span className="announcement-office">{announcement.department}</span>
+          {canDelete && (
+            <div className="announcement-menu">
+              <button
+                type="button"
+                className="announcement-menu-trigger"
+                onClick={() => setOpenMenuId(isMenuOpen ? null : announcement.id)}
+                aria-label={`Actions for: ${announcement.title}`}
+                aria-haspopup="true"
+                aria-expanded={isMenuOpen}
+              >
+                <FaEllipsisV />
+              </button>
+              {isMenuOpen && (
+                <div className="announcement-menu-dropdown" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => onEdit(announcement)}
+                  >
+                    <FaEdit /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="danger"
+                    onClick={() => onDelete(announcement.id)}
+                  >
+                    <FaTrash /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <h4>{announcement.title}</h4>
+        {announcement.body && (
+          <div
+            ref={clampRef}
+            className={`announcement-clamp ${expanded ? 'expanded' : ''}`}
+            style={{ maxHeight: expanded ? fullHeight : 'var(--clamp-height)' }}
+          >
+            <p>{announcement.body}</p>
+          </div>
+        )}
+        {canExpand && (
+          <button
+            type="button"
+            className={`announcement-toggle ${expanded ? 'expanded' : ''}`}
+            onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
+          >
+            {expanded ? 'See less' : 'See more'}
+            <FaChevronDown className="announcement-toggle-icon" aria-hidden="true" />
+          </button>
+        )}
+        <div className="announcement-footer">
+          <span className="announcement-date">
+            Posted {formatPostedDate(announcement.createdAt) || 'recently'}
+          </span>
+          {announcement.createdBy && (
+            <span className="announcement-author">By {announcement.createdBy}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const BulletinBoard = ({ department, onViewRequest }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -82,18 +211,17 @@ const BulletinBoard = ({ department, onViewRequest }) => {
   const [dateTitle, setDateTitle] = useState('');
   const [dateMonth, setDateMonth] = useState('');
   const [dateDay, setDateDay] = useState('');
+  const [editingDate, setEditingDate] = useState(null);
 
   const [announcements, setAnnouncements] = useState([]);
   const [importantDates, setImportantDates] = useState([]);
+  const [selectedOffice, setSelectedOffice] = useState('All Offices');
+  const [currentPage, setCurrentPage] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState('');
 
-  // Featured (semestral) announcement — the big green hero card
+  // Featured (semestral) announcement — the big green hero card (read-only)
   const [hero, setHero] = useState({ title: DEFAULT_HERO_TITLE, body: DEFAULT_HERO_BODY });
-  const [showHeroModal, setShowHeroModal] = useState(false);
-  const [heroTitle, setHeroTitle] = useState('');
-  const [heroBody, setHeroBody] = useState('');
-  const [heroSaving, setHeroSaving] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -107,25 +235,20 @@ const BulletinBoard = ({ department, onViewRequest }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const resetImportantDateForm = () => {
+    setDateTitle('');
+    setDateMonth('');
+    setDateDay('');
+    setEditingDate(null);
+  };
+
   // Every modal close path goes through this so a cancelled edit never
   // leaves stale form/edit state behind.
   const closeCreateModal = () => {
     resetAnnouncementForm();
+    resetImportantDateForm();
     setShowCreateModal(false);
     setOpenMenuId(null);
-  };
-
-  const openHeroModal = () => {
-    setHeroTitle(hero.title);
-    setHeroBody(hero.body);
-    setShowHeroModal(true);
-  };
-
-  const closeHeroModal = () => {
-    setShowHeroModal(false);
-    setHeroTitle('');
-    setHeroBody('');
-    setHeroSaving(false);
   };
 
   useEffect(() => {
@@ -143,9 +266,8 @@ const BulletinBoard = ({ department, onViewRequest }) => {
       }
     );
 
-    // Important dates for THIS department. No orderBy in the query so no
-    // composite index is required — sorted client-side instead.
-    const datesQ = query(collection(db, 'importantDates'), where('office', '==', department));
+    // Important dates across offices — sorted client-side by date
+    const datesQ = query(collection(db, 'importantDates'));
     const datesUnsub = onSnapshot(
       datesQ,
       (snap) => {
@@ -216,16 +338,15 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
   // Close modals / notifications with Escape
   useEffect(() => {
-    if (!showCreateModal && !showNotifications && !showHeroModal) return undefined;
+    if (!showCreateModal && !showNotifications) return undefined;
     const handleKeyDown = (e) => {
       if (e.key !== 'Escape') return;
       if (showCreateModal) closeCreateModal();
-      if (showHeroModal) closeHeroModal();
       if (showNotifications) setShowNotifications(false);
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showCreateModal, showNotifications, showHeroModal]);
+  }, [showCreateModal, showNotifications]);
 
   // Close the ⋮ action menu on outside click / Escape
   useEffect(() => {
@@ -287,39 +408,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  /* ---------- Featured (hero) announcement ---------- */
-
-  const handleSaveHero = async () => {
-    if (!heroTitle.trim()) {
-      alert('Please enter an announcement title.');
-      return;
-    }
-    if (!heroBody.trim()) {
-      alert('Please enter announcement content.');
-      return;
-    }
-    if (!department) return;
-
-    try {
-      setHeroSaving(true);
-      const staffData = JSON.parse(localStorage.getItem('staffData'));
-      await setDoc(doc(db, 'bulletinHero', department), {
-        office: department,
-        title: heroTitle.trim(),
-        body: heroBody.trim(),
-        updatedBy: staffData?.name || 'Staff',
-        updatedAt: serverTimestamp()
-      });
-      closeHeroModal();
-    } catch (error) {
-      console.error('[Error] Error saving featured announcement:', error);
-      alert('Failed to save. Please try again.');
-    } finally {
-      setHeroSaving(false);
-    }
-  };
-
-  /* ---------- Create ---------- */
+  /* ---------- Create / Edit ---------- */
 
   const handleCreateAnnouncement = async () => {
     if (!announcementTitle.trim()) {
@@ -378,6 +467,15 @@ const BulletinBoard = ({ department, onViewRequest }) => {
     setShowCreateModal(true);
   };
 
+  const handleEditImportantDate = (deadline) => {
+    setEditingDate(deadline);
+    setDateTitle(deadline.title || '');
+    setDateMonth(deadline.month || '');
+    setDateDay(String(parseInt(deadline.day, 10) || deadline.day || ''));
+    setModalTab('importantDates');
+    setShowCreateModal(true);
+  };
+
   const handleCreateImportantDate = async () => {
     if (!dateTitle.trim()) {
       alert('Please enter a title.');
@@ -408,21 +506,32 @@ const BulletinBoard = ({ department, onViewRequest }) => {
         10
       );
 
-      await addDoc(collection(db, 'importantDates'), {
-        office: department,
-        title: dateTitle.trim(),
-        month: dateMonth,
-        day: String(dayNum).padStart(2, '0'),
-        dateValue,
-        createdBy: staffData?.name || 'Staff',
-        createdAt: serverTimestamp()
-      });
+      if (editingDate) {
+        await updateDoc(doc(db, 'importantDates', editingDate.id), {
+          office: department,
+          title: dateTitle.trim(),
+          month: dateMonth,
+          day: String(dayNum).padStart(2, '0'),
+          dateValue,
+          updatedBy: staffData?.name || 'Staff',
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await addDoc(collection(db, 'importantDates'), {
+          office: department,
+          title: dateTitle.trim(),
+          month: dateMonth,
+          day: String(dayNum).padStart(2, '0'),
+          dateValue,
+          createdBy: staffData?.name || 'Staff',
+          createdAt: serverTimestamp()
+        });
+      }
 
       closeCreateModal();
-      resetImportantDateForm();
     } catch (error) {
-      console.error('[Error] Error creating important date:', error);
-      alert('Failed to create important date. Please try again.');
+      console.error('[Error] Error saving important date:', error);
+      alert(editingDate ? 'Failed to update important date. Please try again.' : 'Failed to create important date. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -452,20 +561,18 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
   /* ---------- Form helpers ---------- */
 
-  const resetImportantDateForm = () => {
-    setDateTitle('');
-    setDateMonth('');
-    setDateDay('');
-  };
-
   const openCreateModal = () => {
     resetAnnouncementForm();
+    resetImportantDateForm();
     setModalTab('announcements');
     setShowCreateModal(true);
   };
 
   const canDeleteAnnouncement = (announcement) =>
     String(announcement.department || '').toLowerCase() === department.toLowerCase();
+
+  const canDeleteImportantDate = (deadline) =>
+    !deadline.office || String(deadline.office).toLowerCase() === String(department || '').toLowerCase();
 
   // Form validity — keeps the Confirm/Save buttons grayed out until every
   // required field is filled in (photos are optional).
@@ -491,13 +598,18 @@ const BulletinBoard = ({ department, onViewRequest }) => {
     parsedDay >= 1 &&
     parsedDay <= daysInSelectedMonth;
 
-  const isHeroValid = heroTitle.trim() !== '' && heroBody.trim() !== '';
+  const filteredAnnouncements = selectedOffice === 'All Offices'
+    ? announcements
+    : announcements.filter(a => {
+        const dept = a.department?.toLowerCase();
+        const sel = selectedOffice.toLowerCase();
+        return dept === sel;
+      });
 
-  // The hero Save button also stays grayed out until something actually
-  // differs from the currently published featured announcement.
-  const hasHeroChanges =
-    heroTitle.trim() !== (hero.title || '').trim() ||
-    heroBody.trim() !== (hero.body || '').trim();
+  const totalPages = Math.max(1, Math.ceil(filteredAnnouncements.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedAnnouncements = filteredAnnouncements.slice(startIndex, endIndex);
 
   return (
     <div className="bulletin-board-container">
@@ -525,31 +637,45 @@ const BulletinBoard = ({ department, onViewRequest }) => {
       )}
 
       <div className="hero-banner">
-        <button
-          type="button"
-          className="hero-edit-btn"
-          onClick={openHeroModal}
-          aria-label="Edit featured announcement"
-          title="Edit featured announcement"
-        >
-          <FaEdit />
-        </button>
         <div className="hero-overlay">
-          <span className="hero-kicker">{department} OFFICE</span>
+          {department && (
+            <span className="hero-kicker">{department} OFFICE</span>
+          )}
           <h2 className="hero-title">{hero.title}</h2>
           <p className="hero-subtitle">{hero.body}</p>
         </div>
       </div>
 
-      <div className="bulletin-content-grid">
-        <div className="announcements-section">
-          <h3 className="section-title">Announcements</h3>
+      <div className="announcements-header">
+        <h3>Announcements</h3>
+        <div className="office-filters">
+          {OFFICES.map((office) => (
+            <button
+              key={office}
+              type="button"
+              className={`filter-btn ${selectedOffice === office ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedOffice(office);
+                setCurrentPage(1);
+              }}
+            >
+              {office}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          {announcements.length === 0 ? (
+      <div className="bulletin-content">
+        <div className="announcements-section">
+          {filteredAnnouncements.length === 0 ? (
             <div className="bulletin-empty">
-              <p className="bulletin-empty-title">No announcements yet</p>
+              <p className="bulletin-empty-title">
+                {selectedOffice === 'All Offices'
+                  ? 'No announcements yet'
+                  : `No announcements from ${selectedOffice} yet`}
+              </p>
               <p className="bulletin-empty-text">
-                Create the first announcement to keep students informed.
+                Create an announcement to keep students informed.
               </p>
               <button className="create-announcement-btn" onClick={openCreateModal}>
                 <FaPlus />
@@ -557,94 +683,88 @@ const BulletinBoard = ({ department, onViewRequest }) => {
               </button>
             </div>
           ) : (
-            announcements.map((announcement) => (
-              <div key={announcement.id} className="announcement-card">
-                {announcement.photo && (
-                  <div className="announcement-image">
-                    <img src={announcement.photo} alt="" className="announcement-photo" />
+            <>
+              {paginatedAnnouncements.map((announcement) => (
+                <AdminAnnouncementCard
+                  key={announcement.id}
+                  announcement={announcement}
+                  canDelete={canDeleteAnnouncement(announcement)}
+                  onEdit={handleEditAnnouncement}
+                  onDelete={handleDeleteAnnouncement}
+                  openMenuId={openMenuId}
+                  setOpenMenuId={setOpenMenuId}
+                />
+              ))}
+
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Previous
+                  </button>
+                  <div className="pagination-info">
+                    Page {currentPage} of {totalPages}
                   </div>
-                )}
-                <div className="announcement-content">
-                  <div className="announcement-header-row">
-                    <span className="announcement-department">{announcement.department}</span>
-                    {canDeleteAnnouncement(announcement) && (
-                      <div className="announcement-menu">
-                        <button
-                          type="button"
-                          className="announcement-menu-trigger"
-                          onClick={() => setOpenMenuId(openMenuId === announcement.id ? null : announcement.id)}
-                          aria-label={`Actions for: ${announcement.title}`}
-                          aria-haspopup="true"
-                          aria-expanded={openMenuId === announcement.id}
-                        >
-                          <FaEllipsisV />
-                        </button>
-                        {openMenuId === announcement.id && (
-                          <div className="announcement-menu-dropdown" role="menu">
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => handleEditAnnouncement(announcement)}
-                            >
-                              <FaEdit /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className="danger"
-                              onClick={() => handleDeleteAnnouncement(announcement.id)}
-                            >
-                              <FaTrash /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <h4 className="announcement-title">{announcement.title}</h4>
-                  <p className="announcement-description">{announcement.body}</p>
-                  <p className="announcement-meta">
-                    <span>Posted {formatPostedDate(announcement.createdAt) || 'recently'}</span>
-                    <span className="announcement-author">By {announcement.createdBy}</span>
-                  </p>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next →
+                  </button>
                 </div>
-              </div>
-            ))
+              )}
+            </>
           )}
         </div>
 
         <div className="deadlines-section">
           <div className="deadlines-header">
-            <FaCalendarAlt className="calendar-icon" />
-            <h3 className="deadlines-title">Important Deadlines</h3>
+            <span>📅</span>
+            <h3>Important Deadlines</h3>
           </div>
 
           <div className="deadlines-list">
             {importantDates.length === 0 ? (
-              <div className="bulletin-empty bulletin-empty--compact">
-                <p className="bulletin-empty-title">No important dates yet</p>
-                <p className="bulletin-empty-text">Add deadlines so students don't miss them.</p>
+              <div className="empty-state-small">
+                <p>No upcoming deadlines</p>
               </div>
             ) : (
               importantDates.map((deadline) => (
                 <div key={deadline.id} className="deadline-item">
                   <div className="deadline-date">
-                    <span className="deadline-month">{deadline.month}</span>
-                    <span className="deadline-day">{parseInt(deadline.day, 10) || deadline.day}</span>
+                    <div className="month">{deadline.month}</div>
+                    <div className="day">{parseInt(deadline.day, 10) || deadline.day}</div>
                   </div>
-                  <div className="deadline-info">
-                    <p className="deadline-title">{deadline.title}</p>
-                    <p className="deadline-office">{deadline.office}</p>
+                  <div className="deadline-details">
+                    <div className="deadline-title">{deadline.title}</div>
+                    <div className="deadline-office">{deadline.office}</div>
                   </div>
-                  <button
-                    type="button"
-                    className="delete-deadline-btn"
-                    onClick={() => handleDeleteImportantDate(deadline.id)}
-                    aria-label={`Delete deadline: ${deadline.title}`}
-                    title="Delete deadline"
-                  >
-                    <FaTrash />
-                  </button>
+                  <div className="deadline-actions">
+                    <button
+                      type="button"
+                      className="edit-deadline-btn"
+                      onClick={() => handleEditImportantDate(deadline)}
+                      aria-label={`Edit deadline: ${deadline.title}`}
+                      title="Edit deadline"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      type="button"
+                      className="delete-deadline-btn"
+                      onClick={() => handleDeleteImportantDate(deadline.id)}
+                      aria-label={`Delete deadline: ${deadline.title}`}
+                      title="Delete deadline"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -784,7 +904,9 @@ const BulletinBoard = ({ department, onViewRequest }) => {
                 </div>
               ) : (
                 <div className="important-date-form">
-                  <h3 className="modal-title" id="bulletin-modal-title">Add Important Date</h3>
+                  <h3 className="modal-title" id="bulletin-modal-title">
+                    {editingDate ? 'Edit Important Date' : 'Add Important Date'}
+                  </h3>
 
                   <div className="form-group">
                     <label htmlFor="date-title">Title</label>
@@ -840,84 +962,13 @@ const BulletinBoard = ({ department, onViewRequest }) => {
                       title={!isImportantDateValid ? 'Fill in the title, month, and day to enable saving' : undefined}
                     >
                       {submitting && <span className="btn-spinner"></span>}
-                      {submitting ? 'Adding...' : 'Confirm'}
+                      {submitting
+                        ? (editingDate ? 'Saving...' : 'Adding...')
+                        : (editingDate ? 'Save Changes' : 'Confirm')}
                     </button>
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Featured announcement edit modal */}
-      {showHeroModal && (
-        <div className="modal-overlay" onClick={closeHeroModal}>
-          <div
-            className="hero-edit-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="hero-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button className="modal-close-btn" onClick={closeHeroModal} aria-label="Close dialog">
-              <FaTimes />
-            </button>
-
-            <h3 className="modal-title" id="hero-modal-title">Edit Featured Announcement</h3>
-
-            <div className="hero-disclaimer" role="note">
-              <FaInfoCircle className="hero-disclaimer-icon" aria-hidden="true" />
-              <p>
-                Only <strong>semestral announcements</strong> should be placed in this featured
-                card. Use the regular announcements below for short-lived notices.
-              </p>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="hero-title">Announcement Title</label>
-              <input
-                id="hero-title"
-                type="text"
-                value={heroTitle}
-                onChange={(e) => setHeroTitle(e.target.value)}
-                maxLength={60}
-                placeholder="e.g., Final Listing for 2nd Semester"
-                className="form-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="hero-body">Announcement Body</label>
-              <textarea
-                id="hero-body"
-                value={heroBody}
-                onChange={(e) => setHeroBody(e.target.value)}
-                rows={5}
-                placeholder="Describe the semestral announcement..."
-                className="form-textarea"
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button className="cancel-btn" onClick={closeHeroModal}>
-                Cancel
-              </button>
-              <button
-                className="confirm-btn"
-                onClick={handleSaveHero}
-                disabled={heroSaving || !isHeroValid || !hasHeroChanges}
-                title={
-                  !isHeroValid
-                    ? 'Fill in the title and body to enable saving'
-                    : !hasHeroChanges
-                      ? 'Make a change to enable saving'
-                      : undefined
-                }
-              >
-                {heroSaving && <span className="btn-spinner"></span>}
-                {heroSaving ? 'Saving...' : 'Save'}
-              </button>
             </div>
           </div>
         </div>

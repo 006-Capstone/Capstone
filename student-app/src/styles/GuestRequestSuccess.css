@@ -1,286 +1,273 @@
-/* Guest Request Success Page - Clean Layout */
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  height: 100%;
-  overflow: hidden;
-}
-
-#root {
-  height: 100%;
-}
+/* ==========================================================================
+   GUEST REQUEST SUCCESS — confirmation & ticket download screen
+   ========================================================================== */
 
 .guest-success-page {
   height: 100vh;
-  background-color: #f5f5f5;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  height: 100dvh;
+  background-color: var(--color-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* ========== Header ========== */
-.success-header {
-  background: white;
-  padding: 16px 40px;
+.guest-success-header {
+  background: var(--color-surface);
+  padding: 0 var(--content-padding);
+  height: var(--header-height);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-xs);
   flex-shrink: 0;
 }
 
-.header-left {
+.guest-success-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
-.header-logo {
-  width: 45px;
-  height: 45px;
-  object-fit: contain;
-}
-
-.header-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.header-right {
+.guest-success-header-right {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
+  align-items: center;
 }
 
-.btn-secondary,
-.btn-primary {
+.guest-header-btn-secondary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s;
-  border: none;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
 }
 
-.btn-secondary {
-  background: white;
-  color: #333;
-  border: 1px solid #d0d0d0;
+.guest-header-btn-secondary:hover {
+  background-color: var(--sage-50);
+  border-color: var(--sage-300);
+  color: var(--color-primary);
 }
 
-.btn-secondary:hover {
-  background: #f5f5f5;
+.guest-header-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(16, 94, 6, 0.25);
+  transition: all var(--transition-fast);
 }
 
-.btn-primary {
-  background: #4CAF50;
-  color: white;
+.guest-header-btn-primary:hover {
+  background: linear-gradient(135deg, var(--green-750) 0%, var(--green-850) 100%);
+  transform: translateY(-1px);
 }
 
-.btn-primary:hover {
-  background: #45a049;
+.guest-header-btn-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--red-50);
+  color: var(--red-600);
+  border: 1px solid var(--red-100);
+  transition: all var(--transition-fast);
 }
 
-/* ========== Main Content ========== */
-.success-main {
+.guest-header-btn-logout:hover {
+  background: var(--red-500);
+  color: #ffffff;
+}
+
+.guest-success-main {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
-  padding: 40px 20px 60px;
+  padding: var(--space-8) var(--space-4);
+  display: flex;
+  justify-content: center;
 }
 
-.success-card {
-  max-width: 800px;
+.guest-success-card {
+  max-width: 720px;
+  width: 100%;
   margin: 0 auto;
-  background: white;
-  border-radius: 12px;
-  padding: 50px 40px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-soft);
   text-align: center;
 }
 
-.check-icon {
-  font-size: 70px;
-  color: #4CAF50;
-  margin-bottom: 20px;
+.guest-success-check-icon {
+  font-size: 56px;
+  color: var(--green-600);
+  background: var(--green-50);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+  border: 2px solid var(--green-200);
+  box-shadow: var(--shadow-sm);
 }
 
-.success-heading {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0 0 20px 0;
+.guest-success-heading {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-3) 0;
+  letter-spacing: -0.02em;
 }
 
-.success-info {
-  background: #e8f5e9;
-  border-radius: 8px;
-  padding: 20px;
-  margin: 0 auto 40px;
-  max-width: 650px;
+.guest-success-info-box {
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  margin: 0 auto var(--space-6);
+  max-width: 600px;
 }
 
-.success-info p {
-  font-size: 15px;
-  color: #555;
-  line-height: 1.7;
-  margin: 0 0 10px 0;
+.guest-success-info-para {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0 0 6px 0;
 }
 
-.success-info p:last-child {
+.guest-success-info-para:last-child {
   margin-bottom: 0;
 }
 
-.success-info strong {
-  color: #1a1a1a;
-  font-weight: 600;
+.guest-success-details-box {
+  background: var(--gray-50);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin: 0 auto var(--space-6);
+  max-width: 600px;
+  text-align: left;
 }
 
-/* ========== Details Box ========== */
-.details-box {
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  padding: 30px;
-  margin: 0 auto 30px;
-  max-width: 650px;
+.guest-success-details-heading {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--space-4) 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-divider);
 }
 
-.details-heading {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0 0 24px 0;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.details-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.detail-item {
+.guest-success-detail-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid #e5e5e5;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--gray-200);
 }
 
-.detail-item:last-child {
+.guest-success-detail-item:last-child {
   border-bottom: none;
 }
 
-.detail-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #666;
-  letter-spacing: 0.5px;
+.guest-success-detail-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.detail-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1a1a;
+.guest-success-detail-value {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
-/* ========== Action Buttons ========== */
-.action-buttons {
+.guest-success-actions {
   display: flex;
-  gap: 12px;
-  max-width: 650px;
+  gap: var(--space-3);
+  max-width: 600px;
   margin: 0 auto;
 }
 
-.btn-download,
-.btn-submit-another {
+.guest-success-btn-download {
   flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 24px;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 6px;
+  padding: 12px 20px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s;
-  border: none;
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(16, 94, 6, 0.25);
+  transition: all var(--transition-fast);
 }
 
-.btn-download {
-  background: #4CAF50;
-  color: white;
-}
-
-.btn-download:hover {
-  background: #45a049;
+.guest-success-btn-download:hover {
+  background: linear-gradient(135deg, var(--green-750) 0%, var(--green-850) 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
 }
 
-.btn-submit-another {
-  background: white;
-  color: #4CAF50;
-  border: 2px solid #4CAF50;
+.guest-success-btn-another {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+  box-shadow: var(--shadow-xs);
+  transition: all var(--transition-fast);
 }
 
-.btn-submit-another:hover {
-  background: #f0f7f0;
+.guest-success-btn-another:hover {
+  background: var(--sage-50);
+  transform: translateY(-1px);
 }
 
-/* ========== Responsive ========== */
 @media (max-width: 768px) {
-  .success-header {
+  .guest-success-header-right {
+    flex-wrap: wrap;
+  }
+
+  .guest-success-actions {
     flex-direction: column;
-    gap: 12px;
-    padding: 16px 20px;
-  }
-
-  .header-right {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .btn-secondary,
-  .btn-primary {
-    font-size: 12px;
-    padding: 8px 12px;
-  }
-
-  .success-card {
-    padding: 30px 20px;
-  }
-
-  .success-heading {
-    font-size: 24px;
-  }
-
-  .detail-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-  }
-
-  .btn-download,
-  .btn-submit-another {
-    width: 100%;
   }
 }

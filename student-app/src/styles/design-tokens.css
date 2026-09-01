@@ -2,113 +2,137 @@
    DESIGN TOKENS — Academia De San Jose Student Portal
    --------------------------------------------------------------------------
    Single source of truth for colors, spacing, radius, shadows, typography,
-   and motion. All values are derived from the Figma design exports in
-   /Capstone Figma/Student. Pages should reference these tokens instead of
-   hard-coded values.
+   and motion. Built for high-polish, human-crafted aesthetics.
    ========================================================================== */
 
 :root {
-  /* ---- Brand palette (Figma: forest green + sage) ---- */
-  --green-950: #083a03;
-  --green-900: #0d4a05; /* primary hover / pressed */
-  --green-800: #105e06; /* primary */
+  /* ---- Brand palette (Academia De San Jose: Forest Green + Warm Sage) ---- */
+  --green-950: #072a04;
+  --green-900: #0d4a05; /* Deep brand forest */
+  --green-850: #0e5406;
+  --green-800: #105e06; /* Primary brand */
+  --green-750: #156d09;
   --green-700: #1a7a0e;
   --green-600: #2d8a1f;
   --green-500: #3f9c31;
-  --sage-500:  #8cb986; /* accent */
-  --sage-600:  #5a8a52; /* deeper sage — hero gradient end (matches admin bulletin card) */
+  --green-400: #5cb34e;
+  --green-300: #81ca74;
+  --green-200: #aee0a4;
+  --green-100: #d6f2ce;
+  --green-50:  #f0f9ee;
+
+  /* ---- Warm Sage Accents ---- */
+  --sage-700:  #436d3c;
+  --sage-600:  #5a8a52; /* Deep sage */
+  --sage-500:  #8cb986; /* Primary accent */
   --sage-400:  #a3c99e;
   --sage-300:  #c2d9be;
   --sage-200:  #dce9da;
-  --sage-100:  #e1e7df; /* soft accent background */
-  --sage-50:   #f0f7f0; /* hover tint */
+  --sage-100:  #eaf2e8; /* Soft panel fill */
+  --sage-50:   #f4f8f3; /* Subtle hover tint */
 
-  /* ---- Neutrals (warm-tinted to match Figma canvas) ---- */
-  --gray-50:   #f0eeee; /* warm page background (Figma canvas) */
-  --gray-45:   #e8e8e8; /* warm panel fill */
-  --gray-100:  #f4f2f0; /* warm hover / row fill */
-  --gray-200:  #eeebea; /* warm soft fill */
-  --gray-300:  #e0dcd9; /* warm borders */
-  --gray-400:  #cfcac6;
-  --gray-500:  #999999; /* faint text */
-  --gray-600:  #666666; /* muted text */
-  --gray-700:  #444444;
-  --gray-800:  #333333; /* body text */
-  --gray-900:  #1a1a1a; /* headings */
+  /* ---- Neutrals (Warm Stone & Porcelain) ---- */
+  --gray-950:  #0f1210;
+  --gray-900:  #181b18; /* Headings */
+  --gray-800:  #2d322c; /* Body text */
+  --gray-700:  #424841; /* Secondary text */
+  --gray-600:  #5d645c; /* Muted text */
+  --gray-500:  #7d857c; /* Subtle icons/text */
+  --gray-400:  #a1a8a0; /* Faint borders */
+  --gray-300:  #cbd0ca; /* Light borders */
+  --gray-200:  #e3e6e2; /* Delicate lines */
+  --gray-100:  #f0f2ef; /* Soft row fill */
+  --gray-50:   #f8f9f7; /* Warm canvas background */
+  --gray-45:   #edebe8;
 
-  /* ---- Status colors (Figma status badges) ---- */
-  --red-500:   #dc3545; /* danger */
-  --red-400:   #ef5350; /* light danger / badge dot */
-  --red-100:   #ffebee;
-  --red-700:   #c62828;
-  --yellow-500:#ffc107;
-  --yellow-100:#fff3cd; /* in-process badge bg */
-  --yellow-800:#856404; /* in-process badge text */
-  --yellow-50: #fff9e6; /* active stat card icon bg */
-  --yellow-600: #d4a106; /* active stat card icon */
-  --purple-100:#e8e8f5; /* pending badge bg */
-  --purple-800:#4a4a9e; /* pending badge text */
-  --green-success: #28a745;
+  /* ---- Status Colors & Tokens (Standardized System-Wide) ---- */
+  --status-pending-bg:     #e0e7ff;
+  --status-pending-text:   #3730a3;
+  --status-pending-border: #c7d2fe;
+  --status-pending-dot:    #4f46e5;
+  
+  --status-inprocess-bg:     #fef9c3;
+  --status-inprocess-text:   #854d0e;
+  --status-inprocess-border: #fde047;
+  --status-inprocess-dot:    #ca8a04;
+  
+  --status-resolved-bg:     #dcfce7;
+  --status-resolved-text:   #14532d;
+  --status-resolved-border: #86efac;
+  --status-resolved-dot:    #16a34a;
+  
+  --status-cancelled-bg:     #fee2e2;
+  --status-cancelled-text:   #991b1b;
+  --status-cancelled-border: #fca5a5;
+  --status-cancelled-dot:    #dc2626;
 
-  /* ---- Status badges (Figma ticket-details exports) ---- */
-  --badge-pending-bg:     #d5d1eb;
-  --badge-pending-text:   #06125e;
-  --badge-inprocess-bg:   #f7f0bb;
-  --badge-inprocess-text: #6b5b06;
-  --badge-resolved-bg:    #99d191;
-  --badge-resolved-text:  #06125e;
+  --status-returned-bg:     #ffedd5;
+  --status-returned-text:   #9a3412;
+  --status-returned-border: #fdba74;
+  --status-returned-dot:    #ea580c;
 
-  /* ---- Figma-specific greens ---- */
-  --green-btn:      #3c7735; /* primary action buttons (Figma feedback/guest) */
-  --green-btn-hover:#336b2e;
-  --green-deadline: #427e39; /* bulletin deadline blocks */
-  --green-bright:   #0f9100; /* timeline complete accent */
-  --sage-hero:      #9dbb9a; /* bulletin hero banner */
-  --sage-hero-deep: #7b9979;
-  --sage-hero-text: #2e4b2a; /* dark green text on sage banners */
-  --sage-ink:       #3c4f38; /* dark sage text on sage-100 fills */
-  --faq-accent:     #ace0a4; /* FAQ item fill */
+  --red-500:   #dc2626;
+  --red-600:   #b91c1c;
+  --red-100:   #fee2e2;
+  --red-50:    #fef2f2;
+  --yellow-500:#eab308;
+  --yellow-600:#ca8a04;
+  --yellow-100:#fef9c3;
+  --yellow-50: #fefce8;
+  --purple-500:#6366f1;
+  --purple-100:#e0e7ff;
+  --blue-500:  #0284c7;
+  --blue-100:  #e0f2fe;
 
-  /* ---- Semantic aliases ---- */
+  /* ---- Semantic Aliases ---- */
   --color-primary: var(--green-800);
   --color-primary-hover: var(--green-900);
+  --color-primary-active: var(--green-950);
+  --color-primary-light: var(--green-50);
   --color-accent: var(--sage-500);
   --color-accent-hover: #7aa876;
   --color-accent-soft: var(--sage-100);
   --color-bg: var(--gray-50);
   --color-surface: #ffffff;
-  --color-surface-warm: #fbfaf9;
-  --color-shell: #f4f4f4; /* sidebar + top-header: neutral shade of white
-                              (kept clearly distinct from the pure-white bell circle) */
+  --color-surface-warm: #fcfbfa;
+  --color-surface-subtle: var(--gray-100);
+  --color-shell: #ffffff;
   --color-text: var(--gray-900);
   --color-text-body: var(--gray-800);
+  --color-text-secondary: var(--gray-700);
   --color-text-muted: var(--gray-600);
   --color-text-faint: var(--gray-500);
-  --color-border: var(--gray-300);
-  --color-border-soft: var(--gray-200);
-  --color-divider: #dedede; /* Figma panel divider */
+  --color-border: var(--gray-200);
+  --color-border-soft: #eaede8;
+  --color-border-hover: var(--gray-300);
+  --color-divider: #e6e9e4;
   --color-danger: var(--red-500);
-  --color-danger-hover: #c82333;
-  --color-star-empty: #b3b3b3; /* empty rating star (Figma feedback) */
+  --color-danger-hover: var(--red-600);
+  --color-star-empty: #d1d5db;
+  --green-btn: var(--green-800);
+  --green-btn-hover: var(--green-900);
+  --green-bright: #16a34a;
 
   /* ---- Typography ---- */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
+  --font-size-2xs: 11px;
   --font-size-xs: 12px;
   --font-size-sm: 13px;
   --font-size-base: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 18px;
-  --font-size-xl: 24px;
-  --font-size-2xl: 28px;
+  --font-size-md: 15px;
+  --font-size-lg: 17px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 26px;
   --font-size-3xl: 32px;
-  --font-size-4xl: 42px;
+  --font-size-4xl: 40px;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
 
-  /* ---- Spacing (4px scale) ---- */
+  /* ---- Spacing (4px grid) ---- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -122,25 +146,33 @@
   --space-16: 64px;
 
   /* ---- Radius ---- */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-pill: 999px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 9999px;
 
-  /* ---- Shadows ---- */
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+  /* ---- Multi-layer Crafted Shadows ---- */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 16, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 16, 0.05), 0 1px 2px rgba(15, 23, 16, 0.03);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 16, 0.06), 0 2px 4px -1px rgba(15, 23, 16, 0.03);
+  --shadow-lg: 0 12px 28px -4px rgba(15, 23, 16, 0.09), 0 4px 8px -2px rgba(15, 23, 16, 0.04);
+  --shadow-xl: 0 20px 48px -8px rgba(15, 23, 16, 0.14), 0 8px 16px -4px rgba(15, 23, 16, 0.05);
+  --shadow-glow-primary: 0 0 0 3px rgba(16, 94, 6, 0.15);
+  --shadow-card-hover: 0 8px 24px -4px rgba(16, 94, 6, 0.1), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
 
-  /* ---- Motion ---- */
-  --transition-fast: 0.15s ease;
-  --transition-base: 0.2s ease;
-  --transition-slow: 0.3s ease;
+  /* ---- Motion / Easing ---- */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.15s var(--ease-spring);
+  --transition-base: 0.22s var(--ease-spring);
+  --transition-slow: 0.35s var(--ease-spring);
 
-  /* ---- Layout shell (Figma: sidebar ~280px, header ~76px @1440) ---- */
-  --sidebar-width: 272px;
-  --header-height: 76px;
-  --content-padding: clamp(20px, 4vw, 50px);
+  /* ---- Layout Shell ---- */
+  --sidebar-width: 276px;
+  --header-height: 72px;
+  --content-padding: clamp(20px, 3.5vw, 44px);
 
   /* ---- Breakpoints ---- */
   --bp-sm: 640px;
@@ -171,10 +203,11 @@ body {
   font-size: var(--font-size-base);
   color: var(--color-text-body);
   background-color: var(--color-bg);
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden; /* app shell manages its own scrolling */
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
 }
 
 img,
@@ -188,6 +221,8 @@ button {
   font-family: inherit;
   font-size: inherit;
   cursor: pointer;
+  border: none;
+  background: none;
 }
 
 input,
@@ -199,28 +234,30 @@ textarea {
 
 h1, h2, h3, h4, h5, h6 {
   color: var(--color-text);
-  line-height: 1.2;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
 }
 
 a {
   color: var(--color-primary);
+  text-decoration: none;
 }
 
 /* ==========================================================================
-   ACCESSIBILITY
+   ACCESSIBILITY & FOCUS
    ========================================================================== */
 
-/* Visible keyboard focus everywhere (no focus rings on mouse clicks) */
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+  border-radius: var(--radius-xs);
 }
 
 :focus:not(:focus-visible) {
   outline: none;
 }
 
-/* Skip link — first tab stop in the app */
 .skip-link {
   position: fixed;
   top: -100px;
@@ -228,18 +265,18 @@ a {
   z-index: 10000;
   padding: var(--space-2) var(--space-4);
   background: var(--color-primary);
-  color: #fff;
+  color: #ffffff;
   border-radius: var(--radius-sm);
   font-weight: var(--font-weight-semibold);
-  text-decoration: none;
+  font-size: var(--font-size-sm);
+  box-shadow: var(--shadow-md);
   transition: top var(--transition-fast);
 }
 
 .skip-link:focus {
-  top: var(--space-2);
+  top: var(--space-3);
 }
 
-/* Screen-reader-only helper */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -253,12 +290,12 @@ a {
 }
 
 /* ==========================================================================
-   SCROLLBARS
+   SCROLLBARS & SELECTION
    ========================================================================== */
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -268,15 +305,17 @@ a {
 ::-webkit-scrollbar-thumb {
   background: var(--gray-300);
   border-radius: var(--radius-pill);
+  transition: background var(--transition-fast);
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gray-400);
 }
 
-/* ==========================================================================
-   SHARED UTILITIES (used by the shell; page components migrate here over time)
-   ========================================================================== */
+::selection {
+  background-color: var(--green-100);
+  color: var(--green-950);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -285,5 +324,6 @@ a {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

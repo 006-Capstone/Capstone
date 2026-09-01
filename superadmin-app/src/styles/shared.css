@@ -31,10 +31,10 @@
 
 /* ---- Cards ---- */
 .card {
-  background-color: var(--color-surface);
-  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
   overflow: hidden;
 }
 
@@ -77,7 +77,7 @@
   padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--green-btn);
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 2px 6px rgba(16, 94, 6, 0.25);
   color: #fff;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
@@ -89,9 +89,9 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--green-btn-hover);
+  background: linear-gradient(135deg, var(--green-750) 0%, var(--green-850) 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(60, 119, 53, 0.32);
+  box-shadow: 0 4px 12px rgba(16, 94, 6, 0.35);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -157,22 +157,22 @@
 
 .data-table thead th {
   text-align: left;
-  padding: var(--space-4);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--sage-ink);
+  padding: 14px 20px;
+  background-color: var(--gray-50);
+  font-size: var(--font-size-2xs, 11px);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary, var(--gray-500));
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.06em;
   border-bottom: 1px solid var(--color-divider);
-  background-color: var(--sage-100);
   white-space: nowrap;
 }
 
 .data-table tbody td {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--gray-100);
-  font-size: var(--font-size-base);
+  padding: 14px 20px;
+  font-size: var(--font-size-sm);
   color: var(--color-text-body);
+  border-bottom: 1px solid var(--color-divider);
   vertical-align: middle;
 }
 
@@ -188,45 +188,48 @@
   border-bottom: none;
 }
 
-/* ---- Status badges (Figma status colors) ---- */
+/* ---- Status badges (Admin App Style) ---- */
 .status {
-  display: inline-block;
-  padding: 5px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
   border-radius: var(--radius-pill);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
+  border: 1px solid transparent;
 }
 
-.status-active {
-  background-color: var(--sage-100);
-  color: var(--color-primary);
+.status-active, .status-resolved {
+  background-color: var(--status-resolved-bg, #ecfdf5);
+  color: var(--status-resolved-text, #059669);
+  border-color: var(--status-resolved-border, #a7f3d0);
 }
 
-.status-suspended {
-  background-color: var(--red-100);
-  color: var(--red-700);
+.status-suspended, .status-cancelled {
+  background-color: var(--status-cancelled-bg, #fef2f2);
+  color: var(--status-cancelled-text, #dc2626);
+  border-color: var(--status-cancelled-border, #fecaca);
 }
 
 .status-pending {
-  background-color: var(--purple-100);
-  color: var(--purple-800);
+  background-color: var(--status-pending-bg, #eff6ff);
+  color: var(--status-pending-text, #2563eb);
+  border-color: var(--status-pending-border, #bfdbfe);
 }
 
 .status-in-process {
-  background-color: var(--yellow-100);
-  color: var(--yellow-800);
+  background-color: var(--status-inprocess-bg, #fffbeb);
+  color: var(--status-inprocess-text, #d97706);
+  border-color: var(--status-inprocess-border, #fde68a);
 }
 
-.status-resolved {
-  background-color: var(--sage-100);
-  color: var(--color-primary);
-}
-
-.status-cancelled {
-  background-color: var(--red-100);
-  color: var(--red-700);
+.status-archived {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border-color: #d1d5db;
 }
 
 /* ---- Empty & error states ---- */
@@ -491,7 +494,7 @@
   padding: var(--space-2) var(--space-4);
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--green-btn);
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 2px 6px rgba(16, 94, 6, 0.25);
   color: #fff;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
@@ -501,7 +504,7 @@
 }
 
 .filter-apply-btn:hover:not(:disabled) {
-  background-color: var(--green-btn-hover);
+  background-color: var(--green-800);
   transform: translateY(-1px);
 }
 

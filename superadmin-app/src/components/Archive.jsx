@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaDownload, FaUndo } from 'react-icons/fa';
+import { FaPlus, FaDownload, FaUndo, FaExclamationTriangle } from 'react-icons/fa';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import NotificationBell from './NotificationBell';
 import LoadingSpinner from './LoadingSpinner';
+import Toast from './Toast';
 import '../styles/Archive.css';
 
-const Archive = () => {
+const Archive = ({ isEmbedded = false }) => {
   const [archivedAccounts, setArchivedAccounts] = useState([]);
   const [archivedRequests, setArchivedRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,8 @@ const Archive = () => {
   const [selectAll, setSelectAll] = useState(false);
   const [unarchiving, setUnarchiving] = useState(false);
   const [expandedAccountId, setExpandedAccountId] = useState(null); // Track which account is expanded
+  const [showConfirmUnarchive, setShowConfirmUnarchive] = useState(false);
+  const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
   const PAGE_SIZE = 10;
 
   // Load archived accounts and requests from Firestore
@@ -99,29 +102,25 @@ const Archive = () => {
                   formattedArchivedAt = data.archivedAt;
                 }
               }
-            } catch (err) {
-              console.error('[Warning] Failed to format archivedAt:', err);
-            }
-            
-            try {
+              
               if (data.createdAt) {
                 if (typeof data.createdAt.toDate === 'function') {
-                  formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric' 
+                  formattedCreatedAt = data.createdAt.toDate().toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
                   });
                 } else if (typeof data.createdAt === 'string') {
                   formattedCreatedAt = data.createdAt;
                 }
               }
             } catch (err) {
-              console.error('[Warning] Failed to format createdAt:', err);
+              console.error('[Warning] Failed to format dates:', err);
             }
             
             return {
-              firestoreId: doc.id,
               ...data,
+              firestoreId: doc.id,
               archivedAt: formattedArchivedAt,
               createdAt: formattedCreatedAt
             };
@@ -142,8 +141,8 @@ const Archive = () => {
     const unsubscribeRequests = loadArchivedRequests();
     
     return () => {
-      if (unsubscribeAccounts) unsubscribeAccounts();
-      if (unsubscribeRequests) unsubscribeRequests();
+      if (typeof unsubscribeAccounts === 'function') unsubscribeAccounts();
+      if (typeof unsubscribeRequests === 'function') unsubscribeRequests();
     };
   }, []);
 
@@ -185,26 +184,24 @@ const Archive = () => {
   };
 
   // Unarchive selected accounts
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 4000);
+  };
+
+  const requestUnarchive = () => {
+    const accountsToRestore = archivedAccounts.filter(a => selectedAccounts.includes(a.firestoreId));
+    if (accountsToRestore.length === 0) {
+      showToast('Please select accounts to unarchive', 'error');
+      return;
+    }
+    setShowConfirmUnarchive(true);
+  };
+
   const handleUnarchive = async () => {
     const accountsToRestore = archivedAccounts.filter(a => selectedAccounts.includes(a.firestoreId));
-    
-    if (accountsToRestore.length === 0) {
-      alert('Please select accounts to unarchive');
-      return;
-    }
 
-    const studentCount = accountsToRestore.filter(a => a.accountType === 'student').length;
-    const staffCount = accountsToRestore.filter(a => a.accountType === 'staff').length;
-    
-    const confirmMessage = `Are you sure you want to unarchive ${accountsToRestore.length} account(s)?\n\n` +
-      (studentCount > 0 ? `- ${studentCount} student(s) and their requests will be restored\n` : '') +
-      (staffCount > 0 ? `- ${staffCount} staff member(s) will be restored\n` : '') +
-      `\nRestored accounts will require a password reset for security.`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
+    setShowConfirmUnarchive(false);
     setUnarchiving(true);
     try {
       const currentUser = auth.currentUser;
@@ -248,49 +245,25 @@ const Archive = () => {
               restoredAt: serverTimestamp(),
               restoredBy: restoredBy
             });
+            console.log(`[Success] Restored request ${requestData.requestId}`);
             
-            // Delete from archived requests
+            // Delete request from archive
             await deleteDoc(doc(db, 'archivedRequests', requestDoc.id));
           }
         }
 
-        // Delete ALL archived copies with matching UID (in case of duplicates)
-        const archivedAccountsQuery = query(
-          collection(db, 'archivedAccounts'),
-          where('uid', '==', accountData.uid)
-        );
-        
-        const archivedAccountsSnapshot = await getDocs(archivedAccountsQuery);
-        console.log(`[Unarchive] Found ${archivedAccountsSnapshot.size} archived account(s) for ${accountData.name}`);
-        
-        for (const archivedDoc of archivedAccountsSnapshot.docs) {
-          await deleteDoc(doc(db, 'archivedAccounts', archivedDoc.id));
-          console.log(`[Success] Deleted account ${accountData.name} (${archivedDoc.id}) from archive`);
-        }
+        // Delete account from archive
+        await deleteDoc(doc(db, 'archivedAccounts', firestoreId));
+        console.log(`[Success] Deleted ${accountType} ${accountData.name} from archive`);
       }
 
-      // Wait for Firestore real-time listeners to update
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const message = studentCount > 0 && staffCount > 0
-        ? `Successfully unarchived ${studentCount} student(s) with their requests and ${staffCount} staff member(s)`
-        : studentCount > 0
-        ? `Successfully unarchived ${studentCount} student(s) and their related requests`
-        : `Successfully unarchived ${staffCount} staff member(s)`;
-      
-      console.log('[Success] Unarchive complete:', message);
-      alert(message + '\n\nRestored accounts will require password reset on next login.');
+      showToast(`Successfully restored ${accountsToRestore.length} account(s).`);
       setSelectedAccounts([]);
       setSelectAll(false);
       setExpandedAccountId(null); // Close any expanded rows
     } catch (error) {
-      console.error('[Error] unarchiving accounts:', error);
-      console.error('[Error details]:', error.message, error.code);
-      if (error.code === 'permission-denied') {
-        alert('Permission denied. Unable to delete from archive. Please check Firestore security rules.');
-      } else {
-        alert('Failed to unarchive accounts: ' + error.message);
-      }
+      console.error('[Error] during unarchive:', error);
+      showToast('An error occurred while unarchiving. Please try again.', 'error');
     } finally {
       setUnarchiving(false);
     }
@@ -307,7 +280,7 @@ const Archive = () => {
   };
   const exportToCSV = () => {
     if (filteredAccounts.length === 0) {
-      alert('No data to export');
+      showToast('No data to export', 'error');
       return;
     }
 
@@ -344,15 +317,33 @@ const Archive = () => {
   };
 
   return (
-    <div className="superadmin-page archive-container">
-      <div className="page-header">
-        <div>
-          <h1 className="archive-title">Archive</h1>
-          <p className="page-subtitle">View archived accounts and their requests</p>
+    <div className={isEmbedded ? "archive-container" : "superadmin-page archive-container"}>
+      {!isEmbedded && (
+        <div className="page-header">
+          <div>
+            <h1 className="archive-title">Archive</h1>
+            <p className="page-subtitle">View archived accounts and their requests</p>
+          </div>
+          <div className="header-actions">
+            {selectedAccounts.length > 0 && (
+              <button className="btn-unarchive" onClick={requestUnarchive} disabled={unarchiving}>
+                <FaUndo aria-hidden="true" />
+                Unarchive ({selectedAccounts.length})
+              </button>
+            )}
+            <button className="btn-export" onClick={exportToCSV} disabled={filteredAccounts.length === 0}>
+              <FaDownload aria-hidden="true" />
+              Export to CSV
+            </button>
+            <NotificationBell />
+          </div>
         </div>
-        <div className="header-actions">
+      )}
+
+      {isEmbedded && (
+        <div className="archive-embedded-actions">
           {selectedAccounts.length > 0 && (
-            <button className="btn-unarchive" onClick={handleUnarchive} disabled={unarchiving}>
+            <button className="btn-unarchive" onClick={requestUnarchive} disabled={unarchiving}>
               <FaUndo aria-hidden="true" />
               Unarchive ({selectedAccounts.length})
             </button>
@@ -361,9 +352,8 @@ const Archive = () => {
             <FaDownload aria-hidden="true" />
             Export to CSV
           </button>
-          <NotificationBell />
         </div>
-      </div>
+      )}
 
       {/* Filter Buttons */}
       <div className="archive-filters-row">
@@ -542,6 +532,51 @@ const Archive = () => {
           </>
         )}
       </div>
+
+      {showConfirmUnarchive && (
+        <div className="archive-modal-backdrop" onClick={() => setShowConfirmUnarchive(false)}>
+          <div
+            className="archive-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm unarchive"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FaExclamationTriangle className="archive-confirm-icon" aria-hidden="true" />
+            <h3 className="archive-confirm-title">Unarchive accounts</h3>
+            <p className="archive-confirm-message">
+              Are you sure you want to unarchive {selectedAccounts.length} account(s)?
+              Restored accounts will require a password reset for security.
+            </p>
+            <div className="archive-confirm-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowConfirmUnarchive(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-restore-confirm"
+                onClick={handleUnarchive}
+                disabled={unarchiving}
+              >
+                <FaUndo aria-hidden="true" />
+                Unarchive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };
