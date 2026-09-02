@@ -51,6 +51,19 @@ export const validateContent = async (subject, description, officeName = '') => 
     };
   }
 
+  // Check for Form 137 requests (BLOCKED for students)
+  const form137Pattern = /\b(form\s*137|f\.?\s*137|137\s*form)\b/gi;
+  const combinedText = `${subject} ${description}`.toLowerCase();
+  
+  if (form137Pattern.test(combinedText)) {
+    return {
+      isValid: false,
+      errors: ['Form 137 requests are not allowed. Form 137 is only released to transferring students upon completion of clearance. Please contact the Registrar Office directly if you are transferring.'],
+      warnings: [],
+      language: 'english'
+    };
+  }
+
   try {
     // Create a comprehensive prompt for the AI
     const officeContext = officeName ? `\nOffice: "${officeName}"` : '';
@@ -109,6 +122,11 @@ CORE VALIDATION RULES:
    - Subject: "Uniform Complaint" + Desc: "Request for transcript" = NOT RELEVANT (uniform vs documents)
 
 3. SPECIAL VALIDATION RULES (Keep these):
+   
+   **FORM 137 - STRICTLY BLOCKED**:
+   - Students CANNOT request Form 137 through this system
+   - If description mentions "Form 137", "F.137", "137 form", or similar → mark as NOT RELEVANT
+   - Reason: "Form 137 requests are not allowed. Form 137 is only released to transferring students upon completion of clearance."
    
    **REFUND vs RECEIPT**:
    - "Refund Request" = asking for money back, return payment

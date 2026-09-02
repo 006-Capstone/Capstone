@@ -339,44 +339,47 @@ const GuestLogin = () => {
       const attachments = [];
       if (authFile) {
         const base64 = await fileToBase64(authFile);
+        // Only include explicitly defined properties (no File object properties)
         attachments.push({
-          name: authFile.name,
-          data: base64,
-          size: authFile.size,
-          type: authFile.type,
+          name: String(authFile.name),
+          data: String(base64),
+          size: Number(authFile.size),
+          type: String(authFile.type),
           isAuthProof: true,
           uploadedAt: new Date().toISOString()
         });
       }
       if (attachmentFile) {
         const base64 = await fileToBase64(attachmentFile);
+        // Only include explicitly defined properties (no File object properties)
         attachments.push({
-          name: attachmentFile.name,
-          data: base64,
-          size: attachmentFile.size,
-          type: attachmentFile.type,
+          name: String(attachmentFile.name),
+          data: String(base64),
+          size: Number(attachmentFile.size),
+          type: String(attachmentFile.type),
           uploadedAt: new Date().toISOString()
         });
       }
 
       const newRequestDoc = {
-        requestId: generatedRequestId,
-        studentName: `${firstName.trim()} ${lastName.trim()}`,
-        studentUid: `guest_${Date.now()}`,
-        grade: grade.trim(),
-        section: section.trim(),
-        isGuest: true,
-        subject: subject.trim(),
-        description: description.trim(),
-        office: officeName,
-        officeCode: officeCodeVal,
-        status: 'Pending',
+        requestId: String(generatedRequestId),
+        studentName: String(`${firstName.trim()} ${lastName.trim()}`),
+        studentUid: String(`guest_${Date.now()}`),
+        grade: String(grade.trim()),
+        section: String(section.trim()),
+        isGuest: Boolean(true),
+        subject: String(subject.trim()),
+        description: String(description.trim()),
+        office: String(officeName),
+        officeCode: String(officeCodeVal),
+        status: String('Pending'),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        attachments: attachments,
-        followUps: []
+        attachments: attachments, // Already sanitized above
+        followUps: [] // Empty array is fine
       };
 
+      console.log('[Debug] Request data before save:', JSON.stringify(newRequestDoc, null, 2));
       await addDoc(collection(db, 'requests'), newRequestDoc);
 
       // Notify office staff in background
