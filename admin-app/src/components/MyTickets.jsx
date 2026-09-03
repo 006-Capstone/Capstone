@@ -9,12 +9,15 @@ import {
   FaFilter, 
   FaChevronDown, 
   FaCheck, 
-  FaTimes 
+  FaTimes,
+  FaClock
 } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import Notifications from './Notifications';
+import NearingCompletionModal from './NearingCompletionModal';
+import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/MyTickets.css';
 
@@ -41,9 +44,19 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showNearingModal, setShowNearingModal] = useState(false);
 
   // Consume the office tickets hook (shared live data source across Dashboard & Analytics)
   const { tickets: officeTickets, loading } = useOfficeTickets(department);
+
+  // Requests nearing estimated completion date
+  const nearingRequests = useMemo(() => {
+    return getNearingRequests(officeTickets, 3);
+  }, [officeTickets]);
+
+  const nearingSummary = useMemo(() => {
+    return getNearingSummary(nearingRequests);
+  }, [nearingRequests]);
 
   // Filter for tickets claimed by or assigned to this staff member
   const tickets = useMemo(() => {
@@ -209,6 +222,22 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
           <p className="page-subtitle">Requests you've claimed and the ones you're handling</p>
         </div>
         <div className="header-right">
+          {nearingRequests.length > 0 && (
+            <button
+              type="button"
+              className={`nearing-trigger-btn ${nearingSummary.overdue > 0 ? 'critical' : 'warning'}`}
+              onClick={() => setShowNearingModal(true)}
+              title={`${nearingRequests.length} request(s) nearing or past estimated completion`}
+              aria-label={`${nearingRequests.length} request(s) nearing or past estimated completion`}
+            >
+              <FaClock className="trigger-icon" />
+              <span className="trigger-text">
+                {nearingSummary.overdue > 0 ? `${nearingSummary.overdue} Overdue` : `${nearingRequests.length} Nearing ETC`}
+              </span>
+              <span className="trigger-badge">{nearingRequests.length}</span>
+            </button>
+          )}
+
           <div className="time-filter">
             <button 
               type="button"
@@ -470,6 +499,15 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
       </div>
 
       <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
+
+      {/* Modal: Summary of Requests Nearing Estimated Completion */}
+      <NearingCompletionModal
+        isOpen={showNearingModal}
+        onClose={() => setShowNearingModal(false)}
+        tickets={officeTickets}
+        department={department}
+        onViewRequest={onViewRequest}
+      />
     </div>
   );
 };

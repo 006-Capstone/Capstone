@@ -1,9 +1,23 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { FaBell, FaInbox, FaTicketAlt, FaClipboard, FaCheckCircle, FaUserCircle } from 'react-icons/fa';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  FaBell,
+  FaInbox,
+  FaTicketAlt,
+  FaClipboard,
+  FaCheckCircle,
+  FaUserCircle,
+  FaClock,
+  FaExclamationTriangle,
+  FaSearch,
+  FaTimes,
+  FaEye
+} from 'react-icons/fa';
 import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import Notifications from './Notifications';
 import ClaimETCModal from './ClaimETCModal';
+import NearingCompletionModal from './NearingCompletionModal';
+import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
 import { notifyStudentStatusChange, notifyStudentEtcChange } from '../utils/notificationHelper';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import LoadingSpinner from './LoadingSpinner';
@@ -12,22 +26,21 @@ import '../styles/AdminDashboard.css';
 const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [timeFilter, setTimeFilter] = useState('month');
+  const [searchQuery, setSearchQuery] = useState('');
   const { tickets, loading } = useOfficeTickets(department);
   const [staffData, setStaffData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [claimingTicketId, setClaimingTicketId] = useState(null);
   const itemsPerPage = 5;
   // Ticket awaiting its Estimated Time of Completion in the claim modal.
   const [etcClaimTicket, setEtcClaimTicket] = useState(null);
   const ticketsSectionRef = useRef(null);
   
-  // Estimated Completion Date Modal state
-  const [showEstimatedCompletionModal, setShowEstimatedCompletionModal] = useState(false);
-  const [selectedTicketForCompletion, setSelectedTicketForCompletion] = useState(null);
-  const [completionOption, setCompletionOption] = useState('1-3'); // '1-3', '4-7', 'custom'
-  const [customCompletionDate, setCustomCompletionDate] = useState('');
-  const [claiming, setClaiming] = useState(false);
+  // Nearing Estimated Completion Date Modal & Alert states
+  const [showNearingModal, setShowNearingModal] = useState(false);
+  const hasAutoOpenedModal = useRef(false);
 
   useEffect(() => {
     // Get staff data from localStorage
@@ -58,10 +71,10 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return () => unsubscribe();
   }, [staffData]);
 
-  // Reset pagination when switching tabs
+  // Reset pagination when switching tabs or typing search
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab]);
+  }, [activeTab, searchQuery]);
 
   // Dashboard summary cards — derived straight from the shared live tickets
   const stats = useMemo(() => ({
@@ -71,6 +84,73 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     claimed: tickets.filter(t => t.status === 'In Process').length,
     resolved: tickets.filter(t => t.status === 'Resolved').length
   }), [tickets]);
+
+  // Tab counters for tab badges
+  const tabCounts = useMemo(() => {
+    return {
+      all: tickets.length,
+      newReq: tickets.filter(t => t.status !== 'Cancelled' && (t.status === 'Pending' || !t.assignedTo)).length,
+      progress: tickets.filter(t => t.status === 'In Process').length,
+      resolved: tickets.filter(t => t.status === 'Resolved').length
+    };
+  }, [tickets]);
+
+  // Date formatting helpers for table display
+  const formatTicketDate = (ticket) => {
+    const val = ticket.createdAt;
+    if (!val) return null;
+    const date = val?.toDate ? val.toDate() : new Date(val);
+    if (isNaN(date.getTime())) return null;
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTicketEtc = (ticket) => {
+    const val = ticket.etc || ticket.estimatedCompletion;
+    if (!val) return null;
+    if (typeof val === 'string') {
+      const parsed = new Date(val);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      return val;
+    }
+    const d = val?.toDate ? val.toDate() : new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return null;
+  };
+
+  // Compute requests nearing or past estimated completion date
+  const nearingRequests = useMemo(() => {
+    return getNearingRequests(tickets, 3);
+  }, [tickets]);
+
+  const nearingSummary = useMemo(() => {
+    return getNearingSummary(nearingRequests);
+  }, [nearingRequests]);
+
+  // Auto-trigger modal popup on dashboard load if active requests are nearing/overdue
+  useEffect(() => {
+    if (loading || hasAutoOpenedModal.current) return;
+
+    if (nearingRequests.length > 0) {
+      try {
+        const isDismissed = sessionStorage.getItem('dismissed_nearing_etc_popup') === 'true';
+        if (!isDismissed) {
+          setShowNearingModal(true);
+          hasAutoOpenedModal.current = true;
+        }
+      } catch (e) {
+        setShowNearingModal(true);
+        hasAutoOpenedModal.current = true;
+      }
+    }
+  }, [loading, nearingRequests]);
 
   const filteredTickets = useMemo(() => {
     let filtered = [...tickets];
@@ -86,8 +166,27 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       filtered = filtered.filter(t => t.status === 'Resolved');
     }
 
+    // Filter by search query (matches ID, title/subject, student name, student ID, assignee)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(t => {
+        const id = String(t.id || t.requestId || '').toLowerCase();
+        const title = String(t.title || t.subject || '').toLowerCase();
+        const student = String(t.student || t.studentName || '').toLowerCase();
+        const studentId = String(t.studentId || '').toLowerCase();
+        const assigned = String(t.assignedTo || '').toLowerCase();
+        return (
+          id.includes(q) ||
+          title.includes(q) ||
+          student.includes(q) ||
+          studentId.includes(q) ||
+          assigned.includes(q)
+        );
+      });
+    }
+
     return filtered;
-  }, [activeTab, tickets]);
+  }, [activeTab, tickets, searchQuery]);
 
   const totalPages = Math.ceil(filteredTickets.length / itemsPerPage) || 1;
 
@@ -125,6 +224,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   // and scrolls it into view. Clicking the already-active card resets to All.
   const handleStatCardClick = (tab) => {
     setActiveTab((prev) => (prev === tab ? 'all' : tab));
+    setSearchQuery('');
     setCurrentPage(1);
     ticketsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
@@ -134,6 +234,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       alert('Staff data not found. Please login again.');
       return;
     }
+
+    setClaimingTicketId(ticket.firestoreId);
 
     // Standard claim state transition (the interact onSuccess step). The
     // optional `etc` (confirmed date) rides along on the same update so the
@@ -179,12 +281,12 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         await notifyStudentEtcChange(ticket.studentUid, ticket.id || ticket.requestId, ticket.title || ticket.subject, etc);
       }
 
-      alert(`Request ${ticket.id} has been assigned to you!`);
-      window.location.reload();
+      alert(`Request ${ticket.id || ticket.requestId} has been assigned to you!`);
     } catch (error) {
       console.error('[Error] Error claiming ticket:', error);
       alert('Failed to claim request: ' + error.message);
-      setClaiming(false);
+    } finally {
+      setClaimingTicketId(null);
     }
   };
 
@@ -215,6 +317,22 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           <p className="dashboard-subtitle">Monitor and manage all student requests in your office</p>
         </div>
         <div className="header-right">
+          {nearingRequests.length > 0 && (
+            <button
+              type="button"
+              className={`nearing-trigger-btn ${nearingSummary.overdue > 0 ? 'critical' : 'warning'}`}
+              onClick={() => setShowNearingModal(true)}
+              title={`${nearingRequests.length} request(s) nearing or past estimated completion`}
+              aria-label={`${nearingRequests.length} request(s) nearing or past estimated completion`}
+            >
+              <FaClock className="trigger-icon" />
+              <span className="trigger-text">
+                {nearingSummary.overdue > 0 ? `${nearingSummary.overdue} Overdue` : `${nearingRequests.length} Nearing ETC`}
+              </span>
+              <span className="trigger-badge">{nearingRequests.length}</span>
+            </button>
+          )}
+
           <div className="time-filter">
             <button
               className={`filter-btn ${timeFilter === 'week' ? 'active' : ''}`}
@@ -306,136 +424,340 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         </button>
       </div>
 
+      {/* Nearing Estimated Completion Date Alert Banner */}
+      {nearingRequests.length > 0 && (
+        <div className={`nearing-alert-banner ${nearingSummary.overdue > 0 ? 'banner-critical' : 'banner-warning'}`}>
+          <div className="banner-left">
+            <div className="banner-icon-box">
+              {nearingSummary.overdue > 0 ? <FaExclamationTriangle /> : <FaClock />}
+            </div>
+            <div className="banner-info">
+              <h3 className="banner-heading">
+                {nearingSummary.overdue > 0
+                  ? `Attention Required: ${nearingSummary.overdue} request(s) overdue • ${nearingRequests.length} nearing completion`
+                  : `Reminder: ${nearingRequests.length} request(s) nearing estimated completion date`}
+              </h3>
+              <p className="banner-subtext">
+                {nearingSummary.overdue > 0 && <strong>{nearingSummary.overdue} overdue • </strong>}
+                {nearingSummary.today > 0 && <strong>{nearingSummary.today} due today • </strong>}
+                {nearingSummary.upcoming > 0 && `${nearingSummary.upcoming} due soon • `}
+                Review all requests needed to process before deadlines lapse.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="banner-review-btn"
+            onClick={() => setShowNearingModal(true)}
+          >
+            Review Summary Modal
+          </button>
+        </div>
+      )}
+
       <div className="tickets-section" ref={ticketsSectionRef}>
-        <div className="tickets-tabs">
-          <div className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
-            All
+        <div className="tickets-toolbar">
+          <div className="tickets-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'all'}
+              className={`tab ${activeTab === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveTab('all')}
+            >
+              <span>All</span>
+              <span className="tab-badge">{tabCounts.all}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'new'}
+              className={`tab ${activeTab === 'new' ? 'active' : ''}`}
+              onClick={() => setActiveTab('new')}
+            >
+              <span>New Requests</span>
+              {tabCounts.newReq > 0 && <span className="tab-badge new-badge">{tabCounts.newReq}</span>}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'progress'}
+              className={`tab ${activeTab === 'progress' ? 'active' : ''}`}
+              onClick={() => setActiveTab('progress')}
+            >
+              <span>In Progress</span>
+              {tabCounts.progress > 0 && <span className="tab-badge inprogress-badge">{tabCounts.progress}</span>}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'resolved'}
+              className={`tab ${activeTab === 'resolved' ? 'active' : ''}`}
+              onClick={() => setActiveTab('resolved')}
+            >
+              <span>Resolved</span>
+              {tabCounts.resolved > 0 && <span className="tab-badge resolved-badge">{tabCounts.resolved}</span>}
+            </button>
           </div>
-          <div className={`tab ${activeTab === 'new' ? 'active' : ''}`} onClick={() => setActiveTab('new')}>
-            New Requests
-          </div>
-          <div className={`tab ${activeTab === 'progress' ? 'active' : ''}`} onClick={() => setActiveTab('progress')}>
-            In Progress
-          </div>
-          <div className={`tab ${activeTab === 'resolved' ? 'active' : ''}`} onClick={() => setActiveTab('resolved')}>
-            Resolved
+
+          <div className="table-search-box">
+            <FaSearch className="table-search-icon" aria-hidden="true" />
+            <input
+              type="text"
+              className="table-search-input"
+              placeholder="Search by ID, student, or subject..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search requests in table"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="table-search-clear"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                title="Clear search"
+              >
+                <FaTimes aria-hidden="true" />
+              </button>
+            )}
           </div>
         </div>
 
         {loading ? (
           <LoadingSpinner message="Loading requests..." fullScreen={false} />
         ) : filteredTickets.length === 0 ? (
-          <div className="empty-state">No requests found.</div>
+          <div className="tickets-empty-state">
+            <div className="empty-icon-wrap">
+              <FaInbox className="empty-icon" />
+            </div>
+            <h3 className="empty-title">
+              {searchQuery ? 'No matching requests found' : 'No requests in this view'}
+            </h3>
+            <p className="empty-desc">
+              {searchQuery
+                ? `No requests match "${searchQuery}". Check the request number, subject, or student name.`
+                : activeTab === 'all'
+                ? 'Your office currently has no requests recorded.'
+                : `There are currently no ${
+                    activeTab === 'new'
+                      ? 'new requests awaiting assignment'
+                      : activeTab === 'progress'
+                      ? 'requests currently being handled'
+                      : 'completed/resolved requests'
+                  }.`}
+            </p>
+            {searchQuery ? (
+              <button
+                type="button"
+                className="empty-action-btn"
+                onClick={() => setSearchQuery('')}
+              >
+                Clear Search Filter
+              </button>
+            ) : activeTab !== 'all' ? (
+              <button
+                type="button"
+                className="empty-action-btn"
+                onClick={() => setActiveTab('all')}
+              >
+                View All Requests
+              </button>
+            ) : null}
+          </div>
         ) : (
           <>
-            <table className="tickets-table">
-              <thead>
-                <tr>
-                  <th>REQUEST INFO</th>
-                  <th>STUDENT DETAILS</th>
-                  <th>STATUS</th>
-                  <th>ASSIGNED TO</th>
-                  <th>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedTickets.map((ticket, index) => (
-                  <tr key={ticket.firestoreId || index}>
-                    <td>
-                      <div className="ticket-info-cell">
-                        {ticket.title}
-                        <span className="ticket-id">#{ticket.id}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="student-info">
-                        {ticket.student}
-                        <span className="student-id">ID: {ticket.studentId}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`status-badge status-${(ticket.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
-                        <span className="status-dot" aria-hidden="true"></span>
-                        {ticket.status === 'Pending' && 'New Request'}
-                        {ticket.status === 'In Process' && 'In Progress'}
-                        {ticket.status === 'Resolved' && 'Resolved'}
-                        {ticket.status === 'Cancelled' && 'Cancelled'}
-                        {ticket.status !== 'Pending' && ticket.status !== 'In Process' && ticket.status !== 'Resolved' && ticket.status !== 'Cancelled' && ticket.status}
-                      </span>
-                    </td>
-                    <td>
-                      {ticket.status === 'Cancelled' ? (
-                        <span className="cancelled-text">Cancelled by Student</span>
-                      ) : ticket.assignedTo ? (
-                        <div className="assigned-to">
-                          <FaUserCircle className="assigned-icon" />
-                          <span>{ticket.assignedTo}</span>
-                        </div>
-                      ) : (
-                        <span className="unassigned-text">Unassigned</span>
-                      )}
-                    </td>
-                    <td>
-                      {ticket.status === 'Cancelled' ? (
-                        <button className="action-btn disabled" disabled>
-                          Cancelled
-                        </button>
-                      ) : ticket.assignedTo ? (
-                        <button
-                          className="action-btn"
-                          onClick={() => onNavigate('ticket-details', ticket)}
-                        >
-                          View Request
-                        </button>
-                      ) : (
-                        <button
-                          className="action-btn claim"
-                          onClick={() => handleClaimRequest(ticket)}
-                        >
-                          Claim Request
-                        </button>
-                      )}
-                    </td>
+            <div className="table-wrapper">
+              <table className="tickets-table">
+                <thead>
+                  <tr>
+                    <th className="th-request">REQUEST INFO</th>
+                    <th className="th-student">STUDENT DETAILS</th>
+                    <th className="th-status">STATUS</th>
+                    <th className="th-assigned">ASSIGNED TO</th>
+                    <th className="th-actions">ACTIONS</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedTickets.map((ticket, index) => {
+                    const ticketIdDisplay = ticket.id
+                      ? String(ticket.id).startsWith('#')
+                        ? ticket.id
+                        : `#${ticket.id}`
+                      : '#N/A';
+                    const formattedDate = formatTicketDate(ticket);
+                    const formattedEtc = formatTicketEtc(ticket);
+                    const isGuest = Boolean(ticket.isGuest);
+                    const studentName = ticket.student || ticket.studentName || (isGuest ? 'Guest User' : 'Student');
 
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button
-                  className="page-btn"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  aria-label="Previous Page"
-                >
-                  &lt;
-                </button>
-                {getPageNumbers().map((page, idx) =>
-                  page === '...' ? (
-                    <span key={`ellipsis-${idx}`} className="pagination-ellipsis">
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={page}
-                      className={`page-btn ${currentPage === page ? 'active' : ''}`}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
-                <button
-                  className="page-btn"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  aria-label="Next Page"
-                >
-                  &gt;
-                </button>
+                    return (
+                      <tr key={ticket.firestoreId || ticket.id || index} className="ticket-row">
+                        <td className="td-request">
+                          <div className="ticket-info-cell">
+                            <button
+                              type="button"
+                              className="ticket-title-link"
+                              onClick={() => onNavigate('ticket-details', ticket)}
+                              title={ticket.title || ticket.subject || 'View Request Details'}
+                            >
+                              {ticket.title || ticket.subject || 'Untitled Request'}
+                            </button>
+                            <div className="ticket-meta-row">
+                              <span className="ticket-id">{ticketIdDisplay}</span>
+                              {formattedDate && (
+                                <span className="ticket-meta-date" title={`Submitted on ${formattedDate}`}>
+                                  • {formattedDate}
+                                </span>
+                              )}
+                              {formattedEtc && (
+                                <span className="ticket-meta-etc" title={`Estimated turnaround: ${formattedEtc}`}>
+                                  <FaClock className="meta-clock-icon" aria-hidden="true" /> {formattedEtc}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="td-student">
+                          <div className="student-info">
+                            <span className="student-name">{studentName}</span>
+                            <div className="student-id-wrap">
+                              {isGuest ? (
+                                <span className="guest-badge-pill">Guest</span>
+                              ) : ticket.studentId ? (
+                                <span className="student-id">ID: {ticket.studentId}</span>
+                              ) : (
+                                <span className="student-id muted">ID: N/A</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="td-status">
+                          <span className={`status-badge status-${(ticket.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                            <span className="status-dot" aria-hidden="true" />
+                            {ticket.status === 'Pending' && 'New Request'}
+                            {ticket.status === 'In Process' && 'In Progress'}
+                            {ticket.status === 'Resolved' && 'Resolved'}
+                            {ticket.status === 'Cancelled' && 'Cancelled'}
+                            {ticket.status === 'Rejected' && 'Rejected'}
+                            {ticket.status === 'Returned' && 'Returned'}
+                            {!['Pending', 'In Process', 'Resolved', 'Cancelled', 'Rejected', 'Returned'].includes(ticket.status) && (ticket.status || 'Pending')}
+                          </span>
+                        </td>
+                        <td className="td-assigned">
+                          {ticket.assignedTo ? (
+                            <div className="assigned-to">
+                              <FaUserCircle className="assigned-icon" />
+                              <span className="assigned-name">{ticket.assignedTo}</span>
+                            </div>
+                          ) : (
+                            <span className="unassigned-pill">Unassigned</span>
+                          )}
+                        </td>
+                        <td className="td-actions">
+                          <div className="table-actions-cell">
+                            {ticket.status === 'Cancelled' ? (
+                              <button
+                                type="button"
+                                className="action-btn view-btn"
+                                onClick={() => onNavigate('ticket-details', ticket)}
+                                title="View details of cancelled request"
+                              >
+                                View Request
+                              </button>
+                            ) : ticket.assignedTo ? (
+                              <button
+                                type="button"
+                                className="action-btn view-btn"
+                                onClick={() => onNavigate('ticket-details', ticket)}
+                                title="View Request Details"
+                              >
+                                View Request
+                              </button>
+                            ) : (
+                              <div className="action-button-group">
+                                <button
+                                  type="button"
+                                  className="action-btn claim-btn"
+                                  onClick={() => handleClaimRequest(ticket)}
+                                  disabled={claimingTicketId === ticket.firestoreId}
+                                  title="Claim request and set turnaround time"
+                                >
+                                  {claimingTicketId === ticket.firestoreId ? 'Claiming...' : 'Claim Request'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="action-btn icon-view-btn"
+                                  onClick={() => onNavigate('ticket-details', ticket)}
+                                  title="Preview Request Details"
+                                  aria-label="Preview Request Details"
+                                >
+                                  <FaEye aria-hidden="true" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="table-footer">
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    type="button"
+                    className="page-btn nav-btn"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    aria-label="Previous Page"
+                  >
+                    &lt;
+                  </button>
+                  {getPageNumbers().map((page, idx) =>
+                    page === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="pagination-ellipsis">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={page}
+                        type="button"
+                        className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                        onClick={() => setCurrentPage(page)}
+                        aria-current={currentPage === page ? 'page' : undefined}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    className="page-btn nav-btn"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    aria-label="Next Page"
+                  >
+                    &gt;
+                  </button>
+                </div>
+              )}
+
+              <div className="table-count-info">
+                Showing{' '}
+                <span className="count-bold">
+                  {filteredTickets.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+                </span>
+                –
+                <span className="count-bold">
+                  {Math.min(currentPage * itemsPerPage, filteredTickets.length)}
+                </span>{' '}
+                of <span className="count-bold">{filteredTickets.length}</span> request{filteredTickets.length === 1 ? '' : 's'}
+                {searchQuery && <span className="search-query-label"> (filtered)</span>}
               </div>
-            )}
+            </div>
           </>
         )}
       </div>
@@ -449,6 +771,19 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           onCancel={handleEtcCancel}
         />
       )}
+
+      {/* Modal: Summary of Requests Nearing Estimated Completion */}
+      <NearingCompletionModal
+        isOpen={showNearingModal}
+        onClose={() => setShowNearingModal(false)}
+        tickets={tickets}
+        department={department}
+        onViewRequest={onViewRequest}
+        onGoToQueue={() => {
+          setActiveTab('progress');
+          ticketsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }}
+      />
     </div>
   );
 };
