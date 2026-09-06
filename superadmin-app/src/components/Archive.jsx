@@ -31,6 +31,9 @@ import LoadingSpinner from './LoadingSpinner';
 import Toast from './Toast';
 import '../styles/Archive.css';
 
+// Module-level flag to prevent concurrent restore operations
+let isRestoreInProgress = false;
+
 const Archive = ({ isEmbedded = false }) => {
   const [archivedAccounts, setArchivedAccounts] = useState([]);
   const [archivedRequests, setArchivedRequests] = useState([]);
@@ -304,6 +307,12 @@ const Archive = ({ isEmbedded = false }) => {
 
   // Execute restore
   const handleUnarchive = async () => {
+    // Check module-level flag first (prevents ALL concurrent restores across component instances)
+    if (isRestoreInProgress) {
+      console.warn('[Archive] Another restore operation is already in progress (module-level check)');
+      return;
+    }
+    
     const accountsToRestore = accountToUnarchive
       ? [accountToUnarchive]
       : archivedAccounts.filter((a) => selectedAccounts.includes(a.firestoreId));
@@ -317,16 +326,41 @@ const Archive = ({ isEmbedded = false }) => {
       return;
     }
 
-    console.log('[Archive] Current user:', auth.currentUser.email);
+    // Prevent multiple simultaneous restores (component-level check)
+    if (unarchiving) {
+      console.warn('[Archive] Restore already in progress (component-level check)');
+      return;
+    }
 
+    console.log('[Archive] Current user:', auth.currentUser.email);
+    console.log('[Archive] Accounts to restore:', accountsToRestore.length);
+
+    // Set both flags
+    isRestoreInProgress = true;
     setShowConfirmUnarchive(false);
     setUnarchiving(true);
+    
+    let restoredCount = 0;
+    let skippedCount = 0;
+    const processedUids = new Set(); // Track processed UIDs to avoid duplicates
+    
     try {
       const currentUser = auth.currentUser;
       const restoredBy = currentUser ? currentUser.email : 'Super Admin';
 
       for (const account of accountsToRestore) {
+        // Skip if we've already processed this UID (prevents duplicate processing)
+        if (account.uid && processedUids.has(account.uid)) {
+          console.log('[Archive] Skipping duplicate UID:', account.uid);
+          continue;
+        }
+        
         console.log('[Archive] Restoring account:', account.name, 'ID:', account.firestoreId);
+        
+        // Mark this UID as processed
+        if (account.uid) {
+          processedUids.add(account.uid);
+        }
         
         // Check for duplicate archived accounts with same UID
         if (account.uid) {
@@ -357,6 +391,7 @@ const Archive = ({ isEmbedded = false }) => {
             restoredBy: restoredBy
           });
           console.log('[Archive] Staff document updated successfully');
+          restoredCount++;
         } else {
           // If in archivedAccounts collection
           const {
@@ -373,14 +408,6 @@ const Archive = ({ isEmbedded = false }) => {
 
           console.log('[Archive] Restoring from archivedAccounts to', accountType === 'student' ? 'students' : 'staff');
           
-          const restoredAccountData = {
-            ...accountData,
-            restoredAt: serverTimestamp(),
-            restoredBy: restoredBy,
-            mustChangePassword: true,
-            isActive: accountData.isActive !== undefined ? accountData.isActive : true
-          };
-
           const targetCollection = accountType === 'student' ? 'students' : 'staff';
           
           // Check if account already exists in target collection to prevent duplicates
@@ -392,33 +419,103 @@ const Archive = ({ isEmbedded = false }) => {
             const existingSnapshot = await getDocs(existingQuery);
             
             if (!existingSnapshot.empty) {
-              console.log('[Archive] Account already exists in', targetCollection, '- skipping restore but deleting ALL archived copies');
+              console.log('[Archive] Account already exists in', targetCollection, '- updating it and deleting archived copies');
               
-              // Delete ALL archived copies of this account (including current one)
+              // UPDATE the existing account to ensure it's active and properly restored
+              const existingDocId = existingSnapshot.docs[0].id;
+              await updateDoc(doc(db, targetCollection, existingDocId), {
+                isArchived: false,
+                isActive: true,
+                restoredAt: serverTimestamp(),
+                restoredBy: restoredBy,
+                mustChangePassword: true
+              });
+              console.log('[Archive] Updated existing account in', targetCollection, ':', existingDocId);
+              
+              // Delete ALL archived copies of this account
               const allArchivedQuery = query(
                 collection(db, 'archivedAccounts'),
                 where('uid', '==', accountData.uid)
               );
               const allArchivedSnapshot = await getDocs(allArchivedQuery);
               
+              console.log('[Archive] Found', allArchivedSnapshot.docs.length, 'archived document(s) with UID:', accountData.uid);
+              
               for (const archivedDoc of allArchivedSnapshot.docs) {
                 try {
-                  console.log('[Archive] Deleting archived copy:', archivedDoc.id);
+                  console.log('[Archive] Deleting archived document ID:', archivedDoc.id);
                   await deleteDoc(doc(db, 'archivedAccounts', archivedDoc.id));
+                  console.log('[Archive] ✓ Successfully deleted:', archivedDoc.id);
                 } catch (deleteError) {
-                  console.error('[Archive] Failed to delete archived copy:', deleteError);
+                  console.error('[Archive] ✗ Failed to delete:', archivedDoc.id, deleteError);
                 }
               }
               
-              console.log('[Archive] All archived copies deleted for UID:', accountData.uid);
+              // ALSO explicitly try to delete the current firestoreId if not already deleted
+              if (firestoreId) {
+                const wasDeleted = allArchivedSnapshot.docs.some(d => d.id === firestoreId);
+                if (!wasDeleted) {
+                  try {
+                    console.log('[Archive] Current firestoreId not in UID query results, deleting explicitly:', firestoreId);
+                    await deleteDoc(doc(db, 'archivedAccounts', firestoreId));
+                    console.log('[Archive] ✓ Successfully deleted current document:', firestoreId);
+                  } catch (deleteError) {
+                    console.error('[Archive] ✗ Failed to delete current document:', firestoreId, deleteError);
+                  }
+                } else {
+                  console.log('[Archive] Current document already deleted via UID query:', firestoreId);
+                }
+              }
+              
+              console.log('[Archive] ✓ Completed deletion of all archived copies for UID:', accountData.uid);
+              restoredCount++; // Count as restored since we updated the existing account
               continue; // Skip to next account - DO NOT create new document
             }
           }
           
+          const restoredAccountData = {
+            ...accountData,
+            restoredAt: serverTimestamp(),
+            restoredBy: restoredBy,
+            mustChangePassword: true,
+            isActive: accountData.isActive !== undefined ? accountData.isActive : true
+          };
+          
           const restoredDoc = await addDoc(collection(db, targetCollection), restoredAccountData);
           console.log('[Archive] Account restored to', targetCollection, 'with ID:', restoredDoc.id);
+          restoredCount++;
+          
+          // Delete ALL archived copies with the same UID (not just the current one)
+          if (accountData.uid) {
+            console.log('[Archive] Deleting ALL archived copies for UID:', accountData.uid);
+            const allArchivedQuery = query(
+              collection(db, 'archivedAccounts'),
+              where('uid', '==', accountData.uid)
+            );
+            const allArchivedSnapshot = await getDocs(allArchivedQuery);
+            console.log('[Archive] Found', allArchivedSnapshot.docs.length, 'archived copies to delete');
+            
+            for (const archivedDoc of allArchivedSnapshot.docs) {
+              try {
+                console.log('[Archive] Deleting archived copy:', archivedDoc.id);
+                await deleteDoc(doc(db, 'archivedAccounts', archivedDoc.id));
+                console.log('[Archive] ✓ Deleted:', archivedDoc.id);
+              } catch (deleteError) {
+                console.error('[Archive] ✗ Failed to delete:', archivedDoc.id, deleteError);
+              }
+            }
+          } else {
+            // No UID - just delete the current document
+            console.log('[Archive] Deleting current document (no UID):', firestoreId);
+            try {
+              await deleteDoc(doc(db, 'archivedAccounts', firestoreId));
+              console.log('[Archive] ✓ Deleted:', firestoreId);
+            } catch (deleteError) {
+              console.error('[Archive] ✗ Failed to delete:', firestoreId, deleteError);
+            }
+          }
 
-          // If student, restore their archived requests
+          // If student, restore their archived requests (ONCE)
           if (accountType === 'student' && accountData.uid) {
             console.log('[Archive] Checking for archived requests for student UID:', accountData.uid);
             const archivedRequestsQuery = query(
@@ -426,9 +523,19 @@ const Archive = ({ isEmbedded = false }) => {
               where('studentUid', '==', accountData.uid)
             );
             const archivedRequestsSnapshot = await getDocs(archivedRequestsQuery);
-            console.log('[Archive] Found', archivedRequestsSnapshot.docs.length, 'archived requests');
+            console.log('[Archive] Found', archivedRequestsSnapshot.docs.length, 'archived requests for UID:', accountData.uid);
+            
+            const restoredRequestIds = new Set(); // Track restored request IDs
             
             for (const requestDoc of archivedRequestsSnapshot.docs) {
+              // Skip if we've already processed this request ID
+              if (restoredRequestIds.has(requestDoc.id)) {
+                console.log('[Archive] Skipping duplicate request:', requestDoc.id);
+                continue;
+              }
+              
+              restoredRequestIds.add(requestDoc.id);
+              
               const {
                 archivedAt: reqArchivedAt,
                 archivedReason: reqReason,
@@ -436,35 +543,39 @@ const Archive = ({ isEmbedded = false }) => {
                 ...requestData
               } = requestDoc.data();
 
-              await addDoc(collection(db, 'requests'), {
-                ...requestData,
-                restoredAt: serverTimestamp(),
-                restoredBy: restoredBy
-              });
+              try {
+                await addDoc(collection(db, 'requests'), {
+                  ...requestData,
+                  restoredAt: serverTimestamp(),
+                  restoredBy: restoredBy
+                });
 
-              await deleteDoc(doc(db, 'archivedRequests', requestDoc.id));
-              console.log('[Archive] Restored and deleted archived request:', requestDoc.id);
+                await deleteDoc(doc(db, 'archivedRequests', requestDoc.id));
+                console.log('[Archive] Restored and deleted archived request:', requestDoc.id);
+              } catch (reqError) {
+                console.error('[Archive] Failed to restore request:', requestDoc.id, reqError);
+                // Continue with other requests even if one fails
+              }
             }
+            
+            console.log('[Archive] Finished restoring', restoredRequestIds.size, 'requests for UID:', accountData.uid);
           }
-
-          // Delete account from archive
-          console.log('[Archive] Deleting document from archivedAccounts:', firestoreId);
-          try {
-            await deleteDoc(doc(db, 'archivedAccounts', firestoreId));
-            console.log('[Archive] Successfully deleted from archivedAccounts:', firestoreId);
-          } catch (deleteError) {
-            console.error('[Archive] Failed to delete from archivedAccounts:', deleteError);
-            console.error('[Archive] Delete error details:', {
-              code: deleteError.code,
-              message: deleteError.message,
-              firestoreId: firestoreId
-            });
-            throw deleteError; // Re-throw to be caught by outer catch
-          }
+          
+          // NOTE: Archived documents already deleted above (all copies by UID or current firestoreId)
         }
       }
 
-      showToast(`Successfully restored ${accountsToRestore.length} account${accountsToRestore.length === 1 ? '' : 's'}.`);
+      // Show appropriate success message
+      if (restoredCount > 0 && skippedCount > 0) {
+        showToast(`Restored ${restoredCount} account${restoredCount === 1 ? '' : 's'}. ${skippedCount} already existed and ${skippedCount === 1 ? 'was' : 'were'} removed from archive.`);
+      } else if (restoredCount > 0) {
+        showToast(`Successfully restored ${restoredCount} account${restoredCount === 1 ? '' : 's'}.`);
+      } else if (skippedCount > 0) {
+        showToast(`${skippedCount} account${skippedCount === 1 ? '' : 's'} already existed and ${skippedCount === 1 ? 'was' : 'were'} removed from archive.`);
+      } else {
+        showToast('No accounts were restored.');
+      }
+      
       setSelectedAccounts([]);
       setSelectAll(false);
       setAccountToUnarchive(null);
@@ -479,6 +590,7 @@ const Archive = ({ isEmbedded = false }) => {
       showToast('An error occurred while unarchiving. Please try again. Error: ' + error.message, 'error');
     } finally {
       setUnarchiving(false);
+      isRestoreInProgress = false; // Reset module-level flag
     }
   };
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { FaFileUpload } from 'react-icons/fa';
 import { MdClose, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { validateContent } from '../utils/contentModeration';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
@@ -191,9 +191,9 @@ function NewRequest({ onNavigate }) {
       } catch (error) {
         console.error('Validation error:', error);
         setValidationResult({
-          isValid: true,
-          errors: [],
-          warnings: ['Validation temporarily unavailable. Your request will be reviewed.'],
+          isValid: false,
+          errors: ['AI validation service is currently unavailable. Please try again in a moment.'],
+          warnings: [],
           language: 'unknown'
         });
       } finally {
@@ -282,6 +282,30 @@ function NewRequest({ onNavigate }) {
 
       const student = JSON.parse(studentData);
       const selectedOfficeData = offices.find(o => o.id === selectedOffice);
+      
+      // CHECK DAILY LIMIT: 2 tickets per department per day
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayTimestamp = today.getTime();
+      
+      // Query for today's requests from this student to this office
+      const todayRequestsQuery = query(
+        collection(db, 'requests'),
+        where('studentUid', '==', student.uid),
+        where('office', '==', selectedOfficeData.name),
+        where('createdAt', '>=', today)
+      );
+      
+      const todayRequestsSnapshot = await getDocs(todayRequestsQuery);
+      const todayCount = todayRequestsSnapshot.size;
+      
+      console.log(`[Limit Check] Student has ${todayCount} request(s) to ${selectedOfficeData.name} today`);
+      
+      if (todayCount >= 2) {
+        setError(`You have reached the daily limit of 2 requests to ${selectedOfficeData.name}. Please try again tomorrow or contact the office directly if urgent.`);
+        setLoading(false);
+        return;
+      }
       
       // Generate unique request ID
       const requestId = generateRequestId(selectedOfficeData.name);

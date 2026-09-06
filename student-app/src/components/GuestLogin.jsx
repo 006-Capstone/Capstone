@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignOutAlt } from 'react-icons/fa';
-import { MdHome, MdTrackChanges } from 'react-icons/md';
+import { MdHome, MdTrackChanges, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
+import { validateContent } from '../utils/contentModeration';
 import GuestSubmitted from './GuestSubmitted';
 import GuestRequestStatus from './GuestRequestStatus';
 import LoadingSpinner from './LoadingSpinner';
@@ -111,8 +112,46 @@ const GuestLogin = () => {
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackNotFound, setTrackNotFound] = useState(false);
   const [trackError, setTrackError] = useState('');
+  
+  // AI Validation states
+  const [validationResult, setValidationResult] = useState(null);
+  const [isValidating, setIsValidating] = useState(false);
+  
   const authInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
+
+  // AI validation effect with debounce
+  useEffect(() => {
+    if (!description.trim() || !subject) {
+      setValidationResult(null);
+      setIsValidating(false);
+      return;
+    }
+
+    setIsValidating(true);
+    
+    // Debounce validation by 1200ms to avoid excessive AI calls
+    const timeoutId = setTimeout(async () => {
+      try {
+        const selectedOfficeData = guestOffices.find(o => o.id === selectedOffice);
+        const officeName = selectedOfficeData?.name || '';
+        const result = await validateContent(subject, description, officeName);
+        setValidationResult(result);
+      } catch (error) {
+        console.error('Validation error:', error);
+        setValidationResult({
+          isValid: false,
+          errors: ['AI validation service is currently unavailable. Please try again in a moment.'],
+          warnings: [],
+          language: 'unknown'
+        });
+      } finally {
+        setIsValidating(false);
+      }
+    }, 1200);
+
+    return () => clearTimeout(timeoutId);
+  }, [description, subject, selectedOffice]);
 
   const handleExitGuestMode = () => {
     if (window.confirm('Exit Guest Mode and return to Student Login?')) {
@@ -434,7 +473,11 @@ const GuestLogin = () => {
     !!selectedOffice &&
     subject.trim() !== '' &&
     description.trim() !== '' &&
-    authFile !== null;
+    authFile !== null &&
+    !isValidating &&
+    validationResult &&
+    validationResult.isValid &&
+    validationResult.errors.length === 0;
 
   return (
     <div className="guest-login-container">
@@ -656,15 +699,45 @@ const GuestLogin = () => {
                 </div>
 
                 <div className="form-group-guest">
-                  <label className="form-label-guest" htmlFor="guestDescription">Detailed Description <span className="required-star">*</span></label>
+                  <label className="form-label-guest" htmlFor="guestDescription">
+                    Detailed Description <span className="required-star">*</span>
+                    {isValidating && <span className="validation-checking"> (Checking...)</span>}
+                    {!isValidating && validationResult && validationResult.isValid && validationResult.errors.length === 0 && (
+                      <span className="validation-success">
+                        <MdCheckCircle /> Valid
+                      </span>
+                    )}
+                  </label>
                   <textarea
                     id="guestDescription"
-                    className="form-textarea-guest"
+                    className={`form-textarea-guest ${
+                      validationResult && validationResult.errors.length > 0 ? 'has-error' : 
+                      validationResult && validationResult.warnings.length > 0 ? 'has-warning' : ''
+                    }`}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Provide a detailed explanation of your request or inquiry..."
                     rows="5"
                   />
+                  {/* Validation Feedback */}
+                  {validationResult && validationResult.errors.length > 0 && (
+                    <div className="validation-errors">
+                      {validationResult.errors.map((error, idx) => (
+                        <div key={idx} className="validation-message error-message">
+                          <MdError /> {error}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {validationResult && validationResult.warnings.length > 0 && (
+                    <div className="validation-warnings">
+                      {validationResult.warnings.map((warning, idx) => (
+                        <div key={idx} className="validation-message warning-message">
+                          <MdWarning /> {warning}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

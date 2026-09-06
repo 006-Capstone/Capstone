@@ -67,85 +67,82 @@ export const validateContent = async (subject, description, officeName = '') => 
   try {
     // Create a comprehensive prompt for the AI
     const officeContext = officeName ? `\nOffice: "${officeName}"` : '';
-    const prompt = `You are an INTELLIGENT content moderator for a school ticketing system. Analyze the following student request and provide a JSON response.
+    const prompt = `You are a STRICT content moderator for a school ticketing system. Analyze the following student request and provide a JSON response.
 ${officeContext}
 Subject: "${subject}"
 Description: "${description}"
 
-IMPORTANT CONTEXT:
-- The system allows custom subjects to be added by administrators
-- You must be INTELLIGENT and FLEXIBLE when validating custom subjects
-- DO NOT rely only on predefined examples - UNDERSTAND what the subject is asking for based on its name and the office context
-- For ANY subject, analyze the subject name itself to understand what it's asking for, then check if the description relates to that
+IMPORTANT: You must be PRECISE and STRICT when validating. Do not accept "close enough" matches.
 
-CORE VALIDATION RULES:
+**CORE VALIDATION RULES:**
 
-1. PROFANITY CHECK (STRICT):
+1. **PROFANITY CHECK (STRICT)**:
    - Detect bad words in English, Tagalog, and Bisaya
    - Examples: fuck, shit, puta, gago, tangina, yawa, buang, etc.
    - Detect offensive or aggressive language
    - Medical/academic terms are acceptable
 
-2. RELEVANCE CHECK (INTELLIGENT & FLEXIBLE):
+2. **RELEVANCE CHECK (STRICT & PRECISE)**:
    
-   **PRIMARY RULE**: The description must relate to what the SUBJECT NAME suggests.
+   **PRIMARY RULE**: The description must PRECISELY match what the subject is asking for.
    
-   How to validate ANY subject (including custom ones):
-   - Read the subject name carefully
-   - Infer what topic it's about from the words used
-   - Check if the description discusses that topic
-   - Consider the office context to understand the domain
+   **BE STRICT - NOT LENIENT**:
+   - Don't accept "close enough" matches
+   - The description must specifically discuss what the subject name indicates
+   - If the subject says "Billing Inquiry" and the description asks about "balance" → NOT RELEVANT
+   - If the subject says "Document Request" and the description asks about "payment" → NOT RELEVANT
    
-   **FOR MULTILINGUAL CONTENT**: 
-   - If text is in Tagalog or Bisaya, be MORE LENIENT
-   - Focus on keywords and overall topic match
-   - Only mark as irrelevant if CLEARLY discussing a completely different topic
+   **SUBJECT-SPECIFIC VALIDATION**:
    
-   **SMART KEYWORD MATCHING**:
-   - For subjects with "Request", "Inquiry", "Application", "Appeal" - check if description asks for or discusses that type of request
-   - For subjects with financial terms (Payment, Balance, Refund, Fee, Tuition) - look for money/payment-related discussion
-   - For subjects with document terms (Form, Certificate, Transcript, Record) - look for document/paperwork discussion
-   - For subjects with service terms (Counseling, Support, Assistance) - look for help/service requests
+   Finance Office Subjects:
+   - "Billing Inquiry" = Questions about bills, invoices, charges, billing statements ONLY
+     ❌ NOT: balance checking, payments, refunds
+   - "Balance Verification" = Check remaining balance, outstanding amount, how much is owed
+   - "Payment Plan" = Request installment, payment arrangement, payment schedule
+   - "Refund Request" = Request money back, return payment, reimbursement
    
-   **EXAMPLES OF INTELLIGENT VALIDATION**:
+   Registrar Office Subjects:
+   - "Document Request" = Request school records, forms, certificates, transcripts, diplomas
+   - "Grade Inquiry" = Questions about grades, scores, academic performance
+   - "Enrollment Issue" = Problems with enrollment, registration, class scheduling
+   - "Transcript Request" = Request official transcript, TOR, academic records
    
-   ✓ VALID Custom Subject Examples:
-   - Subject: "Scholarship Application" + Desc: "I want to apply for financial aid" = RELEVANT (financial assistance)
-   - Subject: "Lost ID Card" + Desc: "I lost my school ID yesterday" = RELEVANT (matches subject)
-   - Subject: "Uniform Complaint" + Desc: "My uniform size is wrong" = RELEVANT (uniform issue)
-   - Subject: "Internet Access Problem" + Desc: "Cannot connect to school wifi" = RELEVANT (internet issue)
-   - Subject: "Health Certificate" + Desc: "Need medical clearance form" = RELEVANT (health document)
+   Library Office Subjects:
+   - "Book Request" = Request to borrow books, reserve materials
+   - "Lost Book Report" = Report lost or damaged library materials
+   - "Library Card Issue" = Problems with library card, access, account
+   - "Resource Access" = Problems accessing library resources, databases
    
-   ✗ INVALID - Clear Mismatches:
-   - Subject: "Scholarship Application" + Desc: "I lost my library book" = NOT RELEVANT (different topics)
-   - Subject: "Lost ID Card" + Desc: "I need to pay my tuition" = NOT RELEVANT (payment vs ID)
-   - Subject: "Uniform Complaint" + Desc: "Request for transcript" = NOT RELEVANT (uniform vs documents)
+   Guidance Office Subjects:
+   - "Counseling Request" = Request guidance counseling, mental health support
+   - "Disciplinary Appeal" = Appeal disciplinary action, violation, sanctions
+   - "Behavior Report" = Report student behavior issues
+   - "Support Services" = Request academic or personal support
+   
+   **STRICT EXAMPLES**:
+   
+   ❌ INVALID - Precise Mismatches:
+   - Subject: "Billing Inquiry" + Desc: "I want to check my balance" = NOT RELEVANT (billing vs balance)
+   - Subject: "Billing Inquiry" + Desc: "How much do I owe?" = NOT RELEVANT (that's balance verification)
+   - Subject: "Document Request" + Desc: "I need to pay my fees" = NOT RELEVANT (document vs payment)
+   - Subject: "Payment Plan" + Desc: "Can I get a refund?" = NOT RELEVANT (payment plan vs refund)
+   - Subject: "Grade Inquiry" + Desc: "I need my transcript" = NOT RELEVANT (grades vs transcript document)
+   
+   ✓ VALID - Precise Matches:
+   - Subject: "Billing Inquiry" + Desc: "Why did I receive this bill?" = RELEVANT (asking about a bill)
+   - Subject: "Billing Inquiry" + Desc: "What are these charges on my invoice?" = RELEVANT (asking about billing)
+   - Subject: "Balance Verification" + Desc: "I want to check my balance" = RELEVANT (exact match)
+   - Subject: "Balance Verification" + Desc: "How much do I still owe?" = RELEVANT (balance question)
+   - Subject: "Document Request" + Desc: "I need Form 137" = BLOCKED (Form 137 not allowed)
+   - Subject: "Document Request" + Desc: "I need my certificate" = RELEVANT (document request)
+   - Subject: "Grade Inquiry" + Desc: "Why is my grade low?" = RELEVANT (grade question)
 
-3. SPECIAL VALIDATION RULES (Keep these):
+3. **SPECIAL VALIDATION RULES**:
    
    **FORM 137 - STRICTLY BLOCKED**:
    - Students CANNOT request Form 137 through this system
-   - If description mentions "Form 137", "F.137", "137 form", or similar → mark as NOT RELEVANT
-   - Reason: "Form 137 requests are not allowed. Form 137 is only released to transferring students upon completion of clearance."
-   
-   **REFUND vs RECEIPT**:
-   - "Refund Request" = asking for money back, return payment
-   - "Receipt Request" = asking for proof of payment, official receipt
-   - If description asks for money back but subject is "Receipt Request" = NOT RELEVANT
-   
-   **DOCUMENT TYPES**:
-   - Form 137, Form 138, TOR, transcript, diploma, certificate = valid for document/certificate/transcript requests
-   - Accept if description mentions any official school documents
-   
-   **FINANCIAL TERMS**:
-   - For Finance office or payment-related subjects: accept terms like balance, tuition, payment, bayad, kwarta, refund
-   
-   **COMMON SUBJECTS** (if they appear, use strict checking):
-   - Balance Verification → financial balance inquiry
-   - Document Request → school records/forms
-   - Grade Inquiry → academic grades/scores  
-   - Book Request → library materials
-   - Counseling → guidance services
+   - If description mentions "Form 137", "F.137", "137 form", or similar → BLOCK immediately
+   - Return: isRelevant = false, relevanceReason = "Form 137 requests are not allowed. Form 137 is only released to transferring students upon completion of clearance."
 
 4. LANGUAGE DETECTION:
    - English: "the", "is", "my", "please"
@@ -173,7 +170,7 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
   "tone": "appropriate" | "inappropriate" | "aggressive" | "neutral"
 }`;
 
-    // Call Groq AI (using GPT-OSS 20B - current supported model)
+    // Call Groq AI (using GPT-OSS 20B - fastest current model)
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         {
@@ -181,9 +178,9 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
           content: prompt
         }
       ],
-      model: 'openai/gpt-oss-20b', // Currently supported Groq model (as of 2026)
+      model: 'openai/gpt-oss-20b', // Current supported Groq model (1000 T/sec)
       temperature: 0.1, // Low temperature for consistent analysis
-      max_tokens: 800 // Increased to ensure complete JSON response
+      max_tokens: 1024 // Increased to ensure complete JSON response
     });
 
     const responseText = chatCompletion.choices[0]?.message?.content || '';
@@ -196,25 +193,13 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
       
       // Check if response is complete JSON (should end with })
       if (!cleanText.endsWith('}')) {
-        console.warn('Incomplete AI response detected, using fallback validation');
-        return {
-          isValid: true,
-          errors: [],
-          warnings: ['AI validation temporarily unavailable. Your request will be manually reviewed.'],
-          language: 'unknown'
-        };
+        throw new Error('Incomplete AI response received');
       }
       
       aiAnalysis = JSON.parse(cleanText);
     } catch (parseError) {
-      console.warn('Failed to parse AI response (may be incomplete):', responseText.substring(0, 100));
-      // Fallback to basic validation
-      return {
-        isValid: true,
-        errors: [],
-        warnings: ['AI validation temporarily unavailable. Your request will be manually reviewed.'],
-        language: 'unknown'
-      };
+      console.error('Failed to parse AI response:', parseError, 'Response:', responseText.substring(0, 100));
+      throw new Error('AI validation failed to parse response');
     }
 
     // Process AI analysis results
@@ -245,13 +230,7 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
 
   } catch (error) {
     console.error('AI validation error:', error);
-    
-    // Fallback: return basic validation if AI fails
-    return {
-      isValid: true,
-      errors: [],
-      warnings: ['AI validation temporarily unavailable. Your request will be manually reviewed.'],
-      language: 'unknown'
-    };
+    // Re-throw the error - no fallback, validation must work
+    throw error;
   }
 };
