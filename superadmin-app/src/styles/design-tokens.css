@@ -91,11 +91,13 @@
   --color-warning-bg:         #fee2e2;
   --color-warning-border:     #fca5a5;
 
-  --color-danger:             #b91c1c;
+  --color-danger:             #dc2626;
+  --color-danger-hover:       #b91c1c;
   --color-danger-bg:          var(--status-cancelled-bg);
   --color-danger-border:      var(--status-cancelled-border);
   --red-500:                  #ef4444;
   --red-600:                  #dc2626;
+  --red-700:                  #b91c1c;
 
   --color-info:               var(--color-primary);
   --color-info-bg:            var(--sage-50);

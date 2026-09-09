@@ -193,6 +193,63 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     }
   };
 
+  const scanFileWithScales = async (file) => {
+    // Dedicated instance on helper element to avoid interfering with camera DOM
+    const helperContainerId = "qr-reader-file-helper";
+    const scanner = new Html5Qrcode(helperContainerId);
+
+    try {
+      // 1. Direct file scan attempt
+      try {
+        const directResult = await scanner.scanFile(file, false);
+        if (directResult) return directResult;
+      } catch (directErr) {
+        console.log('[Upload] Direct scan could not detect code, trying multi-scale resamples...', directErr);
+      }
+
+      // 2. Multi-scale canvas fallbacks (fixes subpixel module rounding in ZXing for images like 300x300)
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = URL.createObjectURL(file);
+      });
+
+      const candidateSizes = [500, 400, 600, 750, 350];
+      for (const size of candidateSizes) {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) continue;
+          ctx.imageSmoothingEnabled = false; // Nearest-neighbor scaling preserves crisp pixel boundaries
+          ctx.drawImage(img, 0, 0, size, size);
+
+          const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+          if (blob) {
+            const scaledFile = new File([blob], 'qr-scaled.png', { type: 'image/png' });
+            const result = await scanner.scanFile(scaledFile, false);
+            if (result) {
+              console.log(`[Upload] QR Code detected successfully at scale ${size}px`);
+              return result;
+            }
+          }
+        } catch (scaleErr) {
+          // Continue to next size
+        }
+      }
+
+      throw new Error('Could not detect QR code in the image. Please ensure the image is clear and not cropped.');
+    } finally {
+      try {
+        scanner.clear();
+      } catch (clearErr) {
+        // ignore
+      }
+    }
+  };
+
   const onScanSuccess = async (decodedText, decodedResult) => {
     console.log('[Success] QR Code scanned, raw data:', decodedText);
     console.log('[Stats] Decoded result:', decodedResult);
@@ -372,43 +429,62 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     }
     setShowQRScanner(false);
     setScanningStatus('initializing');
+    setLoading(false);
   };
 
   const handleUploadQRCode = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const inputElement = event.target;
+
     // Validate file type
     if (!file.type.startsWith('image/')) {
       setError('Please upload an image file (PNG, JPG, etc.)');
+      inputElement.value = '';
       return;
     }
 
     try {
       setLoading(true);
       setScanningStatus('initializing');
-      console.log('[Upload] Processing uploaded QR code image...');
+      setError('');
+      console.log('[Upload] Processing uploaded QR code image...', file.name, 'Size:', file.size);
 
-      // Create a temporary scanner instance for file scanning
-      const scanner = new Html5Qrcode("qr-reader");
-      
-      // Scan the uploaded image file
-      const decodedText = await scanner.scanFile(file, true);
-      
-      console.log('[Success] QR Code decoded from image:', decodedText);
+      // Stop active camera stream if running to prevent resource locks
+      if (qrScanner) {
+        try {
+          const state = qrScanner.getState();
+          if (state === 2) {
+            await qrScanner.stop();
+            console.log('[Camera] Scanner stopped for file upload');
+          }
+        } catch (stopErr) {
+          console.log('[Camera] Stop camera error:', stopErr);
+        }
+      }
+
+      // Scan the uploaded image with multi-scale fallback
+      const decodedText = await scanFileWithScales(file);
+      console.log('[Success] QR Code decoded from image, length:', decodedText.length);
       setScanningStatus('success');
-      
+
       // Process the scanned QR code (same as camera scan)
       await onScanSuccess(decodedText, null);
-      
-      // Clear the file input
-      event.target.value = '';
-      
+
     } catch (error) {
       console.error('[Error] Error scanning uploaded QR code:', error);
       setScanningStatus('error');
-      setError('Failed to read QR code from image. Please ensure the image is clear and contains a valid QR code.');
+      if (error.message && (error.message.includes('No MultiFormat Readers') || error.message.includes('not detect'))) {
+        setError('Could not detect QR code in the image. Please ensure the image is clear and not cropped, or try using the camera scanner.');
+      } else {
+        setError(error.message || 'Failed to read QR code from image. Please try again.');
+      }
       setLoading(false);
+    } finally {
+      if (inputElement) {
+        inputElement.value = '';
+      }
     }
   };
 
@@ -571,7 +647,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
               )}
               {scanningStatus === 'error' && (
                 <div className="status-message error">
-                  <p>⚠ Error scanning QR code</p>
+                  <p>⚠ {error || 'Error scanning QR code'}</p>
                 </div>
               )}
             </div>
@@ -584,6 +660,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
               4. Hold steady - automatic login will happen instantly
             </p>
             <div id="qr-reader" className="qr-reader-container"></div>
+            <div id="qr-reader-file-helper" style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}></div>
             
             {/* Upload QR Code Option */}
             <div className="qr-upload-section">

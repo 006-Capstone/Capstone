@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { FaBars } from 'react-icons/fa';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from './firebase';
 import Login from './components/Login';
 import SuperAdminSidebar from './components/SuperAdminSidebar';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import EditRequestForm from './components/EditRequestForm';
 import Analytics from './components/Analytics';
 import UserManagement from './components/UserManagement';
+import LoadingSpinner from './components/LoadingSpinner';
 import './App.css';
 
 function App() {
+  const [authChecking, setAuthChecking] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('superadminAuth') === 'true';
   });
@@ -17,15 +21,36 @@ function App() {
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && localStorage.getItem('superadminAuth') === 'true') {
+        setIsLoggedIn(true);
+      } else if (!user) {
+        // If Firebase Auth has no active session, user cannot query protected Firestore data
+        setIsLoggedIn(false);
+        localStorage.removeItem('superadminAuth');
+      }
+      setAuthChecking(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const handleLogin = () => {
     setIsLoggedIn(true);
     setActivePage('dashboard'); // Always go to dashboard on login
     localStorage.setItem('superadminActivePage', 'dashboard'); // Reset to dashboard
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
     setIsLoggedIn(false);
     localStorage.removeItem('superadminAuth');
+    localStorage.removeItem('superadminData');
   };
 
   const handleNavigate = (page) => {
@@ -56,6 +81,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('superadminActivePage', activePage);
   }, [activePage]);
+
+  if (authChecking) {
+    return <LoadingSpinner message="Checking superadmin session..." fullScreen={true} />;
+  }
 
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;

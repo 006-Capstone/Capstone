@@ -106,13 +106,13 @@ function ProfileSettings({ onClose }) {
       const encryptedData = encryptCredentials(username, officeId, password);
 
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 300,
-        margin: 2,
+        width: 400,
+        margin: 4,
         color: {
           dark: '#105E06',
           light: '#FFFFFF'
         },
-        errorCorrectionLevel: 'H'
+        errorCorrectionLevel: 'M'
       });
       setQrCodeDataURL(qrDataURL);
 

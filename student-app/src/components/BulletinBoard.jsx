@@ -137,9 +137,6 @@ function BulletinBoard() {
 
       <div className="hero-banner">
         <div className="hero-overlay">
-          {hero.office && (
-            <span className="hero-kicker">{hero.office} OFFICE</span>
-          )}
           <h2 className="hero-title">{hero.title}</h2>
           <p className="hero-subtitle">{hero.body}</p>
         </div>

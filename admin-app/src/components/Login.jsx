@@ -171,27 +171,87 @@ const Login = ({ onLogin, onForgotPassword }) => {
     }
   };
 
+  const scanFileWithScales = async (file) => {
+    // Dedicated instance on helper element to avoid interfering with camera DOM
+    const helperContainerId = "qr-reader-file-helper";
+    const scanner = new Html5Qrcode(helperContainerId);
+
+    try {
+      // 1. Direct file scan attempt
+      try {
+        const directResult = await scanner.scanFile(file, false);
+        if (directResult) return directResult;
+      } catch (directErr) {
+        console.log('[Upload] Direct scan could not detect code, trying multi-scale resamples...', directErr);
+      }
+
+      // 2. Multi-scale canvas fallbacks (fixes subpixel module rounding in ZXing for images like 300x300)
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = URL.createObjectURL(file);
+      });
+
+      const candidateSizes = [500, 400, 600, 750, 350];
+      for (const size of candidateSizes) {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) continue;
+          ctx.imageSmoothingEnabled = false; // Nearest-neighbor scaling preserves crisp pixel boundaries
+          ctx.drawImage(img, 0, 0, size, size);
+
+          const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+          if (blob) {
+            const scaledFile = new File([blob], 'qr-scaled.png', { type: 'image/png' });
+            const result = await scanner.scanFile(scaledFile, false);
+            if (result) {
+              console.log(`[Upload] QR Code detected successfully at scale ${size}px`);
+              return result;
+            }
+          }
+        } catch (scaleErr) {
+          // Continue to next size
+        }
+      }
+
+      throw new Error('Could not detect QR code in the image. Please ensure the image is clear and not cropped.');
+    } finally {
+      try {
+        scanner.clear();
+      } catch (clearErr) {
+        // ignore
+      }
+    }
+  };
+
   const onScanSuccess = async (decodedText, decodedResult) => {
     console.log('[Success] QR Code scanned, raw data:', decodedText);
     setScanningStatus('success');
     
     if (qrScanner) {
       try {
-        await qrScanner.stop();
-        console.log('Scanner stopped successfully');
+        const state = qrScanner.getState();
+        if (state === 2) {
+          await qrScanner.stop();
+          console.log('Scanner stopped successfully');
+        }
       } catch (err) {
         console.error('Error stopping scanner:', err);
       }
     }
     
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 600));
     
     setShowQRScanner(false);
     setLoading(true);
     setError('');
 
     try {
-      if (decodedText.length < 20) {
+      if (!decodedText || decodedText.length < 20) {
         console.error('[Error] Scanned data too short to be encrypted:', decodedText);
         setScanningStatus('error');
         setError('Invalid QR code. Please scan a valid admin login QR code.');
@@ -215,12 +275,11 @@ const Login = ({ onLogin, onForgotPassword }) => {
       console.log('[User] Username from QR:', username);
       console.log('[Office] Office from QR:', officeId);
 
-      // Find staff member by username and office
-      console.log('[Search] Searching for staff with username:', username, 'and office:', officeId);
+      // Find staff member by username in Firestore
+      console.log('[Search] Searching for staff with username:', username);
       const staffQuery = query(
         collection(db, 'staff'),
-        where('username', '==', username),
-        where('officeId', '==', officeId)
+        where('username', '==', username)
       );
       
       const querySnapshot = await getDocs(staffQuery);
@@ -228,12 +287,31 @@ const Login = ({ onLogin, onForgotPassword }) => {
       if (querySnapshot.empty) {
         console.error('[Error] Staff not found in database');
         setScanningStatus('error');
-        setError('Staff account not found. Please contact the administrator.');
+        setError(`Staff account '${username}' not found. Please contact the administrator.`);
         setLoading(false);
         return;
       }
 
-      const staffDoc = querySnapshot.docs[0];
+      // Verify office matches (case-insensitive)
+      let matchedDoc = null;
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data();
+        const staffOfficeId = (data.officeId || data.office || '').toLowerCase();
+        if (staffOfficeId === officeId.toLowerCase() || (data.office && data.office.toLowerCase() === officeId.toLowerCase())) {
+          matchedDoc = docSnap;
+          break;
+        }
+      }
+
+      if (!matchedDoc) {
+        console.error('[Error] Department mismatch for staff:', username, officeId);
+        setScanningStatus('error');
+        setError(`Staff account '${username}' found, but office '${officeId}' does not match database record.`);
+        setLoading(false);
+        return;
+      }
+
+      const staffDoc = matchedDoc;
       const staffData = staffDoc.data();
       console.log('[Success] Staff found:', staffData);
 
@@ -270,6 +348,9 @@ const Login = ({ onLogin, onForgotPassword }) => {
       localStorage.setItem('staffData', JSON.stringify(staffInfo));
       
       console.log('[Success] Login successful via QR code!');
+      if (staffData.officeId) {
+        setSelectedDepartment(staffData.officeId.toLowerCase());
+      }
       onLogin(staffData.office);
       setLoading(false);
 
@@ -304,14 +385,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
     if (qrScanner) {
       try {
         const state = qrScanner.getState();
-        console.log('Scanner state before closing:', state);
-        
         if (state === 2) {
-          qrScanner.stop()
-            .then(() => console.log('Scanner stopped successfully'))
-            .catch(err => console.log('Scanner stop warning:', err));
-        } else {
-          console.log('Scanner not running, skipping stop');
+          qrScanner.stop().catch(err => console.log('Scanner stop warning:', err));
         }
       } catch (err) {
         console.log('Scanner close error:', err);
@@ -320,45 +395,59 @@ const Login = ({ onLogin, onForgotPassword }) => {
     }
     setShowQRScanner(false);
     setScanningStatus('initializing');
+    setLoading(false);
   };
 
   const handleUploadQRCode = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const inputElement = event.target;
+
     if (!file.type.startsWith('image/')) {
       setError('Please upload an image file (PNG, JPG, etc.)');
+      inputElement.value = '';
       return;
     }
 
     try {
       setLoading(true);
       setScanningStatus('initializing');
-      console.log('[Upload] Processing uploaded QR code image...');
-      console.log('[File] File name:', file.name, 'Size:', file.size, 'Type:', file.type);
+      setError('');
+      console.log('[Upload] Processing uploaded QR code image...', file.name, 'Size:', file.size);
 
-      const scanner = new Html5Qrcode("qr-reader-admin");
-      const decodedText = await scanner.scanFile(file, true);
-      
-      console.log('[Success] QR Code decoded from image');
-      console.log('[Note] Decoded length:', decodedText.length, 'characters');
+      // Stop active camera stream if running
+      if (qrScanner) {
+        try {
+          const state = qrScanner.getState();
+          if (state === 2) {
+            await qrScanner.stop();
+            console.log('[Camera] Scanner stopped for file upload');
+          }
+        } catch (stopErr) {
+          console.log('[Camera] Stop camera error:', stopErr);
+        }
+      }
+
+      const decodedText = await scanFileWithScales(file);
+      console.log('[Success] QR Code decoded from image, length:', decodedText.length);
       setScanningStatus('success');
-      
+
       await onScanSuccess(decodedText, null);
-      event.target.value = '';
-      
     } catch (error) {
       console.error('[Error] Error scanning uploaded QR code:', error);
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
       setScanningStatus('error');
       
-      if (error.message && error.message.includes('No MultiFormat Readers')) {
-        setError('Could not detect QR code in the image. Please try:\n1. Using the camera scanner instead\n2. Ensuring the image is clear and not cropped\n3. Regenerating the QR code');
+      if (error.message && (error.message.includes('No MultiFormat Readers') || error.message.includes('not detect'))) {
+        setError('Could not detect QR code in the image. Please ensure the image is clear and not cropped, or try using the camera scanner.');
       } else {
-        setError('Failed to read QR code from image. Please try using the camera scanner or regenerate your QR code.');
+        setError(error.message || 'Failed to read QR code from image. Please try again.');
       }
       setLoading(false);
+    } finally {
+      if (inputElement) {
+        inputElement.value = '';
+      }
     }
   };
 
@@ -542,7 +631,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
               )}
               {scanningStatus === 'error' && (
                 <div className="status-message error">
-                  <p>⚠ Error scanning QR code</p>
+                  <p>⚠ {error || 'Error scanning QR code'}</p>
                 </div>
               )}
             </div>
@@ -554,6 +643,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
               3. Hold steady - automatic login will happen instantly
             </p>
             <div id="qr-reader-admin" className="qr-reader-container"></div>
+            <div id="qr-reader-file-helper" style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}></div>
             
             <div className="qr-upload-section">
               <div className="divider-qr">

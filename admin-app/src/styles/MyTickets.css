@@ -142,150 +142,6 @@
   z-index: 10;
 }
 
-/* ---- 3 Summary Cards ---- */
-.ticket-summary-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-4);
-}
-
-.summary-card {
-  position: relative;
-  width: 100%;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-  cursor: pointer;
-  border-left: 4px solid transparent;
-  transition: all var(--transition-fast);
-}
-
-.summary-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.summary-card:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-/* 1. My Request (ALL) Card */
-.summary-card.total {
-  border-left-color: #166534;
-}
-.summary-card.total .summary-icon-container {
-  background-color: #f0fdf4;
-  color: #166534;
-  border: 1px solid #dcfce7;
-}
-.summary-card.total .summary-count {
-  color: #166534;
-}
-.summary-card.total .summary-dot {
-  background-color: #166534;
-}
-.summary-card.total.active {
-  border-color: #166534;
-  box-shadow: 0 4px 14px rgba(22, 101, 52, 0.18);
-}
-
-/* 2. In Process Card (Warm Yellow/Amber) */
-.summary-card.progress {
-  border-left-color: #ca8a04;
-}
-.summary-card.progress .summary-icon-container {
-  background-color: var(--status-inprocess-bg, #fef9c3);
-  color: var(--status-inprocess-text, #854d0e);
-  border: 1px solid var(--status-inprocess-border, #fde047);
-}
-.summary-card.progress .summary-count {
-  color: var(--status-inprocess-text, #854d0e);
-}
-.summary-card.progress .summary-dot {
-  background-color: var(--status-inprocess-dot, #ca8a04);
-}
-.summary-card.progress.active {
-  border-color: #ca8a04;
-  box-shadow: 0 4px 14px rgba(202, 138, 4, 0.18);
-}
-
-/* 3. Resolved Card (Emerald Green) */
-.summary-card.resolved {
-  border-left-color: #16a34a;
-}
-.summary-card.resolved .summary-icon-container {
-  background-color: var(--status-resolved-bg, #dcfce7);
-  color: var(--status-resolved-text, #14532d);
-  border: 1px solid var(--status-resolved-border, #86efac);
-}
-.summary-card.resolved .summary-count {
-  color: var(--status-resolved-text, #14532d);
-}
-.summary-card.resolved .summary-dot {
-  background-color: var(--status-resolved-dot, #16a34a);
-}
-.summary-card.resolved.active {
-  border-color: #16a34a;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.18);
-}
-
-.summary-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.summary-icon-container {
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-
-.summary-label {
-  font-size: 11px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.summary-count {
-  font-size: 30px;
-  font-weight: var(--font-weight-extrabold);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  margin: 0;
-}
-
-.summary-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: auto;
-}
-
-.summary-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-
-.summary-subtext {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
 /* ---- Filters Toolbar ---- */
 .filters-section {
   display: flex;
@@ -534,19 +390,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.assigned-to-cell {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-weight-medium);
-}
-
-.assigned-name {
-  font-weight: var(--font-weight-semibold);
-}
-
 .view-ticket-btn {
   display: inline-flex;
   align-items: center;
@@ -620,19 +463,9 @@
    RESPONSIVE
    ========================================================================== */
 
-@media (max-width: 1024px) {
-  .ticket-summary-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 768px) {
   .my-tickets-container {
     padding: var(--space-4);
-  }
-
-  .ticket-summary-cards {
-    grid-template-columns: 1fr;
   }
 
   .page-header {

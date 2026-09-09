@@ -43,6 +43,7 @@ function App() {
   });
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [dashboardKey, setDashboardKey] = useState(0);
   const [staffData, setStaffData] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -88,6 +89,9 @@ function App() {
   };
 
   const handleNavigate = (page, ticket = null) => {
+    if (page === 'dashboard') {
+      setDashboardKey(k => k + 1);
+    }
     setActivePage(page);
     setIsSidebarOpen(false);
     if (ticket) {
@@ -183,6 +187,7 @@ function App() {
         <main className="admin-main-content">
           {activePage === 'dashboard' && (
             <AdminDashboard 
+              key={dashboardKey}
               department={selectedDepartment} 
               onNavigate={handleNavigate} 
               onViewRequest={handleViewTicket} 

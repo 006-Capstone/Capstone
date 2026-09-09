@@ -72,13 +72,13 @@ function ProfileSettings({ onClose }) {
     try {
       // Generate QR code image from encrypted data
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 300,
-        margin: 2,
+        width: 400,
+        margin: 4,
         color: {
           dark: '#105E06',
           light: '#FFFFFF'
         },
-        errorCorrectionLevel: 'H'
+        errorCorrectionLevel: 'M'
       });
       setQrCodeDataURL(qrDataURL);
       console.log('[Success] QR code image generated from stored data');
@@ -107,13 +107,13 @@ function ProfileSettings({ onClose }) {
       
       // Generate QR code image with encrypted data
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 300,
-        margin: 2,
+        width: 400,
+        margin: 4,
         color: {
           dark: '#105E06',
           light: '#FFFFFF'
         },
-        errorCorrectionLevel: 'H' // High error correction for encrypted data
+        errorCorrectionLevel: 'M'
       });
       setQrCodeDataURL(qrDataURL);
       

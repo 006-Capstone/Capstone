@@ -6,6 +6,8 @@ import {
   FaUsers,
   FaCalendarAlt,
   FaCheckCircle,
+  FaExclamationCircle,
+  FaStar,
   FaUserPlus,
   FaUserTie,
   FaEdit,
@@ -14,7 +16,7 @@ import {
   FaArrowRight,
   FaHistory
 } from 'react-icons/fa';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
 import NotificationBell from './NotificationBell';
@@ -38,14 +40,17 @@ const SuperAdminDashboard = ({ onNavigate }) => {
     totalStudents: 0,
     activeStaff: 0,
     totalStaff: 0,
-    archivedCount: 0
+    archivedCount: 0,
+    satisfactionPercentage: 0,
+    satisfactionRating: '0.0',
+    satisfactionTotal: 0
   });
 
   const [departmentData, setDepartmentData] = useState([
-    { label: 'FIN', value: 0, max: 100, percentage: 0, name: 'Finance Office' },
-    { label: 'REG', value: 0, max: 100, percentage: 0, name: "Registrar's Office" },
-    { label: 'LIB', value: 0, max: 100, percentage: 0, name: 'Library' },
-    { label: 'GUI', value: 0, max: 100, percentage: 0, name: 'Guidance & Counseling' }
+    { label: 'FIN', value: 0, max: 50, percentage: 0, name: 'Finance Office' },
+    { label: 'REG', value: 0, max: 50, percentage: 0, name: "Registrar's Office" },
+    { label: 'LIB', value: 0, max: 50, percentage: 0, name: 'Library' },
+    { label: 'GUI', value: 0, max: 50, percentage: 0, name: 'Guidance & Counseling' }
   ]);
 
   const [recentRequests, setRecentRequests] = useState([]);
@@ -57,10 +62,6 @@ const SuperAdminDashboard = ({ onNavigate }) => {
 
   // Keep all fetched requests in a ref so filters can be applied without refetching
   const allRequestsRef = useRef([]);
-
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
 
   const getRequestDate = (req) => {
     if (!req.createdAt) return null;
@@ -93,7 +94,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
     const guidanceCount = filteredRequests.filter(req => req.office === 'Guidance').length;
 
     const totalFiltered = filteredRequests.length;
-    const maxCount = Math.max(financeCount, registrarCount, libraryCount, guidanceCount, 1);
+    const maxCount = Math.max(50, financeCount, registrarCount, libraryCount, guidanceCount);
 
     setFilteredTotal(totalFiltered);
     setDepartmentData([
@@ -101,140 +102,240 @@ const SuperAdminDashboard = ({ onNavigate }) => {
         label: 'FIN',
         value: financeCount,
         max: maxCount,
-        percentage: totalFiltered > 0 ? Math.round((financeCount / totalFiltered) * 100) : 0,
+        percentage: maxCount > 0 ? Math.round((financeCount / maxCount) * 100) : 0,
         name: 'Finance Office'
       },
       {
         label: 'REG',
         value: registrarCount,
         max: maxCount,
-        percentage: totalFiltered > 0 ? Math.round((registrarCount / totalFiltered) * 100) : 0,
+        percentage: maxCount > 0 ? Math.round((registrarCount / maxCount) * 100) : 0,
         name: "Registrar's Office"
       },
       {
         label: 'LIB',
         value: libraryCount,
         max: maxCount,
-        percentage: totalFiltered > 0 ? Math.round((libraryCount / totalFiltered) * 100) : 0,
+        percentage: maxCount > 0 ? Math.round((libraryCount / maxCount) * 100) : 0,
         name: 'Library'
       },
       {
         label: 'GUI',
         value: guidanceCount,
         max: maxCount,
-        percentage: totalFiltered > 0 ? Math.round((guidanceCount / totalFiltered) * 100) : 0,
+        percentage: maxCount > 0 ? Math.round((guidanceCount / maxCount) * 100) : 0,
         name: 'Guidance & Counseling'
       }
     ]);
   };
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
+  // Real-time Firestore subscriptions for live dashboard metrics
+  useEffect(() => {
+    setLoading(true);
 
-      // Load all requests
-      const requestsSnapshot = await getDocs(collection(db, 'requests'));
-      const allRequests = requestsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      allRequestsRef.current = allRequests;
+    let unsubRequests = () => {};
+    let unsubStudents = () => {};
+    let unsubStaff = () => {};
+    let unsubArchived = () => {};
+    let unsubFeedback = () => {};
 
-      // Status breakdown
-      const pendingCount = allRequests.filter(req =>
-        (req.status || '').toLowerCase() === 'pending'
-      ).length;
+    let requestsDone = false;
+    let studentsDone = false;
+    let staffDone = false;
 
-      const inProcessCount = allRequests.filter(req =>
-        (req.status || '').toLowerCase() === 'in process' || (req.status || '').toLowerCase() === 'in-process'
-      ).length;
-
-      const resolvedCount = allRequests.filter(req =>
-        (req.status || '').toLowerCase() === 'resolved'
-      ).length;
-
-      const cancelledCount = allRequests.filter(req =>
-        ['cancelled', 'rejected'].includes((req.status || '').toLowerCase())
-      ).length;
-
-      // Total requests
-      const totalRequests = allRequests.length;
-
-      // Calculate cancelled rate
-      const cancelledRate = totalRequests > 0
-        ? ((cancelledCount / totalRequests) * 100).toFixed(1) + '%'
-        : '0%';
-
-      // Calculate average resolution time
-      const resolvedRequests = allRequests.filter(req => req.status === 'Resolved' && req.resolvedAt && req.createdAt);
-      let avgResolutionTime = '0d 0h';
-
-      if (resolvedRequests.length > 0) {
-        const totalResolutionTime = resolvedRequests.reduce((sum, req) => {
-          const created = req.createdAt?.toDate?.() || new Date(req.createdAt);
-          const resolved = req.resolvedAt?.toDate?.() || new Date(req.resolvedAt);
-          return sum + (resolved - created);
-        }, 0);
-
-        const avgMs = totalResolutionTime / resolvedRequests.length;
-        const days = Math.floor(avgMs / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((avgMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        avgResolutionTime = `${days}d ${hours}h`;
+    const checkDone = () => {
+      if (requestsDone && studentsDone && staffDone) {
+        setLoading(false);
       }
+    };
 
-      // Count students
-      const studentsSnapshot = await getDocs(collection(db, 'students'));
-      const activeStudents = studentsSnapshot.docs.filter(doc => doc.data().isActive !== false).length;
-      const totalStudents = studentsSnapshot.docs.length;
-
-      // Count staff
-      const staffSnapshot = await getDocs(collection(db, 'staff'));
-      const activeStaff = staffSnapshot.docs.filter(doc => doc.data().isActive !== false).length;
-      const totalStaff = staffSnapshot.docs.length;
-
-      const activeUsers = activeStudents + activeStaff;
-
-      // Count archived if accessible
-      let archivedCount = 0;
-      try {
-        const archSnap = await getDocs(collection(db, 'archivedAccounts'));
-        archivedCount = archSnap.docs.length;
-      } catch (err) {
-        // Fallback gracefully if not collection exists
-      }
-
-      setStats({
-        totalRequests,
-        avgResolution: avgResolutionTime,
-        cancelledRate,
-        activeUsers,
-        pendingCount,
-        inProcessCount,
-        resolvedCount,
-        cancelledCount,
-        activeStudents,
-        totalStudents,
-        activeStaff,
-        totalStaff,
-        archivedCount
-      });
-
-      // Recent requests (top 5 latest)
-      const sortedRecent = [...allRequests].sort((a, b) => {
-        const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
-        const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
-        return tB - tA;
-      }).slice(0, 5);
-
-      setRecentRequests(sortedRecent);
-
-      computeDepartmentData(allRequests, appliedFilter);
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
+    // Safety timeout so loading spinner never blocks the UI
+    const timer = setTimeout(() => {
       setLoading(false);
+    }, 6000);
+
+    // 1. Live requests listener
+    try {
+      unsubRequests = onSnapshot(collection(db, 'requests'), (snapshot) => {
+        requestsDone = true;
+        const allRequests = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        allRequestsRef.current = allRequests;
+
+        const totalRequests = allRequests.length;
+        const pendingCount = allRequests.filter(req =>
+          (req.status || '').toLowerCase() === 'pending'
+        ).length;
+
+        const inProcessCount = allRequests.filter(req =>
+          (req.status || '').toLowerCase() === 'in process' || (req.status || '').toLowerCase() === 'in-process'
+        ).length;
+
+        const resolvedCount = allRequests.filter(req =>
+          (req.status || '').toLowerCase() === 'resolved'
+        ).length;
+
+        const cancelledCount = allRequests.filter(req =>
+          ['cancelled', 'rejected'].includes((req.status || '').toLowerCase())
+        ).length;
+
+        const cancelledRate = totalRequests > 0
+          ? ((cancelledCount / totalRequests) * 100).toFixed(1) + '%'
+          : '0%';
+
+        const resolvedRequests = allRequests.filter(req =>
+          (req.status || '').toLowerCase() === 'resolved' && req.resolvedAt && req.createdAt
+        );
+        let avgResolutionTime = '0d 0h';
+
+        if (resolvedRequests.length > 0) {
+          const totalResolutionTime = resolvedRequests.reduce((sum, req) => {
+            const created = req.createdAt?.toDate?.() || new Date(req.createdAt);
+            const resolved = req.resolvedAt?.toDate?.() || new Date(req.resolvedAt);
+            return sum + Math.max(0, resolved - created);
+          }, 0);
+
+          const avgMs = totalResolutionTime / resolvedRequests.length;
+          const days = Math.floor(avgMs / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((avgMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          avgResolutionTime = `${days}d ${hours}h`;
+        }
+
+        setStats(prev => ({
+          ...prev,
+          totalRequests,
+          pendingCount,
+          inProcessCount,
+          resolvedCount,
+          cancelledCount,
+          cancelledRate,
+          avgResolution: avgResolutionTime
+        }));
+
+        // Recent requests (top 5 latest)
+        const sortedRecent = [...allRequests].sort((a, b) => {
+          const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+          const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+          return tB - tA;
+        }).slice(0, 5);
+
+        setRecentRequests(sortedRecent);
+        computeDepartmentData(allRequests, appliedFilter);
+        checkDone();
+      }, (error) => {
+        console.error('[Dashboard] Error listening to requests:', error);
+        requestsDone = true;
+        checkDone();
+      });
+    } catch (err) {
+      console.error('[Dashboard] Failed to attach requests listener:', err);
+      requestsDone = true;
+      checkDone();
     }
-  };
+
+    // 2. Live students listener
+    try {
+      unsubStudents = onSnapshot(collection(db, 'students'), (snapshot) => {
+        studentsDone = true;
+        const totalStudents = snapshot.docs.length;
+        const activeStudents = snapshot.docs.filter(doc => doc.data().isActive !== false).length;
+
+        setStats(prev => ({
+          ...prev,
+          totalStudents,
+          activeStudents,
+          activeUsers: activeStudents + (prev.activeStaff || 0)
+        }));
+        checkDone();
+      }, (error) => {
+        console.error('[Dashboard] Error listening to students:', error);
+        studentsDone = true;
+        checkDone();
+      });
+    } catch (err) {
+      console.error('[Dashboard] Failed to attach students listener:', err);
+      studentsDone = true;
+      checkDone();
+    }
+
+    // 3. Live staff listener
+    try {
+      unsubStaff = onSnapshot(collection(db, 'staff'), (snapshot) => {
+        staffDone = true;
+        const totalStaff = snapshot.docs.length;
+        const activeStaff = snapshot.docs.filter(doc => doc.data().isActive !== false).length;
+
+        setStats(prev => ({
+          ...prev,
+          totalStaff,
+          activeStaff,
+          activeUsers: (prev.activeStudents || 0) + activeStaff
+        }));
+        checkDone();
+      }, (error) => {
+        console.error('[Dashboard] Error listening to staff:', error);
+        staffDone = true;
+        checkDone();
+      });
+    } catch (err) {
+      console.error('[Dashboard] Failed to attach staff listener:', err);
+      staffDone = true;
+      checkDone();
+    }
+
+    // 4. Live archived count
+    try {
+      unsubArchived = onSnapshot(collection(db, 'archivedAccounts'), (snapshot) => {
+        setStats(prev => ({
+          ...prev,
+          archivedCount: snapshot.docs.length
+        }));
+      }, (error) => {
+        // collection might not exist yet
+      });
+    } catch (err) {}
+
+    // 5. Live feedback listener for Student Satisfaction
+    try {
+      unsubFeedback = onSnapshot(collection(db, 'feedback'), (snapshot) => {
+        const feedbacks = snapshot.docs.map(doc => doc.data());
+        const totalFeedback = feedbacks.length;
+        let satisfactionPercentage = 0;
+        let avgRating = 0;
+
+        if (totalFeedback > 0) {
+          const totalRating = feedbacks.reduce((sum, f) => {
+            const rating = f.overallRating || f.rating || 0;
+            return sum + rating;
+          }, 0);
+          avgRating = totalRating / totalFeedback;
+          satisfactionPercentage = Math.round((avgRating / 5) * 100);
+        }
+
+        setStats(prev => ({
+          ...prev,
+          satisfactionPercentage,
+          satisfactionRating: avgRating > 0 ? avgRating.toFixed(1) : '0.0',
+          satisfactionTotal: totalFeedback
+        }));
+      }, (error) => {
+        console.error('[Dashboard] Error listening to feedback:', error);
+      });
+    } catch (err) {
+      console.error('[Dashboard] Failed to attach feedback listener:', err);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      unsubRequests();
+      unsubStudents();
+      unsubStaff();
+      unsubArchived();
+      unsubFeedback();
+    };
+  }, []);
 
   const applyDateFilter = () => {
     if (dateFilter.from && dateFilter.to && dateFilter.from > dateFilter.to) {
@@ -298,13 +399,6 @@ const SuperAdminDashboard = ({ onNavigate }) => {
 
   const isFilterActive = Boolean(appliedFilter.from || appliedFilter.to);
 
-  const todayFormatted = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-
   // Calculate percentages for workflow pulse strip
   const totalVolume = stats.totalRequests || 1;
   const pendingPct = Math.round((stats.pendingCount / totalVolume) * 100);
@@ -314,20 +408,13 @@ const SuperAdminDashboard = ({ onNavigate }) => {
 
   return (
     <div className="superadmin-page superadmin-dashboard-container">
-      {/* Executive Header Banner */}
+      {/* Header Banner */}
       <div className="page-header dashboard-executive-header">
         <div className="dashboard-welcome-col">
-          <h1 className="dashboard-title">Executive Dashboard</h1>
-          <p className="page-subtitle">
-            <strong>{todayFormatted}</strong>
-          </p>
+          <h1 className="dashboard-title">Dashboard</h1>
         </div>
 
         <div className="dashboard-header-right">
-          <div className="system-health-chip" title="Firebase Firestore & all office channels active">
-            <span className="health-dot" aria-hidden="true" />
-            <span>All 4 Offices Operational</span>
-          </div>
           <NotificationBell />
         </div>
       </div>
@@ -351,8 +438,8 @@ const SuperAdminDashboard = ({ onNavigate }) => {
 
             <div className="stat-card stat-card-pending">
               <div className="stat-header">
-                <div className="stat-icon-container slate">
-                  <FaClock className="stat-icon" aria-hidden="true" />
+                <div className="stat-icon-container amber">
+                  <FaExclamationCircle className="stat-icon" aria-hidden="true" />
                 </div>
                 <span className="stat-label">NEEDS ATTENTION</span>
               </div>
@@ -363,7 +450,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
             <div className="stat-card">
               <div className="stat-header">
                 <div className="stat-icon-container">
-                  <FaCheckCircle className="stat-icon" aria-hidden="true" />
+                  <FaClock className="stat-icon" aria-hidden="true" />
                 </div>
                 <span className="stat-label">RESOLUTION</span>
               </div>
@@ -373,14 +460,18 @@ const SuperAdminDashboard = ({ onNavigate }) => {
 
             <div className="stat-card">
               <div className="stat-header">
-                <div className="stat-icon-container">
-                  <FaUsers className="stat-icon" aria-hidden="true" />
+                <div className="stat-icon-container gold">
+                  <FaStar className="stat-icon" aria-hidden="true" />
                 </div>
-                <span className="stat-label">ACTIVE ACCOUNTS</span>
+                <span className="stat-label">STUDENT SATISFACTION</span>
               </div>
-              <div className="stat-value">{stats.activeUsers.toLocaleString()}</div>
+              <div className="stat-value">
+                {stats.satisfactionPercentage}%
+              </div>
               <div className="stat-subtext">
-                {stats.activeStudents} Students • {stats.activeStaff} Staff
+                {stats.satisfactionTotal > 0
+                  ? `${stats.satisfactionRating}★ (${stats.satisfactionTotal} review${stats.satisfactionTotal !== 1 ? 's' : ''})`
+                  : 'Overall institutional rating'}
               </div>
             </div>
           </div>
@@ -496,11 +587,18 @@ const SuperAdminDashboard = ({ onNavigate }) => {
                 ))}
 
                 <div className="x-axis">
-                  <span className="x-axis-label">0</span>
-                  <span className="x-axis-label">{Math.round(departmentData[0].max * 0.25)}</span>
-                  <span className="x-axis-label">{Math.round(departmentData[0].max * 0.5)}</span>
-                  <span className="x-axis-label">{Math.round(departmentData[0].max * 0.75)}</span>
-                  <span className="x-axis-label">{departmentData[0].max}</span>
+                  {((departmentData[0]?.max || 50) === 50
+                    ? [0, 10, 20, 30, 40, 50]
+                    : [
+                        0,
+                        Math.round((departmentData[0]?.max || 50) * 0.25),
+                        Math.round((departmentData[0]?.max || 50) * 0.5),
+                        Math.round((departmentData[0]?.max || 50) * 0.75),
+                        departmentData[0]?.max || 50
+                      ]
+                  ).map((tick, idx) => (
+                    <span key={idx} className="x-axis-label">{tick}</span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -512,7 +610,6 @@ const SuperAdminDashboard = ({ onNavigate }) => {
                   <h3 className="card-title-super">Administrative Actions</h3>
                   <p className="card-subtitle-super">Quick task navigation</p>
                 </div>
-                <span className="portal-badge">Super Admin</span>
               </div>
 
               <div className="quick-actions-list">

@@ -3,14 +3,11 @@ import {
   FaBell,
   FaInbox,
   FaTicketAlt,
-  FaClipboard,
-  FaCheckCircle,
   FaUserCircle,
   FaClock,
   FaExclamationTriangle,
   FaSearch,
-  FaTimes,
-  FaEye
+  FaTimes
 } from 'react-icons/fa';
 import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -24,8 +21,7 @@ import LoadingSpinner from './LoadingSpinner';
 import '../styles/AdminDashboard.css';
 
 const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
-  const [activeTab, setActiveTab] = useState('all');
-  const [timeFilter, setTimeFilter] = useState('month');
+  const [activeTab, setActiveTab] = useState('new');
   const [searchQuery, setSearchQuery] = useState('');
   const { tickets, loading } = useOfficeTickets(department);
   const [staffData, setStaffData] = useState(null);
@@ -71,29 +67,109 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return () => unsubscribe();
   }, [staffData]);
 
+  // Helper to extract timestamp from ticket
+  const getTicketTimestamp = (ticket) => {
+    if (ticket.createdAtTimestamp && ticket.createdAtTimestamp > 0) {
+      return ticket.createdAtTimestamp;
+    }
+    const val = ticket.createdAt || ticket.date;
+    if (!val) return 0;
+    if (val?.toDate) return val.toDate().getTime();
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  };
+
+  // Compute tickets created today (since 00:00:00 today)
+  const todayTicketsCount = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return tickets.filter(t => {
+      const ts = getTicketTimestamp(t);
+      return ts >= startOfToday;
+    }).length;
+  }, [tickets]);
+
+  // Helper to extract claim timestamp from ticket
+  const getTicketClaimedTimestamp = (ticket) => {
+    const val = ticket.claimedAt || (ticket.status === 'In Process' ? (ticket.updatedAt || ticket.createdAt) : null);
+    if (!val) return 0;
+    if (val?.toDate) return val.toDate().getTime();
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  };
+
+  // Anti-Hoarding Rule:
+  // If staff has 10 or more requests still in In Progress, limit accepting requests to 5 per day.
+  const HOARDING_IN_PROGRESS_THRESHOLD = 10;
+  const HOARDING_DAILY_LIMIT = 5;
+
+  // Compute logged-in staff's own ticket metrics (In Progress and Resolved)
+  const myStats = useMemo(() => {
+    if (!staffData?.name) return { inProgress: 0, resolved: 0 };
+    const staffName = (staffData.name || '').trim().toLowerCase();
+    const staffUid = staffData.uid;
+
+    const isMine = (t) => {
+      const assigned = (t.assignedTo || '').trim().toLowerCase();
+      const claimed = (t.claimedBy || '').trim().toLowerCase();
+      const resolved = (t.resolvedBy || '').trim().toLowerCase();
+      return (
+        (assigned && assigned === staffName) ||
+        (claimed && claimed === staffName) ||
+        (resolved && resolved === staffName) ||
+        (staffUid && t.assignedToStaff === staffUid)
+      );
+    };
+
+    const inProgress = tickets.filter(t => isMine(t) && t.status === 'In Process').length;
+    const resolved = tickets.filter(t => isMine(t) && t.status === 'Resolved').length;
+
+    return { inProgress, resolved };
+  }, [tickets, staffData]);
+
+  // Requests currently in progress for this staff (used by anti-hoarding rule)
+  const myInProgressCount = myStats.inProgress;
+
+  // Compute requests accepted/claimed today by currently logged-in staff
+  const myAcceptedTodayCount = useMemo(() => {
+    if (!staffData?.name) return 0;
+    const name = staffData.name.toLowerCase();
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+    return tickets.filter(t => {
+      const assigned = String(t.assignedTo || t.claimedBy || '').toLowerCase();
+      if (assigned !== name) return false;
+      const claimedTs = getTicketClaimedTimestamp(t);
+      return claimedTs >= startOfToday;
+    }).length;
+  }, [tickets, staffData]);
+
+  const isUnderHoardingRestriction = myInProgressCount >= HOARDING_IN_PROGRESS_THRESHOLD;
+  const isAtClaimLimit = isUnderHoardingRestriction && myAcceptedTodayCount >= HOARDING_DAILY_LIMIT;
+
   // Reset pagination when switching tabs or typing search
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchQuery]);
 
-  // Dashboard summary cards — derived straight from the shared live tickets
-  const stats = useMemo(() => ({
-    total: tickets.length,
-    // Cancelled tickets have no assignee but are NOT awaiting assignment
-    unassigned: tickets.filter(t => !t.assignedTo && t.status !== 'Cancelled').length,
-    claimed: tickets.filter(t => t.status === 'In Process').length,
-    resolved: tickets.filter(t => t.status === 'Resolved').length
-  }), [tickets]);
+  // Dashboard summary cards — derived straight from office tickets
+  const stats = useMemo(() => {
+    const total = tickets.length;
+    const unassigned = tickets.filter(t => !t.assignedTo && t.status !== 'Cancelled').length;
+    const claimed = tickets.filter(t => t.status === 'In Process').length;
+    const resolved = tickets.filter(t => t.status === 'Resolved').length;
+    const active = unassigned + claimed;
 
-  // Tab counters for tab badges
-  const tabCounts = useMemo(() => {
     return {
-      all: tickets.length,
-      newReq: tickets.filter(t => t.status !== 'Cancelled' && (t.status === 'Pending' || !t.assignedTo)).length,
-      progress: tickets.filter(t => t.status === 'In Process').length,
-      resolved: tickets.filter(t => t.status === 'Resolved').length
+      total,
+      unassigned,
+      claimed,
+      resolved,
+      active
     };
   }, [tickets]);
+
 
   // Date formatting helpers for table display
   const formatTicketDate = (ticket) => {
@@ -166,7 +242,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       filtered = filtered.filter(t => t.status === 'Resolved');
     }
 
-    // Filter by search query (matches ID, title/subject, student name, student ID, assignee)
+    // Filter by search query (matches ID, title/subject, student name, student ID, assignee, urgency)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(t => {
@@ -175,12 +251,14 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         const student = String(t.student || t.studentName || '').toLowerCase();
         const studentId = String(t.studentId || '').toLowerCase();
         const assigned = String(t.assignedTo || '').toLowerCase();
+        const urgency = String(t.urgencyLevel || '').toLowerCase();
         return (
           id.includes(q) ||
           title.includes(q) ||
           student.includes(q) ||
           studentId.includes(q) ||
-          assigned.includes(q)
+          assigned.includes(q) ||
+          urgency.includes(q)
         );
       });
     }
@@ -219,19 +297,17 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return pages;
   };
 
-  // Stat cards double as quick filters: clicking one switches the ticket
-  // table to the matching tab (All / New Tickets / In Progress / Resolved)
-  // and scrolls it into view. Clicking the already-active card resets to All.
-  const handleStatCardClick = (tab) => {
-    setActiveTab((prev) => (prev === tab ? 'all' : tab));
-    setSearchQuery('');
-    setCurrentPage(1);
-    ticketsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
 
   const handleClaimTicket = async (ticket, etc = '') => {
     if (!staffData) {
       alert('Staff data not found. Please login again.');
+      return;
+    }
+
+    if (isAtClaimLimit) {
+      alert(
+        `Anti-Hoarding Policy:\nYou currently have ${myInProgressCount} requests in In Progress (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (limit: ${HOARDING_DAILY_LIMIT} per day).\n\nPlease complete and resolve your current in-progress requests before accepting more.`
+      );
       return;
     }
 
@@ -290,9 +366,14 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     }
   };
 
-  // Intercept the claim click: open the ETC modal instead of transitioning
-  // the ticket immediately. The claim only proceeds once this modal concludes.
+  // Intercept the claim click: check anti-hoarding rule, then open ETC modal
   const handleClaimRequest = (ticket) => {
+    if (isAtClaimLimit) {
+      alert(
+        `Anti-Hoarding Policy:\n\nYou currently have ${myInProgressCount} requests in In Progress (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (daily limit: ${HOARDING_DAILY_LIMIT} per day).\n\nTo ensure fair distribution and prevent backlogs, please finish and resolve your active in-progress requests before accepting new ones today.`
+      );
+      return;
+    }
     setEtcClaimTicket(ticket);
   };
 
@@ -312,42 +393,20 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   return (
     <div className="admin-dashboard-container">
       <div className="dashboard-header">
-        <div>
-          <h1 className="dashboard-title">{department}'s Office</h1>
-          <p className="dashboard-subtitle">Monitor and manage all student requests in your office</p>
+        <div className="dashboard-title-group">
+          <div className="title-with-pill">
+            <h1 className="dashboard-title">{department}'s Office</h1>
+            <span className="live-status-pill" title="Real-time live updates enabled">
+              <span className="live-pulse-dot" />
+              Live Sync
+            </span>
+          </div>
+          <p className="dashboard-subtitle">
+            Monitor and manage student requests • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+          </p>
         </div>
         <div className="header-right">
-          {nearingRequests.length > 0 && (
-            <button
-              type="button"
-              className={`nearing-trigger-btn ${nearingSummary.overdue > 0 ? 'critical' : 'warning'}`}
-              onClick={() => setShowNearingModal(true)}
-              title={`${nearingRequests.length} request(s) nearing or past estimated completion`}
-              aria-label={`${nearingRequests.length} request(s) nearing or past estimated completion`}
-            >
-              <FaClock className="trigger-icon" />
-              <span className="trigger-text">
-                {nearingSummary.overdue > 0 ? `${nearingSummary.overdue} Overdue` : `${nearingRequests.length} Nearing ETC`}
-              </span>
-              <span className="trigger-badge">{nearingRequests.length}</span>
-            </button>
-          )}
-
-          <div className="time-filter">
-            <button
-              className={`filter-btn ${timeFilter === 'week' ? 'active' : ''}`}
-              onClick={() => setTimeFilter('week')}
-            >
-              Week
-            </button>
-            <button
-              className={`filter-btn ${timeFilter === 'month' ? 'active' : ''}`}
-              onClick={() => setTimeFilter('month')}
-            >
-              Month
-            </button>
-          </div>
-          <div className="notification-bell" onClick={() => setShowNotifications(true)}>
+          <div className="notification-bell" onClick={() => setShowNotifications(true)} title="Notifications">
             <FaBell className="bell-icon" />
             {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
           </div>
@@ -355,73 +414,125 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       </div>
 
       <div className="stats-cards">
-        <button
-          type="button"
-          className={`stat-card stat-total ${activeTab === 'all' ? 'active' : ''}`}
-          onClick={() => handleStatCardClick('all')}
-          aria-pressed={activeTab === 'all'}
-          aria-label="Show all requests in the dashboard table"
-        >
-          <span className="stat-header">
-            <span className="stat-icon-container">
-              <FaInbox className="stat-icon" />
+        <div className="stat-card stat-total">
+          <div className="stat-total-top">
+            <span className="stat-header">
+              <span className="stat-icon-container">
+                <FaInbox className="stat-icon" />
+              </span>
+              <span className="stat-label">Total Requests</span>
             </span>
-            <span className="stat-label">Total</span>
-          </span>
-          <span className="stat-value">{stats.total}</span>
-          <span className="stat-subtext">All Requests</span>
-        </button>
+            <span className="stat-total-badge">Office Overview</span>
+          </div>
 
-        <button
-          type="button"
-          className={`stat-card stat-pending ${activeTab === 'new' ? 'active' : ''}`}
-          onClick={() => handleStatCardClick('new')}
-          aria-pressed={activeTab === 'new'}
-          aria-label="Show pending requests awaiting assignment in the dashboard table"
-        >
-          <span className="stat-header">
-            <span className="stat-icon-container">
-              <FaTicketAlt className="stat-icon" />
-            </span>
-            <span className="stat-label">Pending</span>
-          </span>
-          <span className="stat-value">{stats.unassigned}</span>
-          <span className="stat-subtext">Awaiting Assignment</span>
-        </button>
+          <div className="stat-total-middle">
+            <div className="stat-number-wrapper">
+              <span className="stat-value">{stats.total}</span>
+              {todayTicketsCount > 0 && (
+                <span className="stat-today-badge" title={`${todayTicketsCount} new request(s) received today`}>
+                  +{todayTicketsCount} today
+                </span>
+              )}
+            </div>
+            <span className="stat-subtext">All Requests Recorded</span>
+          </div>
 
-        <button
-          type="button"
-          className={`stat-card stat-inprogress ${activeTab === 'progress' ? 'active' : ''}`}
-          onClick={() => handleStatCardClick('progress')}
-          aria-pressed={activeTab === 'progress'}
-          aria-label="Show in progress requests in the dashboard table"
-        >
-          <span className="stat-header">
-            <span className="stat-icon-container">
-              <FaClipboard className="stat-icon" />
-            </span>
-            <span className="stat-label">In Progress</span>
-          </span>
-          <span className="stat-value">{stats.claimed}</span>
-          <span className="stat-subtext">Being Handled</span>
-        </button>
+          <div className="stat-total-footer">
+            <div className="anti-hoard-strip">
+              <span className="anti-hoard-policy" title="Anti-Hoarding Rule: Staff with 10+ requests in progress are limited to accepting 5 requests per day">
+                <span className="policy-dot" />
+                Anti-Hoarding Rule: 10+ in progress → max 5 claims/day
+              </span>
+              {staffData?.name && (
+                <span
+                  className={`staff-load-badge ${isAtClaimLimit ? 'limit-reached' : isUnderHoardingRestriction ? 'warning' : ''}`}
+                  title={
+                    isUnderHoardingRestriction
+                      ? `Anti-hoarding restricted: ${myInProgressCount} in progress (≥${HOARDING_IN_PROGRESS_THRESHOLD}). Today's accepted requests: ${myAcceptedTodayCount}/${HOARDING_DAILY_LIMIT}`
+                      : `My In Progress: ${myInProgressCount} (Daily limit applies when reaching ${HOARDING_IN_PROGRESS_THRESHOLD})`
+                  }
+                >
+                  {isUnderHoardingRestriction ? (
+                    <>Accepted Today: <strong>{myAcceptedTodayCount}/{HOARDING_DAILY_LIMIT}</strong></>
+                  ) : (
+                    <>In Progress: <strong>{myInProgressCount}</strong></>
+                  )}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
 
-        <button
-          type="button"
-          className={`stat-card stat-resolved ${activeTab === 'resolved' ? 'active' : ''}`}
-          onClick={() => handleStatCardClick('resolved')}
-          aria-pressed={activeTab === 'resolved'}
-          aria-label="Show resolved requests in the dashboard table"
-        >
-          <span className="stat-header">
-            <span className="stat-icon-container">
-              <FaCheckCircle className="stat-icon" />
-            </span>
-            <span className="stat-label">Resolved</span>
-          </span>
-          <span className="stat-value">{stats.resolved}</span>
-          <span className="stat-subtext">Completed</span>
-        </button>
+        {/* Right Section: Rectangular Pending on top, 4 Square cards below in 2x2 grid */}
+        <div className="stats-right-section">
+          {/* Pending Card (Stays rectangular) */}
+          <div className="stat-card stat-pending">
+            <div className="stat-card-left">
+              <span className="stat-icon-container">
+                <FaTicketAlt className="stat-icon" />
+              </span>
+              <div className="stat-card-text">
+                <div className="stat-label-group">
+                  <span className="stat-label">Pending</span>
+                  <span className="scope-tag office">Office</span>
+                </div>
+                <span className="stat-subtext">Awaiting Assignment</span>
+              </div>
+            </div>
+            <span className="stat-value">{stats.unassigned}</span>
+          </div>
+
+          {/* 4 Square Cards Grid (2x2) */}
+          <div className="stats-squares-grid">
+            {/* Office In Progress */}
+            <div className="stat-card stat-card-square stat-inprogress">
+              <div className="stat-card-text">
+                <div className="stat-label-group">
+                  <span className="stat-label">In Progress</span>
+                  <span className="scope-tag office">Office</span>
+                </div>
+                <span className="stat-subtext">Office Overall</span>
+              </div>
+              <span className="stat-value">{stats.claimed}</span>
+            </div>
+
+            {/* Office Resolved */}
+            <div className="stat-card stat-card-square stat-resolved">
+              <div className="stat-card-text">
+                <div className="stat-label-group">
+                  <span className="stat-label">Resolved</span>
+                  <span className="scope-tag office">Office</span>
+                </div>
+                <span className="stat-subtext">Office Overall</span>
+              </div>
+              <span className="stat-value">{stats.resolved}</span>
+            </div>
+
+            {/* Staff's My In Progress */}
+            <div className="stat-card stat-card-square stat-my-inprogress">
+              <div className="stat-card-text">
+                <div className="stat-label-group">
+                  <span className="stat-label">My In Progress</span>
+                  <span className="scope-tag personal">My Workload</span>
+                </div>
+                <span className="stat-subtext">Assigned to You</span>
+              </div>
+              <span className="stat-value">{myStats.inProgress}</span>
+            </div>
+
+            {/* Staff's My Resolved */}
+            <div className="stat-card stat-card-square stat-my-resolved">
+              <div className="stat-card-text">
+                <div className="stat-label-group">
+                  <span className="stat-label">My Resolved</span>
+                  <span className="scope-tag personal">My Workload</span>
+                </div>
+                <span className="stat-subtext">Completed by You</span>
+              </div>
+              <span className="stat-value">{myStats.resolved}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Nearing Estimated Completion Date Alert Banner */}
@@ -457,47 +568,36 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
       <div className="tickets-section" ref={ticketsSectionRef}>
         <div className="tickets-toolbar">
-          <div className="tickets-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'all'}
-              className={`tab ${activeTab === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveTab('all')}
-            >
-              <span>All</span>
-              <span className="tab-badge">{tabCounts.all}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'new'}
-              className={`tab ${activeTab === 'new' ? 'active' : ''}`}
-              onClick={() => setActiveTab('new')}
-            >
-              <span>New Requests</span>
-              {tabCounts.newReq > 0 && <span className="tab-badge new-badge">{tabCounts.newReq}</span>}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'progress'}
-              className={`tab ${activeTab === 'progress' ? 'active' : ''}`}
-              onClick={() => setActiveTab('progress')}
-            >
-              <span>In Progress</span>
-              {tabCounts.progress > 0 && <span className="tab-badge inprogress-badge">{tabCounts.progress}</span>}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'resolved'}
-              className={`tab ${activeTab === 'resolved' ? 'active' : ''}`}
-              onClick={() => setActiveTab('resolved')}
-            >
-              <span>Resolved</span>
-              {tabCounts.resolved > 0 && <span className="tab-badge resolved-badge">{tabCounts.resolved}</span>}
-            </button>
+          <div className="toolbar-left-group">
+            <div className="tickets-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'new'}
+                className={`tab ${activeTab === 'new' ? 'active' : ''}`}
+                onClick={() => setActiveTab('new')}
+              >
+                <span>New Requests</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'progress'}
+                className={`tab ${activeTab === 'progress' ? 'active' : ''}`}
+                onClick={() => setActiveTab('progress')}
+              >
+                <span>In Progress</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'all'}
+                className={`tab ${activeTab === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveTab('all')}
+              >
+                <span>All</span>
+              </button>
+            </div>
           </div>
 
           <div className="table-search-box">
@@ -525,20 +625,18 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         </div>
 
         {loading ? (
-          <LoadingSpinner message="Loading requests..." fullScreen={false} />
+          <div className="table-loading-state">
+            <LoadingSpinner size="medium" message="Loading office requests..." />
+          </div>
         ) : filteredTickets.length === 0 ? (
-          <div className="tickets-empty-state">
-            <div className="empty-icon-wrap">
-              <FaInbox className="empty-icon" />
+          <div className="table-empty-state">
+            <div className="empty-state-icon-box">
+              <FaInbox className="empty-inbox-icon" />
             </div>
-            <h3 className="empty-title">
-              {searchQuery ? 'No matching requests found' : 'No requests in this view'}
-            </h3>
-            <p className="empty-desc">
+            <h3 className="empty-state-heading">No requests found</h3>
+            <p className="empty-state-text">
               {searchQuery
-                ? `No requests match "${searchQuery}". Check the request number, subject, or student name.`
-                : activeTab === 'all'
-                ? 'Your office currently has no requests recorded.'
+                ? `No requests match "${searchQuery}".`
                 : `There are currently no ${
                     activeTab === 'new'
                       ? 'new requests awaiting assignment'
@@ -589,19 +687,38 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                     const formattedEtc = formatTicketEtc(ticket);
                     const isGuest = Boolean(ticket.isGuest);
                     const studentName = ticket.student || ticket.studentName || (isGuest ? 'Guest User' : 'Student');
+                    const urgency = ticket.urgencyLevel ? String(ticket.urgencyLevel).toLowerCase() : '';
+                    const hasUrgency = urgency && urgency !== 'normal' && urgency !== 'low';
 
                     return (
                       <tr key={ticket.firestoreId || ticket.id || index} className="ticket-row">
                         <td className="td-request">
                           <div className="ticket-info-cell">
-                            <button
-                              type="button"
-                              className="ticket-title-link"
-                              onClick={() => onNavigate('ticket-details', ticket)}
-                              title={ticket.title || ticket.subject || 'View Request Details'}
-                            >
-                              {ticket.title || ticket.subject || 'Untitled Request'}
-                            </button>
+                            <div className="ticket-title-wrap">
+                              {ticket.assignedTo || ticket.status === 'Cancelled' ? (
+                                <button
+                                  type="button"
+                                  className="ticket-title-link"
+                                  onClick={() => onNavigate('ticket-details', ticket)}
+                                  title={ticket.title || ticket.subject || 'View Request Details'}
+                                >
+                                  {ticket.title || ticket.subject || 'Untitled Request'}
+                                </button>
+                              ) : (
+                                <span
+                                  className="ticket-title-text"
+                                  title="Claim this request to view details"
+                                >
+                                  {ticket.title || ticket.subject || 'Untitled Request'}
+                                </span>
+                              )}
+                              {hasUrgency && (
+                                <span className={`urgency-badge urgency-${urgency}`} title={`Urgency: ${ticket.urgencyLevel}`}>
+                                  <span className="urgency-dot" aria-hidden="true" />
+                                  {ticket.urgencyLevel}
+                                </span>
+                              )}
+                            </div>
                             <div className="ticket-meta-row">
                               <span className="ticket-id">{ticketIdDisplay}</span>
                               {formattedDate && (
@@ -674,26 +791,21 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                                 View Request
                               </button>
                             ) : (
-                              <div className="action-button-group">
-                                <button
-                                  type="button"
-                                  className="action-btn claim-btn"
-                                  onClick={() => handleClaimRequest(ticket)}
-                                  disabled={claimingTicketId === ticket.firestoreId}
-                                  title="Claim request and set turnaround time"
-                                >
-                                  {claimingTicketId === ticket.firestoreId ? 'Claiming...' : 'Claim Request'}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="action-btn icon-view-btn"
-                                  onClick={() => onNavigate('ticket-details', ticket)}
-                                  title="Preview Request Details"
-                                  aria-label="Preview Request Details"
-                                >
-                                  <FaEye aria-hidden="true" />
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                className={`action-btn claim-btn ${isAtClaimLimit ? 'claim-btn-limited' : ''}`}
+                                onClick={() => handleClaimRequest(ticket)}
+                                disabled={claimingTicketId === ticket.firestoreId}
+                                title={
+                                  isAtClaimLimit
+                                    ? `Anti-hoarding limit reached: You currently have ${myInProgressCount} requests in In Progress and reached the daily limit of ${HOARDING_DAILY_LIMIT} accepted requests. Complete in-progress requests before accepting more.`
+                                    : isUnderHoardingRestriction
+                                    ? `Anti-hoarding restricted (${myInProgressCount} in progress): Accepted ${myAcceptedTodayCount}/${HOARDING_DAILY_LIMIT} today`
+                                    : 'Claim request and set turnaround time'
+                                }
+                              >
+                                {claimingTicketId === ticket.firestoreId ? 'Claiming...' : isAtClaimLimit ? 'Daily Limit Reached' : 'Claim Request'}
+                              </button>
                             )}
                           </div>
                         </td>

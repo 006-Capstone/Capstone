@@ -1,5 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaDownload, FaCalendarAlt, FaChevronDown, FaInbox, FaClock, FaBan, FaUsers } from 'react-icons/fa';
+import { 
+  FaDownload, 
+  FaCalendarAlt, 
+  FaChevronDown, 
+  FaInbox, 
+  FaClock, 
+  FaBan, 
+  FaUsers,
+  FaDollarSign,
+  FaBook,
+  FaClipboardList,
+  FaUserFriends,
+  FaCheckCircle,
+  FaStar,
+  FaChevronRight
+} from 'react-icons/fa';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
@@ -33,14 +48,20 @@ const SATISFACTION_OFFICES = [
   { id: 'guidance', name: 'Guidance' }
 ];
 
-// Semester filter for the Ticket Volume Trends chart — each semester shows a
-// different set of months (1ST SEM = Jun–Dec, 2ND SEM = Jan–Apr)
-const SEMESTER_CONFIG = {
-  firstSem: {
-    label: '1ST SEM',
+// Quarter filter configuration for Request Volume Trends — months remain in the bar graph
+const QUARTER_FILTER_CONFIG = {
+  all: {
+    id: 'all',
+    label: 'ALL',
+    name: 'All Quarters',
     months: [
-      { name: 'JUNE', index: 5 },
-      { name: 'JULY', index: 6 },
+      { name: 'JAN', index: 0 },
+      { name: 'FEB', index: 1 },
+      { name: 'MAR', index: 2 },
+      { name: 'APR', index: 3 },
+      { name: 'MAY', index: 4 },
+      { name: 'JUN', index: 5 },
+      { name: 'JUL', index: 6 },
       { name: 'AUG', index: 7 },
       { name: 'SEP', index: 8 },
       { name: 'OCT', index: 9 },
@@ -48,13 +69,44 @@ const SEMESTER_CONFIG = {
       { name: 'DEC', index: 11 }
     ]
   },
-  secondSem: {
-    label: '2ND SEM',
+  q1: {
+    id: 'q1',
+    label: 'Q1',
+    name: 'Q1 (Jan–Mar)',
     months: [
       { name: 'JAN', index: 0 },
       { name: 'FEB', index: 1 },
-      { name: 'MAR', index: 2 },
-      { name: 'APR', index: 3 }
+      { name: 'MAR', index: 2 }
+    ]
+  },
+  q2: {
+    id: 'q2',
+    label: 'Q2',
+    name: 'Q2 (Apr–Jun)',
+    months: [
+      { name: 'APR', index: 3 },
+      { name: 'MAY', index: 4 },
+      { name: 'JUN', index: 5 }
+    ]
+  },
+  q3: {
+    id: 'q3',
+    label: 'Q3',
+    name: 'Q3 (Jul–Sep)',
+    months: [
+      { name: 'JUL', index: 6 },
+      { name: 'AUG', index: 7 },
+      { name: 'SEP', index: 8 }
+    ]
+  },
+  q4: {
+    id: 'q4',
+    label: 'Q4',
+    name: 'Q4 (Oct–Dec)',
+    months: [
+      { name: 'OCT', index: 9 },
+      { name: 'NOV', index: 10 },
+      { name: 'DEC', index: 11 }
     ]
   }
 };
@@ -72,12 +124,26 @@ const Analytics = () => {
   const [officeFilterOpen, setOfficeFilterOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
   const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
-  const [selectedSemester, setSelectedSemester] = useState('firstSem');
+  const [selectedQuarter, setSelectedQuarter] = useState('all');
+  const [expandedDepts, setExpandedDepts] = useState({
+    finance: false,
+    library: false,
+    registrar: false,
+    guidance: false
+  });
   const [toast, setToast] = useState(null);
+
+  const toggleDepartmentExpand = (deptId) => {
+    setExpandedDepts(prev => ({
+      ...prev,
+      [deptId]: !prev[deptId]
+    }));
+  };
 
   // Keep fetched data in refs so filters can be applied without refetching
   const requestsRef = useRef([]);
   const feedbacksRef = useRef([]);
+  const staffRef = useRef([]);
   const officeFilterRef = useRef(null);
 
   useEffect(() => {
@@ -154,33 +220,51 @@ const Analytics = () => {
     try {
       setLoading(true);
 
-      // Fetch all requests
-      const requestsCollection = collection(db, 'requests');
-      const requestsSnapshot = await getDocs(requestsCollection);
-      const requests = requestsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      requestsRef.current = requests;
+      let requests = [];
+      let feedbacks = [];
+      let staffList = [];
 
-      // Fetch active users (students + staff)
-      const studentsRef = collection(db, 'students');
-      const staffRef = collection(db, 'staff');
-      const [studentsSnapshot, staffSnapshot] = await Promise.all([
-        getDocs(studentsRef),
-        getDocs(staffRef)
-      ]);
-      const activeUsers = studentsSnapshot.size + staffSnapshot.size;
-      setActiveUsers(activeUsers);
+      // 1. Fetch requests
+      try {
+        const requestsCollection = collection(db, 'requests');
+        const requestsSnapshot = await getDocs(requestsCollection);
+        requests = requestsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        requestsRef.current = requests;
+      } catch (err) {
+        console.error('[Analytics] Error fetching requests:', err);
+      }
 
-      // Fetch feedback for satisfaction ratings
-      const feedbackRef = collection(db, 'feedback');
-      const feedbackSnapshot = await getDocs(feedbackRef);
-      const feedbacks = feedbackSnapshot.docs.map(doc => doc.data());
-      feedbacksRef.current = feedbacks;
+      // 2. Fetch active users (students + staff)
+      try {
+        const [studentsSnapshot, staffSnapshot] = await Promise.allSettled([
+          getDocs(collection(db, 'students')),
+          getDocs(collection(db, 'staff'))
+        ]);
+        const studentsCount = studentsSnapshot.status === 'fulfilled' ? studentsSnapshot.value.size : 0;
+        if (staffSnapshot.status === 'fulfilled') {
+          staffList = staffSnapshot.value.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          staffRef.current = staffList;
+        }
+        const staffCount = staffList.length;
+        setActiveUsers(studentsCount + staffCount);
+      } catch (err) {
+        console.error('[Analytics] Error fetching users:', err);
+      }
+
+      // 3. Fetch feedback for satisfaction ratings
+      try {
+        const feedbackSnapshot = await getDocs(collection(db, 'feedback'));
+        feedbacks = feedbackSnapshot.docs.map(doc => doc.data());
+        feedbacksRef.current = feedbacks;
+      } catch (err) {
+        console.error('[Analytics] Error fetching feedback:', err);
+      }
 
       // Compute everything (respects any previously applied date filter)
-      computeAnalytics(requests, feedbacks, appliedFilter);
+      computeAnalytics(requests, feedbacks, appliedFilter, satisfactionOffice, selectedQuarter, staffList);
 
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -189,7 +273,7 @@ const Analytics = () => {
     }
   };
 
-  const computeAnalytics = (requests, feedbacks, filter, officeId = satisfactionOffice, semesterId = selectedSemester) => {
+  const computeAnalytics = (requests, feedbacks, filter, officeId = satisfactionOffice, quarterId = selectedQuarter) => {
     // Apply date filter to requests
     const filteredRequests = filterRequestsByDate(requests, filter);
 
@@ -216,8 +300,8 @@ const Analytics = () => {
       setAvgResolution('0hrs');
     }
 
-    // Ticket volume trends (filtered by date AND selected semester)
-    const monthlyData = calculateMonthlyTrends(filteredRequests, semesterId);
+    // Request volume trends (Monthly within selected quarter or all months)
+    const monthlyData = calculateMonthlyTrends(filteredRequests, quarterId);
     setTicketData(monthlyData);
 
     // Department efficiency (filtered)
@@ -267,10 +351,10 @@ const Analytics = () => {
     computeAnalytics(requestsRef.current, feedbacksRef.current, appliedFilter, officeId);
   };
 
-  const applySemesterFilter = (semesterId) => {
-    setSelectedSemester(semesterId);
-    // Recompute the volume chart with the chosen semester, keeping any date/office filters
-    computeAnalytics(requestsRef.current, feedbacksRef.current, appliedFilter, satisfactionOffice, semesterId);
+  const applyQuarterFilter = (quarterId) => {
+    setSelectedQuarter(quarterId);
+    // Recompute the monthly volume chart with the chosen quarter, keeping any date/office filters
+    computeAnalytics(requestsRef.current, feedbacksRef.current, appliedFilter, satisfactionOffice, quarterId);
   };
 
   const selectedOfficeName = SATISFACTION_OFFICES.find(o => o.id === satisfactionOffice)?.name || 'All Offices';
@@ -311,19 +395,20 @@ const Analytics = () => {
     return `${hours}hrs`;
   };
 
-  const calculateMonthlyTrends = (requests, semesterId) => {
-    const config = SEMESTER_CONFIG[semesterId];
+  const calculateMonthlyTrends = (requests, quarterId = 'all') => {
+    const config = QUARTER_FILTER_CONFIG[quarterId] || QUARTER_FILTER_CONFIG.all;
     const monthlyCount = {};
 
-    // Initialize all months of the selected semester
+    // Initialize all months of the selected quarter (or all 12 months for 'all')
     config.months.forEach(month => {
       monthlyCount[month.name] = 0;
     });
 
     // Count requests by month
     requests.forEach(req => {
-      const createdAt = req.createdAt?.toDate?.() || new Date(req.createdAt);
-      const monthIndex = createdAt.getMonth(); // 0-11
+      const created = getRequestDate(req.createdAt);
+      if (!created) return;
+      const monthIndex = created.getMonth(); // 0-11
       const month = config.months.find(m => m.index === monthIndex);
       if (month) monthlyCount[month.name]++;
     });
@@ -335,46 +420,153 @@ const Analytics = () => {
   };
 
   const calculateDepartmentEfficiency = (requests) => {
-    const departments = ['Finance', 'Library', 'Registrar', 'Guidance'];
-    const deptStats = {};
+    const departments = [
+      { id: 'finance', name: 'Finance', label: 'Finance Office', icon: 'finance' },
+      { id: 'library', name: 'Library', label: 'Library', icon: 'library' },
+      { id: 'registrar', name: 'Registrar', label: "Registrar's Office", icon: 'registrar' },
+      { id: 'guidance', name: 'Guidance', label: 'Guidance & Counseling', icon: 'guidance' }
+    ];
 
-    departments.forEach(dept => {
-      const deptRequests = requests.filter(r => r.office === dept);
-      const resolvedRequests = deptRequests.filter(r => r.status === 'Resolved' && r.resolvedAt && r.createdAt);
+    const totalAllRequests = requests.length;
+
+    return departments.map(d => {
+      const deptRequests = requests.filter(r => r.office === d.name);
+      const totalTickets = deptRequests.length;
       
+      const pendingCount = deptRequests.filter(r => r.status === 'Pending').length;
+      const inProcessCount = deptRequests.filter(r => r.status === 'In Process').length;
+      const resolvedList = deptRequests.filter(r => r.status === 'Resolved');
+      const resolvedCount = resolvedList.length;
+      const cancelledCount = deptRequests.filter(r => r.status === 'Cancelled').length;
+
+      // Completion rate
+      const completionRate = totalTickets > 0 ? Math.round((resolvedCount / totalTickets) * 100) : 0;
+      const volumeShare = totalAllRequests > 0 ? Math.round((totalTickets / totalAllRequests) * 100) : 0;
+
+      // Resolution turnaround time
+      const resolvedWithTimestamps = resolvedList.filter(r => r.resolvedAt && r.createdAt);
       let avgResolution = 'N/A';
-      if (resolvedRequests.length > 0) {
-        const totalTime = resolvedRequests.reduce((sum, req) => {
+      let avgHours = 0;
+      if (resolvedWithTimestamps.length > 0) {
+        const totalTime = resolvedWithTimestamps.reduce((sum, req) => {
           const created = req.createdAt?.toDate?.() || new Date(req.createdAt);
           const resolved = req.resolvedAt?.toDate?.() || new Date(req.resolvedAt);
           return sum + (resolved - created);
         }, 0);
-        avgResolution = formatDuration(totalTime / resolvedRequests.length);
+        const avgMs = totalTime / resolvedWithTimestamps.length;
+        avgHours = avgMs / (1000 * 60 * 60);
+        avgResolution = formatDuration(avgMs);
       }
 
-      // Calculate satisfaction from feedbacks
-      const deptId = dept.toLowerCase();
+      // Turnaround benchmark tag
+      let speedBadge = { label: 'No data', type: 'neutral' };
+      if (resolvedWithTimestamps.length > 0) {
+        if (avgHours <= 2) {
+          speedBadge = { label: 'Fast Turnover', type: 'fast' };
+        } else if (avgHours <= 12) {
+          speedBadge = { label: 'Standard Pace', type: 'standard' };
+        } else {
+          speedBadge = { label: 'In-Depth Cases', type: 'extended' };
+        }
+      }
+
+      // Active staff in this office and their individual workloads
+      const officeStaffList = (staffRef.current || []).filter(s => {
+        const officeId = String(s.officeId || '').toLowerCase();
+        const officeName = String(s.office || '').toLowerCase();
+        return officeId === d.id || officeName.includes(d.id);
+      });
+
+      const staffWorkload = officeStaffList.map(member => {
+        const memberName = member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Staff';
+        const memberUid = member.uid || member.id;
+        
+        // Find tickets handled by this staff member (assignedTo, claimedBy, or assignedToStaff)
+        const handledTickets = deptRequests.filter(req => {
+          const assigned = req.assignedTo || req.claimedBy || '';
+          const staffUid = req.assignedToStaff || '';
+          return (
+            (assigned && assigned.toLowerCase() === memberName.toLowerCase()) ||
+            (memberUid && staffUid === memberUid)
+          );
+        });
+
+        const memberPending = handledTickets.filter(r => r.status === 'Pending').length;
+        const memberInProcess = handledTickets.filter(r => r.status === 'In Process').length;
+        const memberResolvedList = handledTickets.filter(r => r.status === 'Resolved');
+        const memberResolved = memberResolvedList.length;
+        const memberCancelled = handledTickets.filter(r => r.status === 'Cancelled').length;
+        const memberTotal = handledTickets.length;
+        const memberCompletionRate = memberTotal > 0 ? Math.round((memberResolved / memberTotal) * 100) : 0;
+
+        // Staff average resolution time
+        const memberTimestamps = memberResolvedList.filter(r => r.resolvedAt && r.createdAt);
+        let memberAvgResolution = 'N/A';
+        if (memberTimestamps.length > 0) {
+          const totalMs = memberTimestamps.reduce((sum, req) => {
+            const created = req.createdAt?.toDate?.() || new Date(req.createdAt);
+            const resolved = req.resolvedAt?.toDate?.() || new Date(req.resolvedAt);
+            return sum + (resolved - created);
+          }, 0);
+          memberAvgResolution = formatDuration(totalMs / memberTimestamps.length);
+        }
+
+        return {
+          id: member.id || memberName,
+          name: memberName,
+          email: member.email || '',
+          role: member.role || 'Staff',
+          total: memberTotal,
+          pending: memberPending,
+          inProcess: memberInProcess,
+          resolved: memberResolved,
+          cancelled: memberCancelled,
+          completionRate: memberCompletionRate,
+          avgResolution: memberAvgResolution
+        };
+      }).sort((a, b) => b.total - a.total); // Sort by highest workload first
+
+      // Unassigned requests within this department
+      const unassignedTickets = deptRequests.filter(req => !req.assignedTo && !req.claimedBy && !req.assignedToStaff);
+      const unassignedCount = unassignedTickets.length;
+
+      // Satisfaction from feedbacks
       const deptFeedbacks = feedbacksRef.current.filter(f => {
         const officeId = String(f.officeId || '').toLowerCase();
         const officeName = String(f.office || f.officeName || '').toLowerCase();
-        return officeId === deptId || officeName.includes(dept.toLowerCase());
+        return officeId === d.id || officeName.includes(d.id);
       });
-      
+
       let satisfactionRating = 'N/A';
-      if (deptFeedbacks.length > 0) {
-        const avgRating = deptFeedbacks.reduce((sum, f) => sum + (f.overallRating || f.rating || 0), 0) / deptFeedbacks.length;
+      let satisfactionScore = 0;
+      const feedbackCount = deptFeedbacks.length;
+      if (feedbackCount > 0) {
+        const avgRating = deptFeedbacks.reduce((sum, f) => sum + (f.overallRating || f.rating || 0), 0) / feedbackCount;
+        satisfactionScore = avgRating;
         satisfactionRating = `${avgRating.toFixed(1)} ★`;
       }
 
-      deptStats[dept] = {
-        department: dept === 'Guidance' ? 'Guidance Office' : dept === 'Registrar' ? 'Registrar Office' : dept === 'Finance' ? 'Finance Office' : dept,
-        tickets: deptRequests.length,
+      return {
+        id: d.id,
+        department: d.label,
+        officeName: d.name,
+        tickets: totalTickets,
+        pendingCount,
+        inProcessCount,
+        resolvedCount,
+        cancelledCount,
+        unassignedCount,
+        completionRate,
+        volumeShare,
         resolution: avgResolution,
-        satisfaction: satisfactionRating
+        speedBadge,
+        staffCount: officeStaffList.length,
+        staffWorkload,
+        satisfaction: satisfactionRating,
+        satisfactionScore,
+        feedbackCount
       };
     });
-
-    return departments.map(dept => deptStats[dept]);
   };
 
   const exportToCSV = () => {
@@ -417,8 +609,9 @@ const Analytics = () => {
     csvContent += `4 Stars,${satisfactionData.fourStars}\n`;
     csvContent += '\n';
 
-    // Ticket Volume Trends
-    csvContent += `REQUEST VOLUME TRENDS - ${SEMESTER_CONFIG[selectedSemester].label}\n`;
+    // Request Volume Trends
+    const quarterLabel = QUARTER_FILTER_CONFIG[selectedQuarter]?.name || 'All Quarters';
+    csvContent += `REQUEST VOLUME TRENDS - ${quarterLabel}\n`;
     csvContent += 'Month,Requests\n';
     ticketData.forEach(data => {
       csvContent += `${data.month},${data.count}\n`;
@@ -427,9 +620,23 @@ const Analytics = () => {
 
     // Department Efficiency
     csvContent += 'DEPARTMENT EFFICIENCY\n';
-    csvContent += 'Department,Requests,Average Resolution Time,Satisfaction Rating\n';
+    csvContent += 'Department,Requests,Share %,Active Staff,Pending,In Process,Resolved,Completion Rate %,Average Resolution Time,Speed Category,Satisfaction Rating,Reviews Count\n';
     departmentData.forEach(dept => {
-      csvContent += `"${dept.department}",${dept.tickets},"${dept.resolution}","${dept.satisfaction}"\n`;
+      csvContent += `"${dept.department}",${dept.tickets},${dept.volumeShare}%,${dept.staffCount},${dept.pendingCount},${dept.inProcessCount},${dept.resolvedCount},${dept.completionRate}%,"${dept.resolution}","${dept.speedBadge.label}","${dept.satisfaction}",${dept.feedbackCount}\n`;
+    });
+    csvContent += '\n';
+
+    // Individual Staff Workload by Department
+    csvContent += 'INDIVIDUAL STAFF WORKLOAD BY DEPARTMENT\n';
+    csvContent += 'Department,Staff Name,Role,Total Handled,In Process,Resolved,Completion Rate %,Average Resolution Time\n';
+    departmentData.forEach(dept => {
+      if (dept.staffWorkload && dept.staffWorkload.length > 0) {
+        dept.staffWorkload.forEach(staff => {
+          csvContent += `"${dept.department}","${staff.name}","${staff.role}",${staff.total},${staff.inProcess},${staff.resolved},${staff.completionRate}%,"${staff.avgResolution}"\n`;
+        });
+      } else {
+        csvContent += `"${dept.department}","No staff assigned","N/A",0,0,0,0%,"N/A"\n`;
+      }
     });
 
     // Create and download the file
@@ -499,66 +706,26 @@ const Analytics = () => {
         </div>
       )}
 
-      <div className="analytics-stats">
-        <div className="stat-card">
-          <div className="stat-header">
-            <div className="stat-icon-container">
-              <FaInbox className="stat-icon" />
-            </div>
-            <span className="stat-label">TOTAL</span>
-          </div>
-          <div className="stat-value">{totalRequests.toLocaleString()}</div>
-          <div className="stat-subtext">All Request</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-header">
-            <div className="stat-icon-container">
-              <FaClock className="stat-icon" />
-            </div>
-            <span className="stat-label">ACTIVITY</span>
-          </div>
-          <div className="stat-value">{avgResolution}</div>
-          <div className="stat-subtext">Avg. Resolution</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-header">
-            <div className="stat-icon-container">
-              <FaBan className="stat-icon" />
-            </div>
-            <span className="stat-label">RATE</span>
-          </div>
-          <div className="stat-value">{cancelledRate}</div>
-          <div className="stat-subtext">Cancelled Rate</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-header">
-            <div className="stat-icon-container">
-              <FaUsers className="stat-icon" />
-            </div>
-            <span className="stat-label">TOTAL</span>
-          </div>
-          <div className="stat-value">{activeUsers.toLocaleString()}</div>
-          <div className="stat-subtext">Active Users</div>
-        </div>
-      </div>
-
       <div className="analytics-content">
         <div className="chart-card">
           <div className="chart-card-header">
-            <h2 className="chart-card-title">Request Volume Trends</h2>
-            <div className="sem-filter" role="group" aria-label="Filter by semester">
-              {Object.entries(SEMESTER_CONFIG).map(([id, config]) => (
+            <div className="chart-title-group">
+              <h2 className="chart-card-title">Request Volume Trends</h2>
+              <span className="chart-card-subtitle">
+                {selectedQuarter === 'all'
+                  ? 'Monthly distribution of incoming ticket volume across the year'
+                  : `Monthly volume for ${QUARTER_FILTER_CONFIG[selectedQuarter]?.name || 'selected quarter'}`}
+              </span>
+            </div>
+            <div className="quarter-filter" role="group" aria-label="Filter by quarter">
+              {Object.entries(QUARTER_FILTER_CONFIG).map(([id, config]) => (
                 <button
                   key={id}
                   type="button"
-                  className={`sem-btn ${selectedSemester === id ? 'active' : ''}`}
-                  onClick={() => applySemesterFilter(id)}
-                  aria-pressed={selectedSemester === id}
+                  className={`quarter-btn ${selectedQuarter === id ? 'active' : ''}`}
+                  onClick={() => applyQuarterFilter(id)}
+                  aria-pressed={selectedQuarter === id}
                 >
-                  <span className={`sem-swatch sem-swatch--${id}`} aria-hidden="true"></span>
                   {config.label}
                 </button>
               ))}
@@ -581,9 +748,9 @@ const Analytics = () => {
                 ))}
               </div>
 
-              <div className="volume-bars">
+              <div className={`volume-bars ${selectedQuarter === 'all' ? 'volume-bars--all-months' : 'volume-bars--quarter-months'}`}>
                 {ticketData.map((data, index) => (
-                  <div key={index} className="volume-bar-group">
+                  <div key={data.month || index} className="volume-bar-group">
                     <div
                       className="volume-bar-track"
                       data-tip={data.count > 0
@@ -591,13 +758,15 @@ const Analytics = () => {
                         : `${data.month} — No requests yet`}
                     >
                       <div
-                        className={`volume-bar ${data.count > 0
-                          ? (selectedSemester === 'firstSem' ? 'volume-bar--first-sem' : 'volume-bar--second-sem')
-                          : 'volume-bar--placeholder'}`}
+                        className={`volume-bar ${data.count > 0 ? 'volume-bar--active' : 'volume-bar--placeholder'}`}
                         style={data.count > 0
-                          ? { height: `${(data.count / topTick) * 100}%`, animationDelay: `${index * 0.07}s` }
+                          ? { height: `${(data.count / topTick) * 100}%`, animationDelay: `${index * 0.04}s` }
                           : undefined}
-                      ></div>
+                      >
+                        {data.count > 0 && ticketData.length <= 6 && (
+                          <span className="volume-bar-count-badge">{data.count}</span>
+                        )}
+                      </div>
                     </div>
                     <span className="volume-month-label">{data.month}</span>
                   </div>
@@ -666,31 +835,296 @@ const Analytics = () => {
         </div>
       </div>
 
+      <div className="analytics-stats">
+        <div className="stat-card">
+          <div className="stat-header">
+            <div className="stat-icon-container">
+              <FaInbox className="stat-icon" aria-hidden="true" />
+            </div>
+            <span className="stat-label">TOTAL VOLUME</span>
+          </div>
+          <div className="stat-value">{totalRequests.toLocaleString()}</div>
+          <div className="stat-subtext">Cumulative institutional requests</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-header">
+            <div className="stat-icon-container">
+              <FaClock className="stat-icon" aria-hidden="true" />
+            </div>
+            <span className="stat-label">AVG. RESOLUTION</span>
+          </div>
+          <div className="stat-value">{avgResolution}</div>
+          <div className="stat-subtext">Turnaround on resolved tickets</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-header">
+            <div className="stat-icon-container amber">
+              <FaBan className="stat-icon" aria-hidden="true" />
+            </div>
+            <span className="stat-label">CANCELLATION RATE</span>
+          </div>
+          <div className="stat-value">{cancelledRate}</div>
+          <div className="stat-subtext">Withdrawn or rejected requests</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-header">
+            <div className="stat-icon-container">
+              <FaUsers className="stat-icon" aria-hidden="true" />
+            </div>
+            <span className="stat-label">ACTIVE ACCOUNTS</span>
+          </div>
+          <div className="stat-value">{activeUsers.toLocaleString()}</div>
+          <div className="stat-subtext">Registered students & staff</div>
+        </div>
+      </div>
+
       <div className="efficiency-table">
         <div className="efficiency-header">
-          <h2 className="efficiency-title">Department Efficiency</h2>
-          <span className="view-report">View detailed report</span>
+          <div className="efficiency-title-group">
+            <h2 className="efficiency-title">Department Efficiency & Workload</h2>
+          </div>
+          <div className="efficiency-header-legend">
+            <div className="efficiency-legend-item">
+              <span className="legend-dot resolved" aria-hidden="true" />
+              <span>Resolved</span>
+            </div>
+            <div className="efficiency-legend-item">
+              <span className="legend-dot in-process" aria-hidden="true" />
+              <span>In Process</span>
+            </div>
+            <div className="efficiency-legend-item">
+              <span className="legend-dot pending" aria-hidden="true" />
+              <span>Pending</span>
+            </div>
+          </div>
         </div>
         
         <div className="table-wrapper">
-          <table>
+          <table className="efficiency-matrix-table">
             <thead>
               <tr>
-                <th>DEPARTMENT</th>
-                <th>REQUESTS</th>
-                <th>RESOLUTION</th>
-                <th>SATISFACTION</th>
+                <th style={{ minWidth: '200px' }}>DEPARTMENT</th>
+                <th style={{ minWidth: '220px' }}>WORKLOAD & STATUS</th>
+                <th style={{ minWidth: '170px' }}>RESOLUTION SPEED</th>
+                <th style={{ minWidth: '160px' }}>COMPLETION RATE</th>
+                <th style={{ minWidth: '150px' }}>SATISFACTION</th>
               </tr>
             </thead>
             <tbody>
-              {departmentData.map((dept, index) => (
-                <tr key={index}>
-                  <td>{dept.department}</td>
-                  <td>{dept.tickets}</td>
-                  <td>{dept.resolution}</td>
-                  <td>{dept.satisfaction}</td>
-                </tr>
-              ))}
+              {departmentData.map((dept) => {
+                const total = dept.tickets;
+                const pendingPct = total > 0 ? Math.round((dept.pendingCount / total) * 100) : 0;
+                const inProcessPct = total > 0 ? Math.round((dept.inProcessCount / total) * 100) : 0;
+                const resolvedPct = total > 0 ? Math.round((dept.resolvedCount / total) * 100) : 0;
+                const cancelledPct = total > 0 ? Math.round((dept.cancelledCount / total) * 100) : 0;
+                const isExpanded = Boolean(expandedDepts[dept.id]);
+
+                const getOfficeIcon = (id) => {
+                  switch (id) {
+                    case 'finance': return <FaDollarSign />;
+                    case 'library': return <FaBook />;
+                    case 'registrar': return <FaClipboardList />;
+                    case 'guidance': return <FaUserFriends />;
+                    default: return <FaUsers />;
+                  }
+                };
+
+                return (
+                  <React.Fragment key={dept.id}>
+                    <tr className={`dept-row ${isExpanded ? 'expanded' : ''}`}>
+                      {/* 1. Department Identity */}
+                      <td>
+                        <div className="dept-identity-cell">
+                          <button
+                            type="button"
+                            className={`dept-expand-btn ${isExpanded ? 'active' : ''}`}
+                            onClick={() => toggleDepartmentExpand(dept.id)}
+                            title={isExpanded ? 'Collapse staff workload' : 'View staff workload'}
+                            aria-label={`Toggle staff workload for ${dept.department}`}
+                          >
+                            <FaChevronRight className="expand-chevron-icon" />
+                          </button>
+                          <div className={`dept-avatar-badge ${dept.id}`}>
+                            {getOfficeIcon(dept.id)}
+                          </div>
+                          <div className="dept-name-block">
+                            <span className="dept-primary-name">{dept.department}</span>
+                            <span className="dept-staff-subtext">
+                              {dept.staffCount} staff member{dept.staffCount !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* 2. Workload & Progress Breakdown */}
+                      <td>
+                        <div className="dept-workload-cell">
+                          <div className="workload-stats-row">
+                            <span className="workload-total-badge">
+                              <strong>{dept.tickets}</strong> requests
+                            </span>
+                            <span className="workload-share-subtext">
+                              {dept.volumeShare}% of total
+                            </span>
+                          </div>
+
+                          {/* Segmented Pipeline Bar */}
+                          <div 
+                            className="dept-mini-pipeline"
+                            title={`Pending: ${dept.pendingCount} | In Process: ${dept.inProcessCount} | Resolved: ${dept.resolvedCount} | Cancelled: ${dept.cancelledCount}`}
+                          >
+                            {dept.tickets === 0 ? (
+                              <div className="mini-segment empty" style={{ width: '100%' }} />
+                            ) : (
+                              <>
+                                <div className="mini-segment pending" style={{ width: `${pendingPct}%` }} />
+                                <div className="mini-segment in-process" style={{ width: `${inProcessPct}%` }} />
+                                <div className="mini-segment resolved" style={{ width: `${resolvedPct}%` }} />
+                                <div className="mini-segment cancelled" style={{ width: `${cancelledPct}%` }} />
+                              </>
+                            )}
+                          </div>
+
+                          <div className="dept-mini-legend">
+                            <span className="legend-chip pending">{dept.pendingCount} pend</span>
+                            <span className="legend-chip in-process">{dept.inProcessCount} active</span>
+                            <span className="legend-chip resolved">{dept.resolvedCount} done</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* 3. Resolution Turnaround */}
+                      <td>
+                        <div className="dept-resolution-cell">
+                          <span className="resolution-time-value">{dept.resolution}</span>
+                          <span className={`speed-badge ${dept.speedBadge.type}`}>
+                            {dept.speedBadge.label}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* 4. Completion Rate */}
+                      <td>
+                        <div className="dept-completion-cell">
+                          <div className="completion-rate-row">
+                            <span className="completion-percent">{dept.completionRate}%</span>
+                            <span className="completion-ratio">
+                              {dept.resolvedCount}/{dept.tickets}
+                            </span>
+                          </div>
+                          <div className="completion-track">
+                            <div 
+                              className="completion-fill"
+                              style={{ width: `${dept.completionRate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* 5. Satisfaction */}
+                      <td>
+                        <div className="dept-satisfaction-cell">
+                          {dept.feedbackCount > 0 ? (
+                            <>
+                              <div className="satisfaction-rating-main">
+                                <FaStar className="star-inline-icon" />
+                                <span className="rating-number">{dept.satisfactionScore.toFixed(1)}</span>
+                                <span className="rating-max">/5.0</span>
+                              </div>
+                              <span className="feedback-count-label">
+                                {dept.feedbackCount} review{dept.feedbackCount !== 1 ? 's' : ''}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="no-feedback-label">No reviews yet</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* Expandable Staff Workload Sub-row */}
+                    {isExpanded && (
+                      <tr className="dept-staff-expansion-row">
+                        <td colSpan={5} className="staff-expansion-cell">
+                          <div className="staff-breakdown-container">
+                            <div className="staff-breakdown-header">
+                              <span className="staff-breakdown-title">
+                                <FaUsers style={{ marginRight: '6px' }} />
+                                Staff Caseload & Performance — {dept.department}
+                              </span>
+                              {dept.unassignedCount > 0 && (
+                                <span className="unassigned-pill">
+                                  {dept.unassignedCount} unassigned ticket{dept.unassignedCount !== 1 ? 's' : ''}
+                                </span>
+                              )}
+                            </div>
+
+                            {dept.staffWorkload && dept.staffWorkload.length > 0 ? (
+                              <div className="staff-workload-grid">
+                                {dept.staffWorkload.map(staff => {
+                                  const staffShare = dept.tickets > 0 ? Math.round((staff.total / dept.tickets) * 100) : 0;
+                                  return (
+                                    <div key={staff.id} className="staff-workload-card">
+                                      <div className="staff-card-top">
+                                        <div className="staff-info-block">
+                                          <span className="staff-name-label">{staff.name}</span>
+                                          <span className="staff-role-badge">{staff.role}</span>
+                                        </div>
+                                        <div className="staff-volume-badge">
+                                          <strong>{staff.total}</strong> tickets ({staffShare}%)
+                                        </div>
+                                      </div>
+
+                                      {/* Mini status counts */}
+                                      <div className="staff-stats-pills">
+                                        <span className="staff-pill in-process">
+                                          <span className="pill-dot yellow" />
+                                          {staff.inProcess} active
+                                        </span>
+                                        <span className="staff-pill resolved">
+                                          <span className="pill-dot green" />
+                                          {staff.resolved} resolved
+                                        </span>
+                                        {staff.pending > 0 && (
+                                          <span className="staff-pill pending">
+                                            <span className="pill-dot violet" />
+                                            {staff.pending} pending
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Staff completion progress */}
+                                      <div className="staff-completion-row">
+                                        <div className="staff-completion-label">
+                                          <span>Completion: {staff.completionRate}%</span>
+                                          <span className="staff-avg-speed">Avg: {staff.avgResolution}</span>
+                                        </div>
+                                        <div className="staff-track">
+                                          <div 
+                                            className="staff-fill"
+                                            style={{ width: `${staff.completionRate}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="no-staff-state">
+                                No active staff accounts registered under this department yet.
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

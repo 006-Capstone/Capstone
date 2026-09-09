@@ -54,27 +54,39 @@ export const decryptCredentials = (encryptedData) => {
     // Parse JSON
     const payload = JSON.parse(decryptedString);
 
-    // Verify signature
-    if (payload.sig !== APP_SIGNATURE) {
+    // Verify signature - accept both staff and admin signatures
+    if (payload.sig !== APP_SIGNATURE && payload.sig !== 'ASJ_ADMIN_QR') {
       console.error('❌ Invalid QR code - not from this application');
       return null;
     }
 
     // Check if QR code is too old (optional - prevent old QR codes from working)
-    const ageInDays = (Date.now() - payload.ts) / (1000 * 60 * 60 * 24);
-    if (ageInDays > 365) { // QR code expires after 1 year
-      console.error('❌ QR code expired');
+    if (payload.ts) {
+      const ageInDays = (Date.now() - payload.ts) / (1000 * 60 * 60 * 24);
+      if (ageInDays > 365) { // QR code expires after 1 year
+        console.error('❌ QR code expired');
+        return null;
+      }
+    }
+
+    const username = payload.username || payload.usr;
+    const officeId = payload.officeId || payload.off;
+    const password = payload.pwd || payload.password;
+
+    if (!username || !officeId || !password) {
+      console.error('❌ Incomplete QR code payload:', payload);
       return null;
     }
 
-    console.log('✅ Credentials decrypted successfully');
+    console.log('✅ Credentials decrypted successfully for:', username, officeId);
     return {
-      username: payload.username,
-      officeId: payload.officeId,
-      password: payload.pwd
+      username: username.trim(),
+      officeId: officeId.trim().toLowerCase(),
+      password: password
     };
   } catch (error) {
     console.error('❌ Decryption error:', error);
     return null;
   }
 };
+

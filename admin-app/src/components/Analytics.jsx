@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  FaBell, FaDownload, FaBalanceScale, FaChartBar, FaClock, FaUserCircle, FaCalendarAlt
+  FaBell, FaDownload, FaCalendarAlt
 } from 'react-icons/fa';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -20,7 +20,12 @@ const STATUS_META = [
   { key: 'cancelled', label: 'Cancelled', color: '#ef4444' }
 ];
 
-const SUBJECT_COLORS = ['#5B7CE6', '#66bb6a', '#FFB74D', '#EF5350', '#AB47BC', '#26C6DA', '#FFA726', '#8d6e63'];
+const getInitials = (name) => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 /* ---------------------------------------------------------------------------
    Date helpers (shared normalization so Dashboard and Analytics agree)
@@ -99,6 +104,7 @@ const Analytics = ({ department, onViewRequest }) => {
   const [staffLoading, setStaffLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
   const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
+  const [hoveredMonth, setHoveredMonth] = useState(null);
 
   // The shared live data source — the exact same tickets the Dashboard shows.
   // Any claim / resolve / cancel updates this instantly on both pages.
@@ -274,7 +280,8 @@ const Analytics = ({ department, onViewRequest }) => {
   /* Volume chart ticks */
   const chartMax = Math.max(1, ...analytics.submissionData.map(d => d.value));
   const tickStep = getNiceTickStep(chartMax);
-  const topTick = Math.ceil(chartMax / tickStep) * tickStep;
+  const baseTop = Math.ceil(chartMax / tickStep) * tickStep;
+  const topTick = baseTop === chartMax ? baseTop + tickStep : baseTop;
   const yTicksDesc = [];
   for (let v = topTick; v >= 0; v -= tickStep) yTicksDesc.push(v);
 
@@ -297,8 +304,9 @@ const Analytics = ({ department, onViewRequest }) => {
     angle += sweep;
   });
 
-  /* Frequent requests chart bounds */
-  const topSubjects = analytics.subjectDistribution.slice(0, 8);
+  /* Frequent requests chart bounds (Top 5 for clean symmetry with Staff Activity) */
+  const topSubjects = analytics.subjectDistribution.slice(0, 5);
+  const totalSubjectCount = analytics.subjectDistribution.reduce((sum, s) => sum + s.count, 0);
   const maxSubjectCount = Math.max(1, ...topSubjects.map(s => s.count));
 
   const formatTicketDate = (ticket) => {
@@ -375,49 +383,20 @@ Understand your office's performance at a glance
         </div>
       )}
 
-      {/* Summary cards — same live data as the Dashboard */}
-      <div className="analytics-stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon-container">
-            <FaBalanceScale className="stat-icon" />
-          </div>
-          <div className="stat-content">
-            <p className="stat-label">OVERALL</p>
-            <p className="stat-sublabel">Total Requests</p>
-            <h2 className="stat-value">{analytics.total}</h2>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-container">
-            <FaClock className="stat-icon" />
-          </div>
-          <div className="stat-content">
-            <p className="stat-label">ACTIVITY</p>
-            <p className="stat-sublabel">Avg Resolution Time</p>
-            <h2 className="stat-value">{analytics.avgResolutionTime}</h2>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-container">
-            <FaChartBar className="stat-icon" />
-          </div>
-          <div className="stat-content">
-            <p className="stat-label">RATE</p>
-            <p className="stat-sublabel">Cancelled Rate</p>
-            <h2 className="stat-value">{analytics.cancelledRate}%</h2>
-          </div>
-        </div>
-      </div>
-
-      <div className="an-charts-grid">
+      {/* Top Charts: Request Volume by Month & Status Breakdown */}
+      <div className="an-charts-grid an-charts-grid--top">
         {/* Request Volume by Month */}
         <div className="an-chart-card an-chart-card--volume">
           <div className="an-chart-header">
             <div>
               <h3 className="an-chart-title">Request Volume by Month</h3>
               <p className="an-chart-subtitle">Requests submitted each month</p>
+            </div>
+            <div className="an-volume-header-pills">
+              <span className="an-volume-year-pill">{new Date().getFullYear()}</span>
+              <span className="an-volume-total-pill">
+                Total: <strong>{analytics.submissionData.reduce((s, d) => s + d.value, 0)}</strong>
+              </span>
             </div>
           </div>
 
@@ -456,28 +435,40 @@ Understand your office's performance at a glance
                       if (fromMonth <= toMonth) {
                         isInRange = monthNum >= fromMonth && monthNum <= toMonth;
                       } else {
-                        // Range wraps around the year boundary (e.g. Nov → Feb)
                         isInRange = monthNum >= fromMonth || monthNum <= toMonth;
                       }
                     }
 
                     const barHeight = topTick > 0 ? (data.value / topTick) * 100 : 0;
+                    const isHovered = hoveredMonth === index;
 
                     return (
                       <div
                         key={index}
-                        className={`an-volume-bar-col${isInRange ? ' is-in-range' : ''}`}
+                        className={`an-volume-bar-col${isInRange ? ' is-in-range' : ''}${isHovered ? ' is-hovered' : ''}`}
                         role="img"
                         aria-label={`${data.month}: ${data.value} ${data.value === 1 ? 'request' : 'requests'}`}
+                        onMouseEnter={() => setHoveredMonth(index)}
+                        onMouseLeave={() => setHoveredMonth(null)}
                       >
+                        {data.value > 0 && (
+                          <span
+                            className="an-volume-bar-val"
+                            style={{
+                              bottom: `calc(${Math.max(barHeight, 4)}% + 6px)`
+                            }}
+                          >
+                            {data.value}
+                          </span>
+                        )}
                         <div
                           className={`an-volume-bar${data.value > 0 ? '' : ' an-volume-bar--empty'}${isInRange ? ' an-volume-bar--in-range' : ''}`}
                           data-tip={data.value > 0
                             ? `${data.month}: ${data.value} request${data.value === 1 ? '' : 's'}`
                             : `${data.month}: 0 requests`}
                           style={{
-                            height: `${data.value > 0 ? Math.max(barHeight, 3) : 0}%`,
-                            animationDelay: `${index * 0.04}s`
+                            height: `${data.value > 0 ? Math.max(barHeight, 4) : 0}%`,
+                            animationDelay: `${index * 0.03}s`
                           }}
                         />
                       </div>
@@ -500,9 +491,16 @@ Understand your office's performance at a glance
                     }
                   }
 
+                  const isHovered = hoveredMonth === index;
+
                   return (
-                    <div key={index} className="an-volume-x-col">
-                      <span className={`an-volume-label${isInRange ? ' an-volume-label--in-range' : ''}`}>
+                    <div
+                      key={index}
+                      className="an-volume-x-col"
+                      onMouseEnter={() => setHoveredMonth(index)}
+                      onMouseLeave={() => setHoveredMonth(null)}
+                    >
+                      <span className={`an-volume-label${isHovered ? ' an-volume-label--hovered' : ''}${isInRange ? ' an-volume-label--in-range' : ''}`}>
                         {data.month}
                       </span>
                     </div>
@@ -514,7 +512,7 @@ Understand your office's performance at a glance
         </div>
 
         {/* Status Breakdown donut */}
-        <div className="an-chart-card">
+        <div className="an-chart-card an-chart-card--status">
           <div className="an-chart-header">
             <div>
               <h3 className="an-chart-title">Status Breakdown</h3>
@@ -567,80 +565,130 @@ Understand your office's performance at a glance
             </div>
           )}
         </div>
+      </div>
+
+      {/* Summary cards — compact without icons */}
+      <div className="analytics-stats-grid">
+        <div className="stat-card">
+          <div className="stat-content">
+            <p className="stat-label">OVERALL</p>
+            <p className="stat-sublabel">Total Requests</p>
+          </div>
+          <h2 className="stat-value">{analytics.total}</h2>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-content">
+            <p className="stat-label">ACTIVITY</p>
+            <p className="stat-sublabel">Avg Resolution Time</p>
+          </div>
+          <h2 className="stat-value">{analytics.avgResolutionTime}</h2>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-content">
+            <p className="stat-label">RATE</p>
+            <p className="stat-sublabel">Cancelled Rate</p>
+          </div>
+          <h2 className="stat-value">{analytics.cancelledRate}%</h2>
+        </div>
+      </div>
+
+      {/* Bottom Charts: Frequent Request Subjects & Staff Activity */}
+      <div className="an-charts-grid an-charts-grid--bottom">
 
         {/* Frequent Request Subjects */}
         <div className="an-chart-card an-chart-card--frequent">
           <div className="an-chart-header">
             <div>
               <h3 className="an-chart-title">Frequent Request Subjects</h3>
-              <p className="an-chart-subtitle">Most requested subjects</p>
+              <p className="an-chart-subtitle">Top request subjects in this office</p>
             </div>
+            <span className="an-card-header-badge">Top {topSubjects.length}</span>
           </div>
 
           {topSubjects.length === 0 ? (
             <div className="an-empty">No request data yet</div>
           ) : (
             <div className="an-freq-list">
-              {topSubjects.map((item, index) => (
-                <div key={index} className="an-freq-row">
-                  <div className="an-freq-meta">
-                    <span
-                      className="an-freq-dot"
-                      style={{ backgroundColor: SUBJECT_COLORS[index % SUBJECT_COLORS.length] }}
-                      aria-hidden="true"
-                    ></span>
-                    <span className="an-freq-name" title={item.subject}>{item.subject}</span>
-                    <span className="an-freq-count">{item.count}</span>
+              {topSubjects.map((item, index) => {
+                const sharePct = totalSubjectCount > 0
+                  ? Math.round((item.count / totalSubjectCount) * 100)
+                  : 0;
+                const fillWidth = (item.count / maxSubjectCount) * 100;
+
+                return (
+                  <div key={index} className="an-freq-row">
+                    <div className="an-freq-meta">
+                      <div className="an-freq-title-group">
+                        <span className={`an-freq-rank an-freq-rank--${index + 1}`}>#{index + 1}</span>
+                        <span className="an-freq-name" title={item.subject}>{item.subject}</span>
+                      </div>
+                      <div className="an-freq-stats">
+                        <span className="an-freq-count">{item.count} req{item.count === 1 ? '' : 's'}</span>
+                        <span className="an-freq-pct">{sharePct}%</span>
+                      </div>
+                    </div>
+                    <div className="an-freq-track">
+                      <div
+                        className="an-freq-fill"
+                        style={{
+                          width: `${fillWidth}%`,
+                          animationDelay: `${index * 0.05}s`
+                        }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="an-freq-track">
-                    <div
-                      className="an-freq-fill"
-                      style={{
-                        width: `${(item.count / maxSubjectCount) * 100}%`,
-                        backgroundColor: SUBJECT_COLORS[index % SUBJECT_COLORS.length],
-                        animationDelay: `${index * 0.06}s`
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Staff Activity */}
-        <div className="an-chart-card">
+        <div className="an-chart-card an-chart-card--staff">
           <div className="an-chart-header">
             <div>
               <h3 className="an-chart-title">Staff Activity</h3>
               <p className="an-chart-subtitle">Resolved requests per staff member</p>
             </div>
+            <span className="an-card-header-badge">{staffActivity.length} Staff</span>
           </div>
 
           {staffActivity.length === 0 ? (
             <div className="an-empty">No staff in this office yet</div>
           ) : (
             <div className="an-staff-list">
-              {staffActivity.map((staff, index) => (
-                <div key={index} className="an-staff-row">
-                  <div className="an-staff-info">
-                    <FaUserCircle className="an-staff-avatar" />
-                    <div className="an-staff-details">
-                      <span className="an-staff-name">{staff.name}</span>
-                      <span className="an-staff-count">
-                        {staff.resolved} of {staff.handled} handled
+              {staffActivity.map((staff, index) => {
+                const initials = getInitials(staff.name);
+                const isHighRate = staff.percentage >= 80;
+                const isMidRate = staff.percentage >= 50 && staff.percentage < 80;
+
+                return (
+                  <div key={index} className="an-staff-row">
+                    <div className="an-staff-info">
+                      <div className={`an-staff-avatar-initials an-staff-avatar-initials--${index % 4}`}>
+                        {initials}
+                      </div>
+                      <div className="an-staff-details">
+                        <span className="an-staff-name">{staff.name}</span>
+                        <span className="an-staff-count">
+                          {staff.resolved} of {staff.handled} resolved
+                        </span>
+                      </div>
+                      <span className={`an-staff-badge${isHighRate ? ' an-staff-badge--high' : isMidRate ? ' an-staff-badge--mid' : ''}`}>
+                        {staff.percentage}% rate
                       </span>
                     </div>
-                    <span className="an-staff-pct">{staff.percentage}%</span>
+                    <div className="an-progress-bg">
+                      <div
+                        className="an-progress-fill"
+                        style={{ width: `${staff.percentage}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="an-progress-bg">
-                    <div
-                      className="an-progress-fill"
-                      style={{ width: `${staff.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

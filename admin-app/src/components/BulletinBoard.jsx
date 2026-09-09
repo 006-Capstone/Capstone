@@ -638,9 +638,6 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
       <div className="hero-banner">
         <div className="hero-overlay">
-          {department && (
-            <span className="hero-kicker">{department} OFFICE</span>
-          )}
           <h2 className="hero-title">{hero.title}</h2>
           <p className="hero-subtitle">{hero.body}</p>
         </div>

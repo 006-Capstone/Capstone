@@ -2,10 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   FaBell, 
   FaSearch, 
-  FaTicketAlt, 
-  FaEllipsisH, 
-  FaCheckCircle, 
-  FaUserCircle, 
   FaFilter, 
   FaChevronDown, 
   FaCheck, 
@@ -24,14 +20,12 @@ import '../styles/MyTickets.css';
 const STATUS_OPTIONS = ['All Status', 'In Progress', 'Resolved', 'Rejected'];
 
 const MyTickets = ({ department, onNavigate, onViewRequest }) => {
-  const [timeFilter, setTimeFilter] = useState('week');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
   const filterWrapRef = useRef(null);
-  const ticketsListRef = useRef(null);
   
   const [staffData, setStaffData] = useState(() => {
     try {
@@ -119,12 +113,6 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
     };
   }, [isFilterOpen]);
 
-  // Calculate summary counts
-  const stats = useMemo(() => ({
-    total: tickets.length,
-    inProgress: tickets.filter(t => t.status === 'In Process').length,
-    resolved: tickets.filter(t => t.status === 'Resolved').length
-  }), [tickets]);
 
   // Filter tickets by status and search query
   const filteredTickets = useMemo(() => {
@@ -198,17 +186,6 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
     setIsFilterOpen(false);
   };
 
-  const handleSummaryCardClick = (filter) => {
-    if (filter === 'All Status') {
-      setStatusFilter('All Status');
-    } else {
-      setStatusFilter((prev) => (prev === filter ? 'All Status' : filter));
-    }
-    setSearchQuery('');
-    setCurrentPage(1);
-    setIsFilterOpen(false);
-    ticketsListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
 
   const handleTicketClick = (ticket) => {
     onNavigate('ticket-details', ticket);
@@ -238,89 +215,11 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
             </button>
           )}
 
-          <div className="time-filter">
-            <button 
-              type="button"
-              className={`filter-btn ${timeFilter === 'week' ? 'active' : ''}`}
-              onClick={() => setTimeFilter('week')}
-            >
-              Week
-            </button>
-            <button 
-              type="button"
-              className={`filter-btn ${timeFilter === 'month' ? 'active' : ''}`}
-              onClick={() => setTimeFilter('month')}
-            >
-              Month
-            </button>
-          </div>
           <div className="notification-bell" onClick={() => setShowNotifications(true)} role="button" tabIndex={0}>
             <FaBell className="bell-icon" />
             {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
           </div>
         </div>
-      </div>
-
-      <div className="ticket-summary-cards">
-        <button
-          type="button"
-          className={`summary-card total ${statusFilter === 'All Status' ? 'active' : ''}`}
-          onClick={() => handleSummaryCardClick('All Status')}
-          aria-pressed={statusFilter === 'All Status'}
-          aria-label="Show all my requests in the request table"
-        >
-          <span className="summary-header">
-            <span className="summary-icon-container">
-              <FaTicketAlt className="summary-icon" />
-            </span>
-            <span className="summary-label">All</span>
-          </span>
-          <span className="summary-count">{stats.total}</span>
-          <span className="summary-footer">
-            <span className="summary-dot" aria-hidden="true" />
-            <span className="summary-subtext">My Request</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className={`summary-card progress ${statusFilter === 'In Progress' ? 'active' : ''}`}
-          onClick={() => handleSummaryCardClick('In Progress')}
-          aria-pressed={statusFilter === 'In Progress'}
-          aria-label="Show In Process requests in the request table"
-        >
-          <span className="summary-header">
-            <span className="summary-icon-container">
-              <FaEllipsisH className="summary-icon" />
-            </span>
-            <span className="summary-label">In Process</span>
-          </span>
-          <span className="summary-count">{stats.inProgress}</span>
-          <span className="summary-footer">
-            <span className="summary-dot" aria-hidden="true" />
-            <span className="summary-subtext">Being handled</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className={`summary-card resolved ${statusFilter === 'Resolved' ? 'active' : ''}`}
-          onClick={() => handleSummaryCardClick('Resolved')}
-          aria-pressed={statusFilter === 'Resolved'}
-          aria-label="Show Resolved requests in the request table"
-        >
-          <span className="summary-header">
-            <span className="summary-icon-container">
-              <FaCheckCircle className="summary-icon" />
-            </span>
-            <span className="summary-label">Resolved</span>
-          </span>
-          <span className="summary-count">{stats.resolved}</span>
-          <span className="summary-footer">
-            <span className="summary-dot" aria-hidden="true" />
-            <span className="summary-subtext">Completed</span>
-          </span>
-        </button>
       </div>
 
       <div className="filters-section">
@@ -385,7 +284,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
         </div>
       </div>
 
-      <div className="tickets-list-section" ref={ticketsListRef}>
+      <div className="tickets-list-section">
         {loading ? (
           <LoadingSpinner message="Loading your requests..." fullScreen={false} />
         ) : filteredTickets.length === 0 ? (
@@ -402,7 +301,6 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                   <th>REQUEST INFO</th>
                   <th>STUDENT DETAILS</th>
                   <th>STATUS</th>
-                  <th>ASSIGNED TO</th>
                   <th>ACTIONS</th>
                 </tr>
               </thead>
@@ -431,16 +329,6 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                         {ticket.status === 'Rejected' && 'Rejected'}
                         {ticket.status !== 'Pending' && ticket.status !== 'In Process' && ticket.status !== 'Resolved' && ticket.status !== 'Cancelled' && ticket.status !== 'Rejected' && ticket.status}
                       </span>
-                    </td>
-                    <td>
-                      {ticket.assignedTo ? (
-                        <div className="assigned-to-cell">
-                          <FaUserCircle className="user-icon" />
-                          <span className="assigned-name">{ticket.assignedTo}</span>
-                        </div>
-                      ) : (
-                        <span className="unassigned-text">Unassigned</span>
-                      )}
                     </td>
                     <td>
                       <button 

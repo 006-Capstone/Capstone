@@ -32,21 +32,35 @@ const Login = ({ onLogin }) => {
     }
     
     try {
-      // Query for superadmin by username
+      // Query for superadmin by username or email
+      const inputVal = username.trim();
+      let superadminDoc = null;
+
       const superadminQuery = query(
         collection(db, 'superadmin'),
-        where('username', '==', username.trim())
+        where('username', '==', inputVal)
       );
-      
       const querySnapshot = await getDocs(superadminQuery);
+
+      if (!querySnapshot.empty) {
+        superadminDoc = querySnapshot.docs[0];
+      } else if (inputVal.includes('@')) {
+        const emailQuery = query(
+          collection(db, 'superadmin'),
+          where('email', '==', inputVal)
+        );
+        const emailSnapshot = await getDocs(emailQuery);
+        if (!emailSnapshot.empty) {
+          superadminDoc = emailSnapshot.docs[0];
+        }
+      }
       
-      if (querySnapshot.empty) {
+      if (!superadminDoc) {
         setError('Invalid username or password');
         setLoading(false);
         return;
       }
 
-      const superadminDoc = querySnapshot.docs[0];
       const superadminData = superadminDoc.data();
 
       // Check if superadmin is active

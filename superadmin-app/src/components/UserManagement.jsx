@@ -9,6 +9,9 @@ import {
   FaSearch,
   FaFilter,
   FaSortAlphaDown,
+  FaSort,
+  FaSortUp,
+  FaSortDown,
   FaBuilding,
   FaChevronDown,
   FaTimes,
@@ -284,13 +287,43 @@ const UserManagement = () => {
     };
   }, [isFilterOpen, isOfficeOpen, isSortOpen, isDateOpen]);
 
+  const getItemIdNumber = (item) => {
+    return String(item.id || item.studentId || item.idNumber || '').trim();
+  };
+
   const sortList = (items) => {
     if (sortOrder === 'recent') {
       return [...items].sort((a, b) => (b.rawCreatedAt || 0) - (a.rawCreatedAt || 0));
     }
-    const sorted = [...items].sort((a, b) =>
-      String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
-    );
+    if (sortOrder === 'idAsc') {
+      return [...items].sort((a, b) => {
+        const idA = getItemIdNumber(a);
+        const idB = getItemIdNumber(b);
+        if (!idA && !idB) return 0;
+        if (!idA) return 1;
+        if (!idB) return -1;
+        const cmp = idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+        if (cmp !== 0) return cmp;
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+      });
+    }
+    if (sortOrder === 'idDesc') {
+      return [...items].sort((a, b) => {
+        const idA = getItemIdNumber(a);
+        const idB = getItemIdNumber(b);
+        if (!idA && !idB) return 0;
+        if (!idA) return 1;
+        if (!idB) return -1;
+        const cmp = idB.localeCompare(idA, undefined, { numeric: true, sensitivity: 'base' });
+        if (cmp !== 0) return cmp;
+        return String(b.name || '').localeCompare(String(a.name || ''), undefined, { sensitivity: 'base' });
+      });
+    }
+    const sorted = [...items].sort((a, b) => {
+      const cmp = String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+      if (cmp !== 0) return cmp;
+      return (b.rawCreatedAt || 0) - (a.rawCreatedAt || 0);
+    });
     return sortOrder === 'az' ? sorted : sorted.reverse();
   };
 
@@ -892,6 +925,13 @@ const UserManagement = () => {
     setError('');
   };
 
+  const handleCloseCreateForm = () => {
+    setShowCreateForm(false);
+    setError('');
+    setUsernameError('');
+    setStaffUsername('');
+  };
+
   // Check username uniqueness when user stops typing
   const checkUsernameAvailability = async (username) => {
     if (!username.trim()) {
@@ -1027,7 +1067,7 @@ const UserManagement = () => {
             email: staffEmail.trim(),
             userName: fullName,
             temporaryPassword: password,
-            role: 'admin'
+            role: 'admin',
             office: selectedOffice.name
           })
         });
@@ -1346,13 +1386,23 @@ const UserManagement = () => {
           </button>
           <button
             className={`user-tab ${activeTab === 'staff' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('staff'); resetPagination(); setSelectedStaffIds([]); setSelectAllStaff(false); }}
+            onClick={() => {
+              setActiveTab('staff');
+              resetPagination();
+              setSelectedStaffIds([]);
+              setSelectAllStaff(false);
+              if (sortOrder === 'idAsc' || sortOrder === 'idDesc') setSortOrder('recent');
+            }}
           >
             Staff Members
           </button>
           <button
             className={`user-tab ${activeTab === 'archive' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('archive'); resetPagination(); }}
+            onClick={() => {
+              setActiveTab('archive');
+              resetPagination();
+              if (sortOrder === 'idAsc' || sortOrder === 'idDesc') setSortOrder('recent');
+            }}
           >
             Archive
           </button>
@@ -1568,12 +1618,23 @@ const UserManagement = () => {
 
           {isSortOpen && (
             <div className="filter-dropdown-panel" role="listbox" aria-label="Sort accounts">
-              <div className="filter-dropdown-title">Sort by name</div>
-              {[
-                { value: 'recent', label: 'Recently Created' },
-                { value: 'az', label: 'Name (A to Z)' },
-                { value: 'za', label: 'Name (Z to A)' }
-              ].map((option) => (
+              <div className="filter-dropdown-title">
+                {activeTab === 'students' ? 'Sort students' : 'Sort staff'}
+              </div>
+              {(activeTab === 'students'
+                ? [
+                    { value: 'recent', label: 'Recently Created' },
+                    { value: 'idAsc', label: 'ID Number (Ascending)' },
+                    { value: 'idDesc', label: 'ID Number (Descending)' },
+                    { value: 'az', label: 'Name (A to Z)' },
+                    { value: 'za', label: 'Name (Z to A)' }
+                  ]
+                : [
+                    { value: 'recent', label: 'Recently Created' },
+                    { value: 'az', label: 'Name (A to Z)' },
+                    { value: 'za', label: 'Name (Z to A)' }
+                  ]
+              ).map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -1855,10 +1916,33 @@ const UserManagement = () => {
       )}
 
       {showCreateForm && activeTab === 'students' && (
-        <div className="create-student-modal">
-          <div className="modal-content">
-            <h2 className="modal-title">Create New Student Account</h2>
-            <p className="modal-subtitle">Enter student information to generate account credentials</p>
+        <div 
+          className="create-student-modal"
+          onClick={(e) => { if (e.target === e.currentTarget) handleCloseCreateForm(); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-student-title"
+        >
+          <div className="modal-content create-account-modal">
+            <div className="create-modal-header">
+              <div className="create-modal-title-wrap">
+                <div className="create-modal-icon" aria-hidden="true">
+                  <FaUserPlus />
+                </div>
+                <div>
+                  <h2 id="create-student-title" className="modal-title">Create New Student Account</h2>
+                  <p className="modal-subtitle">Enter student information to generate account credentials</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="create-modal-close"
+                onClick={handleCloseCreateForm}
+                aria-label="Close modal"
+              >
+                <FaTimes aria-hidden="true" />
+              </button>
+            </div>
 
             {error && (
               <div className="error-message-super">
@@ -1867,22 +1951,42 @@ const UserManagement = () => {
             )}
 
             <form onSubmit={handleCreateStudent} className="create-student-form">
-              <div className="form-group-super">
-                <label className="form-label-super">Student ID (4 digits)</label>
-                <input
-                  type="text"
-                  className="form-input-super"
-                  value={studentId}
-                  onChange={handleStudentIdChange}
-                  placeholder="e.g., 1234"
-                  maxLength="4"
-                  required
-                />
+              <div className="form-row-super">
+                <div className="form-group-super">
+                  <label className="form-label-super">
+                    Student ID (4 digits) <span className="required-star">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={studentId}
+                    onChange={handleStudentIdChange}
+                    placeholder="e.g., 1234"
+                    maxLength="4"
+                    required
+                  />
+                </div>
+
+                <div className="form-group-super">
+                  <label className="form-label-super">
+                    Email Address <span className="required-star">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="form-input-super"
+                    value={studentEmail}
+                    onChange={(e) => setStudentEmail(e.target.value)}
+                    placeholder="student@asj.edu"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">First Name *</label>
+                  <label className="form-label-super">
+                    First Name <span className="required-star">*</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -1894,7 +1998,9 @@ const UserManagement = () => {
                 </div>
 
                 <div className="form-group-super">
-                  <label className="form-label-super">Last Name *</label>
+                  <label className="form-label-super">
+                    Last Name <span className="required-star">*</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -1908,18 +2014,22 @@ const UserManagement = () => {
 
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">Middle Name</label>
+                  <label className="form-label-super">
+                    Middle Name <span className="optional-text">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
                     value={studentMiddleName}
                     onChange={(e) => setStudentMiddleName(e.target.value)}
-                    placeholder="Middle name (optional)"
+                    placeholder="Middle name"
                   />
                 </div>
 
                 <div className="form-group-super small-input">
-                  <label className="form-label-super">Suffix</label>
+                  <label className="form-label-super">
+                    Suffix <span className="optional-text">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -1933,14 +2043,16 @@ const UserManagement = () => {
 
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">Grade Level *</label>
+                  <label className="form-label-super">
+                    Grade Level <span className="required-star">*</span>
+                  </label>
                   <select
-                    className="form-input-super"
+                    className={`form-input-super ${!studentGradeLevel ? 'is-placeholder' : ''}`}
                     value={studentGradeLevel}
                     onChange={(e) => setStudentGradeLevel(e.target.value)}
                     required
                   >
-                    <option value="">Select grade level</option>
+                    <option value="" disabled hidden>Select grade level</option>
                     <option value="Grade 7">Grade 7</option>
                     <option value="Grade 8">Grade 8</option>
                     <option value="Grade 9">Grade 9</option>
@@ -1951,7 +2063,9 @@ const UserManagement = () => {
                 </div>
 
                 <div className="form-group-super">
-                  <label className="form-label-super">Section *</label>
+                  <label className="form-label-super">
+                    Section <span className="required-star">*</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -1963,28 +2077,16 @@ const UserManagement = () => {
                 </div>
               </div>
 
-              <div className="form-group-super">
-                <label className="form-label-super">Email Address</label>
-                <input
-                  type="email"
-                  className="form-input-super"
-                  value={studentEmail}
-                  onChange={(e) => setStudentEmail(e.target.value)}
-                  placeholder="student@asj.edu"
-                  required
-                />
-              </div>
-
               <div className="password-info-box">
                 <FaKey className="password-info-icon" />
-                <p>A random password will be generated automatically for this account</p>
+                <p>A random password will be generated automatically for this account upon creation.</p>
               </div>
 
               <div className="modal-actions">
                 <button 
                   type="button" 
                   className="cancel-btn-super" 
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={handleCloseCreateForm}
                   disabled={loading}
                 >
                   Cancel
@@ -2005,10 +2107,33 @@ const UserManagement = () => {
       )}
 
       {showCreateForm && activeTab === 'staff' && (
-        <div className="create-student-modal">
-          <div className="modal-content">
-            <h2 className="modal-title">Create New Staff Account</h2>
-            <p className="modal-subtitle">Enter staff information to generate account credentials</p>
+        <div 
+          className="create-student-modal"
+          onClick={(e) => { if (e.target === e.currentTarget) handleCloseCreateForm(); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-staff-title"
+        >
+          <div className="modal-content create-account-modal">
+            <div className="create-modal-header">
+              <div className="create-modal-title-wrap">
+                <div className="create-modal-icon" aria-hidden="true">
+                  <FaUserPlus />
+                </div>
+                <div>
+                  <h2 id="create-staff-title" className="modal-title">Create New Staff Account</h2>
+                  <p className="modal-subtitle">Enter staff information to generate account credentials</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="create-modal-close"
+                onClick={handleCloseCreateForm}
+                aria-label="Close modal"
+              >
+                <FaTimes aria-hidden="true" />
+              </button>
+            </div>
 
             {error && (
               <div className="error-message-super">
@@ -2019,7 +2144,9 @@ const UserManagement = () => {
             <form onSubmit={handleCreateStaff} className="create-student-form">
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">First Name *</label>
+                  <label className="form-label-super">
+                    First Name <span className="required-star">*</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -2031,7 +2158,9 @@ const UserManagement = () => {
                 </div>
 
                 <div className="form-group-super">
-                  <label className="form-label-super">Last Name *</label>
+                  <label className="form-label-super">
+                    Last Name <span className="required-star">*</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -2045,18 +2174,22 @@ const UserManagement = () => {
 
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">Middle Name</label>
+                  <label className="form-label-super">
+                    Middle Name <span className="optional-text">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
                     value={staffMiddleName}
                     onChange={(e) => setStaffMiddleName(e.target.value)}
-                    placeholder="Middle name (optional)"
+                    placeholder="Middle name"
                   />
                 </div>
 
                 <div className="form-group-super small-input">
-                  <label className="form-label-super">Suffix</label>
+                  <label className="form-label-super">
+                    Suffix <span className="optional-text">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -2068,47 +2201,55 @@ const UserManagement = () => {
                 </div>
               </div>
 
-              <div className="form-group-super">
-                <label className="form-label-super">Email Address</label>
-                <input
-                  type="email"
-                  className="form-input-super"
-                  value={staffEmail}
-                  onChange={(e) => setStaffEmail(e.target.value)}
-                  placeholder="staff@asj.edu"
-                  required
-                />
+              <div className="form-row-super">
+                <div className="form-group-super">
+                  <label className="form-label-super">
+                    Email Address <span className="required-star">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="form-input-super"
+                    value={staffEmail}
+                    onChange={(e) => setStaffEmail(e.target.value)}
+                    placeholder="staff@asj.edu"
+                    required
+                  />
+                </div>
+
+                <div className="form-group-super">
+                  <label className="form-label-super">
+                    Username <span className="required-star">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className={`form-input-super ${usernameError ? 'input-error' : ''}`}
+                    value={staffUsername}
+                    onChange={(e) => setStaffUsername(e.target.value)}
+                    placeholder="Enter username for login"
+                    required
+                  />
+                  {usernameChecking && (
+                    <small className="field-status-note checking">
+                      Checking availability...
+                    </small>
+                  )}
+                  {usernameError && (
+                    <small className="field-status-note error">
+                      {usernameError}
+                    </small>
+                  )}
+                  {!usernameError && staffUsername && !usernameChecking && (
+                    <small className="field-status-note success">
+                      ✓ Username available
+                    </small>
+                  )}
+                </div>
               </div>
 
               <div className="form-group-super">
-                <label className="form-label-super">Username</label>
-                <input
-                  type="text"
-                  className={`form-input-super ${usernameError ? 'input-error' : ''}`}
-                  value={staffUsername}
-                  onChange={(e) => setStaffUsername(e.target.value)}
-                  placeholder="Enter username for login"
-                  required
-                />
-                {usernameChecking && (
-                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                    Checking availability...
-                  </small>
-                )}
-                {usernameError && (
-                  <small style={{ color: '#c33', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                    {usernameError}
-                  </small>
-                )}
-                {!usernameError && staffUsername && !usernameChecking && (
-                  <small style={{ color: '#28a745', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                    ✓ Username available
-                  </small>
-                )}
-              </div>
-
-              <div className="form-group-super">
-                <label className="form-label-super">Assign to Office</label>
+                <label className="form-label-super">
+                  Assign to Office <span className="required-star">*</span>
+                </label>
                 <select
                   className="form-input-super"
                   value={staffOffice}
@@ -2125,18 +2266,14 @@ const UserManagement = () => {
 
               <div className="password-info-box">
                 <FaKey className="password-info-icon" />
-                <p>A random password will be generated automatically for this account</p>
+                <p>A random password will be generated automatically for this account upon creation.</p>
               </div>
 
               <div className="modal-actions">
                 <button 
                   type="button" 
                   className="cancel-btn-super" 
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    setUsernameError('');
-                    setStaffUsername('');
-                  }}
+                  onClick={handleCloseCreateForm}
                   disabled={loading}
                 >
                   Cancel
@@ -2237,8 +2374,64 @@ const UserManagement = () => {
                         aria-label="Select all students on current page"
                       />
                     </div>
-                    <div className="table-cell">Student ID</div>
-                    <div className="table-cell">Name</div>
+                    <div
+                      className={`table-cell sortable ${sortOrder === 'idAsc' || sortOrder === 'idDesc' ? 'sorted' : ''}`}
+                      onClick={() => {
+                        resetPagination();
+                        setSortOrder((prev) => (prev === 'idAsc' ? 'idDesc' : 'idAsc'));
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          resetPagination();
+                          setSortOrder((prev) => (prev === 'idAsc' ? 'idDesc' : 'idAsc'));
+                        }
+                      }}
+                      aria-label={`Sort by Student ID ${sortOrder === 'idAsc' ? 'descending' : 'ascending'}`}
+                      title={`Sort by Student ID (${sortOrder === 'idAsc' ? 'Descending' : 'Ascending'})`}
+                    >
+                      <span>Student ID</span>
+                      <span className="sort-col-icon">
+                        {sortOrder === 'idAsc' ? (
+                          <FaSortUp aria-hidden="true" />
+                        ) : sortOrder === 'idDesc' ? (
+                          <FaSortDown aria-hidden="true" />
+                        ) : (
+                          <FaSort aria-hidden="true" />
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className={`table-cell sortable ${sortOrder === 'az' || sortOrder === 'za' ? 'sorted' : ''}`}
+                      onClick={() => {
+                        resetPagination();
+                        setSortOrder((prev) => (prev === 'az' ? 'za' : 'az'));
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          resetPagination();
+                          setSortOrder((prev) => (prev === 'az' ? 'za' : 'az'));
+                        }
+                      }}
+                      aria-label={`Sort by Name ${sortOrder === 'az' ? 'Z to A' : 'A to Z'}`}
+                      title={`Sort by Name (${sortOrder === 'az' ? 'Z to A' : 'A to Z'})`}
+                    >
+                      <span>Name</span>
+                      <span className="sort-col-icon">
+                        {sortOrder === 'az' ? (
+                          <FaSortUp aria-hidden="true" />
+                        ) : sortOrder === 'za' ? (
+                          <FaSortDown aria-hidden="true" />
+                        ) : (
+                          <FaSort aria-hidden="true" />
+                        )}
+                      </span>
+                    </div>
                     <div className="table-cell">Email</div>
                     <div className="table-cell">Created</div>
                     <div className="table-cell">Actions</div>
@@ -2310,7 +2503,35 @@ const UserManagement = () => {
               <div className="table-container">
                 <div className="students-table archived-table">
                   <div className="table-header">
-                    <div className="table-cell">Name</div>
+                    <div
+                      className={`table-cell sortable ${sortOrder === 'az' || sortOrder === 'za' ? 'sorted' : ''}`}
+                      onClick={() => {
+                        resetPagination();
+                        setSortOrder((prev) => (prev === 'az' ? 'za' : 'az'));
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          resetPagination();
+                          setSortOrder((prev) => (prev === 'az' ? 'za' : 'az'));
+                        }
+                      }}
+                      aria-label={`Sort by Name ${sortOrder === 'az' ? 'Z to A' : 'A to Z'}`}
+                      title={`Sort by Name (${sortOrder === 'az' ? 'Z to A' : 'A to Z'})`}
+                    >
+                      <span>Name</span>
+                      <span className="sort-col-icon">
+                        {sortOrder === 'az' ? (
+                          <FaSortUp aria-hidden="true" />
+                        ) : sortOrder === 'za' ? (
+                          <FaSortDown aria-hidden="true" />
+                        ) : (
+                          <FaSort aria-hidden="true" />
+                        )}
+                      </span>
+                    </div>
                     <div className="table-cell">Username</div>
                     <div className="table-cell">Email</div>
                     <div className="table-cell">Office</div>
@@ -2372,7 +2593,35 @@ const UserManagement = () => {
                 <div className="students-table staff-table">
                   <div className="table-header">
                     <div className="table-cell">Username</div>
-                    <div className="table-cell">Name</div>
+                    <div
+                      className={`table-cell sortable ${sortOrder === 'az' || sortOrder === 'za' ? 'sorted' : ''}`}
+                      onClick={() => {
+                        resetPagination();
+                        setSortOrder((prev) => (prev === 'az' ? 'za' : 'az'));
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          resetPagination();
+                          setSortOrder((prev) => (prev === 'az' ? 'za' : 'az'));
+                        }
+                      }}
+                      aria-label={`Sort by Name ${sortOrder === 'az' ? 'Z to A' : 'A to Z'}`}
+                      title={`Sort by Name (${sortOrder === 'az' ? 'Z to A' : 'A to Z'})`}
+                    >
+                      <span>Name</span>
+                      <span className="sort-col-icon">
+                        {sortOrder === 'az' ? (
+                          <FaSortUp aria-hidden="true" />
+                        ) : sortOrder === 'za' ? (
+                          <FaSortDown aria-hidden="true" />
+                        ) : (
+                          <FaSort aria-hidden="true" />
+                        )}
+                      </span>
+                    </div>
                     <div className="table-cell">Email</div>
                     <div className="table-cell">Office</div>
                     <div className="table-cell">Created</div>
