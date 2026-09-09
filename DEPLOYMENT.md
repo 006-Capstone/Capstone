@@ -25,7 +25,7 @@
 
 ```bash
 git add .
-git commit -m "feat: Add Vercel deployment features"
+git commit -m "feat: Ready for Vercel deployment"
 git push origin main
 ```
 
@@ -34,7 +34,7 @@ git push origin main
 1. Go to https://vercel.com
 2. Sign in with GitHub
 3. Click **"Add New Project"**
-4. Import `Sanes1/Capstone`
+4. Import your repository
 
 #### A. Student App (with API)
 - **Root Directory**: `student-app`
@@ -43,13 +43,9 @@ git push origin main
 - **Output**: `build`
 
 **Environment Variables** (from your local `.env` files):
-- `REACT_APP_GROQ_API_KEY`
-- `REACT_APP_QR_ENCRYPTION_KEY`
-- `GMAIL_USER`
-- `GMAIL_APP_PASSWORD`
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_CLIENT_EMAIL`
-- `FIREBASE_PRIVATE_KEY` (including BEGIN/END lines)
+- Copy all values from `student-app/.env`
+- Copy Firebase credentials from `email-backend/serviceAccountKey.json`
+- Copy Gmail credentials from `email-backend/.env`
 
 #### B. Admin App
 - **Root Directory**: `admin-app`
@@ -58,19 +54,25 @@ git push origin main
 
 #### C. Superadmin App
 - **Root Directory**: `superadmin-app`
-- **Framework**: Create React App
+- **Framework**: Create React App  
 - No environment variables needed
 
 ## 📝 Important Notes:
 
 - Gmail SMTP works on Vercel (no port blocking)
-- No cold starts (unlike Render free tier)
-- All apps share the same API functions
+- No cold starts or sleep issues
+- All apps share the same API functions from student-app
 - Keep your `.env` files safe and never commit them!
+- The Vercel API routes work locally and in production
 
-## 🧪 Testing:
+## 🧪 Testing Locally:
 
-After deployment:
+For local development, the API routes point to `http://localhost:3000/api/*`
+
+Run the student app and the API functions will be available.
+
+## 🧪 Testing After Deployment:
+
 1. Test forgot password feature
 2. Test guest login with image upload
 3. Test creating new accounts (temporary password emails)
