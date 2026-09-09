@@ -8,7 +8,6 @@ import {
   FaUserCircle, 
   FaArrowRight, 
   FaCheckCircle, 
-  FaFilter,
   FaHourglassHalf
 } from 'react-icons/fa';
 import { parseTicketETC, groupRequestsByUrgency } from '../utils/etcHelper';
@@ -35,8 +34,7 @@ const NearingCompletionModal = ({
   onGoToQueue
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'overdue' | 'today' | 'tomorrow' | 'soon'
-  const [thresholdDays, setThresholdDays] = useState(3); // 3 | 7 | 14 | 999 (all)
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'overdue' | 'today' | 'tomorrow'
   const [dontShowAgainSession, setDontShowAgainSession] = useState(false);
 
   // Close on Escape key
@@ -63,7 +61,7 @@ const NearingCompletionModal = ({
     onClose();
   };
 
-  // Filter and enrich active tickets that have estimated completion dates
+  // Filter and enrich active tickets that are overdue, due today, or due tomorrow (excluding due in 2+ days)
   const activeEtcTickets = useMemo(() => {
     if (!Array.isArray(tickets)) return [];
 
@@ -78,48 +76,43 @@ const NearingCompletionModal = ({
       const etcInfo = parseTicketETC(ticket);
       if (!etcInfo) continue;
 
-      list.push({
-        ...ticket,
-        etcInfo
-      });
+      // Only include overdue, today, and tomorrow (due in 2+ days removed)
+      if (etcInfo.isOverdue || etcInfo.isToday || etcInfo.isTomorrow) {
+        list.push({
+          ...ticket,
+          etcInfo
+        });
+      }
     }
 
-    // Sort by urgency: most overdue first, then today, then upcoming
+    // Sort by urgency: most overdue first, then today, then tomorrow
     list.sort((a, b) => a.etcInfo.diffDays - b.etcInfo.diffDays);
     return list;
   }, [tickets]);
 
-  // Filter based on threshold days
-  const thresholdFilteredTickets = useMemo(() => {
-    return activeEtcTickets.filter(item => item.etcInfo.diffDays <= thresholdDays);
-  }, [activeEtcTickets, thresholdDays]);
-
-  // Overall counts for summary pills
+  // Overall counts for summary cards
   const summaryCounts = useMemo(() => {
     let overdue = 0;
     let today = 0;
     let tomorrow = 0;
-    let soon = 0;
 
-    for (const item of thresholdFilteredTickets) {
+    for (const item of activeEtcTickets) {
       if (item.etcInfo.isOverdue) overdue++;
       else if (item.etcInfo.isToday) today++;
       else if (item.etcInfo.isTomorrow) tomorrow++;
-      else if (item.etcInfo.isDueSoon) soon++;
     }
 
     return {
-      total: thresholdFilteredTickets.length,
+      total: activeEtcTickets.length,
       overdue,
       today,
-      tomorrow,
-      soon
+      tomorrow
     };
-  }, [thresholdFilteredTickets]);
+  }, [activeEtcTickets]);
 
   // Apply search query and active tab filter
   const displayedTickets = useMemo(() => {
-    let list = thresholdFilteredTickets;
+    let list = activeEtcTickets;
 
     // Filter by urgency tab
     if (activeFilter === 'overdue') {
@@ -128,8 +121,6 @@ const NearingCompletionModal = ({
       list = list.filter(item => item.etcInfo.isToday);
     } else if (activeFilter === 'tomorrow') {
       list = list.filter(item => item.etcInfo.isTomorrow);
-    } else if (activeFilter === 'soon') {
-      list = list.filter(item => item.etcInfo.isDueSoon);
     }
 
     // Filter by search query
@@ -146,21 +137,20 @@ const NearingCompletionModal = ({
     }
 
     return list;
-  }, [thresholdFilteredTickets, activeFilter, searchQuery]);
+  }, [activeEtcTickets, activeFilter, searchQuery]);
 
   // Group requests in strict top-to-bottom priority order:
   // 1. Overdue
   // 2. Due Today
   // 3. Due Tomorrow
-  // 4. Due in 2+ Days / Upcoming
   const groupedSections = useMemo(() => {
     const allGroups = groupRequestsByUrgency(displayedTickets);
 
     if (activeFilter === 'all') {
-      return allGroups.filter(g => g.items.length > 0);
+      return allGroups.filter(g => g.items.length > 0 && g.key !== 'upcoming');
     }
 
-    return allGroups.filter(g => g.key === activeFilter);
+    return allGroups.filter(g => g.key === activeFilter && g.key !== 'upcoming');
   }, [displayedTickets, activeFilter]);
 
   if (!isOpen) return null;
@@ -220,7 +210,7 @@ const NearingCompletionModal = ({
             className={`nearing-summary-card card-all ${activeFilter === 'all' ? 'active' : ''}`}
             onClick={() => setActiveFilter('all')}
           >
-            <span className="summary-card-label">All In Scope</span>
+            <span className="summary-card-label">Total</span>
             <span className="summary-card-count">{summaryCounts.total}</span>
           </button>
 
@@ -229,7 +219,7 @@ const NearingCompletionModal = ({
             className={`nearing-summary-card card-overdue ${activeFilter === 'overdue' ? 'active' : ''} ${summaryCounts.overdue > 0 ? 'has-items' : ''}`}
             onClick={() => setActiveFilter('overdue')}
           >
-            <span className="summary-card-label">1. Overdue</span>
+            <span className="summary-card-label">Overdue</span>
             <span className="summary-card-count">{summaryCounts.overdue}</span>
           </button>
 
@@ -238,7 +228,7 @@ const NearingCompletionModal = ({
             className={`nearing-summary-card card-today ${activeFilter === 'today' ? 'active' : ''} ${summaryCounts.today > 0 ? 'has-items' : ''}`}
             onClick={() => setActiveFilter('today')}
           >
-            <span className="summary-card-label">2. Due Today</span>
+            <span className="summary-card-label">Due Today</span>
             <span className="summary-card-count">{summaryCounts.today}</span>
           </button>
 
@@ -247,21 +237,12 @@ const NearingCompletionModal = ({
             className={`nearing-summary-card card-tomorrow ${activeFilter === 'tomorrow' ? 'active' : ''} ${summaryCounts.tomorrow > 0 ? 'has-items' : ''}`}
             onClick={() => setActiveFilter('tomorrow')}
           >
-            <span className="summary-card-label">3. Due Tomorrow</span>
+            <span className="summary-card-label">Due Tomorrow</span>
             <span className="summary-card-count">{summaryCounts.tomorrow}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`nearing-summary-card card-soon ${activeFilter === 'soon' ? 'active' : ''}`}
-            onClick={() => setActiveFilter('soon')}
-          >
-            <span className="summary-card-label">4. Due in 2+ Days</span>
-            <span className="summary-card-count">{summaryCounts.soon}</span>
           </button>
         </div>
 
-        {/* Search & Filter Controls */}
+        {/* Search Control */}
         <div className="nearing-controls-row">
           <div className="nearing-search-wrap">
             <FaSearch className="nearing-search-icon" />
@@ -283,23 +264,6 @@ const NearingCompletionModal = ({
               </button>
             )}
           </div>
-
-          <div className="nearing-threshold-wrap">
-            <FaFilter className="threshold-icon" />
-            <label htmlFor="nearing-threshold" className="threshold-label">Window:</label>
-            <select
-              id="nearing-threshold"
-              className="nearing-threshold-select"
-              value={thresholdDays}
-              onChange={(e) => setThresholdDays(Number(e.target.value))}
-            >
-              <option value={1}>Today & Overdue (1 Day)</option>
-              <option value={3}>Within 3 Days (Recommended)</option>
-              <option value={7}>Within 7 Days (1 Week)</option>
-              <option value={14}>Within 14 Days (2 Weeks)</option>
-              <option value={999}>All Active with ETC</option>
-            </select>
-          </div>
         </div>
 
         {/* Modal Body / Grouped Sections in Top-to-Bottom Order */}
@@ -310,14 +274,14 @@ const NearingCompletionModal = ({
                 <FaCheckCircle />
               </div>
               <h3 className="nearing-empty-title">
-                {thresholdFilteredTickets.length === 0 
+                {activeEtcTickets.length === 0 
                   ? "All caught up! No requests nearing completion." 
                   : "No requests match your filter."}
               </h3>
               <p className="nearing-empty-subtitle">
-                {thresholdFilteredTickets.length === 0
+                {activeEtcTickets.length === 0
                   ? `There are currently no active requests with nearing estimated completion dates in the ${department} office.`
-                  : "Try resetting your search query or adjusting the urgency window filter above."}
+                  : "Try resetting your search query or selecting another tab above."}
               </p>
               {searchQuery && (
                 <button 
@@ -325,7 +289,7 @@ const NearingCompletionModal = ({
                   className="nearing-btn-reset" 
                   onClick={() => { setSearchQuery(''); setActiveFilter('all'); }}
                 >
-                  Reset Filters
+                  Reset Search
                 </button>
               )}
             </div>

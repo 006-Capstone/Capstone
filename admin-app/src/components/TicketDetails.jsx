@@ -429,6 +429,20 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     return true;
   };
 
+  // Only Guidance Office and Library Department are permitted to reject requests
+  const canRejectRequest = () => {
+    let currentDept = (department || '').trim().toLowerCase();
+    if (!currentDept) {
+      try {
+        const staffData = JSON.parse(localStorage.getItem('staffData') || '{}');
+        currentDept = (staffData.office || staffData.officeId || ticket?.office || '').trim().toLowerCase();
+      } catch (e) {
+        currentDept = (ticket?.office || '').trim().toLowerCase();
+      }
+    }
+    return currentDept.includes('guidance') || currentDept.includes('library');
+  };
+
   const confirmResolveTicket = async () => {
     try {
       setResolving(true);
@@ -479,6 +493,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const confirmRejectTicket = async () => {
+    if (!canRejectRequest()) {
+      showToast('Rejecting requests is only permitted for Guidance Office and Library Department', 'error');
+      setShowRejectModal(false);
+      return;
+    }
+
     if (!rejectReason.trim()) {
       showToast('Please provide a reason for rejecting this request', 'error');
       return;
@@ -791,9 +811,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       {/* Breadcrumb Navigation & Notification Bell */}
       <div className="figma-breadcrumbs-row">
         <nav className="figma-breadcrumbs" aria-label="Breadcrumb">
-          <span className="crumb-link" onClick={() => onNavigate('my-tickets')}>All Ticket</span>
+          <span className="crumb-link" onClick={() => onNavigate('my-tickets')}>All Request</span>
           <span className="crumb-slash">/</span>
-          <span className="crumb-active">Ticket Details</span>
+          <span className="crumb-active">Request Details</span>
         </nav>
         
         <button 
@@ -810,7 +830,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
       {/* Page Title */}
       <div className="figma-header-title-row">
-        <h1 className="figma-page-title">Ticket Details</h1>
+        <h1 className="figma-page-title">Request Details</h1>
       </div>
 
       {/* 2-Column Responsive Grid */}
@@ -836,10 +856,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
               {!isTicketClosed && (
                 <div className="summary-actions-wrap">
-                  <button type="button" className="btn-figma-reject" onClick={() => setShowRejectModal(true)}>
-                    <FaTimes className="btn-icon" />
-                    <span>Reject Request</span>
-                  </button>
+                  {canRejectRequest() && (
+                    <button type="button" className="btn-figma-reject" onClick={() => setShowRejectModal(true)}>
+                      <FaTimes className="btn-icon" />
+                      <span>Reject Request</span>
+                    </button>
+                  )}
                   {isOriginalDepartment() && (
                     <button type="button" className="btn-figma-resolve" onClick={() => setShowResolveModal(true)}>
                       <FaCheck className="btn-icon" />
@@ -1363,7 +1385,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       )}
 
       {/* Modal: Reject Request */}
-      {showRejectModal && (
+      {showRejectModal && canRejectRequest() && (
         <div className="figma-modal-overlay" onClick={() => setShowRejectModal(false)}>
           <div className="figma-modal-window" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-row">
