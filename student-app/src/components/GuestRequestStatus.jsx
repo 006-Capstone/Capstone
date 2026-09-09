@@ -10,6 +10,7 @@ import {
   FaFileAlt,
   FaDownload
 } from 'react-icons/fa';
+import { jsPDF } from 'jspdf';
 import '../styles/GuestRequestStatus.css';
 
 const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
@@ -25,39 +26,116 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
 
   const handleDownload = () => {
     if (!data) return;
-    const lines = [
-      'ACADEMIA DE SAN JOSE — GUEST REQUEST STATUS REPORT',
-      '==================================================',
-      `Request Number: ${data.requestNumber}`,
-      `Office: ${data.officeName}`,
-      `Office Code: ${data.officeCode}`,
-      `Status: ${data.status}`,
-      `Subject: ${data.subject || 'N/A'}`,
-      `Date Created: ${data.dateCreated}`,
-      `Estimated Completion: ${data.estimatedCompletion}`,
-      `Student Name: ${data.studentName}`,
-      `Grade & Section: ${data.grade} - ${data.section}`,
-      `Assigned Handler: ${data.handler || 'Unassigned'}`,
-      '',
-      'DESCRIPTION:',
-      data.description || 'No description provided.',
-      '',
-      'TIMELINE HISTORY:'
-    ];
-
+    
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ACADEMIA DE SAN JOSE', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Guest Request Status Report', 105, 28, { align: 'center' });
+    
+    // Divider
+    doc.setLineWidth(0.5);
+    doc.line(20, 32, 190, 32);
+    
+    // Content
+    let y = 45;
+    doc.setFontSize(10);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Request Number:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.requestNumber, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Office:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.officeName, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Office Code:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.officeCode, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Status:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.status, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Subject:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.subject || 'N/A', 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Date Created:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.dateCreated, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Estimated Completion:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.estimatedCompletion, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Student Name:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.studentName, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Grade & Section:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${data.grade} - ${data.section}`, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Assigned Handler:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.handler || 'Unassigned', 70, y);
+    
+    // Description section
+    y += 15;
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESCRIPTION:', 20, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    const descriptionLines = doc.splitTextToSize(data.description || 'No description provided.', 170);
+    doc.text(descriptionLines, 20, y);
+    
+    // Timeline section
+    y += (descriptionLines.length * 5) + 15;
+    doc.setFont('helvetica', 'bold');
+    doc.text('TIMELINE HISTORY:', 20, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    
     if (data.timeline && data.timeline.length > 0) {
       data.timeline.forEach((t) => {
-        lines.push(`- [${t.completed ? 'COMPLETED' : 'PENDING'}] ${t.status}: ${t.description || ''} (${t.date || ''})`);
+        const statusText = `[${t.completed ? 'COMPLETED' : 'PENDING'}] ${t.status}`;
+        const timelineLines = doc.splitTextToSize(`${statusText}: ${t.description || ''} (${t.date || ''})`, 170);
+        doc.text(timelineLines, 20, y);
+        y += (timelineLines.length * 5);
       });
+    } else {
+      doc.text('No timeline data available.', 20, y);
     }
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `status-${(data.rawRequestId || data.requestNumber).replace('#', '')}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
+    
+    // Download PDF
+    doc.save(`status-${(data.rawRequestId || data.requestNumber).replace('#', '')}.pdf`);
   };
 
   if (loading) {

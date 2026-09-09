@@ -423,23 +423,70 @@ Understand your office's performance at a glance
 
           <div className="an-volume-chart">
             <div className="an-volume-y-axis" aria-hidden="true">
-              {yTicksDesc.map((label, i) => (
-                <span key={i}>{label}</span>
+              {yTicksDesc.map((tick, i) => (
+                <div
+                  key={i}
+                  className="an-volume-y-tick"
+                  style={{ bottom: `${(tick / topTick) * 100}%` }}
+                >
+                  <span>{tick}</span>
+                </div>
               ))}
             </div>
 
-            <div className="an-volume-plot">
-              <div className="an-volume-gridlines" aria-hidden="true">
-                {yTicksDesc.map((tick, i) => (
-                  <div
-                    key={i}
-                    className={`an-volume-gridline${tick === 0 ? ' an-volume-gridline--zero' : ''}`}
-                    style={{ bottom: `${(tick / topTick) * 100}%` }}
-                  />
-                ))}
+            <div className="an-volume-main">
+              <div className="an-volume-plot">
+                <div className="an-volume-gridlines" aria-hidden="true">
+                  {yTicksDesc.map((tick, i) => (
+                    <div
+                      key={i}
+                      className={`an-volume-gridline${tick === 0 ? ' an-volume-gridline--zero' : ''}`}
+                      style={{ bottom: `${(tick / topTick) * 100}%` }}
+                    />
+                  ))}
+                </div>
+
+                <div className="an-volume-bars">
+                  {analytics.submissionData.map((data, index) => {
+                    const monthNum = index + 1;
+                    let isInRange = false;
+                    if (isFilterActive) {
+                      const fromMonth = appliedFilter.from ? parseInt(appliedFilter.from.split('-')[1], 10) : 1;
+                      const toMonth = appliedFilter.to ? parseInt(appliedFilter.to.split('-')[1], 10) : 12;
+                      if (fromMonth <= toMonth) {
+                        isInRange = monthNum >= fromMonth && monthNum <= toMonth;
+                      } else {
+                        // Range wraps around the year boundary (e.g. Nov → Feb)
+                        isInRange = monthNum >= fromMonth || monthNum <= toMonth;
+                      }
+                    }
+
+                    const barHeight = topTick > 0 ? (data.value / topTick) * 100 : 0;
+
+                    return (
+                      <div
+                        key={index}
+                        className={`an-volume-bar-col${isInRange ? ' is-in-range' : ''}`}
+                        role="img"
+                        aria-label={`${data.month}: ${data.value} ${data.value === 1 ? 'request' : 'requests'}`}
+                      >
+                        <div
+                          className={`an-volume-bar${data.value > 0 ? '' : ' an-volume-bar--empty'}${isInRange ? ' an-volume-bar--in-range' : ''}`}
+                          data-tip={data.value > 0
+                            ? `${data.month}: ${data.value} request${data.value === 1 ? '' : 's'}`
+                            : `${data.month}: 0 requests`}
+                          style={{
+                            height: `${data.value > 0 ? Math.max(barHeight, 3) : 0}%`,
+                            animationDelay: `${index * 0.04}s`
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="an-volume-bars">
+              <div className="an-volume-x-axis" aria-hidden="true">
                 {analytics.submissionData.map((data, index) => {
                   const monthNum = index + 1;
                   let isInRange = false;
@@ -449,31 +496,15 @@ Understand your office's performance at a glance
                     if (fromMonth <= toMonth) {
                       isInRange = monthNum >= fromMonth && monthNum <= toMonth;
                     } else {
-                      // Range wraps around the year boundary (e.g. Nov → Feb)
                       isInRange = monthNum >= fromMonth || monthNum <= toMonth;
                     }
                   }
 
                   return (
-                    <div
-                      key={index}
-                      className="an-volume-group"
-                      role="img"
-                      aria-label={`${data.month}: ${data.value} ${data.value === 1 ? 'request' : 'requests'}`}
-                    >
-                      <div className="an-volume-track">
-                        <div
-                          className={`an-volume-bar${data.value > 0 ? '' : ' an-volume-bar--empty'}${isInRange ? ' an-volume-bar--in-range' : ''}`}
-                          data-tip={data.value > 0
-                            ? `${data.month}: ${data.value} request${data.value === 1 ? '' : 's'}`
-                            : `${data.month}: No requests yet`}
-                          style={{
-                            height: `${(data.value / topTick) * 100}%`,
-                            animationDelay: `${index * 0.05}s`
-                          }}
-                        ></div>
-                      </div>
-                      <span className="an-volume-label">{data.month}</span>
+                    <div key={index} className="an-volume-x-col">
+                      <span className={`an-volume-label${isInRange ? ' an-volume-label--in-range' : ''}`}>
+                        {data.month}
+                      </span>
                     </div>
                   );
                 })}

@@ -789,8 +789,8 @@ const UserManagement = () => {
       // Send credentials via email
       try {
         const apiUrl = process.env.NODE_ENV === 'production' 
-          ? '/api/send-student-email'
-          : 'http://localhost:5000/api/send-credentials';
+          ? '/api/send-temporary-password'
+          : 'http://localhost:3000/api/send-temporary-password';
           
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -799,9 +799,9 @@ const UserManagement = () => {
           },
           body: JSON.stringify({
             email: studentEmail.trim(),
-            studentId: studentId,
-            password: password,
-            studentName: fullName
+            userName: fullName,
+            temporaryPassword: password,
+            role: 'student'
           })
         });
 
@@ -1015,8 +1015,8 @@ const UserManagement = () => {
       // Send credentials via email
       try {
         const apiUrl = process.env.NODE_ENV === 'production'
-          ? '/api/send-staff-email'
-          : 'http://localhost:5000/api/send-staff-credentials';
+          ? '/api/send-temporary-password'
+          : 'http://localhost:3000/api/send-temporary-password';
           
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -1025,9 +1025,9 @@ const UserManagement = () => {
           },
           body: JSON.stringify({
             email: staffEmail.trim(),
-            staffName: fullName,
-            username: staffUsername.trim(),
-            password: password,
+            userName: fullName,
+            temporaryPassword: password,
+            role: 'admin'
             office: selectedOffice.name
           })
         });

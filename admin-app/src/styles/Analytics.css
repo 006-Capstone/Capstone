@@ -241,40 +241,57 @@
   font-size: 13.5px;
 }
 
-/* ---- Ticket Volume by Month (bar chart) ---- */
+/* ---- Request Volume by Month (bar chart) ---- */
+.an-chart-card--volume {
+  padding: 24px 26px 20px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
 .an-volume-chart {
   display: flex;
   gap: 14px;
   height: 260px;
-  padding-top: 6px; /* keep the top gridline + y-label off the card's edge */
+  margin-top: 10px;
+  width: 100%;
 }
 
-/* The volume chart shares a row with the donut card but sits in the wider
-   (1.6fr) column, so its 12 bars would stretch across the whole card with
-   big empty gaps between them. Cap the chart's width and center it so the
-   bars stay grouped and the card no longer looks oversized. */
 .an-chart-card--volume .an-volume-chart {
-  max-width: 680px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 }
 
 .an-volume-y-axis {
+  position: relative;
+  width: 32px;
+  height: calc(100% - 30px);
+  flex-shrink: 0;
+}
+
+.an-volume-y-tick {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: 11px;
+  font-weight: 500;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.an-volume-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #9ca3af;
-  padding-bottom: 28px;
-  text-align: right;
-  width: 30px;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
+  height: 100%;
 }
 
 .an-volume-plot {
   position: relative;
   flex: 1;
-  min-width: 0;
+  min-height: 0;
+  width: 100%;
 }
 
 .an-volume-gridlines {
@@ -282,7 +299,7 @@
   top: 0;
   left: 0;
   right: 0;
-  bottom: 28px;
+  bottom: 0;
   pointer-events: none;
 }
 
@@ -290,61 +307,70 @@
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px dashed #ececec;
+  border-top: 1px dashed #e8ebe8;
 }
 
 .an-volume-gridline--zero {
-  border-top: 1.5px solid #d8d8d8;
+  border-top: 1.5px solid #d1d5db;
 }
 
 .an-volume-bars {
-  position: relative;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  padding-bottom: 28px;
+  gap: 6px;
+  padding: 0 4px;
 }
 
-.an-volume-group {
+.an-volume-bar-col {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   height: 100%;
-}
-
-.an-volume-track {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  position: relative;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.an-volume-bar-col:hover {
+  background-color: rgba(16, 94, 6, 0.04);
+}
+
+.an-volume-bar-col.is-in-range {
+  background-color: rgba(16, 94, 6, 0.02);
 }
 
 .an-volume-bar {
-  width: min(72%, 34px);
+  width: min(65%, 32px);
   min-height: 3px;
-  background: linear-gradient(180deg, #7ed888, #66bb6a);
-  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, #6ee7b7, #10b981);
+  border-radius: 6px 6px 1px 1px;
   position: relative;
   transform-origin: bottom;
-  animation: an-grow-bar 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
-  transition: filter 0.15s ease;
+  animation: an-grow-bar 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: filter 0.15s ease, transform 0.15s ease;
 }
 
-.an-volume-bar:hover {
-  filter: brightness(0.9);
+.an-volume-bar-col:hover .an-volume-bar {
+  filter: brightness(0.92);
+  transform: scaleY(1.02);
 }
 
 .an-volume-bar--empty {
+  height: 3px !important;
   background: #e5e7eb;
+  border-radius: 2px;
 }
 
 .an-volume-bar--in-range {
-  background: linear-gradient(180deg, #2e8b28, #105e06);
+  background: linear-gradient(180deg, #22c55e, #15803d);
+  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.25);
 }
 
 @keyframes an-grow-bar {
@@ -362,50 +388,74 @@
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%) translateY(3px);
+  transform: translateX(-50%) translateY(4px);
   background-color: #1f2937;
   color: #ffffff;
-  padding: 6px 10px;
-  border-radius: 7px;
-  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
-  z-index: 20;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  z-index: 30;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 .an-volume-bar::before {
   content: '';
   position: absolute;
-  bottom: calc(100% + 1px);
+  bottom: calc(100% + 2px);
   left: 50%;
   transform: translateX(-50%);
-  border: 5px solid transparent;
+  border: 4px solid transparent;
   border-top-color: #1f2937;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s ease;
-  z-index: 20;
+  z-index: 30;
 }
 
-.an-volume-bar:hover::after {
+.an-volume-bar-col:hover .an-volume-bar::after {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
 
-.an-volume-bar:hover::before {
+.an-volume-bar-col:hover .an-volume-bar::before {
   opacity: 1;
 }
 
+/* X-Axis labels row */
+.an-volume-x-axis {
+  display: flex;
+  gap: 6px;
+  height: 30px;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.an-volume-x-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .an-volume-label {
-  font-size: 10.5px;
-  color: #9ca3af;
+  font-size: 11px;
+  color: #6b7280;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding-top: 10px;
+  letter-spacing: 0.3px;
+  transition: color 0.15s ease;
+}
+
+.an-volume-bar-col:hover + .an-volume-x-axis .an-volume-x-col .an-volume-label,
+.an-volume-label--in-range {
+  color: #15803d;
+  font-weight: 700;
 }
 
 /* ---- Status Breakdown (donut) ---- */
@@ -841,5 +891,29 @@
   .an-recent-table th,
   .an-recent-table td {
     padding: 10px;
+  }
+
+  .an-volume-chart {
+    height: 210px;
+    gap: 8px;
+  }
+
+  .an-volume-y-axis {
+    width: 24px;
+  }
+
+  .an-volume-y-tick {
+    font-size: 10px;
+  }
+
+  .an-volume-bars,
+  .an-volume-x-axis {
+    gap: 2px;
+    padding: 0;
+  }
+
+  .an-volume-label {
+    font-size: 9px;
+    letter-spacing: 0;
   }
 }

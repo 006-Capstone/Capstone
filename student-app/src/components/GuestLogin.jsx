@@ -10,6 +10,45 @@ import GuestRequestStatus from './GuestRequestStatus';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/GuestLogin.css';
 
+// Smart image compression to stay under Firestore 1 MB document limit
+const MAX_IMAGE_DIMENSION = 1280;
+const MAX_BASE64_LENGTH = 900 * 1024 * 1.37; // ~0.9 MiB raw -> base64 ceiling
+
+const compressImage = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('Could not read the image file.'));
+  reader.onload = (evt) => {
+    const img = new Image();
+    img.onerror = () => reject(new Error('Invalid image format.'));
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        let quality = 0.82;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        while (dataUrl.length > MAX_BASE64_LENGTH && quality > 0.35) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        
+        resolve(dataUrl);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
 const guestOffices = [
   {
     id: 'finance',
@@ -374,48 +413,69 @@ const GuestLogin = () => {
       const prefix = officeName.substring(0, 3).toUpperCase();
       const generatedRequestId = `${prefix}-${random3()}-${random3()}-${random3()}`;
 
-      // Encode attachments to base64
+      // Encode attachments with smart compression for images
       const attachments = [];
+      const now = Date.now();
+      
       if (authFile) {
-        const base64 = await fileToBase64(authFile);
-        // Only include explicitly defined properties (no File object properties)
+        let fileData;
+        
+        // Compress images, keep other files as-is
+        if (authFile.type.startsWith('image/')) {
+          console.log('🖼️ Compressing auth image:', authFile.name, `(${(authFile.size / 1024 / 1024).toFixed(2)} MB)`);
+          fileData = await compressImage(authFile);
+          console.log(`✅ Compressed to ${(fileData.length / 1024).toFixed(0)} KB`);
+        } else {
+          fileData = await fileToBase64(authFile);
+        }
+        
         attachments.push({
-          name: String(authFile.name),
-          data: String(base64),
-          size: Number(authFile.size),
-          type: String(authFile.type),
+          name: authFile.name || 'auth-file',
+          data: fileData || '',
+          size: authFile.size || 0,
+          type: authFile.type || 'application/octet-stream',
           isAuthProof: true,
-          uploadedAt: new Date().toISOString()
+          uploadedAt: now
         });
       }
+      
       if (attachmentFile) {
-        const base64 = await fileToBase64(attachmentFile);
-        // Only include explicitly defined properties (no File object properties)
+        let fileData;
+        
+        // Compress images, keep other files as-is
+        if (attachmentFile.type.startsWith('image/')) {
+          console.log('🖼️ Compressing attachment image:', attachmentFile.name, `(${(attachmentFile.size / 1024 / 1024).toFixed(2)} MB)`);
+          fileData = await compressImage(attachmentFile);
+          console.log(`✅ Compressed to ${(fileData.length / 1024).toFixed(0)} KB`);
+        } else {
+          fileData = await fileToBase64(attachmentFile);
+        }
+        
         attachments.push({
-          name: String(attachmentFile.name),
-          data: String(base64),
-          size: Number(attachmentFile.size),
-          type: String(attachmentFile.type),
-          uploadedAt: new Date().toISOString()
+          name: attachmentFile.name || 'attachment',
+          data: fileData || '',
+          size: attachmentFile.size || 0,
+          type: attachmentFile.type || 'application/octet-stream',
+          uploadedAt: now
         });
       }
 
       const newRequestDoc = {
-        requestId: String(generatedRequestId),
-        studentName: String(`${firstName.trim()} ${lastName.trim()}`),
-        studentUid: String(`guest_${Date.now()}`),
-        grade: String(grade.trim()),
-        section: String(section.trim()),
-        isGuest: Boolean(true),
-        subject: String(subject.trim()),
-        description: String(description.trim()),
-        office: String(officeName),
-        officeCode: String(officeCodeVal),
-        status: String('Pending'),
+        requestId: generatedRequestId,
+        studentName: `${firstName.trim()} ${lastName.trim()}`,
+        studentUid: `guest_${Date.now()}`,
+        grade: grade.trim(),
+        section: section.trim(),
+        isGuest: true,
+        subject: subject.trim(),
+        description: description.trim(),
+        office: officeName,
+        officeCode: officeCodeVal,
+        status: 'Pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        attachments: attachments, // Already sanitized above
-        followUps: [] // Empty array is fine
+        attachments: attachments,
+        followUps: []
       };
 
       console.log('[Debug] Request data before save:', JSON.stringify(newRequestDoc, null, 2));

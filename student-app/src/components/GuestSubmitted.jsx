@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FaCheckCircle, FaDownload, FaCopy, FaCheck, FaTrackChanges, FaArrowRight } from 'react-icons/fa';
 import { MdTrackChanges } from 'react-icons/md';
+import { jsPDF } from 'jspdf';
 import '../styles/GuestSubmitted.css';
 
 const GuestSubmitted = ({ data, onHome, onTrack }) => {
@@ -15,30 +16,83 @@ const GuestSubmitted = ({ data, onHome, onTrack }) => {
   };
 
   const handleDownload = () => {
-    const lines = [
-      'ACADEMIA DE SAN JOSE — GUEST REQUEST SUBMISSION RECEIPT',
-      '======================================================',
-      `Request Number: ${data.requestNumber}`,
-      `Office: ${data.officeName}`,
-      `Office Code: ${data.officeCode}`,
-      `Subject: ${data.subject || 'N/A'}`,
-      `Date Created: ${data.dateCreated}`,
-      `Estimated Completion: ${data.estimatedCompletion}`,
-      '',
-      'DESCRIPTION:',
-      data.description || 'N/A',
-      '',
-      'INSTRUCTIONS:',
-      'Keep this receipt and your Request Number safe. You can check the real-time status of your request at any time on the Guest Portal.'
-    ];
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `receipt-${(data.rawRequestId || data.requestNumber).replace('#', '')}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ACADEMIA DE SAN JOSE', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Guest Request Submission Receipt', 105, 28, { align: 'center' });
+    
+    // Divider
+    doc.setLineWidth(0.5);
+    doc.line(20, 32, 190, 32);
+    
+    // Content
+    let y = 45;
+    doc.setFontSize(10);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Request Number:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.requestNumber, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Office:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.officeName, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Office Code:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.officeCode, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Subject:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.subject || 'N/A', 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Date Created:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.dateCreated, 70, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Estimated Completion:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.estimatedCompletion, 70, y);
+    
+    // Description section
+    y += 15;
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESCRIPTION:', 20, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    const descriptionLines = doc.splitTextToSize(data.description || 'N/A', 170);
+    doc.text(descriptionLines, 20, y);
+    
+    // Instructions section
+    y += (descriptionLines.length * 5) + 15;
+    doc.setFont('helvetica', 'bold');
+    doc.text('INSTRUCTIONS:', 20, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    const instructions = 'Keep this receipt and your Request Number safe. You can check the real-time status of your request at any time on the Guest Portal.';
+    const instructionLines = doc.splitTextToSize(instructions, 170);
+    doc.text(instructionLines, 20, y);
+    
+    // Download PDF
+    doc.save(`receipt-${(data.rawRequestId || data.requestNumber).replace('#', '')}.pdf`);
   };
 
   return (
