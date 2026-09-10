@@ -58,15 +58,15 @@
   --color-accent-subtle:  var(--sage-100);
 
   /* Status Colors & Badges (Standardized System-Wide) */
-  --status-pending-bg:        #f1f4f1;
-  --status-pending-text:      #3e483f;
-  --status-pending-border:    #d4ddd3;
-  --status-pending-dot:       #556157;
+  --status-pending-bg:        #e0e7ff;
+  --status-pending-text:      #3730a3;
+  --status-pending-border:    #c7d2fe;
+  --status-pending-dot:       #4f46e5;
 
-  --status-inprocess-bg:      var(--sage-100, #eaf2e8);
-  --status-inprocess-text:    var(--sage-900, #2b4528);
-  --status-inprocess-border:  var(--sage-300, #c1dec0);
-  --status-inprocess-dot:     var(--sage-600, #648f5e);
+  --status-inprocess-bg:      #fef9c3;
+  --status-inprocess-text:    #854d0e;
+  --status-inprocess-border:  #fde047;
+  --status-inprocess-dot:     #ca8a04;
 
   --status-resolved-bg:       #dcfce7;
   --status-resolved-text:     #14532d;

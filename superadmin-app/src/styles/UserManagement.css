@@ -391,14 +391,28 @@
   transform: scale(0.97);
 }
 
+.table-action-btn.activate,
 .table-action-btn.reset {
   border-color: var(--sage-300);
   color: var(--green-700);
 }
 
+.table-action-btn.activate:hover,
 .table-action-btn.reset:hover {
   background-color: var(--sage-50);
   border-color: var(--color-primary);
+  color: var(--green-800);
+}
+
+.table-action-btn.suspend {
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.table-action-btn.suspend:hover {
+  background-color: #fff7ed;
+  border-color: #f97316;
+  color: #9a3412;
 }
 
 .table-action-btn.delete {
@@ -1093,18 +1107,19 @@ select.form-input-super option:disabled {
 }
 
 /* ==========================================================================
-   ARCHIVED STAFF � archive action, archived table, restore, request history
+   ARCHIVED STAFF  archive action, archived table, restore, request history
    ========================================================================== */
 
-/* Archive action button (active staff rows) */
+/* Archive action button (active staff and student rows) */
 .table-action-btn.archive {
-  border-color: var(--sage-300);
-  color: var(--color-primary);
+  border-color: #c7d2fe;
+  color: #4338ca;
 }
 
 .table-action-btn.archive:hover {
-  background-color: var(--sage-50);
-  border-color: var(--color-primary);
+  background-color: #eef2ff;
+  border-color: #818cf8;
+  color: #3730a3;
 }
 
 /* Confirm icon — render as a centered block so every modal icon (archive,
@@ -1115,14 +1130,22 @@ select.form-input-super option:disabled {
   margin-right: auto;
 }
 
+.confirm-modal .confirm-icon.archive-icon {
+  color: #4338ca;
+}
+
+.confirm-modal .confirm-icon.suspend-icon {
+  color: #c2410c;
+}
+
 /* Archived status badge next to the name */
 .status-archived {
   margin-left: var(--space-2);
-  background-color: var(--sage-100);
-  color: var(--green-800);
+  background-color: #eef2ff;
+  color: #4338ca;
 }
 
-/* Archived staff table � 8 columns */
+/* Archived staff table  8 columns */
 .students-table.archived-table {
   min-width: 1000px;
 }
@@ -1132,12 +1155,12 @@ select.form-input-super option:disabled {
   grid-template-columns: 1.4fr 1.1fr 1.4fr 0.9fr 1fr 1fr 130px 120px;
 }
 
-/* Archive confirm button (green, matches the app's primary actions) */
+/* Archive confirm button (indigo, distinct from green activate) */
 .archive-confirm-btn {
   padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--green-700);
+  background-color: #4338ca;
   color: #fff;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
@@ -1146,7 +1169,7 @@ select.form-input-super option:disabled {
 }
 
 .archive-confirm-btn:hover {
-  background-color: var(--green-800);
+  background-color: #3730a3;
 }
 
 .restore-confirm-btn {
@@ -1598,26 +1621,38 @@ select.form-input-super option:disabled {
 }
 
 .bulk-action-btn.suspend {
-  background-color: #fef2f2;
-  color: #dc2626;
-  border-color: #fecaca;
+  background-color: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
 }
 
 .bulk-action-btn.suspend:hover {
-  background-color: #fee2e2;
-  border-color: #fca5a5;
-  color: #b91c1c;
+  background-color: #ffedd5;
+  border-color: #fdba74;
+  color: #9a3412;
+}
+
+.bulk-action-btn.activate {
+  background-color: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.bulk-action-btn.activate:hover {
+  background-color: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
 }
 
 .bulk-action-btn.archive {
-  background-color: var(--color-primary);
+  background-color: #4338ca;
   color: #ffffff;
-  border-color: var(--color-primary);
+  border-color: #3730a3;
 }
 
 .bulk-action-btn.archive:hover {
-  background-color: var(--color-primary-dark, #144716);
-  border-color: var(--color-primary-dark, #144716);
+  background-color: #3730a3;
+  border-color: #312e81;
 }
 
 .bulk-action-btn.delete {

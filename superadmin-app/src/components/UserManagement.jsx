@@ -1347,10 +1347,16 @@ const UserManagement = () => {
               ? 'Archive'
               : 'Restore';
 
+  const isActivatingAccount =
+    confirmAction === 'suspend' &&
+    (isBulkAction
+      ? bulkSuspendTargetState
+      : !(selectedStudent?.isActive || selectedStaff?.isActive));
+
   const confirmBtnClass =
     confirmAction === 'delete' ? 'delete-confirm-btn'
       : confirmAction === 'archive' ? 'archive-confirm-btn'
-        : confirmAction === 'restore' ? 'restore-confirm-btn'
+        : confirmAction === 'restore' || isActivatingAccount ? 'restore-confirm-btn'
           : 'suspend-confirm-btn';
 
   return (
@@ -1670,14 +1676,16 @@ const UserManagement = () => {
           <div className="modal-content confirm-modal">
             {confirmAction === 'archive' || confirmAction === 'restore' ? (
               confirmAction === 'archive' ? (
-                <FaArchive className="confirm-icon" aria-hidden="true" />
+                <FaArchive className="confirm-icon archive-icon" aria-hidden="true" />
               ) : (
                 <FaUndo className="confirm-icon" aria-hidden="true" />
               )
             ) : confirmAction === 'delete' ? (
               <FaKey className="confirm-icon" aria-hidden="true" />
+            ) : isActivatingAccount ? (
+              <FaCheck className="confirm-icon" aria-hidden="true" />
             ) : (
-              <FaBan className="confirm-icon" aria-hidden="true" />
+              <FaBan className="confirm-icon suspend-icon" aria-hidden="true" />
             )}
             <h2 className="confirm-title">
               {isBulkAction
@@ -2306,7 +2314,7 @@ const UserManagement = () => {
                 <div className="bulk-actions-buttons">
                   <button
                     type="button"
-                    className="bulk-action-btn suspend"
+                    className={`bulk-action-btn ${students.filter(s => selectedStudentIds.includes(s.firestoreId)).some(s => s.isActive !== false) ? 'suspend' : 'activate'}`}
                     onClick={handleOpenBulkSuspend}
                     title={
                       students.filter(s => selectedStudentIds.includes(s.firestoreId)).some(s => s.isActive !== false)
@@ -2314,7 +2322,11 @@ const UserManagement = () => {
                         : `Activate ${selectedStudentIds.length} selected student(s)`
                     }
                   >
-                    <FaBan aria-hidden="true" />
+                    {students.filter(s => selectedStudentIds.includes(s.firestoreId)).some(s => s.isActive !== false) ? (
+                      <FaBan aria-hidden="true" />
+                    ) : (
+                      <FaCheck aria-hidden="true" />
+                    )}
                     <span>
                       {students.filter(s => selectedStudentIds.includes(s.firestoreId)).some(s => s.isActive !== false)
                         ? 'Suspend'
@@ -2458,11 +2470,11 @@ const UserManagement = () => {
                       <div className="table-cell">{student.createdAt}</div>
                       <div className="table-cell">
                         <button
-                          className="table-action-btn reset"
+                          className={`table-action-btn ${student.isActive ? 'suspend' : 'activate'}`}
                           onClick={() => handleSuspendStudent(student)}
                           title={student.isActive ? 'Suspend' : 'Activate'}
                         >
-                          <FaBan aria-hidden="true" />
+                          {student.isActive ? <FaBan aria-hidden="true" /> : <FaCheck aria-hidden="true" />}
                           {student.isActive ? 'Suspend' : 'Activate'}
                         </button>
                         <button
@@ -2639,7 +2651,7 @@ const UserManagement = () => {
                       <div className="table-cell">{staff.createdAt}</div>
                       <div className="table-cell">
                         <button
-                          className="table-action-btn reset"
+                          className={`table-action-btn ${staff.isActive ? 'suspend' : 'activate'}`}
                           onClick={() => {
                             setSelectedStaff(staff);
                             setConfirmAction('suspend');
@@ -2647,7 +2659,7 @@ const UserManagement = () => {
                           }}
                           title={staff.isActive ? 'Suspend' : 'Activate'}
                         >
-                          <FaBan aria-hidden="true" />
+                          {staff.isActive ? <FaBan aria-hidden="true" /> : <FaCheck aria-hidden="true" />}
                           {staff.isActive ? 'Suspend' : 'Activate'}
                         </button>
                         <button

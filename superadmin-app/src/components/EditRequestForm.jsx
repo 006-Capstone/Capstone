@@ -12,7 +12,6 @@ const EditRequestForm = () => {
   const [offices, setOffices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editingOffice, setEditingOffice] = useState(null);
   const [editingCardOffice, setEditingCardOffice] = useState(null);
   const [cardDraft, setCardDraft] = useState('');
   const [editingSubject, setEditingSubject] = useState(null);
@@ -122,8 +121,6 @@ const EditRequestForm = () => {
   const startCardEdit = (office) => {
     setEditingCardOffice(office.id);
     setCardDraft(office.description);
-    // Keep only one description editor active at a time
-    setEditingOffice(null);
   };
 
   const saveCardEdit = (officeId) => {
@@ -137,12 +134,6 @@ const EditRequestForm = () => {
 
   const cancelCardEdit = () => {
     // Draft edits never touch `offices` until Save, so just exit edit mode
-    setEditingCardOffice(null);
-  };
-
-  const startSectionEdit = (officeId) => {
-    setEditingOffice(officeId);
-    // Keep only one description editor active at a time
     setEditingCardOffice(null);
   };
 
@@ -191,6 +182,7 @@ const EditRequestForm = () => {
         : office
     ));
     setConfirmDeleteSubject(null);
+    showToast(`Removed "${subject}". Click "Save Changes" to apply.`);
   };
 
   // Switching offices dismisses any open subject editor — its key is tied
@@ -199,20 +191,24 @@ const EditRequestForm = () => {
     setSelectedOffice(officeId);
     setEditingSubject(null);
     setSubjectDraft('');
+    setConfirmDeleteSubject(null);
   };
 
-  // Cancel a subject edit with Escape
+  // Cancel edit or delete modal with Escape
   useEffect(() => {
-    if (!editingSubject) return undefined;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        setEditingSubject(null);
-        setSubjectDraft('');
+        if (confirmDeleteSubject) {
+          setConfirmDeleteSubject(null);
+        } else if (editingSubject) {
+          setEditingSubject(null);
+          setSubjectDraft('');
+        }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [editingSubject]);
+  }, [confirmDeleteSubject, editingSubject]);
 
   const selectedOfficeData = offices.find(o => o.id === selectedOffice);
 
@@ -307,37 +303,6 @@ const EditRequestForm = () => {
 
         {selectedOfficeData && (
           <>
-            <div className="form-section">
-              <div className="section-header">
-                <h2 className="section-title">Office Description</h2>
-                {editingOffice === selectedOffice ? (
-                  <button 
-                    className="icon-btn save-btn"
-                    onClick={() => setEditingOffice(null)}
-                  >
-                    <FaSave /> Save
-                  </button>
-                ) : (
-                  <button 
-                    className="icon-btn edit-btn"
-                    onClick={() => startSectionEdit(selectedOffice)}
-                  >
-                    <FaEdit /> Edit
-                  </button>
-                )}
-              </div>
-              {editingOffice === selectedOffice ? (
-                <textarea
-                  className="form-textarea"
-                  value={selectedOfficeData.description}
-                  onChange={(e) => handleOfficeDescriptionChange(selectedOffice, e.target.value)}
-                  rows={3}
-                />
-              ) : (
-                <p className="description-display">{selectedOfficeData.description}</p>
-              )}
-            </div>
-
             <div className="form-section">
               <div className="section-header">
                 <h2 className="section-title">Subjects for {selectedOfficeData.name}</h2>
@@ -435,6 +400,59 @@ const EditRequestForm = () => {
           </>
         )}
       </div>
+
+      {/* Delete Subject Confirmation Modal */}
+      {confirmDeleteSubject && (
+        <div
+          className="delete-modal-overlay"
+          onClick={() => setConfirmDeleteSubject(null)}
+          role="presentation"
+        >
+          <div
+            className="delete-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-subject-title"
+          >
+            <div className="delete-modal-icon-wrap" aria-hidden="true">
+              <FaExclamationTriangle className="delete-modal-warning-icon" />
+            </div>
+            <h3 id="delete-subject-title" className="delete-modal-title">Delete Subject</h3>
+            <p className="delete-modal-message">
+              Are you sure you want to remove <strong>"{confirmDeleteSubject.subject}"</strong> from{' '}
+              <strong>{offices.find(o => o.id === confirmDeleteSubject.officeId)?.name || 'this'}</strong> office?
+            </p>
+            <p className="delete-modal-hint">
+              This will remove the subject from students' choices once saved.
+            </p>
+            <div className="delete-modal-actions">
+              <button
+                type="button"
+                className="delete-modal-cancel-btn"
+                onClick={() => setConfirmDeleteSubject(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="delete-modal-confirm-btn"
+                onClick={handleDeleteSubject}
+              >
+                <FaTrash aria-hidden="true" /> Delete Subject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       {saving && <LoadingSpinner message="Saving configuration..." fullScreen={true} />}
     </div>

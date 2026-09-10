@@ -386,15 +386,35 @@ const SuperAdminDashboard = ({ onNavigate }) => {
   const renderStatusBadge = (status) => {
     const s = (status || 'Pending').toLowerCase();
     if (s === 'resolved') {
-      return <span className="dash-status-badge status-resolved">Resolved</span>;
+      return (
+        <span className="dash-status-badge status-resolved">
+          <span className="dash-status-dot" aria-hidden="true"></span>
+          Resolved
+        </span>
+      );
     }
     if (s === 'in process' || s === 'in-process') {
-      return <span className="dash-status-badge status-in-process">In Process</span>;
+      return (
+        <span className="dash-status-badge status-in-process">
+          <span className="dash-status-dot" aria-hidden="true"></span>
+          In Process
+        </span>
+      );
     }
     if (s === 'cancelled' || s === 'rejected') {
-      return <span className="dash-status-badge status-cancelled">{status || 'Cancelled'}</span>;
+      return (
+        <span className="dash-status-badge status-cancelled">
+          <span className="dash-status-dot" aria-hidden="true"></span>
+          {status || 'Cancelled'}
+        </span>
+      );
     }
-    return <span className="dash-status-badge status-pending">Pending</span>;
+    return (
+      <span className="dash-status-badge status-pending">
+        <span className="dash-status-dot" aria-hidden="true"></span>
+        Pending
+      </span>
+    );
   };
 
   const isFilterActive = Boolean(appliedFilter.from || appliedFilter.to);
@@ -732,12 +752,12 @@ const SuperAdminDashboard = ({ onNavigate }) => {
               <div className="recent-table-container">
                 <div className="recent-requests-table">
                   <div className="recent-table-head">
-                    <div className="recent-cell">Request ID</div>
-                    <div className="recent-cell">Requester</div>
-                    <div className="recent-cell">Target Office</div>
-                    <div className="recent-cell">Subject</div>
-                    <div className="recent-cell">Submitted</div>
-                    <div className="recent-cell">Status</div>
+                    <div className="recent-cell head-id">Request ID</div>
+                    <div className="recent-cell head-name">Requester</div>
+                    <div className="recent-cell head-office">Target Office</div>
+                    <div className="recent-cell head-subject">Subject</div>
+                    <div className="recent-cell head-date">Submitted</div>
+                    <div className="recent-cell head-status">Status</div>
                   </div>
                   {recentRequests.map((req) => (
                     <div key={req.id} className="recent-table-row">
@@ -750,7 +770,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
                           <span className="requester-email">{req.studentEmail}</span>
                         )}
                       </div>
-                      <div className="recent-cell">
+                      <div className="recent-cell req-office">
                         <span className="office-badge-chip">{req.office || 'General'}</span>
                       </div>
                       <div className="recent-cell req-subject" title={req.subject || 'School Request'}>
