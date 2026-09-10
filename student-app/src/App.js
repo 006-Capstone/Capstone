@@ -223,7 +223,7 @@ function App() {
       case 'feedback-finance':
         return <Feedback selectedOffice="finance" onNavigate={setActivePage} />;
       case 'faq':
-        return <FAQs />;
+        return <FAQs onNavigate={handleNavigate} />;
       default:
         return <Dashboard onNavigate={handleNavigate} onViewDetails={handleViewRequestDetails} onViewRequests={handleViewRequests} />;
     }

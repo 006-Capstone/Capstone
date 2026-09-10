@@ -430,7 +430,10 @@ function RequestDetails({ requestData, onNavigate }) {
       />
 
       <div className="page-header">
-        <h1>Request Details</h1>
+        <div className="page-title-group">
+          <h1 className="page-title">Request Details</h1>
+          <p className="page-subtitle">Review request timeline, handling status, and office communications</p>
+        </div>
       </div>
 
       <div className="details-container">

@@ -1,6 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { FaFileUpload } from 'react-icons/fa';
-import { MdClose, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
+import { FaFileUpload, FaShieldAlt } from 'react-icons/fa';
+import { 
+  MdClose, 
+  MdCheckCircle, 
+  MdWarning, 
+  MdError,
+  MdAccountBalance,
+  MdMenuBook,
+  MdSchool,
+  MdPsychology,
+  MdHelpOutline,
+  MdAttachFile
+} from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { validateContent } from '../utils/contentModeration';
@@ -286,18 +297,20 @@ function NewRequest({ onNavigate }) {
       // CHECK DAILY LIMIT: 2 tickets per department per day
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todayTimestamp = today.getTime();
-      
-      // Query for today's requests from this student to this office
-      const todayRequestsQuery = query(
+
+      // Query for this student's requests and filter in memory to avoid requiring a composite index
+      const studentRequestsQuery = query(
         collection(db, 'requests'),
-        where('studentUid', '==', student.uid),
-        where('office', '==', selectedOfficeData.name),
-        where('createdAt', '>=', today)
+        where('studentUid', '==', student.uid)
       );
       
-      const todayRequestsSnapshot = await getDocs(todayRequestsQuery);
-      const todayCount = todayRequestsSnapshot.size;
+      const studentRequestsSnapshot = await getDocs(studentRequestsQuery);
+      const todayCount = studentRequestsSnapshot.docs.filter((doc) => {
+        const d = doc.data();
+        if (d.office !== selectedOfficeData.name) return false;
+        const createdDate = d.createdAt?.toDate ? d.createdAt.toDate() : (d.createdAt ? new Date(d.createdAt) : null);
+        return createdDate && createdDate >= today;
+      }).length;
       
       console.log(`[Limit Check] Student has ${todayCount} request(s) to ${selectedOfficeData.name} today`);
       
@@ -392,6 +405,21 @@ function NewRequest({ onNavigate }) {
     return <LoadingSpinner message="Loading form..." fullScreen={true} />;
   }
 
+  const getOfficeIcon = (id) => {
+    switch (id?.toLowerCase()) {
+      case 'finance':
+        return <MdAccountBalance className="office-icon" />;
+      case 'library':
+        return <MdMenuBook className="office-icon" />;
+      case 'registrar':
+        return <MdSchool className="office-icon" />;
+      case 'guidance':
+        return <MdPsychology className="office-icon" />;
+      default:
+        return <MdAccountBalance className="office-icon" />;
+    }
+  };
+
   return (
     <div className="new-request-page">
       <Breadcrumb
@@ -402,166 +430,293 @@ function NewRequest({ onNavigate }) {
       />
 
       <div className="page-header">
-        <h1>Submit New Request</h1>
+        <div className="page-title-group">
+          <h1 className="page-title">Submit New Request</h1>
+          <p className="page-subtitle">Select an office and provide details for your academic request</p>
+        </div>
       </div>
 
-      <div className="request-form">
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
+      <div className="new-request-content">
+        <div className="new-request-main">
+          <form className="request-form-container" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+            {error && (
+              <div className="error-message">
+                <MdError className="error-icon" />
+                <span>{error}</span>
+              </div>
+            )}
 
-        <div className="form-section">
-          <h3>Select Office</h3>
-          <div className="office-grid">
-            {offices.map((office) => (
-              <div
-                key={office.id}
-                className={`office-card ${selectedOffice === office.id ? 'selected' : ''}`}
-                onClick={() => {
-                  setSelectedOffice(office.id);
-                  setSubject(''); // Reset subject when office changes
-                }}
-              >
-                <div className="radio-button">
-                  {selectedOffice === office.id && <div className="radio-inner"></div>}
-                </div>
-                <div className="office-info">
-                  <h4>{office.name}</h4>
-                  <p>{office.description}</p>
+            {/* Section 1: Office Selection */}
+            <section className="form-section-card">
+              <div className="section-header">
+                <span className="step-badge">1</span>
+                <div className="section-header-text">
+                  <div className="section-title-row">
+                    <h3 className="section-title">Select Office</h3>
+                    <span className="section-desc-inline">— Choose the school department that handles your request</span>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="form-section">
-          <label htmlFor="subject">Subject</label>
-          <select
-            id="subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            disabled={!selectedOffice}
-          >
-            <option value="">
-              {selectedOffice ? 'Select a subject' : 'Please select an office first'}
-            </option>
-            {selectedOffice && offices.find(o => o.id === selectedOffice)?.subjects.map((subj, index) => (
-              <option key={index} value={subj}>
-                {subj}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-section">
-          <label htmlFor="description">
-            Detailed Description
-            {isValidating && <span className="validation-status validating"> (Checking...)</span>}
-            {validationResult && validationResult.isValid && validationResult.errors.length === 0 && (
-              <span className="validation-status valid">
-                <MdCheckCircle /> Valid
-              </span>
-            )}
-          </label>
-          <textarea
-            id="description"
-            placeholder="Please provide as much detail as possible..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={6}
-            className={
-              validationResult && !validationResult.isValid ? 'has-error' :
-              validationResult && validationResult.warnings.length > 0 ? 'has-warning' : ''
-            }
-          />
-          
-          {/* Validation feedback */}
-          {validationResult && (
-            <div className="validation-feedback">
-              {/* Errors */}
-              {validationResult.errors.length > 0 && (
-                <div className="validation-errors">
-                  {validationResult.errors.map((err, index) => (
-                    <div key={index} className="validation-message error">
-                      <MdError className="icon" />
-                      <span>{err}</span>
+              <div className="office-grid">
+                {offices.map((office) => {
+                  const isSelected = selectedOffice === office.id;
+                  return (
+                    <div
+                      key={office.id}
+                      className={`office-card ${isSelected ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedOffice(office.id);
+                        setSubject(''); // Reset subject when office changes
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setSelectedOffice(office.id);
+                          setSubject('');
+                        }
+                      }}
+                    >
+                      <div className="office-card-header">
+                        <div className="office-icon-wrap">
+                          {getOfficeIcon(office.id)}
+                        </div>
+                        <div className="radio-button">
+                          {isSelected && <div className="radio-inner"></div>}
+                        </div>
+                      </div>
+                      <div className="office-info">
+                        <h4>{office.name}</h4>
+                        <p>{office.description}</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Warnings */}
-              {validationResult.warnings.length > 0 && (
-                <div className="validation-warnings">
-                  {validationResult.warnings.map((warn, index) => (
-                    <div key={index} className="validation-message warning">
-                      <MdWarning className="icon" />
-                      <span>{warn}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            </section>
 
-        <div className="form-section">
-          <label>Attach File <span className="optional">(Optional - Images up to 10MB, documents up to 5MB)</span></label>
-          
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
-            accept="image/*,.pdf,.doc,.docx,.txt"
-          />
-          
-          <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
-            <FaFileUpload className="upload-icon" />
-            <p className="upload-text">Click to upload or drag and drop</p>
-            <p className="upload-limit">Images auto-compressed, documents up to 5MB</p>
-          </div>
-
-          {uploadedFiles.length > 0 && (
-            <div className="uploaded-files-list">
-              {uploadedFiles.map((file, index) => (
-                <div key={index} className="uploaded-file-item">
-                  <div className="file-info">
-                    <span className="file-name">{file.name}</span>
-                    <span className="file-size">{formatFileSize(file.size)}</span>
+            {/* Section 2: Request Details */}
+            <section className="form-section-card">
+              <div className="section-header">
+                <span className="step-badge">2</span>
+                <div className="section-header-text">
+                  <div className="section-title-row">
+                    <h3 className="section-title">Request Details</h3>
+                    <span className="section-desc-inline">— Specify the subject and detailed explanation of your request</span>
                   </div>
-                  <button
-                    type="button"
-                    className="remove-file-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveFile(index);
-                    }}
-                  >
-                    <MdClose />
-                  </button>
                 </div>
-              ))}
+              </div>
+
+              <div className="input-field-group">
+                <label htmlFor="subject">
+                  Subject <span className="required-star">*</span>
+                </label>
+                <select
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  disabled={!selectedOffice}
+                  className="subject-select"
+                >
+                  <option value="">
+                    {selectedOffice ? 'Select a subject from the list' : 'Please select an office first'}
+                  </option>
+                  {selectedOffice && offices.find(o => o.id === selectedOffice)?.subjects.map((subj, index) => (
+                    <option key={index} value={subj}>
+                      {subj}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-field-group">
+                <div className="label-row">
+                  <label htmlFor="description">
+                    Detailed Description <span className="required-star">*</span>
+                  </label>
+                  {isValidating && (
+                    <span className="validation-status validating">Checking...</span>
+                  )}
+                  {validationResult && validationResult.isValid && validationResult.errors.length === 0 && (
+                    <span className="validation-status valid">
+                      <MdCheckCircle /> Content verified
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  id="description"
+                  placeholder="Provide complete details (e.g., student ID, purpose of request, relevant dates, or specific document names) to help staff process your ticket quickly..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={5}
+                  className={
+                    validationResult && !validationResult.isValid ? 'has-error' :
+                    validationResult && validationResult.warnings.length > 0 ? 'has-warning' : ''
+                  }
+                />
+                
+                {/* Validation feedback */}
+                {validationResult && (
+                  <div className="validation-feedback">
+                    {validationResult.errors.length > 0 && (
+                      <div className="validation-errors">
+                        {validationResult.errors.map((err, index) => (
+                          <div key={index} className="validation-message error">
+                            <MdError className="icon" />
+                            <span>{err}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {validationResult.warnings.length > 0 && (
+                      <div className="validation-warnings">
+                        {validationResult.warnings.map((warn, index) => (
+                          <div key={index} className="validation-message warning">
+                            <MdWarning className="icon" />
+                            <span>{warn}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Section 3: Supporting Documents */}
+            <section className="form-section-card">
+              <div className="section-header">
+                <span className="step-badge">3</span>
+                <div className="section-header-text">
+                  <div className="section-title-row">
+                    <h3 className="section-title">Supporting Documents <span className="optional-tag">(Optional)</span></h3>
+                    <span className="section-desc-inline">— Attach files such as receipts, valid IDs, clearance forms, or screenshots</span>
+                  </div>
+                </div>
+              </div>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                accept="image/*,.pdf,.doc,.docx,.txt"
+              />
+              
+              <div 
+                className="upload-area" 
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    fileInputRef.current?.click();
+                  }
+                }}
+              >
+                <div className="upload-icon-circle">
+                  <FaFileUpload className="upload-icon" />
+                </div>
+                <p className="upload-text">Click to choose files or drag and drop</p>
+                <p className="upload-limit">Images up to 10MB (auto-compressed), documents (PDF, DOC) up to 5MB</p>
+              </div>
+
+              {uploadedFiles.length > 0 && (
+                <div className="uploaded-files-list">
+                  {uploadedFiles.map((file, index) => (
+                    <div key={index} className="uploaded-file-item">
+                      <div className="file-item-left">
+                        <MdAttachFile className="file-type-icon" />
+                        <div className="file-info">
+                          <span className="file-name">{file.name}</span>
+                          <span className="file-size">{formatFileSize(file.size)}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="remove-file-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFile(index);
+                        }}
+                        aria-label={`Remove file ${file.name}`}
+                      >
+                        <MdClose />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Form Actions */}
+            <div className="form-actions-bar">
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={() => onNavigate('request')}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="submit-btn-request"
+                disabled={loading || !isFormValid}
+                title={!isFormValid ? 'Complete all required fields to submit' : undefined}
+              >
+                {loading && <span className="btn-spinner"></span>}
+                {loading ? 'Submitting...' : 'Submit Request'}
+              </button>
             </div>
-          )}
+          </form>
         </div>
 
-        <div className="form-actions">
-          <button
-            className="submit-btn-request"
-            onClick={handleSubmit}
-            disabled={loading || !isFormValid}
-            title={!isFormValid ? 'Complete all required fields to submit' : undefined}
-          >
-            {loading && <span className="btn-spinner"></span>}
-            {loading ? 'Submitting...' : 'Submit Request'}
-          </button>
-        </div>
+        {/* Sidebar Column (Right - 340px) */}
+        <aside className="new-request-sidebar" aria-label="Guidelines and office info">
+          {/* Submission Guidelines Card */}
+          <div className="req-sidebar-card guidelines-card">
+            <h4 className="guidelines-title">
+              <FaShieldAlt className="title-icon" /> Submission Guidelines
+            </h4>
+            <ul className="guidelines-list">
+              <li>
+                <strong>Daily Ticket Allowance</strong>
+                <span>Up to 2 requests per department daily to ensure timely turnaround.</span>
+              </li>
+              <li>
+                <strong>Official Processing</strong>
+                <span>Tickets are reviewed by staff during school hours (Mon–Fri 7AM–7PM).</span>
+              </li>
+              <li>
+                <strong>Clear Documentation</strong>
+                <span>Include valid student ID, dates, and receipts to prevent delays.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Quick FAQ Link Card */}
+          <div className="req-sidebar-card faq-promo-card">
+            <div className="faq-promo-header">
+              <MdHelpOutline className="faq-promo-icon" />
+              <div>
+                <h4>Have questions first?</h4>
+                <p>Check the FAQs for guides on ticket statuses, processing times, and policies.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="faq-promo-btn"
+              onClick={() => onNavigate('faq')}
+            >
+              Browse FAQs
+            </button>
+          </div>
+        </aside>
       </div>
-      
+
       {loading && <LoadingSpinner message="Submitting your request..." fullScreen={true} />}
     </div>
   );

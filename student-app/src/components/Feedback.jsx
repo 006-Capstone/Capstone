@@ -311,10 +311,10 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
       <div className="feedback-page">
         <div className="feedback-container">
           <div className="page-header">
-            <div className="page-header-text">
-              <h1>Share your feedback</h1>
-              <p className="feedback-subtitle">
-                Rate your experience with campus offices to help us improve student services.
+            <div className="page-title-group">
+              <h1 className="page-title">Feedback</h1>
+              <p className="page-subtitle">
+                Rate your experience with campus offices to help us improve student services
               </p>
             </div>
           </div>
@@ -401,8 +401,12 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
   return (
     <div className="feedback-page">
       <div className="feedback-container">
-        {!isRequestFeedback && (
-          <div className="feedback-back-wrapper">
+        <div className="page-header">
+          <div className="page-title-group">
+            <h1 className="page-title">{officeName} Feedback</h1>
+            <p className="page-subtitle">Share your ratings and comments for the {officeName} Department</p>
+          </div>
+          {!isRequestFeedback && (
             <button
               type="button"
               className="feedback-back-link"
@@ -411,11 +415,7 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
               <FaArrowLeft />
               <span>All Offices</span>
             </button>
-          </div>
-        )}
-
-        <div className="page-header-figma">
-          <h1>Share your feedback</h1>
+          )}
         </div>
 
         {/* Overall Satisfaction card */}

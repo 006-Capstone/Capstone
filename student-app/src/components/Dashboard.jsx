@@ -146,10 +146,9 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
   return (
     <div className="dashboard">
       <div className="page-header dashboard-header">
-        <div className="dashboard-welcome">
-          <span className="dashboard-date-badge">{currentDateFormatted}</span>
-          <h1>Welcome back, {studentName}</h1>
-          <p className="page-header-subtitle">Track your requests, check office announcements, and submit feedback.</p>
+        <div className="page-title-group">
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">Track your requests, announcements, and feedback</p>
         </div>
         <button type="button" className="create-btn" onClick={() => onNavigate('new-request')}>
           <MdAdd aria-hidden="true" />

@@ -16,7 +16,7 @@
 /* ---- Hero Banner ---- */
 .hero-banner {
   width: 100%;
-  min-height: 160px;
+  min-height: 120px;
   background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 50%, var(--green-950) 100%);
   border-radius: var(--radius-md);
   position: relative;
@@ -28,7 +28,7 @@
 
 .hero-overlay {
   flex: 1;
-  padding: var(--space-8);
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -39,24 +39,24 @@
 .hero-kicker {
   display: inline-flex;
   align-self: flex-start;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   background-color: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: #ffffff;
-  font-size: var(--font-size-2xs);
+  font-size: 11px;
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: var(--space-3);
+  margin-bottom: 8px;
   backdrop-filter: blur(4px);
 }
 
 .hero-title {
-  font-size: clamp(24px, 3vw, 32px);
+  font-size: clamp(20px, 2.5vw, 26px);
   font-weight: var(--font-weight-extrabold);
   color: #ffffff;
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
   letter-spacing: -0.02em;
 }
 
@@ -131,11 +131,11 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-md);
-  padding: var(--space-5);
-  margin-bottom: var(--space-4);
+  padding: 16px;
+  margin-bottom: 12px;
   box-shadow: var(--shadow-sm);
   display: flex;
-  gap: var(--space-5);
+  gap: 16px;
   transition: all var(--transition-base);
 }
 
@@ -150,16 +150,16 @@
 }
 
 .announcement-photo {
-  width: 120px;
-  height: 120px;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border-soft);
 }
 
 .placeholder-image {
-  width: 120px;
-  height: 120px;
+  width: 100px;
+  height: 100px;
   background: linear-gradient(135deg, var(--green-50) 0%, var(--green-100) 100%);
   border-radius: var(--radius-sm);
   border: 1px solid var(--green-200);
@@ -189,8 +189,9 @@
 
 .announcement-card p {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  line-height: 1.55;
+  color: var(--gray-700);
+  line-height: 1.6;
+  margin: 0;
 }
 
 /* ---- Clamp Toggle ---- */
@@ -200,23 +201,6 @@
   max-height: var(--clamp-height);
   overflow: hidden;
   transition: max-height 0.3s ease;
-}
-
-.announcement-clamp::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 0.8em;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--color-surface));
-  pointer-events: none;
-  opacity: 1;
-  transition: opacity var(--transition-fast);
-}
-
-.announcement-clamp.expanded::after {
-  opacity: 0;
 }
 
 .announcement-toggle {
@@ -270,7 +254,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-md);
-  padding: var(--space-5);
+  padding: 16px;
   box-shadow: var(--shadow-sm);
   height: fit-content;
 }
@@ -279,8 +263,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  padding: 10px 14px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
   background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
   border-radius: var(--radius-sm);
   color: #ffffff;

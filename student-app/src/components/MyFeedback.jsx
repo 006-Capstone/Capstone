@@ -67,9 +67,11 @@ const MyFeedback = ({ onNavigate }) => {
   if (loading) {
     return (
       <div className="my-feedback-container">
-        <div className="my-feedback-header">
-          <h1 className="my-feedback-title">My Feedback</h1>
-          <p className="my-feedback-subtitle">View all your submitted feedback and staff responses</p>
+        <div className="page-header">
+          <div className="page-title-group">
+            <h1 className="page-title">My Feedback</h1>
+            <p className="page-subtitle">View all your submitted feedback and staff responses</p>
+          </div>
         </div>
         <div className="my-feedback-loading">
           <p>Loading your feedback...</p>
@@ -80,9 +82,11 @@ const MyFeedback = ({ onNavigate }) => {
 
   return (
     <div className="my-feedback-container">
-      <div className="my-feedback-header">
-        <h1 className="my-feedback-title">My Feedback</h1>
-        <p className="my-feedback-subtitle">View all your submitted feedback and staff responses</p>
+      <div className="page-header">
+        <div className="page-title-group">
+          <h1 className="page-title">My Feedback</h1>
+          <p className="page-subtitle">View all your submitted feedback and staff responses</p>
+        </div>
       </div>
 
       {feedbackList.length === 0 ? (

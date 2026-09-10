@@ -172,7 +172,7 @@
   /* ---- Layout Shell ---- */
   --sidebar-width: 276px;
   --header-height: 72px;
-  --content-padding: clamp(20px, 3.5vw, 44px);
+  --content-padding: var(--space-5) var(--space-6);
 
   /* ---- Breakpoints ---- */
   --bp-sm: 640px;

@@ -148,15 +148,11 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
 
   return (
     <div className="my-request">
-      <Breadcrumb
-        items={[
-          { label: 'Request History', current: true },
-          { label: 'New Request', onClick: () => onNavigate('new-request') }
-        ]}
-      />
-
       <div className="page-header">
-        <h1>Request History</h1>
+        <div className="page-title-group">
+          <h1 className="page-title">My Requests</h1>
+          <p className="page-subtitle">Track, search, and manage your submitted academic requests</p>
+        </div>
       </div>
 
       <div className="filters">

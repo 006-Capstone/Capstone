@@ -4,7 +4,7 @@
 
 .top-header {
   background: var(--color-surface);
-  padding: 0 var(--content-padding);
+  padding: 0 var(--space-6);
   height: var(--header-height);
   display: flex;
   justify-content: space-between;
@@ -15,6 +15,7 @@
   flex-shrink: 0;
   z-index: 50;
   position: relative;
+  box-sizing: border-box;
 }
 
 .header-left {
@@ -48,11 +49,13 @@
 .header-branding {
   display: block;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .header-branding .brand-logo {
   width: 46px;
   height: 46px;
+  flex-shrink: 0;
 }
 
 .header-branding .brand-name {
@@ -214,6 +217,10 @@
 }
 
 @media (max-width: 639px) {
+  .top-header {
+    padding: 0 var(--space-4);
+  }
+
   .user-name {
     max-width: 100px;
   }

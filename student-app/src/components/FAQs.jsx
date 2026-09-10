@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaChevronDown, FaChevronUp, FaQuestionCircle } from 'react-icons/fa';
 import '../styles/FAQs.css';
 
-const FAQs = () => {
+const FAQs = ({ onNavigate }) => {
   const [openIndex, setOpenIndex] = useState(0);
 
   const faqSections = [
@@ -97,60 +97,113 @@ const FAQs = () => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
+  const scrollToSection = (sIndex) => {
+    const el = document.getElementById(`faq-section-${sIndex}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <div className="faqs-container">
-      <div className="faqs-inner">
-        <div className="faqs-header">
-          <FaQuestionCircle className="faqs-icon" aria-hidden="true" />
-          <h1>Frequently Asked Questions</h1>
-          <p className="faqs-subtitle">Find answers to common questions about the Student Request System</p>
+      <div className="page-header">
+        <div className="page-title-group">
+          <h1 className="page-title">FAQ's</h1>
+          <p className="page-subtitle">Find answers to common questions about the student request system</p>
         </div>
+      </div>
 
-        <div className="faqs-sections">
-          {faqSections.map((section, sIndex) => (
-            <section key={sIndex} className="faq-section" aria-labelledby={`faq-section-${sIndex}`}>
-              <h2 id={`faq-section-${sIndex}`} className="faq-section-title">
-                {section.title}
-              </h2>
-              <div className="faq-section-list">
-                {section.items.map((faq, iIndex) => {
-                  const index = sectionOffsets[sIndex] + iIndex;
-                  return (
-                    <div
-                      key={index}
-                      className={`faq-item ${openIndex === index ? 'active' : ''}`}
-                    >
-                      <button
-                        type="button"
-                        className="faq-question"
-                        onClick={() => toggleFAQ(index)}
-                        aria-expanded={openIndex === index}
+      <div className="faqs-content">
+        <div className="faqs-main">
+          <div className="faqs-sections">
+            {faqSections.map((section, sIndex) => (
+              <section key={sIndex} id={`faq-section-${sIndex}`} className="faq-section" aria-labelledby={`faq-section-title-${sIndex}`}>
+                <h2 id={`faq-section-title-${sIndex}`} className="faq-section-title">
+                  {section.title}
+                </h2>
+                <div className="faq-section-list">
+                  {section.items.map((faq, iIndex) => {
+                    const index = sectionOffsets[sIndex] + iIndex;
+                    return (
+                      <div
+                        key={index}
+                        className={`faq-item ${openIndex === index ? 'active' : ''}`}
                       >
-                        <span className="question-text">{faq.question}</span>
-                        <span className="question-icon" aria-hidden="true">
-                          {openIndex === index ? <FaChevronUp /> : <FaChevronDown />}
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          className="faq-question"
+                          onClick={() => toggleFAQ(index)}
+                          aria-expanded={openIndex === index}
+                        >
+                          <span className="question-text">{faq.question}</span>
+                          <span className="question-icon" aria-hidden="true">
+                            {openIndex === index ? <FaChevronUp /> : <FaChevronDown />}
+                          </span>
+                        </button>
 
-                      <div className={`faq-answer ${openIndex === index ? 'open' : ''}`}>
-                        <div className="answer-content">
-                          {faq.answer.split('\n\n').map((paragraph, pIndex) => (
-                            <p key={pIndex}>{paragraph}</p>
-                          ))}
+                        <div className={`faq-answer ${openIndex === index ? 'open' : ''}`}>
+                          <div className="answer-content">
+                            {faq.answer.split('\n\n').map((paragraph, pIndex) => (
+                              <p key={pIndex}>{paragraph}</p>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
         </div>
 
-        <div className="faqs-footer">
-          <p>Still have questions?</p>
-          <p>Contact the school office or submit a feedback through the system.</p>
-        </div>
+        <aside className="faqs-sidebar" aria-label="Quick navigation and help">
+          <div className="faq-sidebar-card faq-nav-card">
+            <h3 className="faq-sidebar-title">Categories</h3>
+            <nav className="faq-topic-nav" aria-label="FAQ Topics">
+              {faqSections.map((section, sIndex) => (
+                <button
+                  key={sIndex}
+                  type="button"
+                  className="faq-topic-link"
+                  onClick={() => scrollToSection(sIndex)}
+                >
+                  <span className="faq-topic-name">{section.title}</span>
+                  <span className="faq-topic-count">{section.items.length}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          <div className="faq-sidebar-card faq-help-card">
+            <div className="faq-help-icon-wrap" aria-hidden="true">
+              <FaQuestionCircle className="faq-help-icon" />
+            </div>
+            <h3 className="faq-help-title">Still have questions?</h3>
+            <p className="faq-help-text">
+              Can't find what you need? Reach out to the school office or submit a feedback directly.
+            </p>
+            {onNavigate && (
+              <button
+                type="button"
+                className="faq-help-btn"
+                onClick={() => onNavigate('feedback')}
+              >
+                Submit Feedback
+              </button>
+            )}
+            <div className="faq-help-contact">
+              <div className="faq-contact-item">
+                <span className="faq-contact-label">Office Hours</span>
+                <span className="faq-contact-val">Mon – Fri: 7:00 AM – 7:00 PM</span>
+              </div>
+              <div className="faq-contact-item">
+                <span className="faq-contact-label">Email Support</span>
+                <span className="faq-contact-val">academiadesanjose@gmail.com</span>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

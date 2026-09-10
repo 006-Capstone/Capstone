@@ -9,31 +9,13 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-
-.my-feedback-header {
-  margin-bottom: var(--space-2);
-}
-
-.my-feedback-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-  margin: 0 0 4px 0;
-  letter-spacing: -0.02em;
-}
-
-.my-feedback-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  margin: 0;
+  gap: var(--space-5);
 }
 
 .my-feedback-loading {
   background-color: var(--color-surface);
   border-radius: var(--radius-md);
-  padding: var(--space-12) var(--space-6);
+  padding: 36px 20px;
   text-align: center;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
@@ -44,7 +26,7 @@
 .my-feedback-empty {
   background-color: var(--color-surface);
   border-radius: var(--radius-md);
-  padding: var(--space-12) var(--space-6);
+  padding: 36px 20px;
   text-align: center;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-border-soft);
@@ -54,10 +36,10 @@
 }
 
 .my-feedback-empty .empty-icon {
-  font-size: 56px;
+  font-size: 48px;
   color: var(--sage-400);
   background: var(--sage-50);
-  padding: 12px;
+  padding: 10px;
   border-radius: 50%;
   margin-bottom: var(--space-3);
 }
@@ -79,13 +61,13 @@
 .my-feedback-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: 14px;
 }
 
 .my-feedback-card {
   background-color: var(--color-surface);
   border-radius: var(--radius-md);
-  padding: var(--space-6);
+  padding: 16px 20px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-border-soft);
   transition: all var(--transition-fast);
@@ -100,8 +82,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-4);
+  margin-bottom: 12px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--color-divider);
   gap: var(--space-3);
 }

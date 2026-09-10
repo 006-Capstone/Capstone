@@ -132,7 +132,10 @@ function BulletinBoard() {
   return (
     <div className="bulletin-board-page">
       <div className="page-header">
-        <h1>Bulletin Board</h1>
+        <div className="page-title-group">
+          <h1 className="page-title">Bulletin Board</h1>
+          <p className="page-subtitle">Campus announcements, office updates, and important academic deadlines</p>
+        </div>
       </div>
 
       <div className="hero-banner">

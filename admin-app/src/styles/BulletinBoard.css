@@ -279,8 +279,8 @@
 
 .announcement-card p {
   font-size: 13.5px;
-  color: var(--color-text-muted, #5d645c);
-  line-height: 1.55;
+  color: #374151;
+  line-height: 1.6;
   margin: 0;
 }
 
