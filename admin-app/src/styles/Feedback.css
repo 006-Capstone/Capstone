@@ -17,18 +17,26 @@
   gap: var(--space-4);
 }
 
+.feedback-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .feedback-title {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-extrabold);
   color: var(--color-text);
   margin: 0;
+  line-height: 1.25;
   letter-spacing: -0.02em;
 }
 
 .feedback-subtitle {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  margin: 2px 0 0 0;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .feedback-header-actions {

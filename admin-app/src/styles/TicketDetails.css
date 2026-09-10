@@ -340,10 +340,20 @@
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btn-figma-reject:hover {
+.btn-figma-reject:hover:not(:disabled) {
   background-color: #fef2f2;
   border-color: #dc2626;
   transform: translateY(-1px);
+}
+
+.btn-figma-reject:disabled {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none;
+  opacity: 0.65;
 }
 
 .btn-figma-resolve {
@@ -361,9 +371,18 @@
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btn-figma-resolve:hover {
+.btn-figma-resolve:hover:not(:disabled) {
   background-color: #1b5e20;
   transform: translateY(-1px);
+}
+
+.btn-figma-resolve:disabled {
+  background-color: #94a3b8;
+  color: #ffffff;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none;
+  opacity: 0.65;
 }
 
 .btn-icon {
@@ -693,6 +712,12 @@
   box-shadow: 0 0 0 2px #2e7d32;
 }
 
+.reply-textarea-wrapper.disabled {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: not-allowed;
+}
+
 .reply-native-textarea {
   width: 100%;
   min-height: 110px;
@@ -705,6 +730,13 @@
   resize: vertical;
   line-height: 1.55;
   box-sizing: border-box;
+}
+
+.reply-native-textarea:disabled {
+  background-color: transparent;
+  color: #94a3b8;
+  cursor: not-allowed;
+  resize: none;
 }
 
 .reply-native-textarea::placeholder {
@@ -767,10 +799,18 @@
   transition: all 0.15s ease;
 }
 
-.btn-attach-action:hover {
+.btn-attach-action:hover:not(:disabled) {
   background-color: #f8fafc;
   border-color: #2e7d32;
   color: #2e7d32;
+}
+
+.btn-attach-action:disabled {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .attach-action-icon {
@@ -779,8 +819,12 @@
   transition: color 0.15s ease;
 }
 
-.btn-attach-action:hover .attach-action-icon {
+.btn-attach-action:hover:not(:disabled) .attach-action-icon {
   color: #2e7d32;
+}
+
+.btn-attach-action:disabled .attach-action-icon {
+  color: #94a3b8;
 }
 
 .btn-primary-action {
@@ -936,8 +980,19 @@
   text-align: left;
 }
 
-.figma-etc-pill:hover {
+.figma-etc-pill:hover:not(:disabled):not(.pill-readonly) {
   background-color: #dcfce7;
+}
+
+.figma-etc-pill:disabled,
+.figma-etc-pill.pill-readonly {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.figma-etc-pill:disabled:hover,
+.figma-etc-pill.pill-readonly:hover {
+  background-color: #f0fdf4;
 }
 
 .figma-etc-pill.btn-set-etc {
@@ -946,10 +1001,23 @@
   color: #475569;
 }
 
-.figma-etc-pill.btn-set-etc:hover {
+.figma-etc-pill.btn-set-etc:hover:not(:disabled):not(.pill-readonly) {
   background-color: #f0fdf4;
   border: 1px solid #2e7d32;
   color: #2e7d32;
+}
+
+.figma-etc-pill.btn-set-etc:disabled,
+.figma-etc-pill.btn-set-etc.pill-readonly {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.figma-etc-pill.btn-set-etc:disabled:hover,
+.figma-etc-pill.btn-set-etc.pill-readonly:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #475569;
 }
 
 .etc-edit-pencil {
@@ -1033,8 +1101,15 @@
   transition: all 0.15s ease;
 }
 
-.btn-figma-reassign-action:hover {
+.btn-figma-reassign-action:hover:not(:disabled) {
   background-color: #1b5e20;
+}
+
+.btn-figma-reassign-action:disabled {
+  background-color: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* ==========================================================================
@@ -1486,6 +1561,80 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* ==========================================================================
+   VIEW-ONLY / PERMISSION NOTICE & BADGES
+   ========================================================================== */
+.ticket-readonly-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #64748b;
+  border-radius: 8px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  color: #334155;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.readonly-notice-icon {
+  font-size: 16px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.readonly-notice-text strong {
+  color: #0f172a;
+}
+
+.reply-readonly-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reply-lock-icon {
+  font-size: 10px;
+}
+
+.mgmt-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.mgmt-card-header .figma-sidebar-title {
+  margin-bottom: 0;
+}
+
+.mgmt-locked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 3px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* ==========================================================================

@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FaBell, 
   FaSearch, 
-  FaFilter, 
-  FaChevronDown, 
-  FaCheck, 
   FaTimes,
-  FaClock
+  FaClock,
+  FaInbox
 } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -17,15 +15,11 @@ import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/MyTickets.css';
 
-const STATUS_OPTIONS = ['All Status', 'In Progress', 'Resolved', 'Rejected'];
-
 const MyTickets = ({ department, onNavigate, onViewRequest }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All Status');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  const filterWrapRef = useRef(null);
+  const itemsPerPage = 8;
   
   const [staffData, setStaffData] = useState(() => {
     try {
@@ -89,43 +83,60 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
     return () => unsubscribe();
   }, [staffData]);
 
-  // Close the status filter dropdown when clicking outside or pressing Escape
-  useEffect(() => {
-    if (!isFilterOpen) return undefined;
+  // Status counts for tab badges
+  const inProgressCount = useMemo(() => {
+    return tickets.filter(t => t.status === 'In Process').length;
+  }, [tickets]);
 
-    const handleClickOutside = (e) => {
-      if (filterWrapRef.current && !filterWrapRef.current.contains(e.target)) {
-        setIsFilterOpen(false);
+  const resolvedCount = useMemo(() => {
+    return tickets.filter(t => t.status === 'Resolved').length;
+  }, [tickets]);
+
+  const rejectedCount = useMemo(() => {
+    return tickets.filter(t => t.status === 'Rejected').length;
+  }, [tickets]);
+
+  // Date formatting helpers for table display
+  const formatTicketDate = (ticket) => {
+    const val = ticket.createdAt;
+    if (!val) return null;
+    const date = val?.toDate ? val.toDate() : new Date(val);
+    if (isNaN(date.getTime())) return null;
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTicketEtc = (ticket) => {
+    const val = ticket.etc || ticket.estimatedCompletion;
+    if (!val) return null;
+    if (typeof val === 'string') {
+      const parsed = new Date(val);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       }
-    };
+      return val;
+    }
+    const d = val?.toDate ? val.toDate() : new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return null;
+  };
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setIsFilterOpen(false);
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isFilterOpen]);
-
-
-  // Filter tickets by status and search query
+  // Filter tickets by active tab and search query
   const filteredTickets = useMemo(() => {
     let filtered = [...tickets];
 
-    // Filter by status
-    if (statusFilter !== 'All Status') {
-      filtered = filtered.filter(t => {
-        if (statusFilter === 'In Progress') return t.status === 'In Process';
-        if (statusFilter === 'Resolved') return t.status === 'Resolved';
-        if (statusFilter === 'Rejected') return t.status === 'Rejected';
-        return true;
-      });
+    // Filter by tab
+    if (activeTab === 'in_progress') {
+      filtered = filtered.filter(t => t.status === 'In Process');
+    } else if (activeTab === 'resolved') {
+      filtered = filtered.filter(t => t.status === 'Resolved');
+    } else if (activeTab === 'rejected') {
+      filtered = filtered.filter(t => t.status === 'Rejected');
     }
 
     // Filter by search query
@@ -134,20 +145,22 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
       filtered = filtered.filter(t => 
         (t.id && String(t.id).toLowerCase().includes(q)) ||
         (t.title && String(t.title).toLowerCase().includes(q)) ||
+        (t.subject && String(t.subject).toLowerCase().includes(q)) ||
         (t.student && String(t.student).toLowerCase().includes(q)) ||
+        (t.studentName && String(t.studentName).toLowerCase().includes(q)) ||
         (t.studentId && String(t.studentId).toLowerCase().includes(q))
       );
     }
 
     return filtered;
-  }, [tickets, statusFilter, searchQuery]);
+  }, [tickets, activeTab, searchQuery]);
 
   const totalPages = Math.ceil(filteredTickets.length / itemsPerPage) || 1;
 
-  // Reset to page 1 when filtering or searching
+  // Reset to page 1 when tab or search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, searchQuery]);
+  }, [activeTab, searchQuery]);
 
   // Keep currentPage valid if dataset size changes
   useEffect(() => {
@@ -156,11 +169,12 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
     }
   }, [currentPage, totalPages]);
 
+  const startIndex = (currentPage - 1) * itemsPerPage;
+
   // Slice tickets for the active page
   const paginatedTickets = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredTickets.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredTickets, currentPage, itemsPerPage]);
+  }, [filteredTickets, startIndex, itemsPerPage]);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -180,21 +194,15 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
     return pages;
   };
 
-  const handleSelectStatus = (status) => {
-    setStatusFilter(status);
-    setCurrentPage(1);
-    setIsFilterOpen(false);
-  };
-
-
   const handleTicketClick = (ticket) => {
     onNavigate('ticket-details', ticket);
   };
 
   return (
     <div className="my-tickets-container">
+      {/* Header */}
       <div className="page-header">
-        <div>
+        <div className="page-title-group">
           <h1 className="page-title">My Requests</h1>
           <p className="page-subtitle">Requests you've claimed and the ones you're handling</p>
         </div>
@@ -215,173 +223,283 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
             </button>
           )}
 
-          <div className="notification-bell" onClick={() => setShowNotifications(true)} role="button" tabIndex={0}>
+          <div 
+            className="notification-bell" 
+            onClick={() => setShowNotifications(true)} 
+            role="button" 
+            tabIndex={0}
+            aria-label="View notifications"
+          >
             <FaBell className="bell-icon" />
             {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
           </div>
         </div>
       </div>
 
-      <div className="filters-section">
-        <div className="search-box">
-          <FaSearch className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search by Request Info"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
-        <div className="status-filter-wrap" ref={filterWrapRef}>
-          <button
-            type="button"
-            className={`filter-trigger ${statusFilter !== 'All Status' ? 'active' : ''}`}
-            onClick={() => setIsFilterOpen(prev => !prev)}
-            aria-haspopup="listbox"
-            aria-expanded={isFilterOpen}
-            aria-label="Filter requests by status"
-          >
-            <FaFilter className="filter-icon" aria-hidden="true" />
-            Status
-            {statusFilter !== 'All Status' && <span className="filter-active-dot" aria-hidden="true" />}
-            <FaChevronDown className={`filter-chevron ${isFilterOpen ? 'open' : ''}`} aria-hidden="true" />
-          </button>
-
-          {isFilterOpen && (
-            <div className="filter-dropdown-panel" role="listbox" aria-label="Filter by status">
-              <div className="filter-dropdown-title">Filter by status</div>
-              {STATUS_OPTIONS.map(status => (
+      {/* Main Table Card Section */}
+      <div className="tickets-section">
+        {/* Toolbar: Status Tabs & Search */}
+        <div className="tickets-toolbar">
+          <div className="toolbar-left-group">
+            <div className="tickets-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'all'}
+                className={`tab ${activeTab === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveTab('all')}
+              >
+                <span>All Requests</span>
+                <span className="tab-count">{tickets.length}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'in_progress'}
+                className={`tab ${activeTab === 'in_progress' ? 'active' : ''}`}
+                onClick={() => setActiveTab('in_progress')}
+              >
+                <span>In Progress</span>
+                <span className="tab-count">{inProgressCount}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'resolved'}
+                className={`tab ${activeTab === 'resolved' ? 'active' : ''}`}
+                onClick={() => setActiveTab('resolved')}
+              >
+                <span>Resolved</span>
+                <span className="tab-count">{resolvedCount}</span>
+              </button>
+              {rejectedCount > 0 && (
                 <button
-                  key={status}
                   type="button"
-                  role="option"
-                  aria-selected={statusFilter === status}
-                  className={`status-option ${statusFilter === status ? 'selected' : ''}`}
-                  onClick={() => handleSelectStatus(status)}
+                  role="tab"
+                  aria-selected={activeTab === 'rejected'}
+                  className={`tab ${activeTab === 'rejected' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('rejected')}
                 >
-                  <span className="status-option-check">
-                    {statusFilter === status && <FaCheck aria-hidden="true" />}
-                  </span>
-                  {status}
+                  <span>Rejected</span>
+                  <span className="tab-count">{rejectedCount}</span>
                 </button>
-              ))}
-              {statusFilter !== 'All Status' && (
-                <div className="filter-dropdown-actions">
+              )}
+            </div>
+          </div>
+
+          <div className="toolbar-right-group">
+            <div className="table-search-box">
+              <FaSearch className="table-search-icon" aria-hidden="true" />
+              <input 
+                type="text" 
+                className="table-search-input"
+                placeholder="Search by ID, student, or subject..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search requests in table"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="table-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                  title="Clear search"
+                >
+                  <FaTimes aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        {loading ? (
+          <div className="table-loading-state">
+            <LoadingSpinner size="medium" message="Loading your requests..." fullScreen={false} />
+          </div>
+        ) : filteredTickets.length === 0 ? (
+          <div className="table-empty-state">
+            <div className="empty-state-icon-box">
+              <FaInbox className="empty-inbox-icon" />
+            </div>
+            <h3 className="empty-state-heading">No requests found</h3>
+            <p className="empty-state-text">
+              {searchQuery
+                ? `No requests match "${searchQuery}".`
+                : tickets.length === 0
+                ? "You haven't claimed any requests yet. Claim new requests from the Office Dashboard."
+                : activeTab === 'in_progress'
+                ? 'You have no requests currently in progress.'
+                : activeTab === 'resolved'
+                ? 'You have not marked any requests as resolved yet.'
+                : 'No requests match the selected view.'}
+            </p>
+            {searchQuery ? (
+              <button
+                type="button"
+                className="empty-action-btn"
+                onClick={() => setSearchQuery('')}
+              >
+                Clear Search Filter
+              </button>
+            ) : activeTab !== 'all' ? (
+              <button
+                type="button"
+                className="empty-action-btn"
+                onClick={() => setActiveTab('all')}
+              >
+                View All Claimed Requests
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <>
+            <div className="table-wrapper">
+              <table className="tickets-table">
+                <thead>
+                  <tr>
+                    <th className="th-request">REQUEST INFO</th>
+                    <th className="th-student">STUDENT DETAILS</th>
+                    <th className="th-status">STATUS</th>
+                    <th className="th-actions">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedTickets.map((ticket, index) => {
+                    const ticketIdDisplay = ticket.id
+                      ? String(ticket.id).startsWith('#')
+                        ? ticket.id
+                        : `#${ticket.id}`
+                      : '#N/A';
+                    const formattedDate = formatTicketDate(ticket);
+                    const formattedEtc = formatTicketEtc(ticket);
+                    const isGuest = Boolean(ticket.isGuest);
+                    const studentName = ticket.student || ticket.studentName || (isGuest ? 'Guest User' : 'Student');
+
+                    return (
+                      <tr key={ticket.firestoreId || ticket.id || index} className="ticket-row">
+                        <td className="td-request">
+                          <div className="ticket-info-cell">
+                            <div className="ticket-title-wrap">
+                              <button
+                                type="button"
+                                className="ticket-title-link"
+                                onClick={() => handleTicketClick(ticket)}
+                                title={ticket.title || ticket.subject || 'View Request Details'}
+                              >
+                                {ticket.title || ticket.subject || 'Untitled Request'}
+                              </button>
+                            </div>
+                            <div className="ticket-meta-row">
+                              <span className="ticket-id">{ticketIdDisplay}</span>
+                              {formattedDate && (
+                                <span className="ticket-meta-date" title={`Submitted on ${formattedDate}`}>
+                                  • {formattedDate}
+                                </span>
+                              )}
+                              {formattedEtc && (
+                                <span className="ticket-meta-etc" title={`Estimated turnaround: ${formattedEtc}`}>
+                                  <FaClock className="meta-clock-icon" aria-hidden="true" /> {formattedEtc}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="td-student">
+                          <div className="student-info">
+                            <span className="student-name" title={studentName}>{studentName}</span>
+                            <div className="student-id-wrap">
+                              {isGuest ? (
+                                <span className="guest-badge-pill">Guest</span>
+                              ) : ticket.studentId ? (
+                                <span className="student-id">ID: {ticket.studentId}</span>
+                              ) : (
+                                <span className="student-id muted">ID: N/A</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="td-status">
+                          <span className={`status-badge status-${(ticket.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                            <span className="status-dot" aria-hidden="true" />
+                            {ticket.status === 'Pending' && 'New Request'}
+                            {ticket.status === 'In Process' && 'In Progress'}
+                            {ticket.status === 'Resolved' && 'Resolved'}
+                            {ticket.status === 'Cancelled' && 'Cancelled'}
+                            {ticket.status === 'Rejected' && 'Rejected'}
+                            {ticket.status === 'Returned' && 'Returned'}
+                            {!['Pending', 'In Process', 'Resolved', 'Cancelled', 'Rejected', 'Returned'].includes(ticket.status) && (ticket.status || 'Pending')}
+                          </span>
+                        </td>
+                        <td className="td-actions">
+                          <div className="table-actions-cell">
+                            <button
+                              type="button"
+                              className="action-btn view-btn"
+                              onClick={() => handleTicketClick(ticket)}
+                              title="View Request Details"
+                            >
+                              View Request
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table Footer with Centered Pagination */}
+            <div className="table-footer">
+              <div className="table-count-info">
+                Showing <span className="count-bold">{startIndex + 1}</span>–<span className="count-bold">{Math.min(startIndex + itemsPerPage, filteredTickets.length)}</span> of{' '}
+                <span className="count-bold">{filteredTickets.length}</span> requests
+                {searchQuery && (
+                  <span className="search-query-label"> (filtered by "{searchQuery}")</span>
+                )}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="pagination">
                   <button
                     type="button"
-                    className="filter-clear-btn"
-                    onClick={() => handleSelectStatus('All Status')}
+                    className="page-btn nav-btn"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    aria-label="Previous Page"
                   >
-                    <FaTimes aria-hidden="true" /> Clear
+                    &lt;
+                  </button>
+                  {getPageNumbers().map((page, idx) =>
+                    page === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="pagination-ellipsis">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={page}
+                        type="button"
+                        className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    className="page-btn nav-btn"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    aria-label="Next Page"
+                  >
+                    &gt;
                   </button>
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
-
-      <div className="tickets-list-section">
-        {loading ? (
-          <LoadingSpinner message="Loading your requests..." fullScreen={false} />
-        ) : filteredTickets.length === 0 ? (
-          <div className="empty-state">
-            {tickets.length === 0 
-              ? 'You have no claimed requests yet.' 
-              : 'No requests match your filters.'}
-          </div>
-        ) : (
-          <>
-            <table className="tickets-list-table">
-              <thead>
-                <tr>
-                  <th>REQUEST INFO</th>
-                  <th>STUDENT DETAILS</th>
-                  <th>STATUS</th>
-                  <th>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedTickets.map((ticket, index) => (
-                  <tr key={ticket.firestoreId || index}>
-                    <td>
-                      <div className="ticket-info-text">
-                        {ticket.title}
-                        <span className="ticket-number">#{ticket.id}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="student-cell">
-                        {ticket.student}
-                        <span className="student-id-text">ID: {ticket.studentId}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`status-badge status-${(ticket.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
-                        <span className="status-dot" aria-hidden="true"></span>
-                        {ticket.status === 'Pending' && 'New Request'}
-                        {ticket.status === 'In Process' && 'In Progress'}
-                        {ticket.status === 'Resolved' && 'Resolved'}
-                        {ticket.status === 'Cancelled' && 'Cancelled'}
-                        {ticket.status === 'Rejected' && 'Rejected'}
-                        {ticket.status !== 'Pending' && ticket.status !== 'In Process' && ticket.status !== 'Resolved' && ticket.status !== 'Cancelled' && ticket.status !== 'Rejected' && ticket.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button 
-                        type="button"
-                        className="view-ticket-btn"
-                        onClick={() => handleTicketClick(ticket)}
-                      >
-                        View Request
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {totalPages > 1 && (
-              <div className="pagination-tickets">
-                <button
-                  type="button"
-                  className="page-btn-tickets"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  aria-label="Previous Page"
-                >
-                  &lt;
-                </button>
-                {getPageNumbers().map((page, idx) =>
-                  page === '...' ? (
-                    <span key={`ellipsis-${idx}`} className="pagination-ellipsis">
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={page}
-                      type="button"
-                      className={`page-btn-tickets ${currentPage === page ? 'active' : ''}`}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
-                <button
-                  type="button"
-                  className="page-btn-tickets"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  aria-label="Next Page"
-                >
-                  &gt;
-                </button>
-              </div>
-            )}
           </>
         )}
       </div>

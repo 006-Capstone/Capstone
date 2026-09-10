@@ -394,15 +394,9 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     <div className="admin-dashboard-container">
       <div className="dashboard-header">
         <div className="dashboard-title-group">
-          <div className="title-with-pill">
-            <h1 className="dashboard-title">{department}'s Office</h1>
-            <span className="live-status-pill" title="Real-time live updates enabled">
-              <span className="live-pulse-dot" />
-              Live Sync
-            </span>
-          </div>
+          <h1 className="dashboard-title">{department}'s Office</h1>
           <p className="dashboard-subtitle">
-            Monitor and manage student requests • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+            Monitor and manage student requests
           </p>
         </div>
         <div className="header-right">
@@ -687,8 +681,6 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                     const formattedEtc = formatTicketEtc(ticket);
                     const isGuest = Boolean(ticket.isGuest);
                     const studentName = ticket.student || ticket.studentName || (isGuest ? 'Guest User' : 'Student');
-                    const urgency = ticket.urgencyLevel ? String(ticket.urgencyLevel).toLowerCase() : '';
-                    const hasUrgency = urgency && urgency !== 'normal' && urgency !== 'low';
 
                     return (
                       <tr key={ticket.firestoreId || ticket.id || index} className="ticket-row">
@@ -712,12 +704,6 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                                   {ticket.title || ticket.subject || 'Untitled Request'}
                                 </span>
                               )}
-                              {hasUrgency && (
-                                <span className={`urgency-badge urgency-${urgency}`} title={`Urgency: ${ticket.urgencyLevel}`}>
-                                  <span className="urgency-dot" aria-hidden="true" />
-                                  {ticket.urgencyLevel}
-                                </span>
-                              )}
                             </div>
                             <div className="ticket-meta-row">
                               <span className="ticket-id">{ticketIdDisplay}</span>
@@ -736,7 +722,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                         </td>
                         <td className="td-student">
                           <div className="student-info">
-                            <span className="student-name">{studentName}</span>
+                            <span className="student-name" title={studentName}>{studentName}</span>
                             <div className="student-id-wrap">
                               {isGuest ? (
                                 <span className="guest-badge-pill">Guest</span>
@@ -762,7 +748,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                         </td>
                         <td className="td-assigned">
                           {ticket.assignedTo ? (
-                            <div className="assigned-to">
+                            <div className="assigned-to" title={ticket.assignedTo}>
                               <FaUserCircle className="assigned-icon" />
                               <span className="assigned-name">{ticket.assignedTo}</span>
                             </div>

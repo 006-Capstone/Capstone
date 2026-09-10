@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   FaBell, 
   FaUndo, 
@@ -10,7 +10,8 @@ import {
   FaTimes, 
   FaPencilAlt, 
   FaInfoCircle,
-  FaPaperclip
+  FaPaperclip,
+  FaLock
 } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -122,6 +123,40 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     setTimeout(() => setToast(null), 3500);
   };
 
+  // Current logged-in staff member info
+  const currentStaff = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('staffData');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  }, []);
+
+  // Display name of who owns/claimed the ticket
+  const ticketHandler = ticket?.claimedBy || ticket?.assignedTo || ticket?.assignedToStaff || null;
+
+  // Authorization check: whether this request belongs to or was claimed by current staff
+  const isOwner = useMemo(() => {
+    if (!ticket || !currentStaff) return false;
+    const staffName = (currentStaff.name || '').trim().toLowerCase();
+    const staffUid = currentStaff.uid;
+    if (!staffName && !staffUid) return false;
+
+    const assigned = (ticket.assignedTo || '').trim().toLowerCase();
+    const claimed = (ticket.claimedBy || '').trim().toLowerCase();
+    const assignedStaff = (ticket.assignedToStaff || '').trim().toLowerCase();
+
+    const matchesName = Boolean(
+      staffName && (assigned === staffName || claimed === staffName || assignedStaff === staffName)
+    );
+    const matchesUid = Boolean(
+      staffUid && (ticket.assignedToStaff === staffUid || ticket.claimedByUid === staffUid)
+    );
+
+    return Boolean(matchesName || matchesUid);
+  }, [ticket, currentStaff]);
+
   useEffect(() => {
     if (ticketData) {
       loadTicketDetails();
@@ -191,6 +226,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const handleSendReply = async () => {
+    if (!isOwner) {
+      showToast('You do not have permission to reply. Only the assigned staff member can reply to this request.', 'error');
+      return;
+    }
+
     if (!replyMessage.trim() && replyFiles.length === 0) {
       showToast('Please enter a message or attach files', 'error');
       return;
@@ -255,6 +295,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const openEstimatedCompletionModal = () => {
+    if (!isOwner) {
+      showToast('You do not have permission to edit the estimated completion date.', 'error');
+      return;
+    }
+
     let targetDate = new Date();
     if (ticket?.etc && isISODate(ticket.etc)) {
       const [y, m, d] = ticket.etc.split('-').map(Number);
@@ -283,6 +328,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   const handleUpdateEstimatedCompletion = async () => {
     if (!ticket) return;
+
+    if (!isOwner) {
+      showToast('You do not have permission to update the estimated completion date.', 'error');
+      setShowEstimatedCompletionModal(false);
+      return;
+    }
 
     const y = parseInt(etcYear, 10);
     const m = parseInt(etcMonth, 10);
@@ -351,6 +402,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const confirmReturnTicket = async () => {
+    if (!isOwner) {
+      showToast('You do not have permission to return this request.', 'error');
+      setShowReturnModal(false);
+      return;
+    }
+
     if (!returnReason.trim()) {
       showToast('Please provide a reason for returning this request', 'error');
       return;
@@ -444,6 +501,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const confirmResolveTicket = async () => {
+    if (!isOwner) {
+      showToast(`You do not have permission to resolve this request. It is assigned to ${ticketHandler || 'another staff member'}.`, 'error');
+      setShowResolveModal(false);
+      return;
+    }
+
     try {
       setResolving(true);
       const oldStatus = ticket.status;
@@ -493,6 +556,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const confirmRejectTicket = async () => {
+    if (!isOwner) {
+      showToast('You do not have permission to reject this request.', 'error');
+      setShowRejectModal(false);
+      return;
+    }
+
     if (!canRejectRequest()) {
       showToast('Rejecting requests is only permitted for Guidance Office and Library Department', 'error');
       setShowRejectModal(false);
@@ -558,6 +627,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const handleUrgencyChange = async (newUrgency) => {
+    if (!isOwner) {
+      showToast('You do not have permission to change the urgency level.', 'error');
+      return;
+    }
+
     setUrgencyLevel(newUrgency);
     try {
       const docRef = doc(db, 'requests', ticket.firestoreId);
@@ -573,6 +647,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const handleReassign = () => {
+    if (!isOwner) {
+      showToast('You do not have permission to reassign this request.', 'error');
+      return;
+    }
+
     if (reassignOffice === ticket.office) {
       showToast('Request is already assigned to this office', 'info');
       return;
@@ -581,6 +660,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const confirmReassign = async () => {
+    if (!isOwner) {
+      showToast('You do not have permission to reassign this request.', 'error');
+      setShowReassignModal(false);
+      return;
+    }
+
     if (!reassignNote.trim() || reassignNote.trim().length < 10) {
       showToast('Please provide a detailed reason (at least 10 characters)', 'error');
       return;
@@ -833,6 +918,15 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         <h1 className="figma-page-title">Request Details</h1>
       </div>
 
+      {!isOwner && (
+        <div className="ticket-readonly-notice">
+          <FaLock className="readonly-notice-icon" />
+          <div className="readonly-notice-text">
+            <strong>View-Only Mode:</strong> This request is {ticketHandler ? `claimed/managed by ${ticketHandler}` : 'not claimed by you'}. You can view the request details and history, but actions such as resolving, rejecting, replying, and editing completion dates are restricted to the assigned staff member.
+          </div>
+        </div>
+      )}
+
       {/* 2-Column Responsive Grid */}
       <div className="ticket-details-grid">
         
@@ -857,13 +951,37 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               {!isTicketClosed && (
                 <div className="summary-actions-wrap">
                   {canRejectRequest() && (
-                    <button type="button" className="btn-figma-reject" onClick={() => setShowRejectModal(true)}>
+                    <button 
+                      type="button" 
+                      className="btn-figma-reject" 
+                      onClick={() => {
+                        if (!isOwner) {
+                          showToast(`Only the assigned staff member (${ticketHandler || 'assigned staff'}) can reject this request.`, 'error');
+                          return;
+                        }
+                        setShowRejectModal(true);
+                      }}
+                      disabled={!isOwner}
+                      title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can reject this request` : 'Reject Request'}
+                    >
                       <FaTimes className="btn-icon" />
                       <span>Reject Request</span>
                     </button>
                   )}
                   {isOriginalDepartment() && (
-                    <button type="button" className="btn-figma-resolve" onClick={() => setShowResolveModal(true)}>
+                    <button 
+                      type="button" 
+                      className="btn-figma-resolve" 
+                      onClick={() => {
+                        if (!isOwner) {
+                          showToast(`Only the assigned staff member (${ticketHandler || 'assigned staff'}) can resolve this request.`, 'error');
+                          return;
+                        }
+                        setShowResolveModal(true);
+                      }}
+                      disabled={!isOwner}
+                      title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can resolve this request` : 'Resolve Request'}
+                    >
                       <FaCheck className="btn-icon" />
                       <span>Resolve Request</span>
                     </button>
@@ -978,19 +1096,24 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
             {/* Reply to Student Composer */}
             {!isTicketClosed && (
-              <div className="reply-composer-section">
+              <div className={`reply-composer-section ${!isOwner ? 'reply-composer-readonly' : ''}`}>
                 <div className="reply-composer-header">
                   <FaUserCircle className="reply-composer-avatar" />
                   <span className="reply-composer-title">Reply to student</span>
+                  {!isOwner && (
+                    <span className="reply-readonly-badge">
+                      <FaLock className="reply-lock-icon" /> View Only
+                    </span>
+                  )}
                 </div>
 
-                <div className="reply-textarea-wrapper">
+                <div className={`reply-textarea-wrapper ${!isOwner ? 'disabled' : ''}`}>
                   <textarea
                     className="reply-native-textarea"
-                    placeholder="Type your message here...."
+                    placeholder={!isOwner ? `View-only mode — this request is claimed by ${ticketHandler || 'another staff member'}.` : "Type your message here...."}
                     value={replyMessage}
                     onChange={(e) => setReplyMessage(e.target.value)}
-                    disabled={sending}
+                    disabled={sending || !isOwner}
                   />
 
                   <input
@@ -1000,6 +1123,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     onChange={handleFileSelect}
                     style={{ display: 'none' }}
                     accept="image/*,.pdf,.doc,.docx,.txt"
+                    disabled={!isOwner}
                   />
 
                   {replyFiles.length > 0 && (
@@ -1025,9 +1149,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   <button 
                     type="button" 
                     className="btn-attach-action"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={sending}
-                    title="Attach files to message"
+                    onClick={() => {
+                      if (!isOwner) return;
+                      fileInputRef.current?.click();
+                    }}
+                    disabled={sending || !isOwner}
+                    title={!isOwner ? `Only ${ticketHandler || 'the assigned staff'} can attach files` : "Attach files to message"}
                   >
                     <FaPaperclip className="attach-action-icon" />
                     <span>Attach Files</span>
@@ -1037,7 +1164,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     type="button" 
                     className="btn-primary-action"
                     onClick={handleSendReply}
-                    disabled={sending || (!replyMessage.trim() && replyFiles.length === 0)}
+                    disabled={sending || !isOwner || (!replyMessage.trim() && replyFiles.length === 0)}
+                    title={!isOwner ? `Only ${ticketHandler || 'the assigned staff'} can send replies` : "Send Message"}
                   >
                     {sending ? 'Sending...' : 'Send Message'}
                   </button>
@@ -1081,19 +1209,21 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   {ticket.etc ? (
                     <button
                       type="button"
-                      className="figma-etc-pill"
-                      onClick={openEstimatedCompletionModal}
-                      title="Edit estimated completion date"
+                      className={`figma-etc-pill ${!isOwner ? 'pill-readonly' : ''}`}
+                      onClick={isOwner ? openEstimatedCompletionModal : undefined}
+                      disabled={!isOwner}
+                      title={!isOwner ? `Estimated completion date can only be modified by ${ticketHandler || 'the assigned staff'}` : "Edit estimated completion date"}
                     >
                       <span>Estimated time of completion: {formatEtcLabel(ticket.etc)}</span>
-                      <FaPencilAlt className="etc-edit-pencil" />
+                      {isOwner && <FaPencilAlt className="etc-edit-pencil" />}
                     </button>
                   ) : !isTicketClosed ? (
                     <button
                       type="button"
-                      className="figma-etc-pill btn-set-etc"
-                      onClick={openEstimatedCompletionModal}
-                      title="Set estimated completion date"
+                      className={`figma-etc-pill btn-set-etc ${!isOwner ? 'pill-readonly' : ''}`}
+                      onClick={isOwner ? openEstimatedCompletionModal : undefined}
+                      disabled={!isOwner}
+                      title={!isOwner ? `Estimated completion date can only be set by ${ticketHandler || 'the assigned staff'}` : "Set estimated completion date"}
                     >
                       <span>+ Set Estimated Completion Date</span>
                     </button>
@@ -1252,14 +1382,25 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           </div>
 
           {/* Management Control Card */}
-          <div className={`figma-card management-card ${isTicketClosed ? 'card-locked' : ''}`}>
-            <h3 className="figma-sidebar-title">Management Control</h3>
+          <div className={`figma-card management-card ${isTicketClosed || !isOwner ? 'card-locked' : ''}`}>
+            <div className="mgmt-card-header">
+              <h3 className="figma-sidebar-title">Management Control</h3>
+              {!isOwner && !isTicketClosed && (
+                <span className="mgmt-locked-badge">
+                  <FaLock /> Locked
+                </span>
+              )}
+            </div>
 
-            {isTicketClosed && (
+            {isTicketClosed ? (
               <p className="mgmt-lock-message">
                 This request is {ticket.status === 'Resolved' ? 'resolved' : 'closed'} — management controls are locked.
               </p>
-            )}
+            ) : !isOwner ? (
+              <p className="mgmt-lock-message">
+                This request is claimed by {ticketHandler || 'another staff member'} — management controls are view-only.
+              </p>
+            ) : null}
 
             <div className="mgmt-form-item">
               <label className="mgmt-input-label">URGENCY LEVEL</label>
@@ -1267,7 +1408,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 className="figma-select-input"
                 value={urgencyLevel}
                 onChange={(e) => handleUrgencyChange(e.target.value)}
-                disabled={isTicketClosed}
+                disabled={isTicketClosed || !isOwner}
+                title={!isOwner ? `Urgency level can only be changed by ${ticketHandler || 'the assigned staff'}` : "Change urgency level"}
               >
                 <option value="Normal">Normal - Process within 2-3 days</option>
                 <option value="Medium">Medium - Process within 1-2 days</option>
@@ -1281,7 +1423,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 className="figma-select-input"
                 value={reassignOffice}
                 onChange={(e) => setReassignOffice(e.target.value)}
-                disabled={isTicketClosed}
+                disabled={isTicketClosed || !isOwner}
+                title={!isOwner ? `Reassignment can only be performed by ${ticketHandler || 'the assigned staff'}` : "Select office"}
               >
                 <option value="Finance">Finance Office</option>
                 <option value="Registrar">Registrar's Office</option>
@@ -1290,7 +1433,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </select>
 
               {!isTicketClosed && reassignOffice !== ticket.office && (
-                <button type="button" className="btn-figma-reassign-action" onClick={handleReassign}>
+                <button 
+                  type="button" 
+                  className="btn-figma-reassign-action" 
+                  onClick={handleReassign}
+                  disabled={!isOwner}
+                  title={!isOwner ? `Only ${ticketHandler || 'the assigned staff'} can reassign this request` : "Reassign Request"}
+                >
                   Reassign Request
                 </button>
               )}
@@ -1318,7 +1467,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               <div className="student-detail-item">{maskEmail(ticket.studentEmail) || 'rl.*****am@gmail.com'}</div>
             </div>
 
-            {ticket.studentEmail ? (
+            {ticket.studentEmail && isOwner ? (
               <a 
                 href={`mailto:${ticket.studentEmail}?subject=Regarding Request %23${ticket.requestId}: ${encodeURIComponent(ticket.subject || '')}`}
                 className="btn-figma-contact"
@@ -1327,7 +1476,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 <span>CONTACT STUDENT</span>
               </a>
             ) : (
-              <button type="button" className="btn-figma-contact" disabled>
+              <button 
+                type="button" 
+                className="btn-figma-contact" 
+                disabled
+                title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can contact the student` : "No email available"}
+              >
                 <FaEnvelope className="contact-envelope-icon" />
                 <span>CONTACT STUDENT</span>
               </button>

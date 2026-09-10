@@ -614,7 +614,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
   return (
     <div className="bulletin-board-container">
       <div className="bulletin-header">
-        <div>
+        <div className="bulletin-title-group">
           <h1 className="bulletin-title">Bulletin Board</h1>
           <p className="bulletin-subtitle">Announcements and updates for your students</p>
         </div>
