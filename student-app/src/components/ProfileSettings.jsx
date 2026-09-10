@@ -444,26 +444,36 @@ function ProfileSettings({ onClose }) {
       // Update password
       await updatePassword(user, passwordForm.newPassword);
 
-      // Update last password change date in Firestore
+      // Update last password change date in Firestore and clear QR code
       const studentData = JSON.parse(localStorage.getItem('studentData'));
       const docRef = doc(db, 'students', studentData.firestoreDocId);
       await updateDoc(docRef, {
         lastPasswordUpdate: new Date().toISOString(),
-        qrCodeData: '' // Clear old QR code data
+        qrCodeData: '', // Clear old QR code data
+        qrCodeGeneratedAt: null // Clear generation timestamp
       });
 
-      alert('Password changed successfully!\n\n⚠ IMPORTANT: Your old QR code will no longer work. Please regenerate your QR code with the new password.');
-      setShowPasswordModal(false);
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      
-      // Clear QR code display
+      // Clear QR code display immediately
       setQrCodeDataURL('');
       setProfileData(prev => ({
         ...prev,
-        qrCodeData: ''
+        qrCodeData: '',
+        lastPasswordUpdate: new Date().toISOString()
       }));
+
+      // Close password modal
+      setShowPasswordModal(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       
-      loadProfileData();
+      // Show success message and prompt for QR regeneration
+      alert('Password changed successfully!\n\n⚠ IMPORTANT: Your old QR code has been removed and will no longer work.\n\nPlease regenerate your QR code now with your new password.');
+      
+      // Automatically open QR password prompt after password change
+      setTimeout(() => {
+        setShowQRPasswordPrompt(true);
+        setQrPassword('');
+      }, 500);
+      
     } catch (error) {
       console.error('Error changing password:', error);
       if (error.code === 'auth/wrong-password') {

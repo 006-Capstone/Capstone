@@ -623,14 +623,19 @@ const GuestLogin = () => {
 
               <div className="form-group-guest">
                 <label className="form-label-guest" htmlFor="guestOfficeCode">Office Code <span className="optional-guest">(Optional)</span></label>
-                <input
+                <select
                   id="guestOfficeCode"
-                  type="text"
-                  className="form-input-guest"
+                  className="form-select-guest"
                   value={officeCode}
                   onChange={(e) => setOfficeCode(e.target.value)}
-                  placeholder="e.g. FIN-001, LIB-001"
-                />
+                >
+                  <option value="">Select office code (optional)</option>
+                  {guestOffices.map((office) => (
+                    <option key={office.id} value={office.code}>
+                      {office.code} - {office.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-actions-guest">

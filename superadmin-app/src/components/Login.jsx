@@ -141,7 +141,7 @@ const Login = ({ onLogin }) => {
               )}
               
               <div className="form-group">
-                <label className="form-label" htmlFor="username">Username/ Student ID</label>
+                <label className="form-label" htmlFor="username">Username</label>
                 <input
                   type="text"
                   id="username"

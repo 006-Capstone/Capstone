@@ -66,6 +66,26 @@ export default async function handler(req, res) {
       password: newPassword
     });
 
+    // Clear QR code data from Firestore (students collection)
+    try {
+      const db = admin.firestore();
+      const studentsRef = db.collection('students');
+      const studentQuery = await studentsRef.where('uid', '==', userRecord.uid).get();
+      
+      if (!studentQuery.empty) {
+        const studentDoc = studentQuery.docs[0];
+        await studentDoc.ref.update({
+          qrCodeData: '',
+          qrCodeGeneratedAt: null,
+          lastPasswordUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`[Success] Cleared QR code data for student UID: ${userRecord.uid}`);
+      }
+    } catch (qrError) {
+      console.error('[Warning] Failed to clear QR code data:', qrError);
+      // Don't fail the password reset if QR clearing fails
+    }
+
     // Delete the verification code after successful password reset
     verificationCodes.delete(email);
 

@@ -428,7 +428,9 @@ const Archive = ({ isEmbedded = false }) => {
                 isActive: true,
                 restoredAt: serverTimestamp(),
                 restoredBy: restoredBy,
-                mustChangePassword: true
+                mustChangePassword: true,
+                qrCodeData: '', // Clear QR code on restoration
+                qrCodeGeneratedAt: null // Clear QR generation timestamp
               });
               console.log('[Archive] Updated existing account in', targetCollection, ':', existingDocId);
               
@@ -478,7 +480,9 @@ const Archive = ({ isEmbedded = false }) => {
             restoredAt: serverTimestamp(),
             restoredBy: restoredBy,
             mustChangePassword: true,
-            isActive: accountData.isActive !== undefined ? accountData.isActive : true
+            isActive: accountData.isActive !== undefined ? accountData.isActive : true,
+            qrCodeData: '', // Clear QR code on restoration
+            qrCodeGeneratedAt: null // Clear QR generation timestamp
           };
           
           const restoredDoc = await addDoc(collection(db, targetCollection), restoredAccountData);
