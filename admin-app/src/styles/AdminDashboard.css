@@ -538,20 +538,20 @@
   box-sizing: border-box;
 }
 
-/* 2. Pending / Awaiting Assignment Card (Stays rectangular, prominent) */
+/* 2. Pending / Awaiting Assignment Card (Prominent & Taller) */
 .admin-dashboard-container .stat-card.stat-pending {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 12px 18px;
   border-radius: 10px;
   border-left: 4.5px solid #d97706;
   background-color: var(--color-surface, #ffffff);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
-  min-height: 48px;
+  min-height: 64px;
 }
 
 .admin-dashboard-container .stat-card.stat-pending:hover {
@@ -562,21 +562,21 @@
 .admin-dashboard-container .stat-card.stat-pending .stat-card-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
 .admin-dashboard-container .stat-card.stat-pending .stat-icon-container {
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
   background-color: #fffbeb;
   color: #d97706;
   border: 1px solid #fde68a;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 17px;
   flex-shrink: 0;
   box-shadow: 0 1px 2px rgba(217, 119, 6, 0.1);
 }
@@ -589,7 +589,7 @@
 }
 
 .admin-dashboard-container .stat-card.stat-pending .stat-label {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -598,7 +598,7 @@
 }
 
 .admin-dashboard-container .stat-card.stat-pending .stat-subtext {
-  font-size: 11px;
+  font-size: 11.5px;
   color: #64748b;
   font-weight: 500;
   line-height: 1.2;
@@ -606,36 +606,38 @@
 }
 
 .admin-dashboard-container .stat-card.stat-pending .stat-value {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 900;
   color: #0f172a;
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  margin-left: 10px;
+  margin-left: 12px;
   flex-shrink: 0;
 }
 
-/* 4 Square Cards (2x2 Grid under Pending) */
+/* 4 Square Cards (Parallel Side-by-Side in 4 Columns - Smaller & Compact) */
 .admin-dashboard-container .stats-squares-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
+  width: 100%;
 }
 
-/* Square Card Container */
+/* Square Card Container - Compact */
 .admin-dashboard-container .stat-card.stat-card-square {
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
-  padding: 8px 14px;
-  border-radius: 10px;
-  min-height: 52px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 9px;
+  min-height: 78px;
   background-color: var(--color-surface, #ffffff);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .admin-dashboard-container .stat-card.stat-card-square:hover {
@@ -643,60 +645,83 @@
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
 }
 
-.admin-dashboard-container .stat-card.stat-card-square .stat-card-text {
+.admin-dashboard-container .stat-square-header {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+  width: 100%;
+  flex-wrap: nowrap;
 }
 
-.admin-dashboard-container .stat-card.stat-card-square .stat-label {
-  font-size: 11.5px;
+.admin-dashboard-container .stat-square-header .stat-label {
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: #1e293b;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.admin-dashboard-container .stat-card.stat-card-square .stat-subtext {
-  font-size: 10.5px;
-  color: #64748b;
-  font-weight: 500;
+.admin-dashboard-container .stat-square-header .scope-tag {
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4.5px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   line-height: 1.2;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.admin-dashboard-container .stat-square-body {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  margin: 1px 0;
+  width: 100%;
 }
 
 .admin-dashboard-container .stat-card.stat-card-square .stat-value {
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 900;
   color: #0f172a;
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  margin-left: 10px;
-  text-align: right;
-  flex-shrink: 0;
+  margin: 0;
 }
 
-/* 3. In Progress (Office Overall) */
-.admin-dashboard-container .stat-card.stat-inprogress {
+.admin-dashboard-container .stat-square-footer {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.admin-dashboard-container .stat-card.stat-card-square .stat-subtext {
+  font-size: 9.5px;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 3. In Progress Cards (Office Overall & Staff's My In Progress - Matching Blue) */
+.admin-dashboard-container .stat-card.stat-inprogress,
+.admin-dashboard-container .stat-card.stat-my-inprogress {
   border-left: 4.5px solid #2563eb;
 }
 
-/* 4. Resolved (Office Overall) */
-.admin-dashboard-container .stat-card.stat-resolved {
-  border-left: 4.5px solid #16a34a;
-}
-
-/* 5. My In Progress Card */
-.admin-dashboard-container .stat-card.stat-my-inprogress {
-  border-left: 4.5px solid #6366f1;
-}
-
-/* 6. My Resolved Card */
+/* 4. Resolved Cards (Office Overall & Staff's My Resolved - Matching Green) */
+.admin-dashboard-container .stat-card.stat-resolved,
 .admin-dashboard-container .stat-card.stat-my-resolved {
-  border-left: 4.5px solid #0d9488;
+  border-left: 4.5px solid #16a34a;
 }
 
 /* Stat Label Group & Scope Tags */
@@ -1425,6 +1450,11 @@
     align-items: center;
     text-align: center;
     gap: 6px;
+  }
+
+  .admin-dashboard-container .stats-squares-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 }
 

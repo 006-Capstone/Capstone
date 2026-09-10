@@ -4,7 +4,7 @@ import {
   FaTicketAlt, 
   FaChartLine, 
   FaClipboard, 
-  FaComment, 
+  FaThumbsUp, 
   FaUserCircle, 
   FaSignOutAlt,
   FaTimes
@@ -132,7 +132,7 @@ const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile, isOpe
             role="button"
             tabIndex={0}
           >
-            <FaComment className="sidebar-icon" />
+            <FaThumbsUp className="sidebar-icon" />
             <span className="sidebar-label">Feedback</span>
           </div>
         </nav>

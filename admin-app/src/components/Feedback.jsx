@@ -242,9 +242,10 @@ const Feedback = ({ department, onViewRequest }) => {
   const averageScore = Number(satisfactionStats.average);
   const filledStars = Math.min(5, Math.max(0, Math.round(averageScore)));
 
-  const applyDateFilter = () => {
+  const applyDateFilter = (overrideFilter) => {
+    const target = overrideFilter || dateFilter;
     // Validate range: From cannot be after To
-    if (dateFilter.from && dateFilter.to && dateFilter.from > dateFilter.to) {
+    if (target.from && target.to && target.from > target.to) {
       alert('The "From" date cannot be later than the "To" date.');
       return false;
     }
@@ -252,7 +253,10 @@ const Feedback = ({ department, onViewRequest }) => {
     // otherwise its index could point at a different feedback card.
     setExpandedCard(null);
     setReplyText('');
-    setAppliedFilter(dateFilter);
+    if (overrideFilter) {
+      setDateFilter(overrideFilter);
+    }
+    setAppliedFilter(target);
     return true;
   };
 
@@ -355,10 +359,19 @@ const Feedback = ({ department, onViewRequest }) => {
           <span>
             Showing <strong>{satisfactionStats.total}</strong> feedback
             {satisfactionStats.total === 1 ? '' : 's'}
-            {appliedFilter.from && <> from <strong>{formatFilterDate(appliedFilter.from)}</strong></>}
-            {appliedFilter.from && appliedFilter.to && <> to </>}
-            {appliedFilter.to && <><strong>{formatFilterDate(appliedFilter.to)}</strong></>}
+            {appliedFilter.label ? (
+              <> (<strong>{appliedFilter.label}</strong>{appliedFilter.from && appliedFilter.to && appliedFilter.from !== appliedFilter.to ? `: ${formatFilterDate(appliedFilter.from)} – ${formatFilterDate(appliedFilter.to)}` : ''})</>
+            ) : (
+              <>
+                {appliedFilter.from && <> from <strong>{formatFilterDate(appliedFilter.from)}</strong></>}
+                {appliedFilter.from && appliedFilter.to && <> to </>}
+                {appliedFilter.to && <><strong>{formatFilterDate(appliedFilter.to)}</strong></>}
+              </>
+            )}
           </span>
+          <button type="button" className="analytics-filter-clear-link" onClick={clearDateFilter}>
+            Clear
+          </button>
         </div>
       )}
 

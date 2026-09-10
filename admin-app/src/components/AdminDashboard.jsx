@@ -476,54 +476,62 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
             <span className="stat-value">{stats.unassigned}</span>
           </div>
 
-          {/* 4 Square Cards Grid (2x2) */}
+          {/* 4 Square Cards (Arrangement: In Progress Office, Resolved Office, My In Progress, My Resolved) */}
           <div className="stats-squares-grid">
-            {/* Office In Progress */}
+            {/* 1. Office In Progress */}
             <div className="stat-card stat-card-square stat-inprogress">
-              <div className="stat-card-text">
-                <div className="stat-label-group">
-                  <span className="stat-label">In Progress</span>
-                  <span className="scope-tag office">Office</span>
-                </div>
+              <div className="stat-square-header">
+                <span className="stat-label">In Progress</span>
+                <span className="scope-tag office">Office</span>
+              </div>
+              <div className="stat-square-body">
+                <span className="stat-value">{stats.claimed}</span>
+              </div>
+              <div className="stat-square-footer">
                 <span className="stat-subtext">Office Overall</span>
               </div>
-              <span className="stat-value">{stats.claimed}</span>
             </div>
 
-            {/* Office Resolved */}
+            {/* 2. Office Resolved */}
             <div className="stat-card stat-card-square stat-resolved">
-              <div className="stat-card-text">
-                <div className="stat-label-group">
-                  <span className="stat-label">Resolved</span>
-                  <span className="scope-tag office">Office</span>
-                </div>
+              <div className="stat-square-header">
+                <span className="stat-label">Resolved</span>
+                <span className="scope-tag office">Office</span>
+              </div>
+              <div className="stat-square-body">
+                <span className="stat-value">{stats.resolved}</span>
+              </div>
+              <div className="stat-square-footer">
                 <span className="stat-subtext">Office Overall</span>
               </div>
-              <span className="stat-value">{stats.resolved}</span>
             </div>
 
-            {/* Staff's My In Progress */}
+            {/* 3. Staff's My In Progress */}
             <div className="stat-card stat-card-square stat-my-inprogress">
-              <div className="stat-card-text">
-                <div className="stat-label-group">
-                  <span className="stat-label">My In Progress</span>
-                  <span className="scope-tag personal">My Workload</span>
-                </div>
+              <div className="stat-square-header">
+                <span className="stat-label">My In Progress</span>
+                <span className="scope-tag personal">My Workload</span>
+              </div>
+              <div className="stat-square-body">
+                <span className="stat-value">{myStats.inProgress}</span>
+              </div>
+              <div className="stat-square-footer">
                 <span className="stat-subtext">Assigned to You</span>
               </div>
-              <span className="stat-value">{myStats.inProgress}</span>
             </div>
 
-            {/* Staff's My Resolved */}
+            {/* 4. Staff's My Resolved */}
             <div className="stat-card stat-card-square stat-my-resolved">
-              <div className="stat-card-text">
-                <div className="stat-label-group">
-                  <span className="stat-label">My Resolved</span>
-                  <span className="scope-tag personal">My Workload</span>
-                </div>
+              <div className="stat-square-header">
+                <span className="stat-label">My Resolved</span>
+                <span className="scope-tag personal">My Workload</span>
+              </div>
+              <div className="stat-square-body">
+                <span className="stat-value">{myStats.resolved}</span>
+              </div>
+              <div className="stat-square-footer">
                 <span className="stat-subtext">Completed by You</span>
               </div>
-              <span className="stat-value">{myStats.resolved}</span>
             </div>
           </div>
         </div>

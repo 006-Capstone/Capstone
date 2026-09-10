@@ -1,86 +1,136 @@
 /* ==========================================================================
-   DATE RANGE FILTER DROPDOWN
+   DATE RANGE FILTER DROPDOWN (DAYS, WEEKS, MONTHS, CUSTOM RANGE)
    ========================================================================== */
 
 .daterange-filter-wrap {
   position: relative;
+  display: inline-block;
+}
+
+.daterange-trigger-group {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(0, 0, 0, 0.05));
 }
 
 .daterange-trigger {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-surface);
+  padding: 8px 13px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-sm, 6px);
+  background-color: var(--color-surface, #ffffff);
   cursor: pointer;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-secondary, #475569);
   white-space: nowrap;
-  box-shadow: var(--shadow-xs);
-  transition: all var(--transition-fast);
+  transition: all var(--transition-fast, 0.15s ease);
+  user-select: none;
+}
+
+.daterange-trigger-group:has(.daterange-trigger-quick-clear) .daterange-trigger {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
 }
 
 .daterange-trigger:hover {
-  background-color: var(--sage-50);
-  border-color: var(--sage-300);
-  color: var(--color-primary);
+  background-color: var(--sage-50, #f6f8f5);
+  border-color: var(--sage-300, #c8d8c5);
+  color: var(--color-primary, #15803d);
 }
 
 .daterange-trigger.active {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background-color: var(--sage-50);
+  border-color: var(--color-primary, #15803d);
+  color: var(--color-primary, #15803d);
+  background-color: var(--sage-50, #f4f8f3);
 }
 
 .daterange-icon {
   font-size: 13px;
-  color: var(--sage-500);
+  color: var(--sage-500, #4f7749);
+  flex-shrink: 0;
 }
 
 .daterange-trigger.active .daterange-icon {
-  color: var(--color-primary);
+  color: var(--color-primary, #15803d);
+}
+
+.daterange-trigger-text {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
 }
 
 .daterange-active-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: var(--color-primary);
+  background-color: var(--color-primary, #15803d);
   flex-shrink: 0;
 }
 
 .daterange-chevron {
-  font-size: 11px;
-  color: var(--color-text-faint);
-  transition: transform var(--transition-fast);
+  font-size: 10px;
+  color: var(--color-text-faint, #94a3b8);
+  transition: transform var(--transition-fast, 0.15s ease);
+  margin-left: 2px;
+  flex-shrink: 0;
 }
 
 .daterange-chevron.open {
   transform: rotate(180deg);
 }
 
+.daterange-trigger-quick-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border: 1px solid var(--color-primary, #15803d);
+  border-left: 1px solid rgba(21, 128, 61, 0.2);
+  border-top-right-radius: var(--radius-sm, 6px);
+  border-bottom-right-radius: var(--radius-sm, 6px);
+  background-color: var(--sage-50, #f4f8f3);
+  color: var(--color-primary, #15803d);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.daterange-trigger-quick-clear:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* --------------------------------------------------------------------------
+   DROPDOWN PANEL
+   -------------------------------------------------------------------------- */
 .daterange-panel {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 60;
-  width: 270px;
-  max-width: calc(100vw - 32px);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xl);
-  padding: var(--space-4);
-  animation: daterange-pop 0.18s var(--ease-spring);
+  z-index: 70;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-soft, #e2e8f0);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  padding: 16px;
+  animation: daterange-pop 0.18s var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1));
 }
 
 @keyframes daterange-pop {
   from {
     opacity: 0;
-    transform: translateY(-4px) scale(0.97);
+    transform: translateY(-5px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -88,19 +138,248 @@
   }
 }
 
-.daterange-title {
-  font-size: 11px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: var(--space-3);
+/* Panel Header */
+.daterange-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-divider, #f1f5f9);
 }
 
-.daterange-fields {
+.daterange-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  letter-spacing: -0.01em;
+}
+
+.daterange-subtitle {
+  font-size: 11px;
+  color: var(--color-text-muted, #64748b);
+  margin-top: 2px;
+}
+
+.daterange-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-faint, #94a3b8);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.daterange-close-btn:hover {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-800, #1e293b);
+}
+
+/* Mode Tabs */
+.daterange-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 3px;
+  background-color: var(--gray-100, #f1f5f9);
+  border-radius: 7px;
+  margin-bottom: 14px;
+}
+
+.daterange-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #475569);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.daterange-tab-btn:hover:not(.active) {
+  color: var(--gray-900, #0f172a);
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.daterange-tab-btn.active {
+  background-color: #ffffff;
+  color: var(--color-primary, #15803d);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.daterange-tab-btn .tab-icon {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* Tab Content */
+.daterange-tab-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 10px;
+}
+
+.daterange-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Presets Grid */
+.daterange-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.daterange-preset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background-color: #f8faf8;
+  border: 1px solid var(--color-border-soft, #e2e8f0);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.daterange-preset-btn:hover {
+  background-color: var(--sage-50, #f4f8f3);
+  border-color: var(--sage-300, #c8d8c5);
+}
+
+.daterange-preset-btn.selected {
+  background-color: #eaf5ea;
+  border-color: #86efac;
+  box-shadow: 0 0 0 1px #16a34a;
+}
+
+.preset-btn-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.preset-btn-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-800, #1e293b);
+  white-space: nowrap;
+}
+
+.daterange-preset-btn.selected .preset-btn-label {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.preset-btn-desc {
+  font-size: 10px;
+  color: var(--color-text-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-check-icon {
+  font-size: 11px;
+  color: #16a34a;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+/* Subforms: Specific Day & Specific Month/Year */
+.daterange-subform {
+  margin-top: 6px;
+  padding: 10px 12px;
+  background-color: #fbfdfa;
+  border: 1px dashed var(--sage-300, #c8d8c5);
+  border-radius: 7px;
+}
+
+.daterange-subform-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-700, #334155);
+  margin-bottom: 8px;
+}
+
+.daterange-single-day-row,
+.daterange-month-year-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.daterange-date-input,
+.daterange-select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 5px;
+  background-color: #ffffff;
+  font-size: 12px;
+  color: var(--gray-800, #1e293b);
+  font-family: inherit;
+  transition: all 0.15s ease;
+  min-width: 0;
+}
+
+.daterange-date-input:focus,
+.daterange-select:focus {
+  outline: none;
+  border-color: var(--color-primary, #15803d);
+  box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.15);
+}
+
+.daterange-subform-apply-btn {
+  padding: 6px 12px;
+  background-color: var(--color-primary, #15803d);
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.daterange-subform-apply-btn:hover:not(:disabled) {
+  background-color: #166534;
+}
+
+.daterange-subform-apply-btn:disabled {
+  background-color: var(--gray-300, #cbd5e1);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Custom Range Inputs */
+.daterange-custom-fields {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
 .daterange-field {
@@ -111,92 +390,149 @@
 
 .daterange-field label {
   font-size: 11px;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-secondary);
+  font-weight: 700;
+  color: var(--color-text-secondary, #475569);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
 }
 
-.daterange-field input[type='date'] {
-  width: 100%;
-  padding: 7px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
-  background-color: var(--color-surface);
-  font-size: var(--font-size-xs);
-  color: var(--color-text);
-  font-family: inherit;
-  transition: all var(--transition-fast);
-}
-
-.daterange-field input[type='date']:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-glow-primary);
-}
-
-.daterange-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-divider);
-  margin-top: 12px;
+.daterange-custom-apply-wrap {
+  margin-top: 4px;
 }
 
 .daterange-apply-btn {
+  width: 100%;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-xs);
-  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--green-800, #166534) 0%, var(--green-900, #14532d) 100%);
   color: #ffffff;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .daterange-apply-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--green-750) 0%, var(--green-850) 100%);
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
 }
 
 .daterange-apply-btn:disabled {
-  background: var(--gray-300);
+  background: var(--gray-300, #cbd5e1);
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Panel Footer */
+.daterange-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-divider, #f1f5f9);
+  margin-top: 14px;
+}
+
+.daterange-footer-status {
+  font-size: 11.5px;
+  color: var(--gray-700, #334155);
+  line-height: 1.3;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daterange-footer-status strong {
+  color: var(--color-primary, #15803d);
+}
+
+.daterange-footer-muted {
+  color: var(--color-text-muted, #94a3b8);
+  font-style: italic;
+}
+
+.daterange-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .daterange-clear-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
-  background-color: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid #fca5a5;
+  border-radius: 5px;
+  background-color: #fef2f2;
+  color: #dc2626;
+  font-size: 11.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
 }
 
 .daterange-clear-btn:hover {
-  background-color: var(--gray-100);
-  color: var(--color-text);
+  background-color: #fee2e2;
+  border-color: #ef4444;
 }
 
+.daterange-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 5px;
+  background-color: var(--color-surface, #ffffff);
+  color: var(--color-text-secondary, #475569);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.daterange-cancel-btn:hover {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-900, #0f172a);
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE ADJUSTMENTS
+   -------------------------------------------------------------------------- */
 @media (max-width: 640px) {
+  .daterange-trigger-group {
+    width: 100%;
+  }
+
   .daterange-trigger {
     width: 100%;
     justify-content: center;
   }
 
   .daterange-panel {
-    width: calc(100vw - 32px);
-    right: 0;
+    width: calc(100vw - 24px);
+    right: -10px;
+    padding: 12px;
+  }
+
+  .daterange-presets-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .daterange-single-day-row,
+  .daterange-month-year-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .daterange-custom-fields {
+    grid-template-columns: 1fr;
   }
 }

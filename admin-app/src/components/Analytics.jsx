@@ -170,13 +170,17 @@ const Analytics = ({ department, onViewRequest }) => {
     setAppliedFilter(EMPTY_FILTER);
   }, [department]);
 
-  const applyDateFilter = () => {
+  const applyDateFilter = (overrideFilter) => {
+    const target = overrideFilter || dateFilter;
     // Validate range: From cannot be after To
-    if (dateFilter.from && dateFilter.to && dateFilter.from > dateFilter.to) {
+    if (target.from && target.to && target.from > target.to) {
       alert('The "From" date cannot be later than the "To" date.');
       return false;
     }
-    setAppliedFilter(dateFilter);
+    if (overrideFilter) {
+      setDateFilter(overrideFilter);
+    }
+    setAppliedFilter(target);
     return true;
   };
 
@@ -376,10 +380,19 @@ Understand your office's performance at a glance
           <FaCalendarAlt className="analytics-filter-summary-icon" aria-hidden="true" />
           <span>
             Showing <strong>{filteredTickets.length}</strong> request{filteredTickets.length === 1 ? '' : 's'}
-            {appliedFilter.from && <> from <strong>{formatFilterDate(appliedFilter.from)}</strong></>}
-            {appliedFilter.from && appliedFilter.to && <> to </>}
-            {appliedFilter.to && <><strong>{formatFilterDate(appliedFilter.to)}</strong></>}
+            {appliedFilter.label ? (
+              <> (<strong>{appliedFilter.label}</strong>{appliedFilter.from && appliedFilter.to && appliedFilter.from !== appliedFilter.to ? `: ${formatFilterDate(appliedFilter.from)} – ${formatFilterDate(appliedFilter.to)}` : ''})</>
+            ) : (
+              <>
+                {appliedFilter.from && <> from <strong>{formatFilterDate(appliedFilter.from)}</strong></>}
+                {appliedFilter.from && appliedFilter.to && <> to </>}
+                {appliedFilter.to && <><strong>{formatFilterDate(appliedFilter.to)}</strong></>}
+              </>
+            )}
           </span>
+          <button type="button" className="analytics-filter-clear-link" onClick={clearDateFilter}>
+            Clear
+          </button>
         </div>
       )}
 
