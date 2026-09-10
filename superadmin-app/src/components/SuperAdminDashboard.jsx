@@ -430,8 +430,9 @@ const SuperAdminDashboard = ({ onNavigate }) => {
     <div className="superadmin-page superadmin-dashboard-container">
       {/* Header Banner */}
       <div className="page-header dashboard-executive-header">
-        <div className="dashboard-welcome-col">
+        <div className="page-header-title-group">
           <h1 className="dashboard-title">Dashboard</h1>
+          <p className="page-subtitle">Institutional overview of request volume, office workloads, and performance</p>
         </div>
 
         <div className="dashboard-header-right">

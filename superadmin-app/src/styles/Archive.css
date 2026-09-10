@@ -13,11 +13,13 @@
 }
 
 .archive-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
+  font-family: var(--font-family, 'Inter', -apple-system, sans-serif);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gray-950, #0f1410);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
   margin: 0;
-  line-height: 1.2;
 }
 
 /* ---- Controls Bar: Filter Pills, Search Bar, and Action Buttons ---- */

@@ -670,7 +670,7 @@ const Analytics = () => {
   return (
     <div className="superadmin-page analytics-container">
       <div className="page-header">
-        <div>
+        <div className="page-header-title-group">
           <h1 className="analytics-title">Analytics</h1>
           <p className="page-subtitle">Track request volume, satisfaction, and department performance</p>
         </div>

@@ -24,16 +24,21 @@
 
 
 .dashboard-title {
+  font-family: var(--font-family, 'Inter', -apple-system, sans-serif);
   font-size: 26px;
   font-weight: 800;
-  color: var(--gray-900, #0f1410);
+  color: var(--gray-950, #0f1410);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
   margin: 0;
-  letter-spacing: -0.02em;
 }
 
 .dashboard-executive-header .page-subtitle {
+  font-family: var(--font-family, 'Inter', -apple-system, sans-serif);
   font-size: 13.5px;
+  font-weight: 400;
   color: var(--color-text-muted, #717d73);
+  line-height: 1.45;
   margin: 0;
 }
 

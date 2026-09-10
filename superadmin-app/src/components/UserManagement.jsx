@@ -1362,7 +1362,7 @@ const UserManagement = () => {
   return (
     <div className="superadmin-page user-management-container">
       <div className="page-header">
-        <div>
+        <div className="page-header-title-group">
           <h1 className="user-management-title">User Management</h1>
           <p className="page-subtitle">
             {activeTab === 'archive'

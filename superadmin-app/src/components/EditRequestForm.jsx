@@ -223,7 +223,7 @@ const EditRequestForm = () => {
   return (
     <div className="superadmin-page edit-request-form-container">
       <div className="page-header">
-        <div>
+        <div className="page-header-title-group">
           <h1 className="form-title">Edit Request Form Configuration</h1>
           <p className="page-subtitle">Manage the offices, descriptions, and subjects students can request</p>
         </div>
