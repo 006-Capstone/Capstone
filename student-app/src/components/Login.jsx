@@ -18,6 +18,15 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   const [qrScanner, setQrScanner] = useState(null);
   const [scanningStatus, setScanningStatus] = useState('initializing'); // 'initializing', 'ready', 'scanning', 'success', 'error'
 
+  // Load remembered student ID on mount
+  useEffect(() => {
+    const rememberedId = localStorage.getItem('rememberedStudentId');
+    if (rememberedId) {
+      setStudentId(rememberedId);
+      setRememberDevice(true);
+    }
+  }, []);
+
   const handleStudentIdChange = (e) => {
     const value = e.target.value;
     // Only allow digits and max 4 characters
@@ -57,11 +66,15 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         querySnapshot = await getDocs(q);
       }
 
-      // If still not found, try with full format XX-XXXX-XXXXXX
+      // If still not found, try with full format XX-XXXX-XXXXXX across common academic years
       if (querySnapshot.empty) {
         const fullIdPattern = studentId.padStart(4, '0');
-        q = query(studentsRef, where('studentId', '==', `05-2324-${fullIdPattern}`));
-        querySnapshot = await getDocs(q);
+        const yearPrefixes = ['05-2324-', '05-2425-', '05-2526-', '05-2627-'];
+        for (const prefix of yearPrefixes) {
+          q = query(studentsRef, where('studentId', '==', `${prefix}${fullIdPattern}`));
+          querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) break;
+        }
       }
 
       if (querySnapshot.empty) {
@@ -87,6 +100,13 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
 
       // Sign in with Firebase Authentication using email and password
       await signInWithEmailAndPassword(auth, studentData.email, password);
+
+      // Save or remove remembered student ID based on checkbox
+      if (rememberDevice) {
+        localStorage.setItem('rememberedStudentId', studentId);
+      } else {
+        localStorage.removeItem('rememberedStudentId');
+      }
 
       // Prepare student data for localStorage - handle both new and legacy formats
       const formattedStudentData = {
@@ -255,13 +275,16 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     console.log('[Stats] Decoded result:', decodedResult);
     setScanningStatus('success');
     
-    // Stop scanner immediately
+    // Stop scanner safely if running
     if (qrScanner) {
       try {
-        await qrScanner.stop();
-        console.log('Scanner stopped successfully');
+        const state = qrScanner.getState();
+        if (state === 2) {
+          await qrScanner.stop();
+          console.log('Scanner stopped successfully');
+        }
       } catch (err) {
-        console.error('Error stopping scanner:', err);
+        console.warn('Error stopping scanner:', err);
       }
     }
     
@@ -320,6 +343,17 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         querySnapshot = await getDocs(q);
       }
 
+      // If still not found, try with full format XX-XXXX-XXXXXX across common academic years
+      if (querySnapshot.empty) {
+        const fullIdPattern = studentId.padStart(4, '0');
+        const yearPrefixes = ['05-2324-', '05-2425-', '05-2526-', '05-2627-'];
+        for (const prefix of yearPrefixes) {
+          q = query(studentsRef, where('studentId', '==', `${prefix}${fullIdPattern}`));
+          querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) break;
+        }
+      }
+
       if (querySnapshot.empty) {
         console.error('[Error] Student not found in database with ID:', studentId);
         setScanningStatus('error');
@@ -344,6 +378,11 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       // Attempt automatic login with decrypted password
       console.log('[Encryption] Attempting automatic login with email:', studentData.email);
       await signInWithEmailAndPassword(auth, studentData.email, password);
+
+      // Save remembered student ID if checkbox was selected
+      if (rememberDevice) {
+        localStorage.setItem('rememberedStudentId', studentId);
+      }
 
       // Prepare student data for localStorage
       const formattedStudentData = {
@@ -407,7 +446,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     // Ignore "NotFoundException" - it just means no QR code detected yet
   };
 
-  const handleCloseQRScanner = () => {
+  const handleCloseQRScanner = async () => {
     if (qrScanner) {
       try {
         // Get the scanner state before stopping
@@ -416,14 +455,15 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         
         // Only stop if scanner is actually running
         if (state === 2) { // 2 = SCANNING state
-          qrScanner.stop()
-            .then(() => console.log('Scanner stopped successfully'))
-            .catch(err => console.log('Scanner stop warning:', err));
-        } else {
-          console.log('Scanner not running, skipping stop');
+          await qrScanner.stop().catch(err => console.log('Scanner stop warning:', err));
         }
       } catch (err) {
         console.log('Scanner close error:', err);
+      }
+      try {
+        qrScanner.clear();
+      } catch (clearErr) {
+        // ignore
       }
       setQrScanner(null);
     }

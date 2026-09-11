@@ -1,6 +1,6 @@
 import CryptoJS from 'crypto-js';
 
-const ENCRYPTION_KEY = process.env.REACT_APP_QR_ENCRYPTION_KEY || '';
+const ENCRYPTION_KEY = process.env.REACT_APP_QR_ENCRYPTION_KEY || 'asj_student_qr_default_secret_key';
 const APP_SIGNATURE = 'ASJ_STUDENT_QR'; // Unique signature for this app
 
 /**
