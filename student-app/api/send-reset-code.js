@@ -1,7 +1,9 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// In-memory store for verification codes (for development)
-// In production, use Redis or a database
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// In-memory store for verification codes
+// Note: In production with multiple serverless instances, use Redis or database
 const verificationCodes = new Map();
 
 export default async function handler(req, res) {
@@ -39,51 +41,80 @@ export default async function handler(req, res) {
       studentId
     });
 
-    // Configure Gmail SMTP transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
-      }
-    });
+    const fromEmail = process.env.FROM_EMAIL || 'Academia De San Jose <noreply@resend.dev>';
 
-    // Send email
-    await transporter.sendMail({
-      from: `"Academia De San Jose" <${process.env.GMAIL_USER}>`,
+    // Send email with Resend
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
       to: email,
       subject: 'Password Reset Verification Code',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2d5016;">Password Reset Request</h2>
-          <p>Hello <strong>${studentName}</strong>,</p>
-          <p>You requested to reset your password. Your verification code is:</p>
-          <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2d5016;">
-            ${verificationCode}
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2d5016; margin: 0;">Academia De San Jose</h1>
+            <p style="color: #666; margin: 5px 0 0 0;">Password Reset Request</p>
           </div>
-          <p><strong>This code will expire in ${expiryMinutes} minute(s).</strong></p>
-          <p>If you did not request this password reset, please ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">Academia De San Jose - Student Portal</p>
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h2 style="color: #333; margin-top: 0;">Hello, ${studentName}!</h2>
+            <p style="color: #666; line-height: 1.6;">
+              We received a request to reset your password. Use the verification code below to proceed:
+            </p>
+          </div>
+
+          <div style="background: #fff; border: 2px solid #2d5016; padding: 30px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+            <p style="color: #666; margin: 0 0 10px 0; font-size: 14px;">Your Verification Code</p>
+            <div style="font-size: 36px; font-weight: bold; color: #2d5016; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+              ${verificationCode}
+            </div>
+            <p style="color: #999; margin: 10px 0 0 0; font-size: 12px;">Valid for ${expiryMinutes} minute${expiryMinutes > 1 ? 's' : ''}</p>
+          </div>
+
+          <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px;">
+            <p style="color: #856404; margin: 0; font-weight: bold;">⚠️ Security Notice:</p>
+            <ul style="color: #856404; margin: 10px 0 0 0; padding-left: 20px;">
+              <li>This code expires in ${expiryMinutes} minute${expiryMinutes > 1 ? 's' : ''}</li>
+              <li>If you didn't request this, please ignore this email</li>
+              <li>Never share this code with anyone</li>
+              <li>Contact support if you notice suspicious activity</li>
+            </ul>
+          </div>
+
+          <p style="color: #666; line-height: 1.6; text-align: center;">
+            If you didn't request a password reset, you can safely ignore this email.
+          </p>
+
+          <div style="text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+            <p>This is an automated email. Please do not reply to this message.</p>
+            <p>© 2025 Academia De San Jose. All rights reserved.</p>
+          </div>
         </div>
       `
     });
 
-    console.log(`[Success] Verification code sent to ${email}`);
+    if (error) {
+      console.error('[Error] Failed to send reset code:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to send verification code' 
+      });
+    }
 
-    return res.status(200).json({
+    console.log('[Success] Reset code sent:', data.id);
+    return res.status(200).json({ 
       success: true,
-      message: 'Verification code sent successfully'
+      message: 'Verification code sent to email',
+      messageId: data.id
     });
 
   } catch (error) {
-    console.error('[Error] Failed to send verification code:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to send verification code'
+    console.error('[Error] Send reset code error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to send verification code' 
     });
   }
 }
 
-// Export the codes Map for other functions to access
+// Export the verification codes Map for use by verify-reset-code
 export { verificationCodes };

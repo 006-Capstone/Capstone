@@ -1,4 +1,6 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -24,22 +26,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // Configure Gmail SMTP transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
-      }
-    });
-
     const roleText = role === 'student' ? 'Student' : 
                      role === 'admin' ? 'Office Staff' : 
                      'Administrator';
 
-    // Send email with temporary password
-    await transporter.sendMail({
-      from: `"Academia De San Jose" <${process.env.GMAIL_USER}>`,
+    const fromEmail = process.env.FROM_EMAIL || 'Academia De San Jose <noreply@resend.dev>';
+
+    // Send email with Resend
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
       to: email,
       subject: 'Your Academia De San Jose Account Has Been Created',
       html: `
@@ -48,62 +43,70 @@ export default async function handler(req, res) {
             <h1 style="color: #2d5016; margin: 0;">Academia De San Jose</h1>
             <p style="color: #666; margin: 5px 0 0 0;">Student Portal System</p>
           </div>
-
-          <h2 style="color: #2d5016;">Welcome to the Portal!</h2>
           
-          <p>Hello <strong>${userName}</strong>,</p>
-          
-          <p>Your ${roleText} account has been created successfully. Here are your login credentials:</p>
-          
-          <div style="background-color: #f8f9fa; border-left: 4px solid #2d5016; padding: 20px; margin: 20px 0;">
-            <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
-            <p style="margin: 5px 0;"><strong>Temporary Password:</strong> 
-              <span style="background-color: #fff; padding: 5px 10px; border-radius: 3px; font-family: monospace; font-size: 16px;">${temporaryPassword}</span>
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h2 style="color: #333; margin-top: 0;">Welcome, ${userName}!</h2>
+            <p style="color: #666; line-height: 1.6;">
+              Your ${roleText} account has been successfully created. Below are your login credentials:
             </p>
           </div>
 
-          <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #856404;">
-              <strong>⚠️ Important Security Notice:</strong><br>
-              You will be required to change this password when you first log in. Please choose a strong, unique password.
-            </p>
+          <div style="background: #fff; border: 2px solid #2d5016; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 10px; color: #666; font-weight: bold;">Email:</td>
+                <td style="padding: 10px; color: #333;">${email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px; color: #666; font-weight: bold;">Temporary Password:</td>
+                <td style="padding: 10px; color: #2d5016; font-family: monospace; font-size: 18px; font-weight: bold;">${temporaryPassword}</td>
+              </tr>
+            </table>
           </div>
 
-          <h3 style="color: #2d5016; margin-top: 30px;">Getting Started:</h3>
-          <ol style="line-height: 1.8;">
-            <li>Visit the portal login page</li>
-            <li>Enter your email and temporary password</li>
-            <li>You will be prompted to create a new password</li>
-            <li>Complete your profile setup</li>
-          </ol>
-
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-            <p style="color: #666; font-size: 14px; margin: 5px 0;">
-              If you did not request this account or have any questions, please contact the school administration immediately.
-            </p>
+          <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px;">
+            <p style="color: #856404; margin: 0; font-weight: bold;">⚠️ Important Security Notice:</p>
+            <ul style="color: #856404; margin: 10px 0 0 0; padding-left: 20px;">
+              <li>Please change your password immediately after your first login</li>
+              <li>Do not share your credentials with anyone</li>
+              <li>Keep this email in a secure location</li>
+            </ul>
           </div>
 
-          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-            <p style="color: #999; font-size: 12px; margin: 0;">
-              © ${new Date().getFullYear()} Academia De San Jose. All rights reserved.
-            </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.STUDENT_APP_URL || 'http://localhost:3000'}" 
+               style="display: inline-block; background: #2d5016; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Login Now
+            </a>
+          </div>
+
+          <div style="text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+            <p>This is an automated email. Please do not reply to this message.</p>
+            <p>© 2025 Academia De San Jose. All rights reserved.</p>
           </div>
         </div>
       `
     });
 
-    console.log(`[Success] Temporary password email sent to ${email}`);
+    if (error) {
+      console.error('[Error] Failed to send email:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to send email' 
+      });
+    }
 
-    return res.status(200).json({
+    console.log('[Success] Temporary password email sent:', data.id);
+    return res.status(200).json({ 
       success: true,
-      message: 'Temporary password email sent successfully'
+      messageId: data.id
     });
 
   } catch (error) {
-    console.error('[Error] Failed to send temporary password email:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to send email. Please ensure the email address is valid.'
+    console.error('[Error] Send temporary password error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to send email' 
     });
   }
 }

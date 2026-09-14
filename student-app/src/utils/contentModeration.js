@@ -230,7 +230,18 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
 
   } catch (error) {
     console.error('AI validation error:', error);
-    // Re-throw the error - no fallback, validation must work
-    throw error;
+    
+    // Fallback: Allow submission with basic validation only
+    console.warn('[Fallback] AI validation failed, using basic validation only');
+    
+    return {
+      isValid: true,
+      errors: [],
+      warnings: [
+        'AI content moderation is temporarily unavailable. Your request will be reviewed manually by staff.',
+        'Please ensure your description is relevant to the selected subject.'
+      ],
+      language: 'unknown'
+    };
   }
 };

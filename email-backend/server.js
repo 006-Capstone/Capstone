@@ -1,29 +1,22 @@
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 require('dotenv').config();
 
 const app = express();
 const PORT = 5000;
 
-// Initialize Gmail SMTP transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
-  }
-});
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Verify SMTP connection
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('[Error] Gmail SMTP connection failed:', error);
-  } else {
-    console.log('[Success] Gmail SMTP ready to send emails');
-  }
-});
+// Verify Resend configuration
+if (process.env.RESEND_API_KEY) {
+  console.log('[Success] Resend API configured');
+} else {
+  console.error('[Error] RESEND_API_KEY not found in .env');
+  process.exit(1);
+}
 
 // Initialize Firebase Admin SDK
 if (!admin.apps || admin.apps.length === 0) {
@@ -48,9 +41,31 @@ if (!admin.apps || admin.apps.length === 0) {
 app.use(cors());
 app.use(express.json());
 
+// Email sending function using Resend
+async function sendEmail({ to, subject, text, html }) {
+  const fromAddress = process.env.FROM_EMAIL || 'noreply@resend.dev';
+  
+  const { data, error } = await resend.emails.send({
+    from: fromAddress,
+    to: to,
+    subject: subject,
+    html: html,
+    text: text
+  });
+  
+  if (error) {
+    throw new Error(error.message);
+  }
+  
+  return { messageId: data.id };
+}
+
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ message: 'Email backend is running with Gmail SMTP!' });
+  res.json({ 
+    message: 'Email backend is running!',
+    provider: 'Resend'
+  });
 });
 
 // Send credentials email endpoint
@@ -185,19 +200,18 @@ This is an automated email. Please do not reply to this message.
 © 2025 Academia De San Jose. All rights reserved.
     `.trim();
 
-    // Send email via Gmail SMTP
-    const info = await transporter.sendMail({
-      from: '"Academia De San Jose" <' + process.env.GMAIL_USER + '>',
+    // Send email via Resend
+    const result = await sendEmail({
       to: email,
       subject: 'Your Academia De San Jose Student Account',
       text: textContent,
       html: htmlContent
     });
 
-    console.log('[Success] Email sent successfully via Gmail:', info.messageId);
+    console.log('[Success] Email sent successfully:', result.messageId);
     res.json({
       success: true,
-      messageId: info.messageId
+      messageId: result.messageId
     });
 
   } catch (error) {
@@ -343,19 +357,18 @@ This is an automated email. Please do not reply to this message.
 © 2025 Academia De San Jose. All rights reserved.
     `.trim();
 
-    // Send email via Gmail SMTP
-    const info = await transporter.sendMail({
-      from: '"Academia De San Jose" <' + process.env.GMAIL_USER + '>',
+    // Send email via Resend
+    const result = await sendEmail({
       to: email,
       subject: `Your ${office} Office Admin Account`,
       text: textContent,
       html: htmlContent
     });
 
-    console.log('[Success] Staff email sent successfully via Gmail:', info.messageId);
+    console.log('[Success] Staff email sent successfully:', result.messageId);
     res.json({
       success: true,
-      messageId: info.messageId
+      messageId: result.messageId
     });
 
   } catch (error) {
@@ -560,20 +573,19 @@ This is an automated email. Please do not reply to this message.
 © 2025 Academia De San Jose. All rights reserved.
     `.trim();
 
-    // Send email
-    const info = await transporter.sendMail({
-      from: '"Academia De San Jose" <' + process.env.GMAIL_USER + '>',
+    // Send email via Resend
+    const result = await sendEmail({
       to: email,
       subject: 'Password Reset Verification Code',
       text: textContent,
       html: htmlContent
     });
 
-    console.log('[Success] Reset code sent successfully:', info.messageId);
+    console.log('[Success] Reset code sent successfully:', result.messageId);
     res.json({
       success: true,
       message: 'Verification code sent to email',
-      messageId: info.messageId
+      messageId: result.messageId
     });
 
   } catch (error) {
@@ -730,5 +742,5 @@ app.post('/api/reset-password', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Email backend running on http://localhost:${PORT}`);
-  console.log(`📧 Ready to send emails via Gmail SMTP`);
+  console.log(`📧 Using Resend as email provider`);
 });
