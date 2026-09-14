@@ -3,7 +3,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
-import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload, FaSignOutAlt } from 'react-icons/fa';
+import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload, FaSignOutAlt, FaListAlt } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
 import { encryptCredentials } from '../utils/qrEncryption';
@@ -56,9 +56,14 @@ function ProfileSettings({ onClose }) {
     confirm: false
   });
   const [showEmail, setShowEmail] = useState(false);
+  
+  // New states for statistics
+  const [ticketStats, setTicketStats] = useState({ totalTickets: 0 });
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     loadProfileData();
+    loadTicketStatistics();
   }, []);
 
   useEffect(() => {
@@ -304,6 +309,34 @@ function ProfileSettings({ onClose }) {
       alert('Failed to load profile data: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTicketStatistics = async () => {
+    try {
+      setLoadingStats(true);
+      const studentData = JSON.parse(localStorage.getItem('studentData'));
+      if (!studentData) return;
+
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      const requestsRef = collection(db, 'requests');
+      
+      // Query requests by student email or ID
+      const q = query(
+        requestsRef,
+        where('studentEmail', '==', studentData.email)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const totalTickets = querySnapshot.size;
+      
+      setTicketStats({ totalTickets });
+      console.log('[Stats] Loaded ticket statistics:', { totalTickets });
+    } catch (error) {
+      console.error('[Error] Failed to load ticket statistics:', error);
+      setTicketStats({ totalTickets: 0 });
+    } finally {
+      setLoadingStats(false);
     }
   };
 
@@ -683,6 +716,25 @@ function ProfileSettings({ onClose }) {
                       placeholder="Jr, Sr, III"
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Ticket Statistics Section */}
+          <div className="settings-section">
+            <h3>My Ticket Statistics</h3>
+            <p className="section-description">Overview of your submitted requests</p>
+            
+            <div className="ticket-stats-card">
+              <div className="stat-item">
+                <div className="stat-icon-wrapper">
+                  <FaListAlt className="stat-icon" />
+                </div>
+                <div className="stat-info">
+                  <p className="stat-label">TOTAL TICKETS SUBMITTED</p>
+                  <p className="stat-value">{loadingStats ? '...' : ticketStats.totalTickets}</p>
+                  <p className="stat-period">ALL TIME</p>
                 </div>
               </div>
             </div>

@@ -1,22 +1,29 @@
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
 const PORT = 5000;
 
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Gmail SMTP transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD
+  }
+});
 
-// Verify Resend configuration
-if (process.env.RESEND_API_KEY) {
-  console.log('[Success] Resend API configured');
-} else {
-  console.error('[Error] RESEND_API_KEY not found in .env');
-  process.exit(1);
-}
+// Verify SMTP connection
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('[Error] Gmail SMTP connection failed:', error);
+  } else {
+    console.log('[Success] Gmail SMTP ready to send emails');
+  }
+});
 
 // Initialize Firebase Admin SDK
 if (!admin.apps || admin.apps.length === 0) {
@@ -41,30 +48,27 @@ if (!admin.apps || admin.apps.length === 0) {
 app.use(cors());
 app.use(express.json());
 
-// Email sending function using Resend
+// Email sending function using Gmail SMTP
 async function sendEmail({ to, subject, text, html }) {
-  const fromAddress = process.env.FROM_EMAIL || 'noreply@resend.dev';
+  const fromAddress = process.env.GMAIL_USER || 'academiadesanjose3@gmail.com';
   
-  const { data, error } = await resend.emails.send({
-    from: fromAddress,
+  const mailOptions = {
+    from: `Academia De San Jose <${fromAddress}>`,
     to: to,
     subject: subject,
-    html: html,
-    text: text
-  });
+    text: text,
+    html: html
+  };
   
-  if (error) {
-    throw new Error(error.message);
-  }
-  
-  return { messageId: data.id };
+  const info = await transporter.sendMail(mailOptions);
+  return { messageId: info.messageId };
 }
 
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Email backend is running!',
-    provider: 'Resend'
+    provider: 'Gmail SMTP'
   });
 });
 
@@ -373,6 +377,168 @@ This is an automated email. Please do not reply to this message.
 
   } catch (error) {
     console.error('[Error] Error sending staff email:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to send email'
+    });
+  }
+});
+
+// Send temporary password email (for both students and staff)
+// This endpoint matches the Vercel serverless function naming
+app.post('/api/send-temporary-password', async (req, res) => {
+  try {
+    const { email, userName, temporaryPassword, role } = req.body;
+
+    // Validate input
+    if (!email || !userName || !temporaryPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email, name, and temporary password are required'
+      });
+    }
+
+    const roleText = role === 'student' ? 'Student' : 
+                     role === 'admin' ? 'Office Staff' : 
+                     'Administrator';
+    
+    const loginUrl = role === 'student' ? 'http://localhost:3000' : 'http://localhost:3001';
+
+    // HTML email content
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+          }
+          .header {
+            background-color: #105E06;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+          }
+          .content {
+            padding: 20px;
+            background-color: #ffffff;
+          }
+          .credentials {
+            background-color: #f5f5f5;
+            border-left: 3px solid #105E06;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+          }
+          .notice {
+            background-color: #fffbf0;
+            border-left: 3px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+          }
+          .footer {
+            text-align: center;
+            color: #777;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+          }
+          a {
+            color: #105E06;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>Academia De San Jose</h2>
+        </div>
+        
+        <div class="content">
+          <p>Dear ${userName},</p>
+          
+          <p>Your ${roleText} account has been successfully created. You can now access the portal using the credentials below:</p>
+          
+          <div class="credentials">
+            <strong>Email:</strong> ${email}<br>
+            <strong>Temporary Password:</strong> ${temporaryPassword}
+          </div>
+          
+          <p>Login at: <a href="${loginUrl}">${loginUrl}</a></p>
+          
+          <div class="notice">
+            <strong>Important Security Notice:</strong><br>
+            • Please change your password after your first login<br>
+            • Do not share your credentials with anyone<br>
+            • Keep this email in a secure location
+          </div>
+          
+          <p>If you have any questions, please contact support.</p>
+          
+          <p>Best regards,<br>
+          Academia De San Jose Administration Team</p>
+        </div>
+        
+        <div class="footer">
+          <p>This is an automated email. Please do not reply to this message.</p>
+          <p>© 2025 Academia De San Jose. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Plain text version
+    const textContent = `
+Academia De San Jose - Account Created
+
+Dear ${userName},
+
+Your ${roleText} account has been successfully created. You can now access the portal using the credentials below:
+
+CREDENTIALS
+Email: ${email}
+Temporary Password: ${temporaryPassword}
+
+Login at: ${loginUrl}
+
+IMPORTANT SECURITY NOTICE
+- Please change your password after your first login
+- Do not share your credentials with anyone
+- Keep this email in a secure location
+
+If you have any questions or need assistance, please contact support.
+
+Best regards,
+Academia De San Jose Administration Team
+
+This is an automated email. Please do not reply to this message.
+© 2025 Academia De San Jose. All rights reserved.
+    `.trim();
+
+    // Send email via Resend
+    const result = await sendEmail({
+      to: email,
+      subject: 'Your Academia De San Jose Account Has Been Created',
+      text: textContent,
+      html: htmlContent
+    });
+
+    console.log('[Success] Temporary password email sent:', result.messageId);
+    res.json({
+      success: true,
+      messageId: result.messageId
+    });
+
+  } catch (error) {
+    console.error('[Error] Error sending temporary password email:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to send email'
@@ -742,5 +908,5 @@ app.post('/api/reset-password', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Email backend running on http://localhost:${PORT}`);
-  console.log(`📧 Using Resend as email provider`);
+  console.log(`📧 Using Gmail SMTP as email provider`);
 });

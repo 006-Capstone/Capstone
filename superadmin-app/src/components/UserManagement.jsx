@@ -19,13 +19,18 @@ import {
   FaUndo,
   FaListAlt,
   FaBoxOpen,
-  FaCalendarAlt
+  FaCalendarAlt,
+  FaShieldAlt,
+  FaSchool
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import NotificationBell from './NotificationBell';
 import Archive from './Archive';
+import LoadingSpinner from './LoadingSpinner';
+import ChangePasswordModal from './ChangePasswordModal';
 import '../styles/UserManagement.css';
 
 const DATE_PRESET_OPTIONS = [
@@ -81,6 +86,16 @@ const UserManagement = () => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [isBulkAction, setIsBulkAction] = useState(false);
   const [bulkSuspendTargetState, setBulkSuspendTargetState] = useState(false);
+
+  // User Profile Modal State
+  const [showUserProfileModal, setShowUserProfileModal] = useState(false);
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+  const [userActivityLogs, setUserActivityLogs] = useState([]);
+  const [loadingUserProfile, setLoadingUserProfile] = useState(false);
+  const [staffStats, setStaffStats] = useState({ totalTickets: 0, avgResponseTime: 'N/A' });
+  const [studentStats, setStudentStats] = useState({ totalTickets: 0 });
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [userToChangePassword, setUserToChangePassword] = useState(null);
 
   // Archiving state
   const [actionLoading, setActionLoading] = useState(false);
@@ -823,7 +838,7 @@ const UserManagement = () => {
       try {
         const apiUrl = process.env.NODE_ENV === 'production' 
           ? '/api/send-temporary-password'
-          : 'http://localhost:3000/api/send-temporary-password';
+          : 'http://localhost:5000/api/send-temporary-password'; // Use email-backend in development
           
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -1056,7 +1071,7 @@ const UserManagement = () => {
       try {
         const apiUrl = process.env.NODE_ENV === 'production'
           ? '/api/send-temporary-password'
-          : 'http://localhost:3000/api/send-temporary-password';
+          : 'http://localhost:5000/api/send-temporary-password'; // Use email-backend in development
           
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -1134,6 +1149,129 @@ const UserManagement = () => {
     setSelectedStudent(student);
     setConfirmAction('delete');
     setShowConfirmModal(true);
+  };
+
+  // Open User Profile Modal
+  const handleOpenUserProfile = async (user, userType) => {
+    setSelectedUserProfile({ ...user, userType });
+    setShowUserProfileModal(true);
+    setLoadingUserProfile(true);
+    
+    try {
+      // Fetch activity logs for this user
+      const logsRef = collection(db, 'activityLogs');
+      
+      // Check if the collection exists and has the required index
+      // Query without orderBy first to avoid index requirement issues
+      const logsQuery = query(
+        logsRef,
+        where('userId', '==', user.uid || user.firestoreId)
+      );
+      
+      const logsSnapshot = await getDocs(logsQuery);
+      const logs = logsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate?.() || new Date()
+      }));
+      
+      // Sort on client side and limit to 50
+      const sortedLogs = logs.sort((a, b) => b.timestamp - a.timestamp).slice(0, 50);
+      
+      setUserActivityLogs(sortedLogs);
+
+      // If staff, fetch their ticket statistics
+      if (userType === 'staff') {
+        try {
+          const requestsRef = collection(db, 'requests');
+          
+          // Get ALL requests and filter on client side
+          const allRequestsSnapshot = await getDocs(requestsRef);
+          
+          // Filter requests by this staff member
+          // Match the same way Analytics does: by assignedTo/claimedBy fields against name
+          const staffRequests = allRequestsSnapshot.docs.filter(doc => {
+            const data = doc.data();
+            const assigned = (data.assignedTo || data.claimedBy || '').toLowerCase();
+            const assignedToStaff = data.assignedToStaff || '';
+            
+            // Match by assignedTo/claimedBy name or assignedToStaff UID
+            return (
+              (assigned && assigned === (user.name || '').toLowerCase()) ||
+              (user.uid && assignedToStaff === user.uid) ||
+              (user.firestoreId && assignedToStaff === user.firestoreId)
+            );
+          });
+          
+          // Total tickets (all-time)
+          const totalTickets = staffRequests.length;
+          
+          // Calculate average response time (time from creation to resolution)
+          // Only count resolved tickets with both timestamps
+          const resolvedTickets = staffRequests.filter(doc => {
+            const data = doc.data();
+            return data.status === 'Resolved' && data.createdAt && data.resolvedAt;
+          });
+          
+          let avgResponseTime = 'N/A';
+          if (resolvedTickets.length > 0) {
+            const totalMs = resolvedTickets.reduce((sum, doc) => {
+              const data = doc.data();
+              const created = data.createdAt?.toDate?.() || new Date(data.createdAt);
+              const resolved = data.resolvedAt?.toDate?.() || new Date(data.resolvedAt);
+              return sum + (resolved - created);
+            }, 0);
+            
+            const avgMs = totalMs / resolvedTickets.length;
+            const totalHours = Math.floor(avgMs / (1000 * 60 * 60));
+            const totalMinutes = Math.floor((avgMs % (1000 * 60 * 60)) / (1000 * 60));
+            
+            avgResponseTime = `${totalHours}h ${totalMinutes}m`;
+          }
+          
+          setStaffStats({ totalTickets, avgResponseTime });
+        } catch (statsError) {
+          console.error('[Error] Failed to load staff statistics:', statsError);
+          setStaffStats({ totalTickets: 0, avgResponseTime: 'N/A' });
+        }
+      }
+
+      // If student, fetch their ticket statistics
+      if (userType === 'student') {
+        try {
+          const requestsRef = collection(db, 'requests');
+          
+          // Query requests by student email
+          const studentRequests = query(
+            requestsRef,
+            where('studentEmail', '==', user.email)
+          );
+          
+          const requestsSnapshot = await getDocs(studentRequests);
+          const totalTickets = requestsSnapshot.size;
+          
+          setStudentStats({ totalTickets });
+        } catch (statsError) {
+          console.error('[Error] Failed to load student statistics:', statsError);
+          setStudentStats({ totalTickets: 0 });
+        }
+      }
+      
+    } catch (error) {
+      console.error('[Error] Failed to load activity logs:', error);
+      // Set empty array if collection doesn't exist or query fails
+      setUserActivityLogs([]);
+    } finally {
+      setLoadingUserProfile(false);
+    }
+  };
+
+  const handleCloseUserProfile = () => {
+    setShowUserProfileModal(false);
+    setSelectedUserProfile(null);
+    setUserActivityLogs([]);
+    setStaffStats({ totalTickets: 0, avgResponseTime: 'N/A' });
+    setStudentStats({ totalTickets: 0 });
   };
 
   const confirmSuspendOrDelete = async () => {
@@ -2074,14 +2212,17 @@ const UserManagement = () => {
                   <label className="form-label-super">
                     Section <span className="required-star">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     className="form-input-super"
                     value={studentSection}
                     onChange={(e) => setStudentSection(e.target.value)}
-                    placeholder="e.g., Einstein, Newton"
                     required
-                  />
+                  >
+                    <option value="">Select section</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </select>
                 </div>
               </div>
 
@@ -2461,13 +2602,35 @@ const UserManagement = () => {
                           aria-label={`Select ${student.name}`}
                         />
                       </div>
-                      <div className="table-cell">{student.id}</div>
-                      <div className="table-cell">
+                      <div 
+                        className="table-cell clickable-cell" 
+                        onClick={() => handleOpenUserProfile(student, 'student')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {student.id}
+                      </div>
+                      <div 
+                        className="table-cell clickable-cell" 
+                        onClick={() => handleOpenUserProfile(student, 'student')}
+                        style={{ cursor: 'pointer' }}
+                      >
                         {student.name}
                         {!student.isActive && <span className="status status-suspended">Suspended</span>}
                       </div>
-                      <div className="table-cell">{student.email}</div>
-                      <div className="table-cell">{student.createdAt}</div>
+                      <div 
+                        className="table-cell clickable-cell" 
+                        onClick={() => handleOpenUserProfile(student, 'student')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {student.email}
+                      </div>
+                      <div 
+                        className="table-cell clickable-cell" 
+                        onClick={() => handleOpenUserProfile(student, 'student')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {student.createdAt}
+                      </div>
                       <div className="table-cell">
                         <button
                           className={`table-action-btn ${student.isActive ? 'suspend' : 'activate'}`}
@@ -2641,13 +2804,35 @@ const UserManagement = () => {
                   </div>
                   {visibleStaff.pageItems.map((staff) => (
                     <div key={staff.firestoreId} className="table-row">
-                      <div className="table-cell">{staff.username}</div>
-                      <div className="table-cell">
+                      <div 
+                        className="table-cell clickable-cell" 
+                        onClick={() => handleOpenUserProfile(staff, 'staff')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {staff.username}
+                      </div>
+                      <div 
+                        className="table-cell clickable-cell" 
+                        onClick={() => handleOpenUserProfile(staff, 'staff')}
+                        style={{ cursor: 'pointer' }}
+                      >
                         {staff.name}
                         {!staff.isActive && <span className="status status-suspended">Suspended</span>}
                       </div>
-                      <div className="table-cell">{staff.email}</div>
-                      <div className="table-cell">{staff.office}</div>
+                      <div 
+                        className="table-cell clickable-cell" 
+                        onClick={() => handleOpenUserProfile(staff, 'staff')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {staff.email}
+                      </div>
+                      <div 
+                        className="table-cell clickable-cell" 
+                        onClick={() => handleOpenUserProfile(staff, 'staff')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {staff.office}
+                      </div>
                       <div className="table-cell">{staff.createdAt}</div>
                       <div className="table-cell">
                         <button
@@ -2694,8 +2879,204 @@ const UserManagement = () => {
       )}
       </>
       )}
+
+      {/* User Profile Modal */}
+      {showUserProfileModal && selectedUserProfile && (
+        <div className="create-student-modal" onClick={(e) => { if (e.target === e.currentTarget) handleCloseUserProfile(); }}>
+          <div className="modal-content-super user-profile-modal">
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={handleCloseUserProfile}
+              aria-label="Close user profile"
+            >
+              <FaTimes />
+            </button>
+
+            <div className="user-profile-container">
+              <div className="user-profile-left">
+                <div className="user-avatar-section">
+                  <div className="user-avatar-placeholder">
+                    {selectedUserProfile.name?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                  <h2 className="user-profile-name">{selectedUserProfile.name}</h2>
+                  <p className="user-profile-role">
+                    {selectedUserProfile.userType === 'student' ? 'Student' : `Staff - ${selectedUserProfile.office || 'N/A'}`}
+                  </p>
+                </div>
+
+                <div className="user-info-section">
+                  <div className="user-info-item">
+                    <FaEnvelope className="user-info-icon" />
+                    <div>
+                      <label>EMAIL ADDRESS</label>
+                      <p>{selectedUserProfile.email}</p>
+                    </div>
+                  </div>
+
+                  {selectedUserProfile.userType === 'student' && (
+                    <>
+                      <div className="user-info-item">
+                        <FaListAlt className="user-info-icon" />
+                        <div>
+                          <label>STUDENT ID</label>
+                          <p>{selectedUserProfile.id}</p>
+                        </div>
+                      </div>
+                      <div className="user-info-item">
+                        <FaSchool className="user-info-icon" />
+                        <div>
+                          <label>GRADE & SECTION</label>
+                          <p>{selectedUserProfile.gradeLevel} - {selectedUserProfile.section}</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedUserProfile.userType === 'staff' && (
+                    <div className="user-info-item">
+                      <FaBuilding className="user-info-icon" />
+                      <div>
+                        <label>USERNAME</label>
+                        <p>{selectedUserProfile.username}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="user-info-item">
+                    <FaCalendarAlt className="user-info-icon" />
+                    <div>
+                      <label>MEMBER SINCE</label>
+                      <p>{selectedUserProfile.createdAt}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="admin-action-section">
+                  <h3><FaShieldAlt /> ADMINISTRATIVE ACTION</h3>
+                  
+                  <button 
+                    className="admin-action-btn edit"
+                    onClick={() => {
+                      handleCloseUserProfile();
+                      // Open edit form based on user type
+                      if (selectedUserProfile.userType === 'student') {
+                        // For students, we'd need to add edit functionality
+                        alert('Edit student profile feature - coming soon');
+                      } else {
+                        // For staff, we'd need to add edit functionality  
+                        alert('Edit staff profile feature - coming soon');
+                      }
+                    }}
+                  >
+                    <FaKey /> Edit Profile
+                  </button>
+                  
+                  <button 
+                    className="admin-action-btn reset"
+                    onClick={() => {
+                      setUserToChangePassword(selectedUserProfile);
+                      setShowChangePasswordModal(true);
+                    }}
+                  >
+                    <FaKey /> Change Password
+                  </button>
+                </div>
+              </div>
+
+              <div className="user-profile-right">
+                {selectedUserProfile.userType === 'staff' && (
+                  <div className="user-stats-grid">
+                    <div className="user-stat-card">
+                      <label>TOTAL TICKETS HANDLED</label>
+                      <div className="stat-value">
+                        <FaListAlt className="stat-icon" />
+                        <span>{staffStats.totalTickets}</span>
+                      </div>
+                      <p className="stat-period">ALL TIME</p>
+                    </div>
+                    <div className="user-stat-card">
+                      <label>AVG. RESOLUTION TIME</label>
+                      <div className="stat-value">
+                        <span>{staffStats.avgResponseTime}</span>
+                      </div>
+                      <p className="stat-period">ALL TIME</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedUserProfile.userType === 'student' && (
+                  <div className="user-stats-grid">
+                    <div className="user-stat-card">
+                      <label>TOTAL TICKETS SUBMITTED</label>
+                      <div className="stat-value">
+                        <FaListAlt className="stat-icon" />
+                        <span>{studentStats.totalTickets}</span>
+                      </div>
+                      <p className="stat-period">ALL TIME</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="activity-history-section">
+                  <h3>System Activity History</h3>
+                  
+                  {loadingUserProfile ? (
+                    <div className="activity-loading">
+                      <LoadingSpinner />
+                      <p>Loading activity logs...</p>
+                    </div>
+                  ) : userActivityLogs.length === 0 ? (
+                    <div className="activity-empty">
+                      <p>No activity logs found</p>
+                    </div>
+                  ) : (
+                    <div className="activity-log-list">
+                      {userActivityLogs.slice(0, 10).map((log) => (
+                        <div key={log.id} className="activity-log-item">
+                          <div className="activity-icon">
+                            <FaCheck />
+                          </div>
+                          <div className="activity-details">
+                            <p className="activity-action">{log.action || 'System activity'}</p>
+                            <p className="activity-time">
+                              {log.timestamp ? new Date(log.timestamp).toLocaleDateString() + ' ' + new Date(log.timestamp).toLocaleTimeString() : 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button className="load-full-audit-btn">
+                    <FaListAlt /> Load full Audit Log
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && userToChangePassword && (
+        <ChangePasswordModal
+          user={userToChangePassword}
+          onClose={() => {
+            setShowChangePasswordModal(false);
+            setUserToChangePassword(null);
+          }}
+          onPasswordChanged={() => {
+            setShowChangePasswordModal(false);
+            setUserToChangePassword(null);
+            handleCloseUserProfile();
+          }}
+        />
+      )}
     </div>
   );
 };
+
+
 
 export default UserManagement;

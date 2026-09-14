@@ -7,7 +7,8 @@ import {
   FaThumbsUp, 
   FaUserCircle, 
   FaSignOutAlt,
-  FaTimes
+  FaTimes,
+  FaTrophy
 } from 'react-icons/fa';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -114,6 +115,16 @@ const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile, isOpe
           >
             <FaChartLine className="sidebar-icon" />
             <span className="sidebar-label">Analytics</span>
+          </div>
+          
+          <div
+            className={`sidebar-item ${activePage === 'my-performance' ? 'active' : ''}`}
+            onClick={() => handleItemClick('my-performance')}
+            role="button"
+            tabIndex={0}
+          >
+            <FaTrophy className="sidebar-icon" />
+            <span className="sidebar-label">My Performance</span>
           </div>
           
           <div

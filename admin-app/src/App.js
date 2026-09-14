@@ -9,6 +9,7 @@ import MyTickets from './components/MyTickets';
 import TicketDetails from './components/TicketDetails';
 import Analytics from './components/Analytics';
 import BulletinBoard from './components/BulletinBoard';
+import MyPerformance from './components/MyPerformance';
 import Feedback from './components/Feedback';
 import ProfileSettings from './components/ProfileSettings';
 import './App.css';
@@ -212,6 +213,11 @@ function App() {
             <Analytics 
               department={selectedDepartment} 
               onViewRequest={handleViewTicket} 
+            />
+          )}
+          {activePage === 'my-performance' && (
+            <MyPerformance 
+              userData={JSON.parse(localStorage.getItem('staffData') || '{}')}
             />
           )}
           {activePage === 'bulletin' && (

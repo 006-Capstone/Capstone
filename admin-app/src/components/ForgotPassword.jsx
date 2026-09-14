@@ -63,7 +63,11 @@ const ForgotPassword = ({ onClose }) => {
       setEmail(staff.email);
 
       // Send verification code to staff's registered email
-      const response = await fetch('http://localhost:5000/api/send-reset-code', {
+      const API_URL = process.env.NODE_ENV === 'production' 
+        ? '' // Vercel will handle /api routes automatically
+        : 'http://localhost:3000'; // Point to student-app in development
+      
+      const response = await fetch(`${API_URL}/api/send-reset-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,7 +116,11 @@ const ForgotPassword = ({ onClose }) => {
       }
 
       // Verify code with backend
-      const response = await fetch('http://localhost:5000/api/verify-reset-code', {
+      const API_URL = process.env.NODE_ENV === 'production' 
+        ? '' // Vercel will handle /api routes automatically
+        : 'http://localhost:3000'; // Point to student-app in development
+      
+      const response = await fetch(`${API_URL}/api/verify-reset-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -160,7 +168,11 @@ const ForgotPassword = ({ onClose }) => {
       }
 
       // Update password using backend API with Firebase Admin SDK
-      const response = await fetch('http://localhost:5000/api/reset-password', {
+      const API_URL = process.env.NODE_ENV === 'production' 
+        ? '' // Vercel will handle /api routes automatically
+        : 'http://localhost:3000'; // Point to student-app in development
+      
+      const response = await fetch(`${API_URL}/api/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -198,7 +210,11 @@ const ForgotPassword = ({ onClose }) => {
     setVerificationCode(''); // Clear previous code
 
     try {
-      const response = await fetch('http://localhost:5000/api/send-reset-code', {
+      const API_URL = process.env.NODE_ENV === 'production' 
+        ? '' // Vercel will handle /api routes automatically
+        : 'http://localhost:3000'; // Point to student-app in development
+      
+      const response = await fetch(`${API_URL}/api/send-reset-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

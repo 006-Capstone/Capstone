@@ -13,7 +13,9 @@ import {
   FaUserFriends,
   FaCheckCircle,
   FaStar,
-  FaChevronRight
+  FaChevronRight,
+  FaChartLine,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -21,6 +23,7 @@ import LoadingSpinner from './LoadingSpinner';
 import NotificationBell from './NotificationBell';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import Toast from './Toast';
+import PerformanceMonitor from './PerformanceMonitor';
 import '../styles/Analytics.css';
 
 const EMPTY_FILTER = { from: '', to: '' };
@@ -112,6 +115,7 @@ const QUARTER_FILTER_CONFIG = {
 };
 
 const Analytics = () => {
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'performance'
   const [loading, setLoading] = useState(true);
   const [totalRequests, setTotalRequests] = useState(0);
   const [avgResolution, setAvgResolution] = useState('0hrs');
@@ -694,6 +698,27 @@ const Analytics = () => {
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="analytics-tabs">
+        <button
+          className={`analytics-tab ${activeTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          <FaChartLine />
+          <span>Overview & Reports</span>
+        </button>
+        <button
+          className={`analytics-tab ${activeTab === 'performance' ? 'active' : ''}`}
+          onClick={() => setActiveTab('performance')}
+        >
+          <FaExclamationTriangle />
+          <span>Performance Monitor</span>
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' ? (
+        <div className="analytics-overview-content">
       {isFilterActive && (
         <div className="filter-summary">
           <FaCalendarAlt className="filter-summary-icon" aria-hidden="true" />
@@ -1129,6 +1154,11 @@ const Analytics = () => {
           </table>
         </div>
       </div>
+      </div>
+      ) : (
+        /* Performance Monitor Tab */
+        <PerformanceMonitor />
+      )}
 
       {toast && (
         <Toast

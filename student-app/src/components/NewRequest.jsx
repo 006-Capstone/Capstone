@@ -516,6 +516,13 @@ function NewRequest({ onNavigate }) {
                   id="subject"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
+                  onMouseDown={(e) => {
+                    // Scroll into view immediately when mouse is pressed
+                    e.target.scrollIntoView({ 
+                      behavior: 'auto',
+                      block: 'center'
+                    });
+                  }}
                   disabled={!selectedOffice}
                   className="subject-select"
                 >

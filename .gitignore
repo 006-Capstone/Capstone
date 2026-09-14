@@ -6,11 +6,19 @@ node_modules/
 .env
 */.env
 **/.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Firebase service account keys (NEVER commit these!)
 serviceAccountKey.json
 */serviceAccountKey.json
 **/*serviceAccountKey.json
+
+# Markdown documentation files
+*.md
+**/*.md
 
 # Testing
 /coverage
@@ -21,10 +29,6 @@ serviceAccountKey.json
 
 # Misc
 .DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 npm-debug.log*
 yarn-debug.log*

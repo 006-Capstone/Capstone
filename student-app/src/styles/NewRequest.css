@@ -12,6 +12,8 @@
   overflow-x: hidden;
   gap: var(--space-4);
   box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
 /* ---- Two-Column Content Grid ---- */
@@ -35,6 +37,7 @@
   gap: var(--space-4, 16px);
   width: 100%;
   box-sizing: border-box;
+  position: relative;
 }
 
 .form-section-card {
@@ -46,6 +49,8 @@
   width: 100%;
   box-sizing: border-box;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  position: relative;
+  z-index: 1;
 }
 
 .form-section-card:hover {
@@ -236,6 +241,8 @@
 /* ---- Input Field Groups ---- */
 .input-field-group {
   margin-bottom: var(--space-4);
+  position: relative;
+  isolation: isolate;
 }
 
 .input-field-group:last-child {

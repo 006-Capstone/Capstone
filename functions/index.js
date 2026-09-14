@@ -329,3 +329,60 @@ exports.sendStaffCredentialsEmail = onCall({
     throw new HttpsError("internal", "Failed to send email: " + error.message);
   }
 });
+
+/**
+ * Update user password (Admin only)
+ * Allows superadmin to change any user's password
+ */
+const admin = require("firebase-admin");
+
+// Initialize Firebase Admin if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+exports.updateUserPassword = onCall({
+  cors: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    /firebase\.app$/,
+    /\.web\.app$/,
+    /\.firebaseapp\.com$/,
+  ],
+}, async (request) => {
+  const {uid, newPassword} = request.data;
+
+  // Validate input
+  if (!uid || !newPassword) {
+    throw new HttpsError("invalid-argument", "Missing uid or newPassword");
+  }
+
+  // Validate password strength
+  if (newPassword.length < 8) {
+    throw new HttpsError(
+        "invalid-argument",
+        "Password must be at least 8 characters long",
+    );
+  }
+
+  try {
+    // Update user password in Firebase Auth
+    await admin.auth().updateUser(uid, {
+      password: newPassword,
+    });
+
+    logger.info(`Password updated for user: ${uid}`);
+
+    return {
+      success: true,
+      message: "Password updated successfully",
+    };
+  } catch (error) {
+    logger.error("Error updating password:", error);
+    throw new HttpsError(
+        "internal",
+        "Failed to update password: " + error.message,
+    );
+  }
+});

@@ -1,6 +1,13 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Create Gmail SMTP transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD
+  }
+});
 
 // In-memory store for verification codes
 // Note: In production with multiple serverless instances, use Redis or database
@@ -41,11 +48,11 @@ export default async function handler(req, res) {
       studentId
     });
 
-    const fromEmail = process.env.FROM_EMAIL || 'Academia De San Jose <noreply@resend.dev>';
+    const fromEmail = process.env.GMAIL_USER || 'academiadesanjose3@gmail.com';
 
-    // Send email with Resend
-    const { data, error } = await resend.emails.send({
-      from: fromEmail,
+    // Send email with Gmail SMTP
+    const info = await transporter.sendMail({
+      from: `Academia De San Jose <${fromEmail}>`,
       to: email,
       subject: 'Password Reset Verification Code',
       html: `
@@ -92,19 +99,11 @@ export default async function handler(req, res) {
       `
     });
 
-    if (error) {
-      console.error('[Error] Failed to send reset code:', error);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to send verification code' 
-      });
-    }
-
-    console.log('[Success] Reset code sent:', data.id);
+    console.log('[Success] Reset code sent:', info.messageId);
     return res.status(200).json({ 
       success: true,
       message: 'Verification code sent to email',
-      messageId: data.id
+      messageId: info.messageId
     });
 
   } catch (error) {

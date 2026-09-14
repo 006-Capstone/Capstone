@@ -700,14 +700,18 @@ const GuestLogin = () => {
                   </div>
                   <div className="form-group-guest">
                     <label className="form-label-guest" htmlFor="guestSection">Section <span className="required-star">*</span></label>
-                    <input
+                    <select
                       id="guestSection"
-                      type="text"
                       className="form-input-guest"
                       value={section}
                       onChange={(e) => setSection(e.target.value)}
-                      placeholder="e.g. St. Augustine"
-                    />
+                      required
+                    >
+                      <option value="">Select section</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                    </select>
                   </div>
                 </div>
               </div>
