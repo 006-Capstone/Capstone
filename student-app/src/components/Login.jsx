@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Html5Qrcode } from 'html5-qrcode';
 import { decryptCredentials } from '../utils/qrEncryption';
+import ContactAdmissionsModal from './ContactAdmissionsModal';
 import '../styles/Login.css';
 
 const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
@@ -15,6 +16,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showContactAdmissions, setShowContactAdmissions] = useState(false);
   const [qrScanner, setQrScanner] = useState(null);
   const [scanningStatus, setScanningStatus] = useState('initializing'); // 'initializing', 'ready', 'scanning', 'success', 'error'
 
@@ -642,7 +644,14 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
               </button>
 
               <p className="contact-admissions">
-                New student? <a href="#" className="contact-link">Contact Admissions</a>
+                New student?{' '}
+                <button 
+                  type="button" 
+                  className="contact-link" 
+                  onClick={() => setShowContactAdmissions(true)}
+                >
+                  Contact Admissions
+                </button>
               </p>
 
               <div className="secure-badge">
@@ -728,6 +737,12 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
           </div>
         </div>
       )}
+
+      {/* Contact Admissions Modal */}
+      <ContactAdmissionsModal
+        isOpen={showContactAdmissions}
+        onClose={() => setShowContactAdmissions(false)}
+      />
     </div>
   );
 };
