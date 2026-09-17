@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { 
+  collection, 
+  getDocs, 
+  query, 
+  where, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp, 
+  orderBy 
+} from 'firebase/firestore';
 import { db } from '../firebase';
 import { 
   FaExclamationTriangle, 
@@ -11,9 +22,18 @@ import {
   FaExchangeAlt,
   FaBrain,
   FaLightbulb,
-  FaSearch,
-  FaDownload,
-  FaFileAlt
+  FaSearch, 
+  FaFileAlt,
+  FaDollarSign,
+  FaBook,
+  FaClipboardList,
+  FaUserFriends,
+  FaTrashAlt,
+  FaChevronRight,
+  FaCheck,
+  FaGraduationCap,
+  FaCogs,
+  FaClipboardCheck
 } from 'react-icons/fa';
 import {
   calculateStaffRiskScore,
@@ -30,7 +50,6 @@ import {
   detectAnomalies,
   generateSmartRecommendations
 } from '../utils/groqService';
-import { exportCompleteReport } from '../utils/performanceExport';
 import { createNTE, downloadNTE, hasPendingNTE } from '../utils/nteGenerator';
 import LoadingSpinner from './LoadingSpinner';
 import NudgeModal from './NudgeModal';
@@ -246,6 +265,60 @@ const PerformanceMonitor = () => {
     }
   };
 
+  const handleUpdateTaskStatus = async (taskId, newStatus) => {
+    try {
+      await updateDoc(doc(db, 'performance_tasks', taskId), {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      setPerformanceTasks(prev =>
+        prev.map(t => (t.id === taskId ? { ...t, status: newStatus } : t))
+      );
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      alert('Failed to update task status.');
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('Are you sure you want to dismiss this improvement task?')) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'performance_tasks', taskId));
+      setPerformanceTasks(prev => prev.filter(t => t.id !== taskId));
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      alert('Failed to dismiss task.');
+    }
+  };
+
+  const getTaskTypeIcon = (type) => {
+    switch (type) {
+      case 'training':
+        return <FaGraduationCap className="task-badge-icon" />;
+      case 'process_improvement':
+        return <FaCogs className="task-badge-icon" />;
+      case 'hire':
+        return <FaUsers className="task-badge-icon" />;
+      default:
+        return <FaClipboardList className="task-badge-icon" />;
+    }
+  };
+
+  const getTaskTypeLabel = (type) => {
+    switch (type) {
+      case 'training':
+        return 'Staff Training';
+      case 'process_improvement':
+        return 'Process Improvement';
+      case 'hire':
+        return 'Capacity & Staffing';
+      default:
+        return type ? type.replace(/_/g, ' ') : 'Operational Task';
+    }
+  };
+
   const handleSendNudge = (staff) => {
     setSelectedStaff(staff);
     setNudgeModalOpen(true);
@@ -424,7 +497,8 @@ const PerformanceMonitor = () => {
             createdAt: serverTimestamp(),
             createdBy: 'superadmin'
           });
-          alert('✅ Recommendation has been recorded as a task for follow-up.');
+          loadPerformanceTasks();
+          alert('Recommendation has been recorded as a task for follow-up.');
         } catch (error) {
           console.error('Error creating task:', error);
           alert('Failed to create task record.');
@@ -465,22 +539,6 @@ const PerformanceMonitor = () => {
     
     // Unknown type
     alert('This recommendation type is not yet supported for automatic application.');
-  };
-
-  const handleExportReport = () => {
-    const exportData = {
-      staffBottlenecks,
-      departmentData,
-      systemHealth,
-      lastUpdated
-    };
-    
-    try {
-      exportCompleteReport(exportData);
-    } catch (error) {
-      console.error('Error exporting report:', error);
-      alert('Failed to export report. Please try again.');
-    }
   };
 
   const handleGenerateNTE = async (staff) => {
@@ -556,14 +614,6 @@ const PerformanceMonitor = () => {
           </div>
         </div>
         <div className="health-banner-actions">
-          <button 
-            className="btn-export-report"
-            onClick={handleExportReport}
-            title="Export Complete Performance Report"
-          >
-            <FaDownload />
-            <span>Export Report</span>
-          </button>
           <div className="last-updated">
             <FaClock />
             <span>Updated: {lastUpdated.toLocaleTimeString()}</span>
@@ -578,37 +628,89 @@ const PerformanceMonitor = () => {
       </div>
       
       <div className="department-grid">
-        {departmentData.map(dept => (
-          <div key={dept.office} className={`dept-card dept-${dept.status}`}>
-            <div className="dept-header">
-              <h4>{dept.office}</h4>
-              <span className={`status-badge status-${dept.status}`}>
-                {dept.status.replace('-', ' ').toUpperCase()}
-              </span>
+        {departmentData.map(dept => {
+          const deptKey = (dept.office || '').toLowerCase();
+          const getOfficeIcon = () => {
+            switch (deptKey) {
+              case 'finance': return <FaDollarSign />;
+              case 'library': return <FaBook />;
+              case 'registrar': return <FaClipboardList />;
+              case 'guidance': return <FaUserFriends />;
+              default: return <FaUsers />;
+            }
+          };
+
+          const insightText = dept.overdueTickets > 0
+            ? `${dept.overdueTickets} ticket${dept.overdueTickets > 1 ? 's' : ''} past resolution deadline`
+            : dept.atRiskTickets > 0
+              ? `${dept.atRiskTickets} ticket${dept.atRiskTickets > 1 ? 's' : ''} nearing deadline (<24h)`
+              : dept.activeTickets === 0
+                ? 'Queue clear • Zero backlog'
+                : 'Optimal pace • 100% on-time resolution';
+
+          return (
+            <div key={dept.office} className={`dept-card dept-${dept.status}`}>
+              {/* Card Header: Avatar Icon, Name, Staff Count & Status Pill */}
+              <div className="dept-card-header">
+                <div className="dept-title-group">
+                  <div className={`dept-avatar-icon ${deptKey}`}>
+                    {getOfficeIcon()}
+                  </div>
+                  <div className="dept-title-meta">
+                    <h4 className="dept-name">{dept.office}</h4>
+                    <span className="dept-staff-count">
+                      <FaUsers className="mini-icon" /> {dept.staffCount} staff member{dept.staffCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+                <div className={`dept-health-pill ${dept.status}`}>
+                  <span className="health-pill-dot" />
+                  <span>{dept.status.replace('-', ' ')}</span>
+                </div>
+              </div>
+
+              {/* Resolution Health Bar & On-Time Rate */}
+              <div className="dept-sla-section">
+                <div className="sla-labels-row">
+                  <span className="sla-title">On-Time Resolution Rate</span>
+                  <span className={`sla-percentage ${dept.status}`}>{dept.onTimePercentage}%</span>
+                </div>
+                <div className="sla-progress-track">
+                  <div 
+                    className={`sla-progress-bar ${dept.status}`} 
+                    style={{ width: `${Math.max(5, dept.onTimePercentage)}%` }} 
+                  />
+                </div>
+              </div>
+
+              {/* 3 Key Metrics Grid */}
+              <div className="dept-metrics-grid">
+                <div className="dept-metric-cell">
+                  <span className="metric-val">{dept.activeTickets}</span>
+                  <span className="metric-lbl">Active</span>
+                </div>
+                <div className={`dept-metric-cell ${dept.atRiskTickets > 0 ? 'warning-cell' : ''}`}>
+                  <span className="metric-val">{dept.atRiskTickets}</span>
+                  <span className="metric-lbl">At Risk</span>
+                </div>
+                <div className={`dept-metric-cell ${dept.overdueTickets > 0 ? 'critical-cell' : ''}`}>
+                  <span className="metric-val">{dept.overdueTickets}</span>
+                  <span className="metric-lbl">Overdue</span>
+                </div>
+              </div>
+
+              {/* Contextual Operational Footer */}
+              <div className={`dept-card-footer ${dept.status}`}>
+                {dept.status === 'healthy' ? (
+                  <FaCheckCircle className="footer-status-icon healthy" />
+                ) : (
+                  <FaExclamationTriangle className="footer-status-icon alert" />
+                )}
+                <span className="footer-insight-text">{insightText}</span>
+              </div>
             </div>
-            <div className="dept-metrics">
-              <div className="metric">
-                <span className="metric-value">{dept.activeTickets}</span>
-                <span className="metric-label">Active</span>
-              </div>
-              <div className="metric">
-                <span className="metric-value">{dept.overdueTickets}</span>
-                <span className="metric-label">Overdue</span>
-              </div>
-              <div className="metric">
-                <span className="metric-value">{dept.atRiskTickets}</span>
-                <span className="metric-label">At Risk</span>
-              </div>
-              <div className="metric">
-                <span className="metric-value">{dept.onTimePercentage}%</span>
-                <span className="metric-label">On-Time</span>
-              </div>
-            </div>
-            <div className="dept-footer">
-              <FaUsers /> {dept.staffCount} staff member{dept.staffCount !== 1 ? 's' : ''}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Staff Bottleneck Radar */}
@@ -686,19 +788,27 @@ const PerformanceMonitor = () => {
 
       {/* AI-Powered Insights Section */}
       <div className="ai-insights-section">
-        <div className="section-header">
-          <h3>
-            <FaBrain /> AI-Powered Insights
-          </h3>
-          <div className="section-actions">
-            <button 
-              className="btn-ai-refresh" 
-              onClick={refreshAIInsights}
-              disabled={aiInsights.loading}
-            >
-              {aiInsights.loading ? 'Analyzing...' : 'Generate AI Analysis'}
-            </button>
+        <div className="ai-insights-header">
+          <div className="ai-header-left">
+            <h3>
+              <span className="ai-header-icon-wrapper">
+                <FaBrain />
+              </span>
+              AI-Powered Insights
+            </h3>
           </div>
+          {aiInsights.executiveSummary && (
+            <div className="section-actions">
+              <button 
+                className="btn-ai-refresh" 
+                onClick={refreshAIInsights}
+                disabled={aiInsights.loading}
+              >
+                <FaBrain className="btn-icon" />
+                <span>{aiInsights.loading ? 'Analyzing...' : 'Refresh AI Analysis'}</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {aiInsights.error && (
@@ -711,7 +821,27 @@ const PerformanceMonitor = () => {
         {aiInsights.loading && (
           <div className="ai-loading">
             <LoadingSpinner />
-            <p>AI is analyzing performance patterns...</p>
+            <p>AI is analyzing performance patterns and evaluating system health...</p>
+          </div>
+        )}
+
+        {!aiInsights.loading && !aiInsights.error && !aiInsights.executiveSummary && (
+          <div className="ai-empty-prompt">
+            <div className="ai-empty-icon-wrapper">
+              <FaBrain className="ai-empty-brain-icon" />
+            </div>
+            <h4>Evaluate System Performance with AI</h4>
+            <p>
+              Detect operational bottlenecks, identify resolution anomalies, and generate automated improvement recommendations.
+            </p>
+            <button 
+              className="btn-ai-generate-main"
+              onClick={refreshAIInsights}
+              disabled={aiInsights.loading}
+            >
+              <FaBrain className="btn-icon" />
+              <span>Generate AI Analysis</span>
+            </button>
           </div>
         )}
 
@@ -720,8 +850,13 @@ const PerformanceMonitor = () => {
             {/* Executive Summary */}
             <div className="ai-executive-summary">
               <div className="summary-header">
-                <FaLightbulb className="summary-icon" />
-                <h4>Executive Summary</h4>
+                <div className="summary-title-group">
+                  <span className="summary-icon-wrapper">
+                    <FaLightbulb />
+                  </span>
+                  <h4>Executive Summary</h4>
+                </div>
+                <span className="summary-meta-pill">Real-Time Operational Diagnosis</span>
               </div>
               <p className="summary-text">{aiInsights.executiveSummary}</p>
             </div>
@@ -730,10 +865,18 @@ const PerformanceMonitor = () => {
             {aiInsights.anomalies && aiInsights.anomalies.length > 0 && (
               <div className="ai-anomalies">
                 <div className="anomalies-header">
-                  <FaSearch className="anomalies-icon" />
-                  <h4>Anomalies Detected</h4>
-                  <span className={`risk-badge risk-${aiInsights.overallRisk}`}>
-                    {aiInsights.overallRisk?.toUpperCase()} RISK
+                  <div className="anomalies-title-group">
+                    <span className="anomalies-icon-wrapper">
+                      <FaSearch />
+                    </span>
+                    <h4>Anomalies Detected</h4>
+                    <span className="anomalies-count-pill">
+                      {aiInsights.anomalies.length} {aiInsights.anomalies.length === 1 ? 'Pattern' : 'Patterns'}
+                    </span>
+                  </div>
+                  <span className={`risk-badge risk-${aiInsights.overallRisk || 'medium'}`}>
+                    <span className="risk-dot"></span>
+                    {(aiInsights.overallRisk || 'medium').toUpperCase()} RISK
                   </span>
                 </div>
                 <div className="anomalies-list">
@@ -741,6 +884,7 @@ const PerformanceMonitor = () => {
                     <div key={index} className={`anomaly-card severity-${anomaly.severity}`}>
                       <div className="anomaly-header">
                         <span className={`severity-badge ${anomaly.severity}`}>
+                          <span className="severity-dot"></span>
                           {anomaly.severity?.toUpperCase()}
                         </span>
                         <span className="anomaly-type">{anomaly.type?.replace(/_/g, ' ')}</span>
@@ -748,12 +892,14 @@ const PerformanceMonitor = () => {
                       <h5>{anomaly.title}</h5>
                       <p className="anomaly-description">{anomaly.description}</p>
                       <div className="anomaly-footer">
-                        <span className="affected-area">
-                          <strong>Affected:</strong> {anomaly.affectedArea}
-                        </span>
-                        <span className="anomaly-recommendation">
-                          <strong>Action:</strong> {anomaly.recommendation}
-                        </span>
+                        <div className="anomaly-meta-item">
+                          <span className="meta-label">Affected Area:</span>
+                          <span className="meta-value area-value">{anomaly.affectedArea}</span>
+                        </div>
+                        <div className="anomaly-meta-item">
+                          <span className="meta-label">Recommended Action:</span>
+                          <span className="meta-value action-value">{anomaly.recommendation}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -765,15 +911,23 @@ const PerformanceMonitor = () => {
             {aiInsights.smartRecommendations && aiInsights.smartRecommendations.length > 0 && (
               <div className="ai-smart-recommendations">
                 <div className="smart-recs-header">
-                  <FaChartLine className="smart-recs-icon" />
-                  <h4>AI Strategic Recommendations</h4>
+                  <div className="recs-title-group">
+                    <span className="recs-icon-wrapper">
+                      <FaChartLine />
+                    </span>
+                    <h4>AI Strategic Recommendations</h4>
+                  </div>
+                  <span className="recs-count-pill">
+                    {aiInsights.smartRecommendations.length} {aiInsights.smartRecommendations.length === 1 ? 'Action' : 'Actions'}
+                  </span>
                 </div>
                 <div className="smart-recs-list">
                   {aiInsights.smartRecommendations.map((rec, index) => (
                     <div key={index} className={`smart-rec-card priority-${rec.priority}`}>
                       <div className="smart-rec-header">
                         <span className={`priority-badge ${rec.priority}`}>
-                          {rec.priority?.toUpperCase()} PRIORITY
+                          <span className="priority-dot"></span>
+                          {(rec.priority || 'NORMAL').toUpperCase()} PRIORITY
                         </span>
                         <span className="rec-type">{rec.type?.replace(/_/g, ' ')}</span>
                       </div>
@@ -781,34 +935,54 @@ const PerformanceMonitor = () => {
                       <p className="smart-rec-description">{rec.description}</p>
                       
                       {rec.affectedStaff && rec.affectedStaff.length > 0 && (
-                        <div className="affected-staff">
-                          <strong>Affected Staff:</strong> {rec.affectedStaff.join(', ')}
+                        <div className="rec-meta-box affected-staff-box">
+                          <div className="rec-meta-label">
+                            <FaUsers className="meta-icon" /> Assigned / Affected Staff
+                          </div>
+                          <div className="staff-tags-container">
+                            {rec.affectedStaff.map((staff, idx) => (
+                              <span key={idx} className="staff-tag-pill">
+                                <span className="staff-tag-avatar">{staff.charAt(0).toUpperCase()}</span>
+                                <span className="staff-tag-name">{staff}</span>
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       )}
                       
                       {rec.expectedImpact && (
-                        <div className="expected-impact">
-                          <strong>Expected Impact:</strong> {rec.expectedImpact}
+                        <div className="rec-meta-box impact-box">
+                          <div className="rec-meta-label">
+                            <FaLightbulb className="meta-icon impact-icon" /> Expected Operational Impact
+                          </div>
+                          <p className="rec-impact-text">{rec.expectedImpact}</p>
                         </div>
                       )}
                       
                       {rec.steps && rec.steps.length > 0 && (
-                        <div className="implementation-steps">
-                          <strong>Implementation Steps:</strong>
-                          <ol>
+                        <div className="rec-steps-box">
+                          <div className="rec-meta-label">
+                            <FaClipboardCheck className="meta-icon" /> Implementation Steps
+                          </div>
+                          <ol className="rec-steps-list">
                             {rec.steps.map((step, i) => (
-                              <li key={i}>{step}</li>
+                              <li key={i} className="rec-step-item">
+                                <span className="step-num">{i + 1}</span>
+                                <span className="step-text">{step}</span>
+                              </li>
                             ))}
                           </ol>
                         </div>
                       )}
                       
-                      <button 
-                        className="rec-apply-btn"
-                        onClick={() => handleApplyRecommendation(rec)}
-                      >
-                        Apply Recommendation
-                      </button>
+                      <div className="rec-card-footer">
+                        <button 
+                          className="rec-apply-btn"
+                          onClick={() => handleApplyRecommendation(rec)}
+                        >
+                          Apply Recommendation
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -861,56 +1035,151 @@ const PerformanceMonitor = () => {
       {/* Performance Tasks */}
       {performanceTasks.length > 0 && (
         <div className="performance-tasks-section">
-          <div className="section-header">
-            <h3>📋 Performance Improvement Tasks</h3>
-            <p>Track and manage applied AI recommendations</p>
+          <div className="section-header performance-tasks-header">
+            <div className="tasks-header-left">
+              <h3>
+                <span className="tasks-header-icon-wrapper">
+                  <FaClipboardList />
+                </span>
+                Performance Improvement Tasks
+              </h3>
+            </div>
+            <div className="tasks-header-right">
+              <span className="task-count-pill">
+                {performanceTasks.length} {performanceTasks.length === 1 ? 'Action' : 'Actions'}
+              </span>
+            </div>
           </div>
+
           <div className="tasks-grid">
-            {performanceTasks.map(task => (
-              <div key={task.id} className={`task-card priority-${task.priority}`}>
-                <div className="task-header">
-                  <span className={`task-type-badge ${task.type}`}>
-                    {task.type?.replace(/_/g, ' ')}
-                  </span>
-                  <span className={`task-status-badge ${task.status}`}>
-                    {task.status}
-                  </span>
-                </div>
-                <h4>{task.title}</h4>
-                <p className="task-description">{task.description}</p>
-                
-                {task.affectedStaff && task.affectedStaff.length > 0 && (
-                  <div className="task-affected">
-                    <strong>Affected Staff:</strong> {task.affectedStaff.join(', ')}
-                  </div>
-                )}
-                
-                {task.steps && task.steps.length > 0 && (
-                  <div className="task-steps">
-                    <strong>Implementation Steps:</strong>
-                    <ol>
-                      {task.steps.map((step, i) => (
-                        <li key={i}>{step}</li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-                
-                {task.expectedImpact && (
-                  <div className="task-impact">
-                    <strong>Expected Impact:</strong> {task.expectedImpact}
-                  </div>
-                )}
-                
-                <div className="task-footer">
-                  <span className="task-date">
-                    Created: {task.createdAt?.toDate ? task.createdAt.toDate().toLocaleDateString() : 'N/A'}
-                  </span>
-                </div>
+            {performanceTasks.map(task => {
+                  const isCompleted = task.status === 'completed';
+                  const isInProgress = task.status === 'in_progress';
+                  const priorityClass = task.priority || 'medium';
+
+                  return (
+                    <div 
+                      key={task.id} 
+                      className={`task-card priority-${priorityClass} task-status-${task.status}`}
+                    >
+                      <div className="task-card-header">
+                        <div className="task-card-badges">
+                          <span className={`task-type-badge ${task.type}`}>
+                            {getTaskTypeIcon(task.type)}
+                            <span>{getTaskTypeLabel(task.type)}</span>
+                          </span>
+                          <span className={`task-priority-badge priority-${priorityClass}`}>
+                            <span className="priority-dot"></span>
+                            {(task.priority || 'Normal').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="task-card-controls">
+                          <span className={`task-status-badge ${task.status}`}>
+                            {isCompleted && <FaCheckCircle className="status-badge-icon" />}
+                            {isInProgress && <FaClock className="status-badge-icon" />}
+                            {task.status?.replace(/_/g, ' ')}
+                          </span>
+                          <button 
+                            className="task-delete-btn"
+                            onClick={() => handleDeleteTask(task.id)}
+                            title="Dismiss task"
+                            aria-label="Dismiss task"
+                          >
+                            <FaTrashAlt />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="task-card-body">
+                        <h4 className="task-title">{task.title}</h4>
+                        <p className="task-description">{task.description}</p>
+                        
+                        {task.affectedStaff && task.affectedStaff.length > 0 && (
+                          <div className="task-meta-box affected-staff-box">
+                            <div className="meta-box-label">
+                              <FaUserFriends className="meta-icon" />
+                              <span>Assigned / Affected Staff</span>
+                            </div>
+                            <div className="staff-tags-container">
+                              {task.affectedStaff.map((staffName, idx) => (
+                                <span key={idx} className="staff-tag-pill">
+                                  <span className="staff-tag-avatar">{staffName.charAt(0).toUpperCase()}</span>
+                                  <span className="staff-tag-name">{staffName}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {task.steps && task.steps.length > 0 && (
+                          <div className="task-steps-box">
+                            <div className="meta-box-label">
+                              <FaClipboardCheck className="meta-icon" />
+                              <span>Implementation Steps</span>
+                            </div>
+                            <ol className="task-steps-timeline">
+                              {task.steps.map((step, i) => (
+                                <li key={i} className="task-step-item">
+                                  <span className="step-number">{i + 1}</span>
+                                  <span className="step-text">{step}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                        
+                        {task.expectedImpact && (
+                          <div className="task-meta-box impact-box">
+                            <div className="meta-box-label">
+                              <FaLightbulb className="meta-icon impact-icon" />
+                              <span>Expected Operational Impact</span>
+                            </div>
+                            <p className="impact-text">{task.expectedImpact}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="task-card-footer">
+                        <div className="task-date-info">
+                          <FaClock className="date-icon" />
+                          <span>
+                            Created {task.createdAt?.toDate ? task.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
+                          </span>
+                        </div>
+                        <div className="task-footer-actions">
+                          {task.status === 'pending' && (
+                            <button 
+                              className="btn-task-action start-btn"
+                              onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
+                            >
+                              <span>Start Task</span>
+                              <FaChevronRight className="btn-icon" />
+                            </button>
+                          )}
+                          {task.status === 'in_progress' && (
+                            <button 
+                              className="btn-task-action complete-btn"
+                              onClick={() => handleUpdateTaskStatus(task.id, 'completed')}
+                            >
+                              <FaCheck className="btn-icon" />
+                              <span>Mark Completed</span>
+                            </button>
+                          )}
+                          {task.status === 'completed' && (
+                            <button 
+                              className="btn-task-action reopen-btn"
+                              onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
+                            >
+                              <span>Reopen</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
           </div>
-        </div>
       )}
 
       {/* Modals */}

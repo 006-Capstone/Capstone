@@ -21,7 +21,19 @@ import {
   FaBoxOpen,
   FaCalendarAlt,
   FaShieldAlt,
-  FaSchool
+  FaSchool,
+  FaCopy,
+  FaCheckCircle,
+  FaUserGraduate,
+  FaIdCard,
+  FaClock,
+  FaTicketAlt,
+  FaHistory,
+  FaDownload,
+  FaExternalLinkAlt,
+  FaInfoCircle,
+  FaArrowLeft,
+  FaTrashAlt
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
@@ -96,6 +108,11 @@ const UserManagement = () => {
   const [studentStats, setStudentStats] = useState({ totalTickets: 0 });
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [userToChangePassword, setUserToChangePassword] = useState(null);
+  const [copiedField, setCopiedField] = useState('');
+  const [showAllLogs, setShowAllLogs] = useState(false);
+  const [activitySearchTerm, setActivitySearchTerm] = useState('');
+  const [activityCategoryFilter, setActivityCategoryFilter] = useState('all');
+  const [showFullAuditModal, setShowFullAuditModal] = useState(false);
 
   // Archiving state
   const [actionLoading, setActionLoading] = useState(false);
@@ -1151,51 +1168,66 @@ const UserManagement = () => {
     setShowConfirmModal(true);
   };
 
+  // Handle clicking anywhere on a student or staff row
+  const handleRowClick = (e, user, userType) => {
+    // Do not trigger profile opening if clicked on interactive controls (checkbox, action buttons)
+    if (
+      e.target.closest('button') ||
+      e.target.closest('input') ||
+      e.target.closest('.checkbox-cell') ||
+      e.target.closest('.table-cell:last-child')
+    ) {
+      return;
+    }
+    handleOpenUserProfile(user, userType);
+  };
+
   // Open User Profile Modal
   const handleOpenUserProfile = async (user, userType) => {
     setSelectedUserProfile({ ...user, userType });
     setShowUserProfileModal(true);
     setLoadingUserProfile(true);
+    setActivitySearchTerm('');
+    setActivityCategoryFilter('all');
+    setShowFullAuditModal(false);
     
     try {
-      // Fetch activity logs for this user
-      const logsRef = collection(db, 'activityLogs');
-      
-      // Check if the collection exists and has the required index
-      // Query without orderBy first to avoid index requirement issues
-      const logsQuery = query(
-        logsRef,
-        where('userId', '==', user.uid || user.firestoreId)
-      );
-      
-      const logsSnapshot = await getDocs(logsQuery);
-      const logs = logsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate?.() || new Date()
-      }));
-      
-      // Sort on client side and limit to 50
-      const sortedLogs = logs.sort((a, b) => b.timestamp - a.timestamp).slice(0, 50);
-      
-      setUserActivityLogs(sortedLogs);
+      const rawCompiledLogs = [];
 
-      // If staff, fetch their ticket statistics
+      // 1. Fetch activity logs from Firestore collection if present
+      try {
+        const logsRef = collection(db, 'activityLogs');
+        const logsQuery = query(
+          logsRef,
+          where('userId', '==', user.uid || user.firestoreId)
+        );
+        const logsSnapshot = await getDocs(logsQuery);
+        logsSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          rawCompiledLogs.push({
+            id: doc.id,
+            action: data.action || 'System activity recorded',
+            category: data.category || 'general',
+            details: data.details || data.description || '',
+            status: data.status || 'Success',
+            timestamp: data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date())
+          });
+        });
+      } catch (logErr) {
+        console.warn('[ActivityLog] Firestore activityLogs query skipped:', logErr);
+      }
+
+      // 2. If staff, fetch their ticket statistics & interactions
       if (userType === 'staff') {
         try {
           const requestsRef = collection(db, 'requests');
-          
-          // Get ALL requests and filter on client side
           const allRequestsSnapshot = await getDocs(requestsRef);
           
-          // Filter requests by this staff member
-          // Match the same way Analytics does: by assignedTo/claimedBy fields against name
           const staffRequests = allRequestsSnapshot.docs.filter(doc => {
             const data = doc.data();
             const assigned = (data.assignedTo || data.claimedBy || '').toLowerCase();
             const assignedToStaff = data.assignedToStaff || '';
             
-            // Match by assignedTo/claimedBy name or assignedToStaff UID
             return (
               (assigned && assigned === (user.name || '').toLowerCase()) ||
               (user.uid && assignedToStaff === user.uid) ||
@@ -1203,11 +1235,7 @@ const UserManagement = () => {
             );
           });
           
-          // Total tickets (all-time)
           const totalTickets = staffRequests.length;
-          
-          // Calculate average response time (time from creation to resolution)
-          // Only count resolved tickets with both timestamps
           const resolvedTickets = staffRequests.filter(doc => {
             const data = doc.data();
             return data.status === 'Resolved' && data.createdAt && data.resolvedAt;
@@ -1225,41 +1253,112 @@ const UserManagement = () => {
             const avgMs = totalMs / resolvedTickets.length;
             const totalHours = Math.floor(avgMs / (1000 * 60 * 60));
             const totalMinutes = Math.floor((avgMs % (1000 * 60 * 60)) / (1000 * 60));
-            
             avgResponseTime = `${totalHours}h ${totalMinutes}m`;
           }
-          
           setStaffStats({ totalTickets, avgResponseTime });
+
+          // Synthesize ticket audit events for staff
+          staffRequests.forEach(doc => {
+            const data = doc.data();
+            const reqCode = data.requestId || doc.id.slice(0, 8).toUpperCase();
+            const reqCreated = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
+            const reqResolved = data.resolvedAt?.toDate?.() || (data.resolvedAt ? new Date(data.resolvedAt) : null);
+
+            if (reqCreated && !isNaN(reqCreated.getTime())) {
+              rawCompiledLogs.push({
+                id: `stf-claim-${doc.id}`,
+                action: `Claimed Ticket #${reqCode} - "${data.subject || 'Student Request'}"`,
+                category: 'tickets',
+                details: `Office: ${data.office || user.office || 'Assigned Office'} • Student: ${data.studentName || data.name || 'Student'}`,
+                status: data.status || 'Assigned',
+                timestamp: reqCreated
+              });
+            }
+
+            if (reqResolved && !isNaN(reqResolved.getTime()) && data.status === 'Resolved') {
+              rawCompiledLogs.push({
+                id: `stf-resolve-${doc.id}`,
+                action: `Resolved Ticket #${reqCode} for student`,
+                category: 'tickets',
+                details: `Resolution confirmed by staff member`,
+                status: 'Resolved',
+                timestamp: reqResolved
+              });
+            }
+          });
         } catch (statsError) {
           console.error('[Error] Failed to load staff statistics:', statsError);
           setStaffStats({ totalTickets: 0, avgResponseTime: 'N/A' });
         }
       }
 
-      // If student, fetch their ticket statistics
+      // 3. If student, fetch their ticket statistics & submissions
       if (userType === 'student') {
         try {
           const requestsRef = collection(db, 'requests');
-          
-          // Query requests by student email
           const studentRequests = query(
             requestsRef,
             where('studentEmail', '==', user.email)
           );
-          
           const requestsSnapshot = await getDocs(studentRequests);
           const totalTickets = requestsSnapshot.size;
-          
           setStudentStats({ totalTickets });
+
+          // Synthesize ticket audit events for student
+          requestsSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            const reqCode = data.requestId || doc.id.slice(0, 8).toUpperCase();
+            const reqCreated = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null);
+            const reqResolved = data.resolvedAt?.toDate?.() || (data.resolvedAt ? new Date(data.resolvedAt) : null);
+
+            if (reqCreated && !isNaN(reqCreated.getTime())) {
+              rawCompiledLogs.push({
+                id: `stu-req-${doc.id}`,
+                action: `Submitted Request #${reqCode} - "${data.subject || data.topic || 'School Inquiry'}"`,
+                category: 'tickets',
+                details: `Target Office: ${data.office || 'General'} • Priority: ${data.priority || 'Normal'}`,
+                status: data.status || 'Pending',
+                timestamp: reqCreated
+              });
+            }
+
+            if (reqResolved && !isNaN(reqResolved.getTime()) && data.status === 'Resolved') {
+              rawCompiledLogs.push({
+                id: `stu-res-${doc.id}`,
+                action: `Request #${reqCode} marked as Resolved`,
+                category: 'tickets',
+                details: `Office resolution completed`,
+                status: 'Resolved',
+                timestamp: reqResolved
+              });
+            }
+          });
         } catch (statsError) {
           console.error('[Error] Failed to load student statistics:', statsError);
           setStudentStats({ totalTickets: 0 });
         }
       }
-      
+
+      // 4. Synthesize registration / lifecycle audit entry
+      if (user.createdAt) {
+        const userCreated = user.createdAt?.toDate?.() || new Date(user.createdAt);
+        if (!isNaN(userCreated.getTime())) {
+          rawCompiledLogs.push({
+            id: `user-init-${user.id || user.uid || 'entry'}`,
+            action: `Account registered in School Directory`,
+            category: 'security',
+            details: `Enrolled as ${userType === 'student' ? 'Student' : 'Staff Member'} with verified credentials`,
+            status: 'Authorized',
+            timestamp: userCreated
+          });
+        }
+      }
+
+      // Sort chronological descending (latest first)
+      const sortedLogs = rawCompiledLogs.sort((a, b) => b.timestamp - a.timestamp);
+      setUserActivityLogs(sortedLogs);
     } catch (error) {
       console.error('[Error] Failed to load activity logs:', error);
-      // Set empty array if collection doesn't exist or query fails
       setUserActivityLogs([]);
     } finally {
       setLoadingUserProfile(false);
@@ -1272,6 +1371,156 @@ const UserManagement = () => {
     setUserActivityLogs([]);
     setStaffStats({ totalTickets: 0, avgResponseTime: 'N/A' });
     setStudentStats({ totalTickets: 0 });
+    setCopiedField('');
+    setShowAllLogs(false);
+    setActivitySearchTerm('');
+    setActivityCategoryFilter('all');
+    setShowFullAuditModal(false);
+  };
+
+  const formatActivityTimestamp = (ts) => {
+    if (!ts) return { dateStr: 'N/A', relativeStr: '' };
+    const d = ts instanceof Date ? ts : (ts?.toDate ? ts.toDate() : new Date(ts));
+    if (isNaN(d.getTime())) return { dateStr: 'N/A', relativeStr: '' };
+
+    const now = new Date();
+    const diffMs = now - d;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHours = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    let relativeStr = '';
+    if (diffSec < 60) relativeStr = 'Just now';
+    else if (diffMin < 60) relativeStr = `${diffMin}m ago`;
+    else if (diffHours < 24) relativeStr = `${diffHours}h ago`;
+    else if (diffDays === 1) relativeStr = 'Yesterday';
+    else if (diffDays < 7) relativeStr = `${diffDays}d ago`;
+    else relativeStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    const dateStr = d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    return { dateStr, relativeStr };
+  };
+
+  const handleExportAuditCSV = () => {
+    if (!userActivityLogs || userActivityLogs.length === 0) return;
+    const targetLogs = userActivityLogs.filter((log) => {
+      const matchesCat =
+        activityCategoryFilter === 'all' || (log.category || 'general') === activityCategoryFilter;
+      const term = activitySearchTerm.toLowerCase().trim();
+      const matchesTerm =
+        !term ||
+        (log.action && log.action.toLowerCase().includes(term)) ||
+        (log.details && log.details.toLowerCase().includes(term)) ||
+        (log.status && log.status.toLowerCase().includes(term)) ||
+        (log.id && log.id.toLowerCase().includes(term));
+      return matchesCat && matchesTerm;
+    });
+
+    const headers = ['Event ID', 'Timestamp', 'Category', 'Action', 'Details', 'Status'];
+    const rows = targetLogs.map(l => {
+      const ts = l.timestamp instanceof Date ? l.timestamp.toISOString() : String(l.timestamp || '');
+      return [
+        `"${l.id || ''}"`,
+        `"${ts}"`,
+        `"${l.category || 'general'}"`,
+        `"${(l.action || '').replace(/"/g, '""')}"`,
+        `"${(l.details || '').replace(/"/g, '""')}"`,
+        `"${l.status || 'Success'}"`
+      ].join(',');
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const safeName = (selectedUserProfile?.name || 'user').replace(/\s+/g, '_').toLowerCase();
+    link.setAttribute('download', `audit_trail_${safeName}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const renderActivityCategoryIcon = (category) => {
+    switch (category) {
+      case 'tickets':
+        return <FaTicketAlt className="cat-icon tickets" />;
+      case 'security':
+        return <FaKey className="cat-icon security" />;
+      case 'admin':
+        return <FaShieldAlt className="cat-icon admin" />;
+      default:
+        return <FaCheckCircle className="cat-icon general" />;
+    }
+  };
+
+  const filteredActivityLogs = userActivityLogs.filter((log) => {
+    const matchesCategory =
+      activityCategoryFilter === 'all' || (log.category || 'general') === activityCategoryFilter;
+    const term = activitySearchTerm.toLowerCase().trim();
+    const matchesSearch =
+      !term ||
+      (log.action && log.action.toLowerCase().includes(term)) ||
+      (log.details && log.details.toLowerCase().includes(term)) ||
+      (log.status && log.status.toLowerCase().includes(term)) ||
+      (log.id && log.id.toLowerCase().includes(term));
+    return matchesCategory && matchesSearch;
+  });
+
+  const countTickets = userActivityLogs.filter(l => l.category === 'tickets').length;
+  const countSecurity = userActivityLogs.filter(l => l.category === 'security').length;
+  const countAdmin = userActivityLogs.filter(l => l.category === 'admin').length;
+
+  const handleCopyText = (text, fieldName) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(''), 2000);
+  };
+
+  const handleModalSuspendAction = () => {
+    if (!selectedUserProfile) return;
+    const profile = selectedUserProfile;
+    if (profile.userType === 'student') {
+      setSelectedStudent(profile);
+      setConfirmAction('suspend');
+      setShowConfirmModal(true);
+    } else {
+      setSelectedStaff(profile);
+      setConfirmAction('suspend');
+      setShowConfirmModal(true);
+    }
+  };
+
+  const handleModalArchiveAction = () => {
+    if (!selectedUserProfile) return;
+    const profile = selectedUserProfile;
+    if (profile.userType === 'student') {
+      handleArchiveStudent(profile);
+    } else {
+      handleArchiveStaff(profile);
+    }
+  };
+
+  const handleModalDeleteAction = () => {
+    if (!selectedUserProfile) return;
+    const profile = selectedUserProfile;
+    if (profile.userType === 'student') {
+      setSelectedStudent(profile);
+      setSelectedStaff(null);
+    } else {
+      setSelectedStaff(profile);
+      setSelectedStudent(null);
+    }
+    setConfirmAction('delete');
+    setShowConfirmModal(true);
   };
 
   const confirmSuspendOrDelete = async () => {
@@ -1288,18 +1537,19 @@ const UserManagement = () => {
         await updateDoc(doc(db, collectionName, target.firestoreId), {
           isActive: newStatus
         });
-        // Real-time listener will update the list automatically
-        // No need to manually reload
+        if (selectedUserProfile) {
+          setSelectedUserProfile((prev) => (prev ? { ...prev, isActive: newStatus } : null));
+        }
         
         // Wait a moment for Firestore real-time listeners to update
         await new Promise(resolve => setTimeout(resolve, 500));
         showToast(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
       } else if (confirmAction === 'delete') {
         // Delete from Firestore
-        // Note: User will remain in Firebase Auth but cannot login without Firestore document
         await deleteDoc(doc(db, collectionName, target.firestoreId));
-        // Real-time listener will update the list automatically
-        // No need to manually reload
+        if (selectedUserProfile) {
+          handleCloseUserProfile();
+        }
         
         // Wait a moment for Firestore real-time listeners to update
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -1406,6 +1656,9 @@ const UserManagement = () => {
           await loadStaff();
           showToast(`${target.name} has been archived and moved to Archive.`);
         }
+        if (selectedUserProfile) {
+          handleCloseUserProfile();
+        }
       } else if (confirmAction === 'restore') {
         // Restore the member back to Active Staff. Request history is unchanged.
         await updateDoc(doc(db, 'staff', target.firestoreId), {
@@ -1496,6 +1749,757 @@ const UserManagement = () => {
       : confirmAction === 'archive' ? 'archive-confirm-btn'
         : confirmAction === 'restore' || isActivatingAccount ? 'restore-confirm-btn'
           : 'suspend-confirm-btn';
+
+  // Render User Profile as a dedicated subpage within User Management
+  if (selectedUserProfile) {
+    return (
+      <div className="superadmin-page user-management-container user-detail-view-container">
+        {/* Navigation Header */}
+        <div className="user-detail-header-nav">
+          <button
+            type="button"
+            className="user-detail-back-btn"
+            onClick={handleCloseUserProfile}
+            title={`Return to ${selectedUserProfile.userType === 'student' ? 'Students' : 'Staff'} list`}
+          >
+            <FaArrowLeft className="back-btn-icon" />
+            <span>Back to {selectedUserProfile.userType === 'student' ? 'Students' : 'Staff'}</span>
+          </button>
+          <div className="user-detail-header-actions">
+            <NotificationBell />
+          </div>
+        </div>
+
+        {/* User Profile Subpage Body */}
+        <div className="user-profile-page-card">
+          <div className="user-profile-container subpage-mode">
+            {/* Left Panel: Profile Identity & Administrative Controls */}
+            <div className="user-profile-left">
+              {/* Avatar Section */}
+              <div className="user-avatar-section">
+                <div className="user-avatar-placeholder">
+                  {selectedUserProfile.name?.charAt(0)?.toUpperCase() || '?'}
+                </div>
+                <h2 id="profile-subpage-user-name" className="user-profile-name">
+                  {selectedUserProfile.name}
+                </h2>
+                <div className="user-profile-badges">
+                  <span className="user-role-badge">
+                    {selectedUserProfile.userType === 'student' ? (
+                      <>
+                        <FaUserGraduate className="badge-icon" /> Student
+                      </>
+                    ) : (
+                      <>
+                        <FaBuilding className="badge-icon" /> Staff
+                      </>
+                    )}
+                  </span>
+                  <span className={`profile-status-pill ${selectedUserProfile.isActive !== false ? 'active' : 'suspended'}`}>
+                    <span className="status-indicator-dot" />
+                    {selectedUserProfile.isActive !== false ? 'Active Account' : 'Suspended Account'}
+                  </span>
+                </div>
+              </div>
+
+              {/* User Info Details */}
+              <div className="user-info-section">
+                {selectedUserProfile.userType === 'staff' && (
+                  <div className="user-info-item">
+                    <div className="user-info-icon-wrap">
+                      <FaIdCard className="user-info-icon" />
+                    </div>
+                    <div className="user-info-content">
+                      <label>STAFF USERNAME</label>
+                      <div className="info-val-row">
+                        <p>@{selectedUserProfile.username || 'N/A'}</p>
+                        {selectedUserProfile.username && (
+                          <button
+                            type="button"
+                            className="copy-mini-btn"
+                            onClick={() => handleCopyText(selectedUserProfile.username, 'username')}
+                            title="Copy Staff Username"
+                          >
+                            {copiedField === 'username' ? <FaCheck className="copied-check" /> : <FaCopy />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedUserProfile.userType === 'student' && (
+                  <div className="user-info-item">
+                    <div className="user-info-icon-wrap">
+                      <FaIdCard className="user-info-icon" />
+                    </div>
+                    <div className="user-info-content">
+                      <label>STUDENT ID</label>
+                      <div className="info-val-row">
+                        <p>{selectedUserProfile.id || 'N/A'}</p>
+                        {selectedUserProfile.id && (
+                          <button
+                            type="button"
+                            className="copy-mini-btn"
+                            onClick={() => handleCopyText(selectedUserProfile.id, 'id')}
+                            title="Copy Student ID"
+                          >
+                            {copiedField === 'id' ? <FaCheck className="copied-check" /> : <FaCopy />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="user-info-item">
+                  <div className="user-info-icon-wrap">
+                    <FaEnvelope className="user-info-icon" />
+                  </div>
+                  <div className="user-info-content">
+                    <label>EMAIL ADDRESS</label>
+                    <div className="info-val-row">
+                      <p title={selectedUserProfile.email}>{selectedUserProfile.email || 'N/A'}</p>
+                      {selectedUserProfile.email && (
+                        <button
+                          type="button"
+                          className="copy-mini-btn"
+                          onClick={() => handleCopyText(selectedUserProfile.email, 'email')}
+                          title="Copy email address"
+                        >
+                          {copiedField === 'email' ? <FaCheck className="copied-check" /> : <FaCopy />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {selectedUserProfile.userType === 'staff' && (
+                  <div className="user-info-item">
+                    <div className="user-info-icon-wrap">
+                      <FaBuilding className="user-info-icon" />
+                    </div>
+                    <div className="user-info-content">
+                      <label>ASSIGNED OFFICE</label>
+                      <p>{selectedUserProfile.office || 'N/A'}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="user-info-item">
+                  <div className="user-info-icon-wrap">
+                    <FaCalendarAlt className="user-info-icon" />
+                  </div>
+                  <div className="user-info-content">
+                    <label>MEMBER SINCE</label>
+                    <p>{selectedUserProfile.createdAt || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Administrative Action Section */}
+              <div className="admin-action-section">
+                <div className="admin-action-header">
+                  <FaShieldAlt className="admin-action-shield" />
+                  <span>ADMINISTRATIVE ACTIONS</span>
+                </div>
+
+                <div className="admin-action-buttons">
+                  <button 
+                    type="button"
+                    className="admin-action-btn change-pw"
+                    onClick={() => {
+                      setUserToChangePassword(selectedUserProfile);
+                      setShowChangePasswordModal(true);
+                    }}
+                  >
+                    <FaKey /> Change Password
+                  </button>
+
+                  <button 
+                    type="button"
+                    className={`admin-action-btn ${selectedUserProfile.isActive !== false ? 'suspend' : 'activate'}`}
+                    onClick={handleModalSuspendAction}
+                  >
+                    {selectedUserProfile.isActive !== false ? (
+                      <>
+                        <FaBan /> Suspend Account
+                      </>
+                    ) : (
+                      <>
+                        <FaCheck /> Activate Account
+                      </>
+                    )}
+                  </button>
+
+                  <button 
+                    type="button"
+                    className="admin-action-btn archive"
+                    onClick={handleModalArchiveAction}
+                  >
+                    <FaArchive /> Archive User
+                  </button>
+
+                  <button 
+                    type="button"
+                    className="admin-action-btn delete"
+                    onClick={handleModalDeleteAction}
+                  >
+                    <FaTrashAlt /> Delete Account
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Panel: Analytics, Cards & Activity History */}
+            <div className="user-profile-right">
+              <div className="user-profile-right-header">
+                <div>
+                  <h3 className="profile-overview-title">Account Overview & Insights</h3>
+                  <p className="profile-overview-desc">Performance metrics, status overview, and system audit trail.</p>
+                </div>
+              </div>
+
+              {/* Stats Cards Grid */}
+              <div className="user-stats-grid">
+                {selectedUserProfile.userType === 'staff' ? (
+                  <>
+                    <div className="user-stat-card stat-handled">
+                      <div className="stat-card-top">
+                        <span className="stat-card-label">TICKETS HANDLED</span>
+                        <div className="stat-card-icon-wrap">
+                          <FaTicketAlt className="stat-icon" />
+                        </div>
+                      </div>
+                      <div className="stat-value">{staffStats.totalTickets}</div>
+                      <p className="stat-period">All-time handled tickets</p>
+                    </div>
+
+                    <div className="user-stat-card stat-time">
+                      <div className="stat-card-top">
+                        <span className="stat-card-label">AVG. RESOLUTION</span>
+                        <div className="stat-card-icon-wrap">
+                          <FaClock className="stat-icon" />
+                        </div>
+                      </div>
+                      <div className="stat-value text-xl">{staffStats.avgResponseTime}</div>
+                      <p className="stat-period">Resolution efficiency</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="user-stat-card stat-handled">
+                      <div className="stat-card-top">
+                        <span className="stat-card-label">TOTAL REQUESTS</span>
+                        <div className="stat-card-icon-wrap">
+                          <FaTicketAlt className="stat-icon" />
+                        </div>
+                      </div>
+                      <div className="stat-value">{studentStats.totalTickets}</div>
+                      <p className="stat-period">All-time request submissions</p>
+                    </div>
+
+                    <div className="user-stat-card stat-status">
+                      <div className="stat-card-top">
+                        <span className="stat-card-label">PORTAL ACCESS</span>
+                        <div className="stat-card-icon-wrap">
+                          <FaShieldAlt className="stat-icon" />
+                        </div>
+                      </div>
+                      <div className="stat-value text-lg">
+                        {selectedUserProfile.isActive !== false ? 'Permitted' : 'Restricted'}
+                      </div>
+                      <p className="stat-period">Student login authorization</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Activity History Timeline & Audit Trail */}
+              <div className="activity-history-section">
+                <div className="activity-history-header">
+                  <div className="activity-title-wrap">
+                    <FaHistory className="history-icon" />
+                    <div>
+                      <h4>System Activity History & Audit Trail</h4>
+                      <p className="activity-header-sub">Chronological event log and security audit trail</p>
+                    </div>
+                  </div>
+                  <div className="activity-header-actions">
+                    <span className="activity-count-badge">
+                      {filteredActivityLogs.length} of {userActivityLogs.length} {userActivityLogs.length === 1 ? 'event' : 'events'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Filter & Search Toolbar */}
+                <div className="activity-toolbar">
+                  <div className="activity-search-box">
+                    <FaSearch className="activity-search-icon" />
+                    <input
+                      type="text"
+                      className="activity-search-input"
+                      placeholder="Search logs by action, ticket ID, or date..."
+                      value={activitySearchTerm}
+                      onChange={(e) => setActivitySearchTerm(e.target.value)}
+                    />
+                    {activitySearchTerm && (
+                      <button 
+                        type="button" 
+                        className="activity-clear-search-btn"
+                        onClick={() => setActivitySearchTerm('')}
+                        aria-label="Clear search"
+                      >
+                        <FaTimes />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="activity-category-pills">
+                    <button
+                      type="button"
+                      className={`activity-pill ${activityCategoryFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setActivityCategoryFilter('all')}
+                    >
+                      All ({userActivityLogs.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`activity-pill ${activityCategoryFilter === 'tickets' ? 'active' : ''}`}
+                      onClick={() => setActivityCategoryFilter('tickets')}
+                    >
+                      Requests ({countTickets})
+                    </button>
+                    <button
+                      type="button"
+                      className={`activity-pill ${activityCategoryFilter === 'security' ? 'active' : ''}`}
+                      onClick={() => setActivityCategoryFilter('security')}
+                    >
+                      Security ({countSecurity})
+                    </button>
+                    <button
+                      type="button"
+                      className={`activity-pill ${activityCategoryFilter === 'admin' ? 'active' : ''}`}
+                      onClick={() => setActivityCategoryFilter('admin')}
+                    >
+                      Admin ({countAdmin})
+                    </button>
+                  </div>
+                </div>
+                
+                {loadingUserProfile ? (
+                  <div className="activity-loading">
+                    <LoadingSpinner />
+                    <p>Loading activity logs and audit records...</p>
+                  </div>
+                ) : filteredActivityLogs.length === 0 ? (
+                  <div className="activity-empty">
+                    <div className="empty-icon-wrap">
+                      <FaHistory />
+                    </div>
+                    <p className="empty-primary">
+                      {activitySearchTerm || activityCategoryFilter !== 'all'
+                        ? 'No matching activity logs found'
+                        : 'No recent activity logs recorded yet'}
+                    </p>
+                    <p className="empty-secondary">
+                      {activitySearchTerm || activityCategoryFilter !== 'all'
+                        ? 'Try clearing your search query or selecting a different category filter.'
+                        : 'Ticket submissions, resolutions, password updates, and administrative changes for this account will appear here.'}
+                    </p>
+                    {(activitySearchTerm || activityCategoryFilter !== 'all') && (
+                      <button
+                        type="button"
+                        className="activity-reset-filters-btn"
+                        onClick={() => {
+                          setActivitySearchTerm('');
+                          setActivityCategoryFilter('all');
+                        }}
+                      >
+                        Reset Filters
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="activity-log-list">
+                    {(showAllLogs ? filteredActivityLogs : filteredActivityLogs.slice(0, 5)).map((log, idx) => {
+                      const { dateStr, relativeStr } = formatActivityTimestamp(log.timestamp);
+                      return (
+                        <div key={log.id || idx} className={`activity-log-item cat-${log.category || 'general'}`}>
+                          <div className="activity-timeline-marker">
+                            <div className={`activity-icon-bubble ${log.category || 'general'}`}>
+                              {renderActivityCategoryIcon(log.category)}
+                            </div>
+                            {idx < (showAllLogs ? filteredActivityLogs.length - 1 : Math.min(filteredActivityLogs.length, 5) - 1) && (
+                              <div className="activity-timeline-line" />
+                            )}
+                          </div>
+                          <div className="activity-details">
+                            <div className="activity-action-row">
+                              <p className="activity-action">{log.action || 'System activity recorded'}</p>
+                              {relativeStr && <span className="activity-relative-pill">{relativeStr}</span>}
+                            </div>
+                            {log.details && (
+                              <p className="activity-sub-detail">{log.details}</p>
+                            )}
+                            <div className="activity-meta-row">
+                              <span className="activity-time" title={dateStr}>
+                                <FaClock className="meta-icon" /> {dateStr}
+                              </span>
+                              {log.status && (
+                                <span className={`activity-status-chip ${log.status.toLowerCase()}`}>
+                                  {log.status}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="activity-footer-controls">
+                      {filteredActivityLogs.length > 5 && (
+                        <button 
+                          type="button" 
+                          className="toggle-logs-btn"
+                          onClick={() => setShowAllLogs(prev => !prev)}
+                        >
+                          <FaListAlt /> {showAllLogs ? 'Show Less' : `View All (${filteredActivityLogs.length}) Logs`}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="toggle-logs-btn secondary"
+                        onClick={() => setShowFullAuditModal(true)}
+                      >
+                        <FaExternalLinkAlt /> Full Audit Explorer
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dedicated Full Audit Log Explorer Modal */}
+        {showFullAuditModal && selectedUserProfile && (
+          <div 
+            className="create-student-modal full-audit-modal-backdrop"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowFullAuditModal(false); }}
+          >
+            <div className="modal-content-super full-audit-modal" role="dialog" aria-modal="true" aria-labelledby="full-audit-title-sub">
+              {/* Modal Header */}
+              <div className="full-audit-header">
+                <div className="full-audit-header-title-group">
+                  <div className="audit-header-icon-wrap">
+                    <FaHistory />
+                  </div>
+                  <div>
+                    <h3 id="full-audit-title-sub" className="full-audit-title">Audit Trail & System Activity Explorer</h3>
+                    <p className="full-audit-subtitle">
+                      Complete audit records for <strong>{selectedUserProfile.name}</strong> • {selectedUserProfile.email || selectedUserProfile.id || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                <div className="full-audit-header-actions">
+                  <button
+                    type="button"
+                    className="full-audit-export-btn"
+                    onClick={handleExportAuditCSV}
+                    disabled={filteredActivityLogs.length === 0}
+                    title="Export audit log to CSV"
+                  >
+                    <FaDownload /> <span>Export CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="modal-close-btn full-audit-close-btn"
+                    onClick={() => setShowFullAuditModal(false)}
+                    aria-label="Close audit explorer"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              </div>
+
+              {/* Summary Metrics Strip */}
+              <div className="audit-metrics-strip">
+                <div className="audit-metric-tile">
+                  <span className="audit-metric-label">TOTAL EVENTS</span>
+                  <span className="audit-metric-val">{userActivityLogs.length}</span>
+                </div>
+                <div className="audit-metric-tile">
+                  <span className="audit-metric-label">TICKETS & REQUESTS</span>
+                  <span className="audit-metric-val">{countTickets}</span>
+                </div>
+                <div className="audit-metric-tile">
+                  <span className="audit-metric-label">SECURITY & ACCESS</span>
+                  <span className="audit-metric-val">{countSecurity}</span>
+                </div>
+                <div className="audit-metric-tile">
+                  <span className="audit-metric-label">ACCOUNT STATUS</span>
+                  <span className={`audit-metric-pill ${selectedUserProfile.isActive !== false ? 'active' : 'suspended'}`}>
+                    {selectedUserProfile.isActive !== false ? 'Active' : 'Suspended'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar */}
+              <div className="full-audit-filter-bar">
+                <div className="full-audit-search-wrap">
+                  <FaSearch className="audit-search-icon" />
+                  <input
+                    type="text"
+                    className="full-audit-search-input"
+                    placeholder="Filter logs by keyword, ticket reference, action type, or date..."
+                    value={activitySearchTerm}
+                    onChange={(e) => setActivitySearchTerm(e.target.value)}
+                  />
+                  {activitySearchTerm && (
+                    <button 
+                      type="button" 
+                      className="activity-clear-search-btn"
+                      onClick={() => setActivitySearchTerm('')}
+                    >
+                      <FaTimes />
+                    </button>
+                  )}
+                </div>
+
+                <div className="full-audit-pills">
+                  <button
+                    type="button"
+                    className={`full-audit-pill ${activityCategoryFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setActivityCategoryFilter('all')}
+                  >
+                    All ({userActivityLogs.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`full-audit-pill ${activityCategoryFilter === 'tickets' ? 'active' : ''}`}
+                    onClick={() => setActivityCategoryFilter('tickets')}
+                  >
+                    Requests ({countTickets})
+                  </button>
+                  <button
+                    type="button"
+                    className={`full-audit-pill ${activityCategoryFilter === 'security' ? 'active' : ''}`}
+                    onClick={() => setActivityCategoryFilter('security')}
+                  >
+                    Security ({countSecurity})
+                  </button>
+                  <button
+                    type="button"
+                    className={`full-audit-pill ${activityCategoryFilter === 'admin' ? 'active' : ''}`}
+                    onClick={() => setActivityCategoryFilter('admin')}
+                  >
+                    Administrative ({countAdmin})
+                  </button>
+                </div>
+              </div>
+
+              {/* Audit Logs Table / Feed */}
+              <div className="full-audit-body">
+                {filteredActivityLogs.length === 0 ? (
+                  <div className="full-audit-empty">
+                    <div className="empty-icon-wrap">
+                      <FaHistory />
+                    </div>
+                    <p className="empty-primary">No audit records found</p>
+                    <p className="empty-secondary">
+                      {activitySearchTerm || activityCategoryFilter !== 'all'
+                        ? 'No events match the current filter criteria.'
+                        : 'No activity logs have been recorded for this user yet.'}
+                    </p>
+                    {(activitySearchTerm || activityCategoryFilter !== 'all') && (
+                      <button
+                        type="button"
+                        className="activity-reset-filters-btn"
+                        onClick={() => {
+                          setActivitySearchTerm('');
+                          setActivityCategoryFilter('all');
+                        }}
+                      >
+                        Reset Filters
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="full-audit-table-wrapper">
+                    <table className="full-audit-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '130px' }}>TIMESTAMP</th>
+                          <th style={{ width: '120px' }}>CATEGORY</th>
+                          <th>ACTION & DETAILS</th>
+                          <th style={{ width: '110px' }}>STATUS</th>
+                          <th style={{ width: '110px' }}>EVENT ID</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredActivityLogs.map((log, idx) => {
+                          const { dateStr, relativeStr } = formatActivityTimestamp(log.timestamp);
+                          return (
+                            <tr key={log.id || idx}>
+                              <td className="audit-cell-time">
+                                <div className="time-primary">{relativeStr}</div>
+                                <div className="time-secondary">{dateStr}</div>
+                              </td>
+                              <td>
+                                <span className={`audit-cat-tag ${log.category || 'general'}`}>
+                                  {renderActivityCategoryIcon(log.category)}
+                                  <span>{log.category === 'tickets' ? 'Request' : log.category === 'security' ? 'Security' : log.category === 'admin' ? 'Admin' : 'General'}</span>
+                                </span>
+                              </td>
+                              <td className="audit-cell-desc">
+                                <div className="audit-action-title">{log.action || 'System activity'}</div>
+                                {log.details && (
+                                  <div className="audit-action-details">{log.details}</div>
+                                )}
+                              </td>
+                              <td>
+                                <span className={`audit-status-badge ${log.status ? log.status.toLowerCase() : 'success'}`}>
+                                  {log.status || 'Logged'}
+                                </span>
+                              </td>
+                              <td>
+                                <code className="audit-event-id">
+                                  {log.id ? String(log.id).slice(0, 10) : `evt-${idx}`}
+                                </code>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="full-audit-footer">
+                <span className="audit-footer-info">
+                  Showing {filteredActivityLogs.length} of {userActivityLogs.length} total recorded events for this account.
+                </span>
+                <button
+                  type="button"
+                  className="full-audit-close-footer-btn"
+                  onClick={() => setShowFullAuditModal(false)}
+                >
+                  Close Explorer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Change Password Modal */}
+        {showChangePasswordModal && userToChangePassword && (
+          <ChangePasswordModal
+            user={userToChangePassword}
+            onClose={() => {
+              setShowChangePasswordModal(false);
+              setUserToChangePassword(null);
+            }}
+            onPasswordChanged={() => {
+              setShowChangePasswordModal(false);
+              setUserToChangePassword(null);
+              showToast('Password updated successfully!');
+            }}
+          />
+        )}
+
+        {/* Confirmation Modal (Suspend / Archive / Delete triggered in profile) */}
+        {showConfirmModal && (selectedStudent || selectedStaff || isBulkAction) && (
+          <div className="create-student-modal">
+            <div className="modal-content confirm-modal">
+              {confirmAction === 'archive' || confirmAction === 'restore' ? (
+                confirmAction === 'archive' ? (
+                  <FaArchive className="confirm-icon archive-icon" aria-hidden="true" />
+                ) : (
+                  <FaUndo className="confirm-icon" aria-hidden="true" />
+                )
+              ) : confirmAction === 'delete' ? (
+                <FaKey className="confirm-icon" aria-hidden="true" />
+              ) : isActivatingAccount ? (
+                <FaCheck className="confirm-icon" aria-hidden="true" />
+              ) : (
+                <FaBan className="confirm-icon suspend-icon" aria-hidden="true" />
+              )}
+              <h2 className="confirm-title">
+                {confirmAction === 'archive'
+                  ? `Archive ${selectedStudent ? 'Student' : 'Staff'} Account?`
+                  : confirmAction === 'delete'
+                    ? `Delete ${selectedStudent ? 'Student' : 'Staff'} Account?`
+                    : confirmAction === 'restore'
+                      ? 'Restore Staff Account?'
+                      : `${(selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend' : 'Activate'} ${selectedStudent ? 'Student' : 'Staff'} Account?`}
+              </h2>
+              <div className="confirm-body">
+                <p>
+                  {confirmAction === 'archive'
+                    ? selectedStudent
+                      ? `Archiving will remove ${selectedStudent.name} from the active student directory and archive their submitted requests. This can be viewed in the Archive tab.`
+                      : `Archiving will mark ${selectedStaff?.name} as archived. Their past handled requests remain intact and they can be restored at any time.`
+                    : confirmAction === 'delete'
+                      ? `Are you sure you want to permanently delete this account? This action cannot be undone.`
+                      : confirmAction === 'restore'
+                        ? `Restoring will re-enable ${selectedStaff?.name}'s account and return them to the active staff list.`
+                        : `Are you sure you want to ${(selectedStudent?.isActive || selectedStaff?.isActive) ? 'suspend' : 'activate'} this account?`}
+                </p>
+                <div className="confirm-user-info">
+                  {selectedStudent ? (
+                    <>
+                      <p><strong>Student ID:</strong> {selectedStudent.id}</p>
+                      <p><strong>Name:</strong> {selectedStudent.name}</p>
+                      <p><strong>Email:</strong> {selectedStudent.email}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p><strong>Name:</strong> {selectedStaff?.name}</p>
+                      <p><strong>Email:</strong> {selectedStaff?.email}</p>
+                      {selectedStaff?.office && <p><strong>Office:</strong> {selectedStaff?.office}</p>}
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button className="cancel-btn-super" onClick={cancelConfirm} disabled={actionLoading}>
+                  Cancel
+                </button>
+                <button
+                  className={confirmBtnClass}
+                  onClick={confirmAction === 'archive' || confirmAction === 'restore' ? confirmArchiveOrRestore : confirmSuspendOrDelete}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Processing...' : confirmBtnLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toast notification */}
+        {toast && (
+          <div className={`action-toast ${toast.type === 'error' ? 'error' : 'success'}`} role="status">
+            <span className="action-toast-message">
+              {toast.type === 'error' ? <FaBan className="action-toast-icon" aria-hidden="true" /> : <FaCheck className="action-toast-icon" aria-hidden="true" />}
+              {toast.message}
+            </span>
+            <button
+              type="button"
+              className="action-toast-close"
+              onClick={() => setToast(null)}
+              aria-label="Dismiss notification"
+            >
+              <FaTimes aria-hidden="true" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="superadmin-page user-management-container">
@@ -2592,7 +3596,9 @@ const UserManagement = () => {
                   {visibleStudents.pageItems.map((student) => (
                     <div
                       key={student.firestoreId || student.id}
-                      className={`table-row ${selectedStudentIds.includes(student.firestoreId) ? 'row-selected' : ''}`}
+                      className={`table-row clickable-user-row ${selectedStudentIds.includes(student.firestoreId) ? 'row-selected' : ''}`}
+                      onClick={(e) => handleRowClick(e, student, 'student')}
+                      title={`Click to view profile & activity history for ${student.name}`}
                     >
                       <div className="table-cell checkbox-cell">
                         <input 
@@ -2602,33 +3608,17 @@ const UserManagement = () => {
                           aria-label={`Select ${student.name}`}
                         />
                       </div>
-                      <div 
-                        className="table-cell clickable-cell" 
-                        onClick={() => handleOpenUserProfile(student, 'student')}
-                        style={{ cursor: 'pointer' }}
-                      >
+                      <div className="table-cell student-id-cell">
                         {student.id}
                       </div>
-                      <div 
-                        className="table-cell clickable-cell" 
-                        onClick={() => handleOpenUserProfile(student, 'student')}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {student.name}
+                      <div className="table-cell user-name-cell">
+                        <span className="user-name-text">{student.name}</span>
                         {!student.isActive && <span className="status status-suspended">Suspended</span>}
                       </div>
-                      <div 
-                        className="table-cell clickable-cell" 
-                        onClick={() => handleOpenUserProfile(student, 'student')}
-                        style={{ cursor: 'pointer' }}
-                      >
+                      <div className="table-cell">
                         {student.email}
                       </div>
-                      <div 
-                        className="table-cell clickable-cell" 
-                        onClick={() => handleOpenUserProfile(student, 'student')}
-                        style={{ cursor: 'pointer' }}
-                      >
+                      <div className="table-cell">
                         {student.createdAt}
                       </div>
                       <div className="table-cell">
@@ -2803,34 +3793,23 @@ const UserManagement = () => {
                     <div className="table-cell">Actions</div>
                   </div>
                   {visibleStaff.pageItems.map((staff) => (
-                    <div key={staff.firestoreId} className="table-row">
-                      <div 
-                        className="table-cell clickable-cell" 
-                        onClick={() => handleOpenUserProfile(staff, 'staff')}
-                        style={{ cursor: 'pointer' }}
-                      >
+                    <div 
+                      key={staff.firestoreId} 
+                      className="table-row clickable-user-row"
+                      onClick={(e) => handleRowClick(e, staff, 'staff')}
+                      title={`Click to view profile & activity history for ${staff.name}`}
+                    >
+                      <div className="table-cell staff-username-cell">
                         {staff.username}
                       </div>
-                      <div 
-                        className="table-cell clickable-cell" 
-                        onClick={() => handleOpenUserProfile(staff, 'staff')}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {staff.name}
+                      <div className="table-cell user-name-cell">
+                        <span className="user-name-text">{staff.name}</span>
                         {!staff.isActive && <span className="status status-suspended">Suspended</span>}
                       </div>
-                      <div 
-                        className="table-cell clickable-cell" 
-                        onClick={() => handleOpenUserProfile(staff, 'staff')}
-                        style={{ cursor: 'pointer' }}
-                      >
+                      <div className="table-cell">
                         {staff.email}
                       </div>
-                      <div 
-                        className="table-cell clickable-cell" 
-                        onClick={() => handleOpenUserProfile(staff, 'staff')}
-                        style={{ cursor: 'pointer' }}
-                      >
+                      <div className="table-cell">
                         {staff.office}
                       </div>
                       <div className="table-cell">{staff.createdAt}</div>
@@ -2880,179 +3859,215 @@ const UserManagement = () => {
       </>
       )}
 
-      {/* User Profile Modal */}
-      {showUserProfileModal && selectedUserProfile && (
-        <div className="create-student-modal" onClick={(e) => { if (e.target === e.currentTarget) handleCloseUserProfile(); }}>
-          <div className="modal-content-super user-profile-modal">
-            <button
-              type="button"
-              className="modal-close-btn"
-              onClick={handleCloseUserProfile}
-              aria-label="Close user profile"
-            >
-              <FaTimes />
-            </button>
 
-            <div className="user-profile-container">
-              <div className="user-profile-left">
-                <div className="user-avatar-section">
-                  <div className="user-avatar-placeholder">
-                    {selectedUserProfile.name?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
-                  <h2 className="user-profile-name">{selectedUserProfile.name}</h2>
-                  <p className="user-profile-role">
-                    {selectedUserProfile.userType === 'student' ? 'Student' : `Staff - ${selectedUserProfile.office || 'N/A'}`}
+
+      {/* Dedicated Full Audit Log Explorer Modal */}
+      {showFullAuditModal && selectedUserProfile && (
+        <div 
+          className="create-student-modal full-audit-modal-backdrop"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowFullAuditModal(false); }}
+        >
+          <div className="modal-content-super full-audit-modal" role="dialog" aria-modal="true" aria-labelledby="full-audit-title">
+            {/* Modal Header */}
+            <div className="full-audit-header">
+              <div className="full-audit-header-title-group">
+                <div className="audit-header-icon-wrap">
+                  <FaHistory />
+                </div>
+                <div>
+                  <h3 id="full-audit-title" className="full-audit-title">Audit Trail & System Activity Explorer</h3>
+                  <p className="full-audit-subtitle">
+                    Complete audit records for <strong>{selectedUserProfile.name}</strong> • {selectedUserProfile.email || selectedUserProfile.id || 'N/A'}
                   </p>
                 </div>
+              </div>
+              <div className="full-audit-header-actions">
+                <button
+                  type="button"
+                  className="full-audit-export-btn"
+                  onClick={handleExportAuditCSV}
+                  disabled={filteredActivityLogs.length === 0}
+                  title="Export audit log to CSV"
+                >
+                  <FaDownload /> <span>Export CSV</span>
+                </button>
+                <button
+                  type="button"
+                  className="modal-close-btn full-audit-close-btn"
+                  onClick={() => setShowFullAuditModal(false)}
+                  aria-label="Close audit explorer"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            </div>
 
-                <div className="user-info-section">
-                  <div className="user-info-item">
-                    <FaEnvelope className="user-info-icon" />
-                    <div>
-                      <label>EMAIL ADDRESS</label>
-                      <p>{selectedUserProfile.email}</p>
-                    </div>
-                  </div>
+            {/* Summary Metrics Strip */}
+            <div className="audit-metrics-strip">
+              <div className="audit-metric-tile">
+                <span className="audit-metric-label">TOTAL EVENTS</span>
+                <span className="audit-metric-val">{userActivityLogs.length}</span>
+              </div>
+              <div className="audit-metric-tile">
+                <span className="audit-metric-label">TICKETS & REQUESTS</span>
+                <span className="audit-metric-val">{countTickets}</span>
+              </div>
+              <div className="audit-metric-tile">
+                <span className="audit-metric-label">SECURITY & ACCESS</span>
+                <span className="audit-metric-val">{countSecurity}</span>
+              </div>
+              <div className="audit-metric-tile">
+                <span className="audit-metric-label">ACCOUNT STATUS</span>
+                <span className={`audit-metric-pill ${selectedUserProfile.isActive !== false ? 'active' : 'suspended'}`}>
+                  {selectedUserProfile.isActive !== false ? 'Active' : 'Suspended'}
+                </span>
+              </div>
+            </div>
 
-                  {selectedUserProfile.userType === 'student' && (
-                    <>
-                      <div className="user-info-item">
-                        <FaListAlt className="user-info-icon" />
-                        <div>
-                          <label>STUDENT ID</label>
-                          <p>{selectedUserProfile.id}</p>
-                        </div>
-                      </div>
-                      <div className="user-info-item">
-                        <FaSchool className="user-info-icon" />
-                        <div>
-                          <label>GRADE & SECTION</label>
-                          <p>{selectedUserProfile.gradeLevel} - {selectedUserProfile.section}</p>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {selectedUserProfile.userType === 'staff' && (
-                    <div className="user-info-item">
-                      <FaBuilding className="user-info-icon" />
-                      <div>
-                        <label>USERNAME</label>
-                        <p>{selectedUserProfile.username}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="user-info-item">
-                    <FaCalendarAlt className="user-info-icon" />
-                    <div>
-                      <label>MEMBER SINCE</label>
-                      <p>{selectedUserProfile.createdAt}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="admin-action-section">
-                  <h3><FaShieldAlt /> ADMINISTRATIVE ACTION</h3>
-                  
+            {/* Filter & Search Bar */}
+            <div className="full-audit-filter-bar">
+              <div className="full-audit-search-wrap">
+                <FaSearch className="audit-search-icon" />
+                <input
+                  type="text"
+                  className="full-audit-search-input"
+                  placeholder="Filter logs by keyword, ticket reference, action type, or date..."
+                  value={activitySearchTerm}
+                  onChange={(e) => setActivitySearchTerm(e.target.value)}
+                />
+                {activitySearchTerm && (
                   <button 
-                    className="admin-action-btn edit"
-                    onClick={() => {
-                      handleCloseUserProfile();
-                      // Open edit form based on user type
-                      if (selectedUserProfile.userType === 'student') {
-                        // For students, we'd need to add edit functionality
-                        alert('Edit student profile feature - coming soon');
-                      } else {
-                        // For staff, we'd need to add edit functionality  
-                        alert('Edit staff profile feature - coming soon');
-                      }
-                    }}
+                    type="button" 
+                    className="activity-clear-search-btn"
+                    onClick={() => setActivitySearchTerm('')}
                   >
-                    <FaKey /> Edit Profile
+                    <FaTimes />
                   </button>
-                  
-                  <button 
-                    className="admin-action-btn reset"
-                    onClick={() => {
-                      setUserToChangePassword(selectedUserProfile);
-                      setShowChangePasswordModal(true);
-                    }}
-                  >
-                    <FaKey /> Change Password
-                  </button>
-                </div>
+                )}
               </div>
 
-              <div className="user-profile-right">
-                {selectedUserProfile.userType === 'staff' && (
-                  <div className="user-stats-grid">
-                    <div className="user-stat-card">
-                      <label>TOTAL TICKETS HANDLED</label>
-                      <div className="stat-value">
-                        <FaListAlt className="stat-icon" />
-                        <span>{staffStats.totalTickets}</span>
-                      </div>
-                      <p className="stat-period">ALL TIME</p>
-                    </div>
-                    <div className="user-stat-card">
-                      <label>AVG. RESOLUTION TIME</label>
-                      <div className="stat-value">
-                        <span>{staffStats.avgResponseTime}</span>
-                      </div>
-                      <p className="stat-period">ALL TIME</p>
-                    </div>
-                  </div>
-                )}
-
-                {selectedUserProfile.userType === 'student' && (
-                  <div className="user-stats-grid">
-                    <div className="user-stat-card">
-                      <label>TOTAL TICKETS SUBMITTED</label>
-                      <div className="stat-value">
-                        <FaListAlt className="stat-icon" />
-                        <span>{studentStats.totalTickets}</span>
-                      </div>
-                      <p className="stat-period">ALL TIME</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="activity-history-section">
-                  <h3>System Activity History</h3>
-                  
-                  {loadingUserProfile ? (
-                    <div className="activity-loading">
-                      <LoadingSpinner />
-                      <p>Loading activity logs...</p>
-                    </div>
-                  ) : userActivityLogs.length === 0 ? (
-                    <div className="activity-empty">
-                      <p>No activity logs found</p>
-                    </div>
-                  ) : (
-                    <div className="activity-log-list">
-                      {userActivityLogs.slice(0, 10).map((log) => (
-                        <div key={log.id} className="activity-log-item">
-                          <div className="activity-icon">
-                            <FaCheck />
-                          </div>
-                          <div className="activity-details">
-                            <p className="activity-action">{log.action || 'System activity'}</p>
-                            <p className="activity-time">
-                              {log.timestamp ? new Date(log.timestamp).toLocaleDateString() + ' ' + new Date(log.timestamp).toLocaleTimeString() : 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <button className="load-full-audit-btn">
-                    <FaListAlt /> Load full Audit Log
-                  </button>
-                </div>
+              <div className="full-audit-pills">
+                <button
+                  type="button"
+                  className={`full-audit-pill ${activityCategoryFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setActivityCategoryFilter('all')}
+                >
+                  All ({userActivityLogs.length})
+                </button>
+                <button
+                  type="button"
+                  className={`full-audit-pill ${activityCategoryFilter === 'tickets' ? 'active' : ''}`}
+                  onClick={() => setActivityCategoryFilter('tickets')}
+                >
+                  Requests ({countTickets})
+                </button>
+                <button
+                  type="button"
+                  className={`full-audit-pill ${activityCategoryFilter === 'security' ? 'active' : ''}`}
+                  onClick={() => setActivityCategoryFilter('security')}
+                >
+                  Security ({countSecurity})
+                </button>
+                <button
+                  type="button"
+                  className={`full-audit-pill ${activityCategoryFilter === 'admin' ? 'active' : ''}`}
+                  onClick={() => setActivityCategoryFilter('admin')}
+                >
+                  Administrative ({countAdmin})
+                </button>
               </div>
+            </div>
+
+            {/* Audit Logs Table / Feed */}
+            <div className="full-audit-body">
+              {filteredActivityLogs.length === 0 ? (
+                <div className="full-audit-empty">
+                  <div className="empty-icon-wrap">
+                    <FaHistory />
+                  </div>
+                  <p className="empty-primary">No audit records found</p>
+                  <p className="empty-secondary">
+                    {activitySearchTerm || activityCategoryFilter !== 'all'
+                      ? 'No events match the current filter criteria.'
+                      : 'No activity logs have been recorded for this user yet.'}
+                  </p>
+                  {(activitySearchTerm || activityCategoryFilter !== 'all') && (
+                    <button
+                      type="button"
+                      className="activity-reset-filters-btn"
+                      onClick={() => {
+                        setActivitySearchTerm('');
+                        setActivityCategoryFilter('all');
+                      }}
+                    >
+                      Reset Filters
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="full-audit-table-wrapper">
+                  <table className="full-audit-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '130px' }}>TIMESTAMP</th>
+                        <th style={{ width: '120px' }}>CATEGORY</th>
+                        <th>ACTION & DETAILS</th>
+                        <th style={{ width: '110px' }}>STATUS</th>
+                        <th style={{ width: '110px' }}>EVENT ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredActivityLogs.map((log, idx) => {
+                        const { dateStr, relativeStr } = formatActivityTimestamp(log.timestamp);
+                        return (
+                          <tr key={log.id || idx}>
+                            <td className="audit-cell-time">
+                              <div className="time-primary">{relativeStr}</div>
+                              <div className="time-secondary">{dateStr}</div>
+                            </td>
+                            <td>
+                              <span className={`audit-cat-tag ${log.category || 'general'}`}>
+                                {renderActivityCategoryIcon(log.category)}
+                                <span>{log.category === 'tickets' ? 'Request' : log.category === 'security' ? 'Security' : log.category === 'admin' ? 'Admin' : 'General'}</span>
+                              </span>
+                            </td>
+                            <td className="audit-cell-desc">
+                              <div className="audit-action-title">{log.action || 'System activity'}</div>
+                              {log.details && (
+                                <div className="audit-action-details">{log.details}</div>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`audit-status-badge ${log.status ? log.status.toLowerCase() : 'success'}`}>
+                                {log.status || 'Logged'}
+                              </span>
+                            </td>
+                            <td>
+                              <code className="audit-event-id">
+                                {log.id ? String(log.id).slice(0, 10) : `evt-${idx}`}
+                              </code>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="full-audit-footer">
+              <span className="audit-footer-info">
+                Showing {filteredActivityLogs.length} of {userActivityLogs.length} total recorded events for this account.
+              </span>
+              <button
+                type="button"
+                className="full-audit-close-footer-btn"
+                onClick={() => setShowFullAuditModal(false)}
+              >
+                Close Explorer
+              </button>
             </div>
           </div>
         </div>

@@ -42,7 +42,7 @@ export const generateNTE = async (staffData, violations = []) => {
   const violationsList = violations.length > 0 ? violations : [
     `Currently handling ${activeTickets} active tickets with a risk score of ${riskScore}%`,
     `${overdueTickets} tickets are currently overdue`,
-    'Consistently failing to meet Service Level Agreement (SLA) targets',
+    'Consistently failing to meet on-time resolution rate targets',
     'Performance metrics indicate sustained underperformance over the monitoring period'
   ];
 

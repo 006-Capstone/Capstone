@@ -32,8 +32,8 @@ const NUDGE_TEMPLATES = {
     message: 'You currently have {count} overdue ticket(s) requiring immediate attention. Please prioritize these to maintain service quality. Let us know if you need support.'
   },
   critical: {
-    title: '🚨 Critical: SLA Breach Risk',
-    message: 'CRITICAL: You have {count} ticket(s) at risk of SLA breach. Immediate action is required to prevent service disruption. Please address these tickets ASAP or request workload rebalancing.'
+    title: '🚨 Critical: Resolution Deadline Risk',
+    message: 'CRITICAL: You have {count} ticket(s) at risk of exceeding the resolution deadline. Immediate action is required to prevent service disruption. Please address these tickets ASAP or request workload rebalancing.'
   }
 };
 

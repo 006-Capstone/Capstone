@@ -82,6 +82,17 @@ function App() {
     localStorage.setItem('superadminActivePage', activePage);
   }, [activePage]);
 
+  // Global navigation listener (e.g. from NotificationBell or RequestDetailsModal)
+  useEffect(() => {
+    const handleGlobalNav = (e) => {
+      if (e.detail) {
+        handleNavigate(e.detail);
+      }
+    };
+    window.addEventListener('superadmin:navigate', handleGlobalNav);
+    return () => window.removeEventListener('superadmin:navigate', handleGlobalNav);
+  }, []);
+
   if (authChecking) {
     return <LoadingSpinner message="Checking superadmin session..." fullScreen={true} />;
   }

@@ -23,9 +23,6 @@
   flex-wrap: wrap;
 }
 
-.save-config-btn {
-  /* inherits .btn-primary */
-}
 
 .form-content {
   background-color: var(--color-surface);
@@ -476,10 +473,6 @@
     justify-content: center;
   }
 
-  .save-config-btn {
-    flex: 1;
-    justify-content: center;
-  }
 }
 
 /* ==========================================================================

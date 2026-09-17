@@ -3,13 +3,15 @@ import { FaBell, FaCheckDouble, FaTimes } from 'react-icons/fa';
 import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import RequestDetailsModal from './RequestDetailsModal';
 import '../styles/NotificationBell.css';
 
-const NotificationBell = () => {
+const NotificationBell = ({ onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [inspectingNotification, setInspectingNotification] = useState(null);
   const wrapRef = useRef(null);
   // Track ALL unread ids (not just the 20 shown) so "mark all" clears
   // everything the badge counts
@@ -123,6 +125,14 @@ const NotificationBell = () => {
     return `${diffDays}d ago`;
   };
 
+  const handleNotificationClick = (notif) => {
+    if (!notif.isRead) {
+      handleMarkAsRead(notif.id);
+    }
+    setInspectingNotification(notif);
+    setIsOpen(false);
+  };
+
   return (
     <div className="notification-bell-wrap" ref={wrapRef}>
       <button
@@ -190,7 +200,14 @@ const NotificationBell = () => {
                 <div
                   key={notif.id}
                   className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
-                  onClick={() => !notif.isRead && handleMarkAsRead(notif.id)}
+                  onClick={() => handleNotificationClick(notif)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      handleNotificationClick(notif);
+                    }
+                  }}
                 >
                   <div className="notification-content">
                     <div className="notification-title">{notif.title}</div>
@@ -203,6 +220,16 @@ const NotificationBell = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Unified Request & Notification Inspector Modal */}
+      {inspectingNotification && (
+        <RequestDetailsModal
+          isOpen={!!inspectingNotification}
+          onClose={() => setInspectingNotification(null)}
+          notification={inspectingNotification}
+          onNavigate={onNavigate}
+        />
       )}
     </div>
   );

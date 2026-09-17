@@ -76,7 +76,7 @@
   align-items: center;
   gap: 0.5rem;
   font-weight: 700;
-  color: #1e3a8a;
+  color: var(--green-950, #072a04);
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 2px solid #e5e7eb;
@@ -85,7 +85,7 @@
 
 .comparison-header svg {
   font-size: 1.2rem;
-  color: #6366f1;
+  color: var(--color-primary, #105e06);
 }
 
 .comparison-stats {
@@ -109,7 +109,7 @@
 .stat-value {
   font-weight: 700;
   font-size: 1rem;
-  color: #1e3a8a;
+  color: var(--green-950, #072a04);
 }
 
 .stat-value.danger {
@@ -129,7 +129,7 @@
   align-items: center;
   justify-content: center;
   font-size: 2rem;
-  color: #6366f1;
+  color: var(--color-primary, #105e06);
   flex-shrink: 0;
 }
 
@@ -152,7 +152,7 @@
 
 .staff-select:focus {
   outline: none;
-  border-color: #1e3a8a;
+  border-color: var(--color-primary, #105e06);
 }
 
 .no-staff-available {
@@ -179,10 +179,10 @@
 
 .select-all-btn {
   padding: 0.5rem 1rem;
-  background: #eff6ff;
-  border: 1px solid #1e3a8a;
+  background: var(--sage-50, #f4f8f3);
+  border: 1px solid var(--color-primary, #105e06);
   border-radius: 6px;
-  color: #1e3a8a;
+  color: var(--color-primary, #105e06);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -190,7 +190,7 @@
 }
 
 .select-all-btn:hover {
-  background: #1e3a8a;
+  background: var(--color-primary, #105e06);
   color: white;
 }
 
@@ -231,8 +231,8 @@
 }
 
 .ticket-item:hover {
-  border-color: #1e3a8a;
-  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.1);
+  border-color: var(--color-primary, #105e06);
+  box-shadow: 0 2px 8px rgba(16, 94, 6, 0.1);
 }
 
 .ticket-item input[type="checkbox"] {
@@ -240,7 +240,7 @@
   height: 20px;
   cursor: pointer;
   margin-top: 0.25rem;
-  accent-color: #1e3a8a;
+  accent-color: var(--color-primary, #105e06);
   flex-shrink: 0;
 }
 
@@ -258,7 +258,7 @@
 
 .ticket-id {
   font-weight: 700;
-  color: #1e3a8a;
+  color: var(--color-primary, #105e06);
   font-size: 0.9rem;
 }
 

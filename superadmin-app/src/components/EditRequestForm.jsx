@@ -19,9 +19,6 @@ const EditRequestForm = () => {
   const [newSubject, setNewSubject] = useState('');
   const [toast, setToast] = useState(null);
   const [confirmDeleteSubject, setConfirmDeleteSubject] = useState(null); // { officeId, subject }
-  // Snapshot of the config as loaded — the Save Changes button stays grayed
-  // out until something actually differs from this.
-  const [originalOffices, setOriginalOffices] = useState(null);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -69,53 +66,34 @@ const EditRequestForm = () => {
         const loaded = docSnap.data().offices || defaultOffices;
         console.log('[EditRequestForm] Loaded config from Firestore:', loaded);
         setOffices(loaded);
-        setOriginalOffices(JSON.parse(JSON.stringify(loaded))); // Deep copy
       } else {
         // Initialize with default config
         console.log('[EditRequestForm] No config found, initializing with defaults');
         setOffices(defaultOffices);
-        setOriginalOffices(JSON.parse(JSON.stringify(defaultOffices))); // Deep copy
         await setDoc(docRef, { offices: defaultOffices });
       }
     } catch (error) {
       console.error('[EditRequestForm] Error loading form config:', error);
       setOffices(defaultOffices);
-      setOriginalOffices(JSON.parse(JSON.stringify(defaultOffices))); // Deep copy
     } finally {
       setLoading(false);
     }
   };
 
-  const saveFormConfig = async () => {
+  const saveOfficesConfig = async (newOffices) => {
     try {
       setSaving(true);
-      console.log('[EditRequestForm] Saving config to Firestore...');
-      console.log('[EditRequestForm] Offices to save:', offices);
-      
       const docRef = doc(db, 'config', 'requestForm');
-      await setDoc(docRef, { offices });
-      
-      console.log('[EditRequestForm] Config saved successfully!');
-      
-      // Refresh the snapshot so the button re-grays until the next change
-      setOriginalOffices(JSON.parse(JSON.stringify(offices)));
-      showToast('Form configuration saved successfully!');
+      await setDoc(docRef, { offices: newOffices });
+      setOffices(newOffices);
+      return true;
     } catch (error) {
       console.error('[EditRequestForm] Error saving form config:', error);
-      console.error('[EditRequestForm] Error code:', error.code);
-      console.error('[EditRequestForm] Error message:', error.message);
       showToast('Failed to save configuration: ' + error.message, 'error');
+      return false;
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleOfficeDescriptionChange = (officeId, newDescription) => {
-    setOffices(offices.map(office => 
-      office.id === officeId 
-        ? { ...office, description: newDescription }
-        : office
-    ));
   };
 
   const startCardEdit = (office) => {
@@ -123,66 +101,84 @@ const EditRequestForm = () => {
     setCardDraft(office.description);
   };
 
-  const saveCardEdit = (officeId) => {
+  const saveCardEdit = async (officeId) => {
     if (!cardDraft.trim()) {
       showToast('Description cannot be empty.', 'error');
       return;
     }
-    handleOfficeDescriptionChange(officeId, cardDraft.trim());
-    setEditingCardOffice(null);
+    const updated = offices.map(office => 
+      office.id === officeId 
+        ? { ...office, description: cardDraft.trim() }
+        : office
+    );
+    const success = await saveOfficesConfig(updated);
+    if (success) {
+      setEditingCardOffice(null);
+      showToast('Office description updated successfully!');
+    }
   };
 
   const cancelCardEdit = () => {
-    // Draft edits never touch `offices` until Save, so just exit edit mode
     setEditingCardOffice(null);
   };
 
-  const handleAddSubject = (officeId) => {
+  const handleAddSubject = async (officeId) => {
     if (!newSubject.trim()) {
       showToast('Please enter a subject', 'error');
       return;
     }
     
-    setOffices(offices.map(office => 
+    const updated = offices.map(office => 
       office.id === officeId 
         ? { ...office, subjects: [...(office.subjects || []), newSubject.trim()] }
         : office
-    ));
-    setNewSubject('');
+    );
+    const success = await saveOfficesConfig(updated);
+    if (success) {
+      setNewSubject('');
+      showToast('Subject added successfully!');
+    }
   };
 
-  const handleEditSubject = (officeId, oldSubject, newSubject) => {
-    if (!newSubject.trim()) {
+  const handleEditSubject = async (officeId, oldSubject, newSubjectValue) => {
+    if (!newSubjectValue.trim()) {
       showToast('Subject cannot be empty', 'error');
       return;
     }
     
-    setOffices(offices.map(office => 
+    const updated = offices.map(office => 
       office.id === officeId 
         ? { 
             ...office, 
-            subjects: office.subjects.map(s => s === oldSubject ? newSubject.trim() : s) 
+            subjects: office.subjects.map(s => s === oldSubject ? newSubjectValue.trim() : s) 
           }
         : office
-    ));
-    setEditingSubject(null);
+    );
+    const success = await saveOfficesConfig(updated);
+    if (success) {
+      setEditingSubject(null);
+      showToast('Subject updated successfully!');
+    }
   };
 
   const requestDeleteSubject = (officeId, subject) => {
     setConfirmDeleteSubject({ officeId, subject });
   };
 
-  const handleDeleteSubject = () => {
+  const handleDeleteSubject = async () => {
     if (!confirmDeleteSubject) return;
     const { officeId, subject } = confirmDeleteSubject;
 
-    setOffices(offices.map(office => 
+    const updated = offices.map(office => 
       office.id === officeId 
         ? { ...office, subjects: office.subjects.filter(s => s !== subject) }
         : office
-    ));
-    setConfirmDeleteSubject(null);
-    showToast(`Removed "${subject}". Click "Save Changes" to apply.`);
+    );
+    const success = await saveOfficesConfig(updated);
+    if (success) {
+      setConfirmDeleteSubject(null);
+      showToast(`Removed "${subject}" successfully.`);
+    }
   };
 
   // Switching offices dismisses any open subject editor — its key is tied
@@ -212,10 +208,6 @@ const EditRequestForm = () => {
 
   const selectedOfficeData = offices.find(o => o.id === selectedOffice);
 
-  // Save Changes stays grayed out until the form actually differs from the
-  // loaded configuration (description edits, subject adds/edits/deletes).
-  const hasConfigChanges = JSON.stringify(offices) !== JSON.stringify(originalOffices || []);
-
   if (loading) {
     return <LoadingSpinner message="Loading form configuration..." fullScreen={true} />;
   }
@@ -224,18 +216,10 @@ const EditRequestForm = () => {
     <div className="superadmin-page edit-request-form-container">
       <div className="page-header">
         <div className="page-header-title-group">
-          <h1 className="form-title">Edit Request Form Configuration</h1>
+          <h1 className="form-title">Edit Request Form</h1>
           <p className="page-subtitle">Manage the offices, descriptions, and subjects students can request</p>
         </div>
         <div className="form-actions-header">
-          <button
-            className="btn-primary save-config-btn"
-            onClick={saveFormConfig}
-            disabled={saving || !hasConfigChanges}
-            title={!hasConfigChanges ? 'Make a change to enable saving' : undefined}
-          >
-            <FaSave aria-hidden="true" /> {saving ? 'Saving...' : 'Save Changes'}
-          </button>
           <NotificationBell />
         </div>
       </div>
@@ -424,7 +408,7 @@ const EditRequestForm = () => {
               <strong>{offices.find(o => o.id === confirmDeleteSubject.officeId)?.name || 'this'}</strong> office?
             </p>
             <p className="delete-modal-hint">
-              This will remove the subject from students' choices once saved.
+              This will remove the subject from students' choices immediately.
             </p>
             <div className="delete-modal-actions">
               <button

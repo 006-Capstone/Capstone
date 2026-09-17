@@ -63,10 +63,10 @@
   --status-pending-border:    #c7d2fe;
   --status-pending-dot:       #4f46e5;
 
-  --status-inprocess-bg:      #fef9c3;
-  --status-inprocess-text:    #854d0e;
-  --status-inprocess-border:  #fde047;
-  --status-inprocess-dot:     #ca8a04;
+  --status-inprocess-bg:      #fef3c7;
+  --status-inprocess-text:    #92400e;
+  --status-inprocess-border:  #fde68a;
+  --status-inprocess-dot:     #d97706;
 
   --status-resolved-bg:       #dcfce7;
   --status-resolved-text:     #14532d;

@@ -20,6 +20,7 @@ import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
 import NotificationBell from './NotificationBell';
+import RequestDetailsModal from './RequestDetailsModal';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import Toast from './Toast';
 import '../styles/SuperAdminDashboard.css';
@@ -54,6 +55,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
   ]);
 
   const [recentRequests, setRecentRequests] = useState([]);
+  const [selectedRecentRequest, setSelectedRecentRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
   const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
@@ -393,7 +395,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
         </span>
       );
     }
-    if (s === 'in process' || s === 'in-process') {
+    if (s === 'in process' || s === 'in-process' || s === 'in_process' || s === 'in progress' || s === 'in-progress') {
       return (
         <span className="dash-status-badge status-in-process">
           <span className="dash-status-dot" aria-hidden="true"></span>
@@ -436,7 +438,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
         </div>
 
         <div className="dashboard-header-right">
-          <NotificationBell />
+          <NotificationBell onNavigate={onNavigate} />
         </div>
       </div>
 
@@ -761,7 +763,19 @@ const SuperAdminDashboard = ({ onNavigate }) => {
                     <div className="recent-cell head-status">Status</div>
                   </div>
                   {recentRequests.map((req) => (
-                    <div key={req.id} className="recent-table-row">
+                    <div
+                      key={req.id}
+                      className="recent-table-row clickable-row"
+                      onClick={() => setSelectedRecentRequest(req)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setSelectedRecentRequest(req);
+                        }
+                      }}
+                      title="Click to view full request details"
+                    >
                       <div className="recent-cell req-id">
                         {req.requestId || req.id.slice(0, 8).toUpperCase()}
                       </div>
@@ -790,6 +804,16 @@ const SuperAdminDashboard = ({ onNavigate }) => {
             )}
           </div>
         </>
+      )}
+
+      {/* Request Details Modal for Recent Requests */}
+      {selectedRecentRequest && (
+        <RequestDetailsModal
+          isOpen={!!selectedRecentRequest}
+          onClose={() => setSelectedRecentRequest(null)}
+          request={selectedRecentRequest}
+          onNavigate={onNavigate}
+        />
       )}
 
       {toast && (

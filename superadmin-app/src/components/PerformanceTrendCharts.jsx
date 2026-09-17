@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaChartLine, FaCalendarAlt } from 'react-icons/fa';
+import { FaChartLine, FaCalendarAlt, FaClock } from 'react-icons/fa';
 import { getPerformanceHistory } from '../utils/performanceSnapshot';
 import '../styles/PerformanceTrendCharts.css';
 
@@ -27,18 +27,77 @@ const PerformanceTrendCharts = () => {
 
   if (loading) {
     return (
-      <div className="trend-charts-loading">
-        <p>Loading trend data...</p>
+      <div className="performance-trend-charts loading-container">
+        <div className="trend-charts-loading">
+          <div className="trend-loading-spinner"></div>
+          <p>Loading historical performance trends...</p>
+        </div>
       </div>
     );
   }
 
   if (trendData.length === 0) {
     return (
-      <div className="trend-charts-empty">
-        <FaChartLine className="empty-icon" />
-        <p>No historical data available yet.</p>
-        <p className="empty-subtitle">Trend charts will appear once performance snapshots are collected.</p>
+      <div className="performance-trend-charts">
+        <div className="trend-header">
+          <div className="trend-title">
+            <span className="trend-icon-wrapper">
+              <FaChartLine />
+            </span>
+            <div>
+              <h3>Performance Trends</h3>
+              <p className="trend-header-subtitle">Historical velocity, workload volume, and resolution timelines</p>
+            </div>
+          </div>
+          <div className="time-range-selector">
+            <button
+              className={timeRange === '7days' ? 'active' : ''}
+              onClick={() => setTimeRange('7days')}
+            >
+              7 Days
+            </button>
+            <button
+              className={timeRange === '30days' ? 'active' : ''}
+              onClick={() => setTimeRange('30days')}
+            >
+              30 Days
+            </button>
+          </div>
+        </div>
+
+        <div className="trend-charts-empty">
+          <div className="trend-empty-icon-wrapper">
+            <FaChartLine className="empty-icon" />
+          </div>
+          <div className="trend-empty-text">
+            <h4>No historical data available yet.</h4>
+            <p className="empty-subtitle">Trend charts will appear once performance snapshots are collected.</p>
+          </div>
+          
+          <div className="trend-metrics-preview">
+            <div className="preview-pill">
+              <span className="preview-dot dot-green"></span>
+              <span>Active Workload Velocity</span>
+            </div>
+            <div className="preview-pill">
+              <span className="preview-dot dot-amber"></span>
+              <span>Overdue Ticket Trajectory</span>
+            </div>
+            <div className="preview-pill">
+              <span className="preview-dot dot-emerald"></span>
+              <span>On-Time Resolution Rate</span>
+            </div>
+            <div className="preview-pill">
+              <span className="preview-dot dot-red"></span>
+              <span>Staff Risk Trajectory</span>
+            </div>
+          </div>
+
+          <div className="trend-empty-footer">
+            <FaClock className="footer-icon" />
+            <span>Automated snapshot engine periodically records system operational metrics</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -63,8 +122,13 @@ const PerformanceTrendCharts = () => {
     <div className="performance-trend-charts">
       <div className="trend-header">
         <div className="trend-title">
-          <FaChartLine />
-          <h3>Performance Trends</h3>
+          <span className="trend-icon-wrapper">
+            <FaChartLine />
+          </span>
+          <div>
+            <h3>Performance Trends</h3>
+            <p className="trend-header-subtitle">Historical velocity, workload volume, and resolution timelines</p>
+          </div>
         </div>
         <div className="time-range-selector">
           <button
@@ -102,7 +166,7 @@ const PerformanceTrendCharts = () => {
                 {/* Line chart */}
                 <polyline
                   fill="none"
-                  stroke="#1e3a8a"
+                  stroke="#105e06"
                   strokeWidth="2"
                   points={activeTicketsData.map((value, index) => {
                     const x = (index / (activeTicketsData.length - 1)) * 400;
@@ -121,7 +185,7 @@ const PerformanceTrendCharts = () => {
                       cx={x}
                       cy={y}
                       r="4"
-                      fill="#1e3a8a"
+                      fill="#105e06"
                     />
                   );
                 })}

@@ -278,15 +278,24 @@
   background-color: var(--status-pending-dot, #4f46e5);
 }
 
-.status-in-process {
-  background-color: var(--status-inprocess-bg, #fef9c3);
-  color: var(--status-inprocess-text, #854d0e);
-  border-color: var(--status-inprocess-border, #fde047);
+.status-in-process,
+.status-in_process,
+.status-in-progress,
+.status-in_progress {
+  background-color: var(--status-inprocess-bg, #fef3c7);
+  color: var(--status-inprocess-text, #92400e);
+  border-color: var(--status-inprocess-border, #fde68a);
 }
 
 .status-in-process .status-dot,
-.status-in-process::before {
-  background-color: var(--status-inprocess-dot, #ca8a04);
+.status-in-process::before,
+.status-in_process .status-dot,
+.status-in_process::before,
+.status-in-progress .status-dot,
+.status-in-progress::before,
+.status-in_progress .status-dot,
+.status-in_progress::before {
+  background-color: var(--status-inprocess-dot, #d97706);
 }
 
 .status-archived {
