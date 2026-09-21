@@ -1,10 +1,11 @@
 const nodemailer = require('nodemailer');
 
 // Create Gmail SMTP transporter
+// Use environment variables for Vercel deployment
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.GMAIL_USER,
+    user: process.env.GMAIL_USER || 'academiadesanjose3@gmail.com',
     pass: process.env.GMAIL_APP_PASSWORD
   }
 });
