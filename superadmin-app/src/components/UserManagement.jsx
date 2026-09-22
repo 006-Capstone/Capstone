@@ -118,15 +118,6 @@ const UserManagement = () => {
   // Archiving state
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState(null); // { message, type: 'success' | 'error', ... }
-  const toastTimeoutRef = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
-      }
-    };
-  }, []);
   const [archiveRequestsStaff, setArchiveRequestsStaff] = useState(null);
   const [handledRequests, setHandledRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
@@ -1598,41 +1589,15 @@ const UserManagement = () => {
   };
 
   const showToast = (message, type = 'success', options = {}) => {
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-      toastTimeoutRef.current = null;
-    }
-
-    const isCredentialsWarning = 
-      (typeof message === 'string' && message.includes('Account created but email failed to send')) ||
-      options.persistent ||
-      options.autoDismiss === 0;
-
-    const autoDismiss = isCredentialsWarning ? 0 : (options.autoDismiss !== undefined ? options.autoDismiss : 4000);
-    const closeOnOverlayClick = isCredentialsWarning ? false : (options.closeOnOverlayClick !== undefined ? options.closeOnOverlayClick : true);
-
     setToast({
       message,
       type,
-      autoDismiss,
-      closeOnOverlayClick,
       title: options.title,
       confirmText: options.confirmText || 'OK'
     });
-
-    if (autoDismiss > 0) {
-      toastTimeoutRef.current = window.setTimeout(() => {
-        setToast(null);
-        toastTimeoutRef.current = null;
-      }, autoDismiss);
-    }
   };
 
   const handleCloseToast = () => {
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-      toastTimeoutRef.current = null;
-    }
     setToast(null);
   };
 
@@ -2544,8 +2509,6 @@ const UserManagement = () => {
             type={toast.type}
             message={toast.message}
             title={toast.title}
-            autoDismiss={toast.autoDismiss}
-            closeOnOverlayClick={toast.closeOnOverlayClick}
             confirmText={toast.confirmText}
             onClose={handleCloseToast}
           />
@@ -3106,8 +3069,6 @@ const UserManagement = () => {
           type={toast.type}
           message={toast.message}
           title={toast.title}
-          autoDismiss={toast.autoDismiss}
-          closeOnOverlayClick={toast.closeOnOverlayClick}
           confirmText={toast.confirmText}
           onClose={handleCloseToast}
         />
