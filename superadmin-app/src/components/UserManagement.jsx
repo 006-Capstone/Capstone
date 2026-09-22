@@ -855,9 +855,12 @@ const UserManagement = () => {
       // Send credentials via email
       let emailFailed = false;
       try {
-        const apiUrl = process.env.NODE_ENV === 'production' 
-          ? '/api/send-temporary-password'
-          : 'http://localhost:5000/api/send-temporary-password'; // Use email-backend in development
+        const studentPortalUrl = process.env.VITE_STUDENT_APP_URL || process.env.REACT_APP_STUDENT_APP_URL;
+        const apiUrl = studentPortalUrl 
+          ? `${studentPortalUrl.replace(/\/$/, '')}/api/send-temporary-password`
+          : (process.env.NODE_ENV === 'production' 
+              ? '/api/send-temporary-password' 
+              : 'http://localhost:5000/api/send-temporary-password');
           
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -871,6 +874,18 @@ const UserManagement = () => {
             role: 'student'
           })
         });
+
+        if (!response.ok) {
+          let errorMsg = `Server error ${response.status}`;
+          try {
+            const errData = await response.json();
+            errorMsg = errData.error || errData.message || errorMsg;
+          } catch {
+            const text = await response.text();
+            if (text) errorMsg = text.slice(0, 120);
+          }
+          throw new Error(errorMsg);
+        }
 
         const result = await response.json();
         
@@ -1095,9 +1110,12 @@ const UserManagement = () => {
       // Send credentials via email
       let emailFailed = false;
       try {
-        const apiUrl = process.env.NODE_ENV === 'production'
-          ? '/api/send-temporary-password'
-          : 'http://localhost:5000/api/send-temporary-password'; // Use email-backend in development
+        const studentPortalUrl = process.env.VITE_STUDENT_APP_URL || process.env.REACT_APP_STUDENT_APP_URL;
+        const apiUrl = studentPortalUrl 
+          ? `${studentPortalUrl.replace(/\/$/, '')}/api/send-temporary-password`
+          : (process.env.NODE_ENV === 'production' 
+              ? '/api/send-temporary-password' 
+              : 'http://localhost:5000/api/send-temporary-password');
           
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -1112,6 +1130,18 @@ const UserManagement = () => {
             office: selectedOffice.name
           })
         });
+
+        if (!response.ok) {
+          let errorMsg = `Server error ${response.status}`;
+          try {
+            const errData = await response.json();
+            errorMsg = errData.error || errData.message || errorMsg;
+          } catch {
+            const text = await response.text();
+            if (text) errorMsg = text.slice(0, 120);
+          }
+          throw new Error(errorMsg);
+        }
 
         const result = await response.json();
         
