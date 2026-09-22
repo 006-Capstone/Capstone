@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "firebase": "^12.16.0"
+  },
+  "overrides": {
+    "jose": "4.15.5"
   }
 }
