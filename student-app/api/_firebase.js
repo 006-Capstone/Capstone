@@ -1,41 +1,15 @@
-const admin = require('firebase-admin');
-const { initializeApp, getApps, cert } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-const { getAuth } = require('firebase-admin/auth');
-
-// Compatibility wrapper so admin.apps, admin.credential.cert, admin.firestore, admin.auth exist
-if (!admin.apps) {
-  Object.defineProperty(admin, 'apps', {
-    get: () => getApps()
-  });
-}
-if (!admin.credential) {
-  admin.credential = { cert };
-} else if (!admin.credential.cert) {
-  admin.credential.cert = cert;
-}
-if (!admin.initializeApp) {
-  admin.initializeApp = initializeApp;
-}
-if (!admin.firestore) {
-  admin.firestore = (app) => (app ? getFirestore(app) : getFirestore());
-  admin.firestore.FieldValue = FieldValue;
-}
-if (!admin.auth) {
-  admin.auth = (app) => (app ? getAuth(app) : getAuth());
-}
-
 let adminApp = null;
 let adminDb = null;
 let adminAuth = null;
-let fv = FieldValue;
+let adminFieldValue = null;
 
 /**
- * Initialize Firebase Admin ensuring apps are checked and credentials formatted
+ * Dynamically import Firebase Admin SDK to avoid top-level require('firebase-admin')
+ * which crashes with ERR_REQUIRE_ESM on Vercel serverless functions.
  */
-function initFirebaseAdmin() {
+async function initFirebaseAdmin() {
   if (adminApp && adminDb) {
-    return { app: adminApp, auth: adminAuth, db: adminDb, FieldValue: fv };
+    return { app: adminApp, auth: adminAuth, db: adminDb, FieldValue: adminFieldValue };
   }
 
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
@@ -51,32 +25,36 @@ function initFirebaseAdmin() {
   const projectId = process.env.FIREBASE_PROJECT_ID || 'academia-de-san-jose';
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
-  // Only initialize Firebase Admin if service account credentials are provided
   if (!clientEmail || !privateKey) {
-    return { app: null, auth: null, db: null, FieldValue: fv };
+    return { app: null, auth: null, db: null, FieldValue: null };
   }
 
   try {
-    if (!admin.apps.length) {
-      adminApp = admin.initializeApp({
-        credential: admin.credential.cert({
+    const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+    const { getFirestore, FieldValue: fv } = await import('firebase-admin/firestore');
+    const { getAuth } = await import('firebase-admin/auth');
+    adminFieldValue = fv;
+
+    const apps = getApps();
+    if (!apps.length) {
+      adminApp = initializeApp({
+        credential: cert({
           projectId: projectId,
           clientEmail: clientEmail,
           privateKey: privateKey,
         }),
       });
     } else {
-      adminApp = admin.apps[0];
+      adminApp = apps[0];
     }
 
     adminDb = getFirestore(adminApp);
     adminAuth = getAuth(adminApp);
-    fv = FieldValue;
 
-    return { app: adminApp, auth: adminAuth, db: adminDb, FieldValue: fv };
+    return { app: adminApp, auth: adminAuth, db: adminDb, FieldValue: adminFieldValue };
   } catch (err) {
-    console.warn('[Warning] Firebase Admin init failed:', err.message);
-    return { app: null, auth: null, db: null, FieldValue: fv, error: err };
+    console.warn('[Warning] Firebase Admin dynamic init failed:', err.message);
+    return { app: null, auth: null, db: null, FieldValue: null, error: err };
   }
 }
 
@@ -84,7 +62,7 @@ let clientDbInstance = null;
 
 /**
  * Client Firestore fallback with anonymous authentication
- * Used when service account credentials are not provided or throw errors on Vercel
+ * Used to guarantee verification code persistence without service account keys
  */
 async function getClientFirestore() {
   if (clientDbInstance) return clientDbInstance;
@@ -121,7 +99,7 @@ async function getClientFirestore() {
 
 /**
  * Persist verification code to Firestore collections ('password_resets' and 'verification_codes')
- * Guaranteed persistence: tries Firebase Admin, then falls back to authenticated Client Firestore.
+ * Guaranteed persistence: writes to Client Firestore (always available) and Admin Firestore if configured.
  */
 async function saveVerificationCode({ email, studentId, studentName, code, expiryMinutes = 10 }) {
   const normEmail = (email || '').toLowerCase().trim();
@@ -144,9 +122,29 @@ async function saveVerificationCode({ email, studentId, studentName, code, expir
 
   let saved = false;
 
-  // 1. Try Firebase Admin first (if configured with service account)
+  // 1. Write via Client Firestore (100% reliable across serverless instances)
   try {
-    const { db, FieldValue: adminFv } = initFirebaseAdmin();
+    const cDb = await getClientFirestore();
+    if (cDb) {
+      const { doc, setDoc } = await import('firebase/firestore');
+      if (normEmail) {
+        await setDoc(doc(cDb, 'password_resets', normEmail), docData);
+        await setDoc(doc(cDb, 'verification_codes', normEmail), docData);
+      }
+      if (normId && normId !== normEmail) {
+        await setDoc(doc(cDb, 'password_resets', normId), docData);
+        await setDoc(doc(cDb, 'verification_codes', normId), docData);
+      }
+      saved = true;
+      console.log(`[Success] Reset code stored in Firestore (Client) for ${normEmail || normId}`);
+    }
+  } catch (clientErr) {
+    console.warn('[Warning] Client Firestore save error:', clientErr.message);
+  }
+
+  // 2. Also write via Firebase Admin if configured
+  try {
+    const { db, FieldValue: adminFv } = await initFirebaseAdmin();
     if (db) {
       const adminData = {
         ...docData,
@@ -164,29 +162,7 @@ async function saveVerificationCode({ email, studentId, studentName, code, expir
       console.log(`[Success] Reset code stored in Firestore (Admin) for ${normEmail || normId}`);
     }
   } catch (adminErr) {
-    console.warn('[Warning] Firebase Admin save failed, falling back to Client Firestore:', adminErr.message);
-  }
-
-  // 2. Fallback to Client Firestore with anonymous auth
-  if (!saved) {
-    try {
-      const cDb = await getClientFirestore();
-      if (cDb) {
-        const { doc, setDoc } = await import('firebase/firestore');
-        if (normEmail) {
-          await setDoc(doc(cDb, 'password_resets', normEmail), docData);
-          await setDoc(doc(cDb, 'verification_codes', normEmail), docData);
-        }
-        if (normId && normId !== normEmail) {
-          await setDoc(doc(cDb, 'password_resets', normId), docData);
-          await setDoc(doc(cDb, 'verification_codes', normId), docData);
-        }
-        saved = true;
-        console.log(`[Success] Reset code stored in Firestore (Client) for ${normEmail || normId}`);
-      }
-    } catch (clientErr) {
-      console.error('[Error] Client Firestore save failed:', clientErr.message);
-    }
+    console.warn('[Warning] Firebase Admin save error:', adminErr.message);
   }
 
   if (!saved) {
@@ -204,34 +180,7 @@ async function findVerificationCode({ email, studentId, username }) {
   const normId = (studentId || username || '').toString().trim();
   const collections = ['password_resets', 'verification_codes', 'passwordResetCodes'];
 
-  // 1. Try Firebase Admin first
-  try {
-    const { db } = initFirebaseAdmin();
-    if (db) {
-      for (const collName of collections) {
-        if (normEmail) {
-          const snap = await db.collection(collName).doc(normEmail).get();
-          if (snap.exists) return { data: snap.data(), ref: snap.ref, collection: collName };
-        }
-        if (normId) {
-          const snap = await db.collection(collName).doc(normId).get();
-          if (snap.exists) return { data: snap.data(), ref: snap.ref, collection: collName };
-        }
-        if (normEmail) {
-          const qSnap = await db.collection(collName).where('email', '==', normEmail).limit(1).get();
-          if (!qSnap.empty) return { data: qSnap.docs[0].data(), ref: qSnap.docs[0].ref, collection: collName };
-        }
-        if (normId) {
-          const qSnap = await db.collection(collName).where('studentId', '==', normId).limit(1).get();
-          if (!qSnap.empty) return { data: qSnap.docs[0].data(), ref: qSnap.docs[0].ref, collection: collName };
-        }
-      }
-    }
-  } catch (adminErr) {
-    console.warn('[Warning] Firebase Admin lookup failed, checking Client Firestore:', adminErr.message);
-  }
-
-  // 2. Fallback to Client Firestore
+  // 1. Check Client Firestore first
   try {
     const cDb = await getClientFirestore();
     if (cDb) {
@@ -256,7 +205,34 @@ async function findVerificationCode({ email, studentId, username }) {
       }
     }
   } catch (clientErr) {
-    console.error('[Error] Client Firestore lookup failed:', clientErr.message);
+    console.warn('[Warning] Client Firestore lookup error:', clientErr.message);
+  }
+
+  // 2. Fallback to Firebase Admin
+  try {
+    const { db } = await initFirebaseAdmin();
+    if (db) {
+      for (const collName of collections) {
+        if (normEmail) {
+          const snap = await db.collection(collName).doc(normEmail).get();
+          if (snap.exists) return { data: snap.data(), ref: snap.ref, collection: collName };
+        }
+        if (normId) {
+          const snap = await db.collection(collName).doc(normId).get();
+          if (snap.exists) return { data: snap.data(), ref: snap.ref, collection: collName };
+        }
+        if (normEmail) {
+          const qSnap = await db.collection(collName).where('email', '==', normEmail).limit(1).get();
+          if (!qSnap.empty) return { data: qSnap.docs[0].data(), ref: qSnap.docs[0].ref, collection: collName };
+        }
+        if (normId) {
+          const qSnap = await db.collection(collName).where('studentId', '==', normId).limit(1).get();
+          if (!qSnap.empty) return { data: qSnap.docs[0].data(), ref: qSnap.docs[0].ref, collection: collName };
+        }
+      }
+    }
+  } catch (adminErr) {
+    console.warn('[Warning] Firebase Admin lookup error:', adminErr.message);
   }
 
   return null;
@@ -271,16 +247,6 @@ async function deleteVerificationCode({ email, studentId, username }) {
   const collections = ['password_resets', 'verification_codes', 'passwordResetCodes'];
 
   try {
-    const { db } = initFirebaseAdmin();
-    if (db) {
-      for (const collName of collections) {
-        if (normEmail) await db.collection(collName).doc(normEmail).delete().catch(() => {});
-        if (normId) await db.collection(collName).doc(normId).delete().catch(() => {});
-      }
-    }
-  } catch (e) {}
-
-  try {
     const cDb = await getClientFirestore();
     if (cDb) {
       const { doc, deleteDoc } = await import('firebase/firestore');
@@ -290,20 +256,29 @@ async function deleteVerificationCode({ email, studentId, username }) {
       }
     }
   } catch (e) {}
+
+  try {
+    const { db } = await initFirebaseAdmin();
+    if (db) {
+      for (const collName of collections) {
+        if (normEmail) await db.collection(collName).doc(normEmail).delete().catch(() => {});
+        if (normId) await db.collection(collName).doc(normId).delete().catch(() => {});
+      }
+    }
+  } catch (e) {}
 }
 
 module.exports = {
-  admin,
   initFirebaseAdmin,
   getClientFirestore,
   saveVerificationCode,
   findVerificationCode,
   deleteVerificationCode,
-  getAdminApp: () => initFirebaseAdmin().app,
-  getAdminAuth: () => initFirebaseAdmin().auth,
-  getAdminDb: () => initFirebaseAdmin().db,
-  getFieldValue: () => initFirebaseAdmin().FieldValue,
-  getAuth: () => initFirebaseAdmin().auth,
-  getFirestore: () => initFirebaseAdmin().db
+  getAdminApp: async () => (await initFirebaseAdmin()).app,
+  getAdminAuth: async () => (await initFirebaseAdmin()).auth,
+  getAdminDb: async () => (await initFirebaseAdmin()).db,
+  getFieldValue: async () => (await initFirebaseAdmin()).FieldValue,
+  getAuth: async () => (await initFirebaseAdmin()).auth,
+  getFirestore: async () => (await initFirebaseAdmin()).db
 };
 module.exports.default = module.exports;

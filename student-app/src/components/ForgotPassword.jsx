@@ -4,6 +4,19 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import '../styles/ForgotPassword.css';
 
+const parseApiResponse = async (response) => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('[API Error Raw Response]:', text);
+    if (text && text.includes('A server error has occurred')) {
+      throw new Error('Server configuration error. Please try again in a few moments.');
+    }
+    throw new Error(text && text.length < 150 ? text : 'An unexpected error occurred on the server.');
+  }
+};
+
 const ForgotPassword = ({ onClose }) => {
   const [step, setStep] = useState(1); // 1: Student ID, 2: Verify Code, 3: New Password
   const [studentId, setStudentId] = useState('');
@@ -91,7 +104,7 @@ const ForgotPassword = ({ onClose }) => {
         })
       });
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to send verification code');
@@ -140,7 +153,7 @@ const ForgotPassword = ({ onClose }) => {
         })
       });
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
 
       if (!data.success) {
         throw new Error(data.error || 'Invalid verification code');
@@ -192,7 +205,7 @@ const ForgotPassword = ({ onClose }) => {
         })
       });
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to reset password');
@@ -232,7 +245,7 @@ const ForgotPassword = ({ onClose }) => {
         })
       });
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to resend code');
