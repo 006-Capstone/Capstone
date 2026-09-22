@@ -174,24 +174,26 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       setLoading(false);
       onNavigate && onNavigate('dashboard');
     }
-    
-    // Notifications listener
-    const staffData = JSON.parse(localStorage.getItem('staffData'));
-    if (staffData?.uid) {
-      const q = query(
-        collection(db, 'notifications'),
-        where('recipientId', '==', staffData.uid),
-        where('recipientType', '==', 'staff')
-      );
-
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
-        setUnreadCount(unread);
-      });
-
-      return () => unsubscribe();
-    }
   }, [ticketData]);
+
+  // Real-time unread notifications listener
+  useEffect(() => {
+    const staffData = JSON.parse(localStorage.getItem('staffData'));
+    if (!staffData?.uid) return undefined;
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('recipientId', '==', staffData.uid),
+      where('recipientType', '==', 'staff')
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
+      setUnreadCount(unread);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const loadTicketDetails = async () => {
     try {
@@ -893,29 +895,22 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   return (
     <div className="ticket-details-container">
-      {/* Breadcrumb Navigation & Notification Bell */}
-      <div className="figma-breadcrumbs-row">
-        <nav className="figma-breadcrumbs" aria-label="Breadcrumb">
-          <span className="crumb-link" onClick={() => onNavigate('my-tickets')}>All Request</span>
-          <span className="crumb-slash">/</span>
-          <span className="crumb-active">Request Details</span>
-        </nav>
-        
-        <button 
-          type="button"
-          className="figma-bell-wrap" 
-          onClick={() => setShowNotifications(true)} 
-          title="View notifications"
-          aria-label="View notifications"
-        >
-          <FaBell className="figma-bell-icon" />
-          {unreadCount > 0 && <span className="figma-bell-badge" />}
-        </button>
-      </div>
-
-      {/* Page Title */}
+      {/* Page Title & Notification Bell */}
       <div className="figma-header-title-row">
         <h1 className="figma-page-title">Request Details</h1>
+        <div className="header-right">
+          <div 
+            className="notification-bell" 
+            onClick={() => setShowNotifications(true)} 
+            role="button" 
+            tabIndex={0}
+            title="Notifications"
+            aria-label="View notifications"
+          >
+            <FaBell className="bell-icon" />
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </div>
+        </div>
       </div>
 
       {!isOwner && (
