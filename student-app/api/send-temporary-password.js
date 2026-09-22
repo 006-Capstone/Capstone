@@ -1,3 +1,5 @@
+const nodemailer = require('nodemailer');
+
 module.exports = async function handler(req, res) {
   // Explicitly return JSON headers and enable CORS
   res.setHeader('Content-Type', 'application/json');
@@ -29,7 +31,6 @@ module.exports = async function handler(req, res) {
 
     const fromEmail = process.env.GMAIL_USER || 'academiadesanjose3@gmail.com';
 
-    const nodemailer = (await import('nodemailer')).default || (await import('nodemailer'));
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {

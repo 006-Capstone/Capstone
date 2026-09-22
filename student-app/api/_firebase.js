@@ -1,88 +1,75 @@
-let adminApp = null;
-let adminAuth = null;
-let adminDb = null;
-let FieldValue = null;
+const admin = require('firebase-admin');
+const { initializeApp, getApps, cert } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
+
+// Compatibility wrapper so admin.apps, admin.credential.cert, admin.firestore, admin.auth exist
+if (!admin.apps) {
+  Object.defineProperty(admin, 'apps', {
+    get: () => getApps()
+  });
+}
+if (!admin.credential) {
+  admin.credential = { cert };
+} else if (!admin.credential.cert) {
+  admin.credential.cert = cert;
+}
+if (!admin.initializeApp) {
+  admin.initializeApp = initializeApp;
+}
+if (!admin.firestore) {
+  admin.firestore = (app) => (app ? getFirestore(app) : getFirestore());
+  admin.firestore.FieldValue = FieldValue;
+}
+if (!admin.auth) {
+  admin.auth = (app) => (app ? getAuth(app) : getAuth());
+}
 
 /**
- * Lazily and dynamically initialize Firebase Admin SDK using dynamic import()
- * to prevent Vercel CommonJS bundling and runtime ERR_REQUIRE_ESM crashes.
+ * Initialize Firebase Admin ensuring apps are checked and credentials formatted
  */
-async function initFirebaseAdmin() {
-  if (adminApp && adminDb) {
-    return { app: adminApp, auth: adminAuth, db: adminDb, FieldValue };
-  }
-
-  try {
-    const { initializeApp, getApps, cert } = await import('firebase-admin/app');
-    const { getAuth } = await import('firebase-admin/auth');
-    const { getFirestore, FieldValue: fv } = await import('firebase-admin/firestore');
-    FieldValue = fv;
-
-    if (getApps().length > 0) {
-      adminApp = getApps()[0];
-    } else {
-      const projectId = process.env.FIREBASE_PROJECT_ID || 'academia-de-san-jose';
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-      let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-      let serviceAccount = null;
-      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        try {
-          serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        } catch (e) {
-          console.warn('[Warning] Could not parse FIREBASE_SERVICE_ACCOUNT JSON:', e.message);
-        }
-      } else if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
-        try {
-          serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS);
-        } catch (e) {
-          console.warn('[Warning] Could not parse FIREBASE_ADMIN_CREDENTIALS JSON:', e.message);
-        }
-      }
-
-      if (serviceAccount && serviceAccount.private_key) {
-        if (typeof serviceAccount.private_key === 'string') {
-          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-        }
-        adminApp = initializeApp({
-          credential: cert(serviceAccount)
-        });
-      } else if (projectId && clientEmail && privateKey) {
-        if (typeof privateKey === 'string') {
-          privateKey = privateKey.trim();
-          if ((privateKey.startsWith('"') && privateKey.endsWith('"')) ||
-              (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
-            privateKey = privateKey.slice(1, -1);
-          }
-          privateKey = privateKey.replace(/\\n/g, '\n');
-        }
-        adminApp = initializeApp({
-          credential: cert({
-            projectId,
-            clientEmail,
-            privateKey
-          })
-        });
-      } else {
-        adminApp = initializeApp({ projectId });
-      }
+function initFirebaseAdmin() {
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  if (privateKey) {
+    privateKey = privateKey.trim();
+    if ((privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+        (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+      privateKey = privateKey.slice(1, -1);
     }
-
-    adminAuth = getAuth(adminApp);
-    adminDb = getFirestore(adminApp);
-
-    return { app: adminApp, auth: adminAuth, db: adminDb, FieldValue };
-  } catch (err) {
-    console.error('[Error] Firebase Admin dynamic initialization failed:', err);
-    return { app: null, auth: null, db: null, FieldValue: null, error: err };
+    privateKey = privateKey.replace(/\\n/g, '\n');
   }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID || 'academia-de-san-jose';
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+
+  if (!admin.apps.length) {
+    if (clientEmail && privateKey) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: projectId,
+          clientEmail: clientEmail,
+          privateKey: privateKey,
+        }),
+      });
+    } else {
+      admin.initializeApp({
+        projectId: projectId,
+      });
+    }
+  }
+
+  const app = admin.apps[0];
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  return { app, auth, db, FieldValue };
 }
 
 /**
  * Persist verification code to Firestore collections ('password_resets' and 'verification_codes')
  */
 async function saveVerificationCode({ email, studentId, studentName, code, expiryMinutes = 10 }) {
-  const { db, FieldValue: fv } = await initFirebaseAdmin();
+  const { db, FieldValue: fv } = initFirebaseAdmin();
   if (!db) {
     throw new Error('Database service is not available');
   }
@@ -126,7 +113,7 @@ async function saveVerificationCode({ email, studentId, studentName, code, expir
  * Find verification code from persistent Firestore collections
  */
 async function findVerificationCode({ email, studentId, username }) {
-  const { db } = await initFirebaseAdmin();
+  const { db } = initFirebaseAdmin();
   if (!db) {
     throw new Error('Database service is not available');
   }
@@ -182,7 +169,7 @@ async function findVerificationCode({ email, studentId, username }) {
  * Delete verification code after successful password reset
  */
 async function deleteVerificationCode({ email, studentId, username }) {
-  const { db } = await initFirebaseAdmin();
+  const { db } = initFirebaseAdmin();
   if (!db) return;
 
   const normEmail = (email || '').toLowerCase().trim();
@@ -201,36 +188,17 @@ async function deleteVerificationCode({ email, studentId, username }) {
   }
 }
 
-async function getAdminApp() {
-  const { app } = await initFirebaseAdmin();
-  return app;
-}
-
-async function getAdminAuth() {
-  const { auth } = await initFirebaseAdmin();
-  return auth;
-}
-
-async function getAdminDb() {
-  const { db } = await initFirebaseAdmin();
-  return db;
-}
-
-async function getFieldValue() {
-  const { FieldValue: fv } = await initFirebaseAdmin();
-  return fv;
-}
-
 module.exports = {
+  admin,
   initFirebaseAdmin,
   saveVerificationCode,
   findVerificationCode,
   deleteVerificationCode,
-  getAdminApp,
-  getAdminAuth,
-  getAdminDb,
-  getFieldValue,
-  getAuth: getAdminAuth,
-  getFirestore: getAdminDb
+  getAdminApp: () => initFirebaseAdmin().app,
+  getAdminAuth: () => initFirebaseAdmin().auth,
+  getAdminDb: () => initFirebaseAdmin().db,
+  getFieldValue: () => initFirebaseAdmin().FieldValue,
+  getAuth: () => initFirebaseAdmin().auth,
+  getFirestore: () => initFirebaseAdmin().db
 };
 module.exports.default = module.exports;

@@ -1,3 +1,4 @@
+const nodemailer = require('nodemailer');
 const { saveVerificationCode } = require('./_firebase.js');
 
 module.exports = async function handler(req, res) {
@@ -42,8 +43,6 @@ module.exports = async function handler(req, res) {
       expiryMinutes: effectiveExpiryMinutes
     });
 
-    // Lazily import nodemailer to keep startup lightweight
-    const nodemailer = (await import('nodemailer')).default || (await import('nodemailer'));
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
