@@ -1646,6 +1646,24 @@
   font-weight: 600;
 }
 
+.dept-tag-pill.compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--sage-100, #eaf2e8);
+  border: 1px solid var(--sage-200, #dce3da);
+  padding: 0.12rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--color-primary, #105e06);
+  font-weight: 600;
+}
+
+.dept-tag-icon {
+  font-size: 0.72rem;
+  color: var(--color-primary, #105e06);
+}
+
 .rec-impact-pill {
   display: inline-flex;
   align-items: center;

@@ -135,7 +135,11 @@ export const detectAnomalies = async (analyticsData) => {
     staffData
   } = analyticsData;
 
-  const prompt = `You are an AI anomaly detection system for a ticket management platform. Analyze the following data and identify AT MOST 2-3 significant operational anomalies.
+  const prompt = `You are an AI anomaly detection system for Academia de San Jose's student services ticketing platform. Analyze the following data and identify AT MOST 2-3 significant operational anomalies.
+
+Institutional Context:
+- The school ONLY has 4 administrative offices: Finance, Guidance, Library, Registrar.
+- DO NOT invent "IT Support", "IT Helpdesk", or non-existent external teams.
 
 Current Metrics (Last 7 days):
 - Active Tickets: ${currentMetrics.activeTickets}
@@ -153,16 +157,16 @@ ${departmentData.map(dept =>
 ).join('\n')}
 
 Staff Outliers:
-${staffData.map(staff => 
-  `- ${staff.name} (${staff.department}): Risk Score ${staff.riskScore}%, ${staff.overdueTickets}/${staff.activeTickets} overdue`
-).join('\n')}
+${staffData && staffData.length > 0
+  ? staffData.map(staff => `- ${staff.name} (${staff.department}): Risk Score ${staff.riskScore}%, ${staff.overdueTickets}/${staff.activeTickets} overdue`).join('\n')
+  : 'No staff outliers detected.'}
 
 Strict Rules:
-1. Return at most 2 or 3 anomalies. Do NOT list normal variations.
+1. Return at most 2 or 3 genuine anomalies. If metrics are within normal ranges, return empty array [].
 2. Keep text extremely brief and scannable:
    - title: concise title (max 5 words, no emojis)
    - description: exactly 1 crisp sentence (max 18 words, no emojis)
-   - affectedArea: short office or staff name (max 4 words)
+   - affectedArea: MUST BE either one of the 4 offices (Finance, Guidance, Library, Registrar) or a specific staff name from Staff Outliers (max 4 words).
    - recommendation: immediate action (max 8 words, no emojis)
 3. Do NOT include ANY emojis or symbols.
 
@@ -184,7 +188,7 @@ Format your response as a JSON object:
   const messages = [
     {
       role: 'system',
-      content: 'You are an AI anomaly detection system. Respond with concise, scannable JSON without any emojis or decorative characters.'
+      content: 'You are an AI anomaly detection system for a school. Respond with concise, scannable JSON without any emojis, IT helpdesk hallucinations, or decorative characters.'
     },
     {
       role: 'user',
@@ -205,14 +209,25 @@ Format your response as a JSON object:
         jsonString = jsonString.replace(/\}\s*\{/g, '},{');
         
         const data = JSON.parse(jsonString);
-        const rawAnomalies = Array.isArray(data.anomalies) ? data.anomalies.slice(0, 3) : [];
-        const cleanedAnomalies = rawAnomalies.map(a => ({
-          ...a,
-          title: stripEmojis(a.title || ''),
-          description: stripEmojis(a.description || ''),
-          affectedArea: stripEmojis(a.affectedArea || ''),
-          recommendation: stripEmojis(a.recommendation || '')
-        }));
+        const rawAnomalies = Array.isArray(data.anomalies) ? data.anomalies : [];
+        const hallucinatedPattern = /it support|helpdesk|keyword routing|technical support/i;
+
+        const cleanedAnomalies = rawAnomalies
+          .filter(a => {
+            if (!a || !a.title) return false;
+            if (hallucinatedPattern.test(a.title) || hallucinatedPattern.test(a.description || '') || hallucinatedPattern.test(a.affectedArea || '')) {
+              return false;
+            }
+            return true;
+          })
+          .slice(0, 3)
+          .map(a => ({
+            ...a,
+            title: stripEmojis(a.title || ''),
+            description: stripEmojis(a.description || ''),
+            affectedArea: stripEmojis(a.affectedArea || ''),
+            recommendation: stripEmojis(a.recommendation || '')
+          }));
 
         return {
           anomalies: cleanedAnomalies,
@@ -244,36 +259,50 @@ export const generateSmartRecommendations = async (workloadData) => {
     overloadedStaff,
     underloadedStaff,
     departmentCapacity,
-    upcomingDeadlines,
-    historicalPatterns
+    allStaffNames
   } = workloadData;
 
-  const prompt = `You are an AI workload optimization assistant for a school's ticket management system. Analyze the current workload and provide AT MOST 2-3 high-impact recommendations.
+  const validDepartments = ['Finance', 'Guidance', 'Library', 'Registrar'];
+  const realStaffList = (allStaffNames || []).filter(Boolean);
+
+  const prompt = `You are an AI operations analyst for Academia de San Jose (a school ticket management system).
+Analyze the factual data below and provide AT MOST 2-3 genuine, high-impact recommendations.
+
+Context & Institutional Boundaries:
+- The school ONLY has 4 administrative offices: Finance, Guidance, Library, Registrar.
+- Tickets are student academic/financial services: Transcripts, Certificates of Enrollment, Good Moral, Clearances, Tuition Balances, and Library Clearances.
+- DO NOT invent "IT Support", "IT Helpdesk", "technical support", or generic corporate IT terms like "keyword routing triage". Such departments DO NOT exist in this school.
 
 Overloaded Staff (High Risk):
-${overloadedStaff.map(staff => 
-  `- ${staff.name} (${staff.department}): ${staff.activeTickets} active tickets, ${staff.overdueTickets} overdue, ${staff.riskScore}% risk score`
-).join('\n')}
+${overloadedStaff && overloadedStaff.length > 0
+  ? overloadedStaff.map(s => `- ${s.name} (${s.department}): ${s.activeTickets} active tickets, ${s.overdueTickets} overdue, ${s.riskScore}% risk score`).join('\n')
+  : 'None currently overloaded (all staff workloads are within normal capacity).'}
 
-Available Staff (Lower Workload):
-${underloadedStaff.map(staff => 
-  `- ${staff.name} (${staff.department}): ${staff.activeTickets} active tickets, ${staff.riskScore}% risk score`
-).join('\n')}
+Available Staff:
+${underloadedStaff && underloadedStaff.length > 0
+  ? underloadedStaff.map(s => `- ${s.name} (${s.department}): ${s.activeTickets} active tickets, ${s.riskScore}% risk score`).join('\n')
+  : 'All staff actively engaged.'}
 
-Department Capacity:
-${Object.entries(departmentCapacity).map(([dept, data]) => 
+Official Department Capacities:
+${Object.entries(departmentCapacity || {}).map(([dept, data]) => 
   `- ${dept}: ${data.utilization}% capacity (${data.currentActive}/${data.maxCapacity} tickets)`
 ).join('\n')}
 
+Registered Staff Members:
+${realStaffList.length > 0 ? realStaffList.join(', ') : 'Registered school staff across the 4 offices.'}
+
 Strict Rules:
-1. Provide ONLY 2 or 3 high-impact recommendations (high or medium priority).
-2. Keep text concise, direct, and scannable:
+1. Provide ONLY 2 or 3 high-impact recommendations (priority: "high" or "medium").
+2. Focus strictly on real school office operations (Finance, Guidance, Library, Registrar).
+3. "affectedStaff": MUST ONLY be real staff names from the Registered Staff list above. If a recommendation applies to an entire department instead of a single staff member, set "affectedStaff": [] and specify the office name in the title/description.
+4. NEVER output "All departments", "IT Support Team", "IT Support", or imaginary names in "affectedStaff".
+5. Keep text concise and scannable:
    - title: brief action title (max 5 words, no emojis)
    - description: exactly 1 crisp sentence explaining why (max 18 words, no emojis)
-   - affectedStaff: list of 1-2 staff names
-   - expectedImpact: brief quantified metric (max 6 words, e.g. "-30% overdue queue", no emojis)
+   - affectedStaff: array of 0-2 real staff names from the list above
+   - expectedImpact: brief quantified metric (max 6 words, e.g. "-25% overdue backlog", no emojis)
    - steps: exactly 2-3 short implementation steps (max 8 words each, no emojis)
-3. Do NOT include ANY emojis or symbols anywhere.
+6. Do NOT include ANY emojis or symbols anywhere.
 
 Format as JSON:
 {
@@ -283,8 +312,8 @@ Format as JSON:
       "type": "reassign|hire|training|process_improvement",
       "title": "Brief title",
       "description": "One sentence explanation.",
-      "affectedStaff": ["Staff name"],
-      "expectedImpact": "-30% overdue queue",
+      "affectedStaff": ["Real Staff Name"],
+      "expectedImpact": "-25% overdue backlog",
       "steps": ["Step 1", "Step 2"]
     }
   ]
@@ -293,7 +322,7 @@ Format as JSON:
   const messages = [
     {
       role: 'system',
-      content: 'You are an AI workload optimization expert. Provide ultra-concise, practical recommendations without emojis or conversational fluff. Respond ONLY with valid JSON.'
+      content: 'You are an AI workload optimization expert for a school. Provide ultra-concise, practical recommendations grounded strictly in the 4 school departments without emojis or generic IT helpdesk hallucinations. Respond ONLY with valid JSON.'
     },
     {
       role: 'user',
@@ -314,14 +343,36 @@ Format as JSON:
     
     const sanitizeRecs = (items) => {
       if (!Array.isArray(items)) return [];
-      return items.slice(0, 3).map(r => ({
-        ...r,
-        title: stripEmojis(r.title || ''),
-        description: stripEmojis(r.description || ''),
-        expectedImpact: stripEmojis(r.expectedImpact || ''),
-        affectedStaff: Array.isArray(r.affectedStaff) ? r.affectedStaff.map(s => stripEmojis(s || '')) : [],
-        steps: Array.isArray(r.steps) ? r.steps.map(s => stripEmojis(s || '')) : []
-      }));
+
+      const hallucinatedPattern = /it support|helpdesk|keyword routing|triage software|tier 1|tier 2|technical support/i;
+      const invalidStaffPattern = /^(all departments?|it support.*|helpdesk.*|department.*|staff.*|n\/a|none)$/i;
+
+      return items
+        .filter(r => {
+          if (!r || !r.title) return false;
+          // Discard hallucinated IT/keyword routing recommendations
+          if (hallucinatedPattern.test(r.title) || hallucinatedPattern.test(r.description || '')) {
+            return false;
+          }
+          return true;
+        })
+        .slice(0, 3)
+        .map(r => {
+          // Filter affectedStaff to exclude generic department names or hallucinations
+          const rawStaff = Array.isArray(r.affectedStaff) ? r.affectedStaff : [];
+          const cleanedStaff = rawStaff
+            .map(s => stripEmojis(s || '').trim())
+            .filter(s => s.length > 0 && !invalidStaffPattern.test(s));
+
+          return {
+            ...r,
+            title: stripEmojis(r.title || ''),
+            description: stripEmojis(r.description || ''),
+            expectedImpact: stripEmojis(r.expectedImpact || ''),
+            affectedStaff: cleanedStaff,
+            steps: Array.isArray(r.steps) ? r.steps.map(s => stripEmojis(s || '')) : []
+          };
+        });
     };
 
     // Try to extract and parse JSON

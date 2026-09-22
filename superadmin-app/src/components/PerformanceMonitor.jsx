@@ -120,6 +120,34 @@ const PerformanceMonitor = () => {
     }
   };
 
+  const getCleanedStaffList = (staffList) => {
+    if (!Array.isArray(staffList)) return [];
+    const invalidPattern = /^(all departments?|it support.*|helpdesk.*|technical support.*|staff.*|n\/a|none)$/i;
+    return staffList.filter(s => s && typeof s === 'string' && !invalidPattern.test(s.trim()));
+  };
+
+  const renderTargetChip = (targetName, idx) => {
+    const cleanName = (targetName || '').trim();
+    const lower = cleanName.toLowerCase();
+    const isDept = ['finance', 'guidance', 'library', 'registrar'].includes(lower);
+
+    if (isDept) {
+      return (
+        <span key={idx} className="dept-tag-pill compact">
+          <FaBuilding className="dept-tag-icon" />
+          <span className="dept-tag-name">{cleanName}</span>
+        </span>
+      );
+    }
+
+    return (
+      <span key={idx} className="staff-tag-pill compact">
+        <span className="staff-tag-avatar">{cleanName.charAt(0).toUpperCase()}</span>
+        <span className="staff-tag-name">{cleanName}</span>
+      </span>
+    );
+  };
+
   const parseExecutiveBullets = (summaryText) => {
     if (!summaryText) return [];
     const lines = summaryText
@@ -479,6 +507,7 @@ const PerformanceMonitor = () => {
           };
           return acc;
         }, {}),
+        allStaffNames: allStaffData.map(s => `${s.name} (${s.department || s.office})`),
         upcomingDeadlines: [],
         historicalPatterns: {}
       };
@@ -571,7 +600,7 @@ const PerformanceMonitor = () => {
             type: recommendation.type,
             title: recommendation.title,
             description: recommendation.description,
-            affectedStaff: recommendation.affectedStaff,
+            affectedStaff: getCleanedStaffList(recommendation.affectedStaff),
             steps: recommendation.steps,
             expectedImpact: recommendation.expectedImpact,
             priority: recommendation.priority,
@@ -1085,28 +1114,29 @@ const PerformanceMonitor = () => {
                         <p className="smart-rec-description">{rec.description}</p>
                         
                         {/* Compact Metadata Row */}
-                        <div className="rec-compact-meta-row">
-                          {rec.affectedStaff && rec.affectedStaff.length > 0 && (
-                            <div className="rec-staff-inline">
-                              <span className="meta-inline-label"><FaUsers className="meta-icon" /> Staff:</span>
-                              <div className="staff-tags-container compact">
-                                {rec.affectedStaff.map((staff, idx) => (
-                                  <span key={idx} className="staff-tag-pill compact">
-                                    <span className="staff-tag-avatar">{staff.charAt(0).toUpperCase()}</span>
-                                    <span className="staff-tag-name">{staff}</span>
-                                  </span>
-                                ))}
-                              </div>
+                        {(() => {
+                          const validStaff = getCleanedStaffList(rec.affectedStaff);
+                          if (validStaff.length === 0 && !rec.expectedImpact) return null;
+                          return (
+                            <div className="rec-compact-meta-row">
+                              {validStaff.length > 0 && (
+                                <div className="rec-staff-inline">
+                                  <span className="meta-inline-label"><FaUsers className="meta-icon" /> Staff:</span>
+                                  <div className="staff-tags-container compact">
+                                    {validStaff.map((staffName, idx) => renderTargetChip(staffName, idx))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {rec.expectedImpact && (
+                                <span className="rec-impact-pill">
+                                  <FaChartLine className="impact-pill-icon" />
+                                  <span className="impact-pill-text">{rec.expectedImpact}</span>
+                                </span>
+                              )}
                             </div>
-                          )}
-                          
-                          {rec.expectedImpact && (
-                            <span className="rec-impact-pill">
-                              <FaChartLine className="impact-pill-icon" />
-                              <span className="impact-pill-text">{rec.expectedImpact}</span>
-                            </span>
-                          )}
-                        </div>
+                          );
+                        })()}
                         
                         {/* Collapsible Steps Dropdown */}
                         {rec.steps && rec.steps.length > 0 && isExpanded && (
@@ -1251,30 +1281,29 @@ const PerformanceMonitor = () => {
                     <p className="task-description">{task.description}</p>
                     
                     {/* Compact Inline Metadata Row (Staff + Impact) */}
-                    {((task.affectedStaff && task.affectedStaff.length > 0) || task.expectedImpact) && (
-                      <div className="task-compact-meta-row">
-                        {task.affectedStaff && task.affectedStaff.length > 0 && (
-                          <div className="task-staff-inline">
-                            <span className="task-meta-inline-label"><FaUsers className="meta-icon" /> Staff:</span>
-                            <div className="staff-tags-container compact">
-                              {task.affectedStaff.map((staffName, idx) => (
-                                <span key={idx} className="staff-tag-pill compact">
-                                  <span className="staff-tag-avatar">{staffName.charAt(0).toUpperCase()}</span>
-                                  <span className="staff-tag-name">{staffName}</span>
-                                </span>
-                              ))}
+                    {(() => {
+                      const validStaff = getCleanedStaffList(task.affectedStaff);
+                      if (validStaff.length === 0 && !task.expectedImpact) return null;
+                      return (
+                        <div className="task-compact-meta-row">
+                          {validStaff.length > 0 && (
+                            <div className="task-staff-inline">
+                              <span className="task-meta-inline-label"><FaUsers className="meta-icon" /> Staff:</span>
+                              <div className="staff-tags-container compact">
+                                {validStaff.map((staffName, idx) => renderTargetChip(staffName, idx))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        
-                        {task.expectedImpact && (
-                          <span className="task-impact-pill">
-                            <FaChartLine className="impact-pill-icon" />
-                            <span className="impact-pill-text">{task.expectedImpact}</span>
-                          </span>
-                        )}
-                      </div>
-                    )}
+                          )}
+                          
+                          {task.expectedImpact && (
+                            <span className="task-impact-pill">
+                              <FaChartLine className="impact-pill-icon" />
+                              <span className="impact-pill-text">{task.expectedImpact}</span>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Collapsible Steps Checklist */}
                     {task.steps && task.steps.length > 0 && isExpanded && (
