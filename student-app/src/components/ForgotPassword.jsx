@@ -73,9 +73,7 @@ const ForgotPassword = ({ onClose }) => {
       setEmail(student.email);
 
       // Send verification code to student's registered email
-      const API_URL = process.env.NODE_ENV === 'production' 
-        ? '' // Vercel will handle /api routes automatically
-        : 'http://localhost:5000'; // Use email-backend in development
+      const API_URL = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${API_URL}/api/send-reset-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,9 +123,7 @@ const ForgotPassword = ({ onClose }) => {
       }
 
       // Verify code with backend
-      const API_URL = process.env.NODE_ENV === 'production' 
-        ? '' // Vercel will handle /api routes automatically
-        : 'http://localhost:5000'; // Use email-backend in development
+      const API_URL = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${API_URL}/api/verify-reset-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,13 +142,14 @@ const ForgotPassword = ({ onClose }) => {
       setSuccess('Code verified! Now set your new password.');
       setTimeout(() => {
         setSuccess('');
-        setStep(3); // Move to password reset step
+        setStep(3); // Move to new password step
       }, 1500);
+      setTimerActive(false); // Stop the timer
       setLoading(false);
 
     } catch (error) {
       console.error('Error:', error);
-      setError(error.message || 'Verification failed');
+      setError(error.message || 'Failed to verify code');
       setLoading(false);
     }
   };
@@ -164,7 +161,7 @@ const ForgotPassword = ({ onClose }) => {
 
     try {
       if (!newPassword || newPassword.length < 6) {
-        setError('Password must be at least 6 characters');
+        setError('Password must be at least 6 characters long');
         setLoading(false);
         return;
       }
@@ -176,9 +173,7 @@ const ForgotPassword = ({ onClose }) => {
       }
 
       // Update password using backend API with Firebase Admin SDK
-      const API_URL = process.env.NODE_ENV === 'production' 
-        ? '' // Vercel will handle /api routes automatically
-        : 'http://localhost:5000'; // Use email-backend in development
+      const API_URL = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${API_URL}/api/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,9 +212,7 @@ const ForgotPassword = ({ onClose }) => {
     setVerificationCode(''); // Clear previous code
 
     try {
-      const API_URL = process.env.NODE_ENV === 'production' 
-        ? '' // Vercel will handle /api routes automatically
-        : 'http://localhost:5000'; // Use email-backend in development
+      const API_URL = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${API_URL}/api/send-reset-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
