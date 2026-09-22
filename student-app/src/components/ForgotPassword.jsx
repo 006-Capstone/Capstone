@@ -28,7 +28,7 @@ const ForgotPassword = ({ onClose }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [studentData, setStudentData] = useState(null);
-  const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes = 600 seconds
+  const [timeRemaining, setTimeRemaining] = useState(120); // 2 minutes = 120 seconds
   const [timerActive, setTimerActive] = useState(false);
 
   const formatTime = (seconds) => {
@@ -100,7 +100,7 @@ const ForgotPassword = ({ onClose }) => {
           email: student.email,
           studentName: student.name || `${student.firstName} ${student.lastName}`,
           studentId: studentId,
-          expiryMinutes: 10
+          expiryMinutes: 2
         })
       });
 
@@ -118,7 +118,7 @@ const ForgotPassword = ({ onClose }) => {
         setSuccess('');
         setStep(2); // Move to verification step
       }, 2000);
-      setTimeRemaining(600); // 10 minutes
+      setTimeRemaining(120); // 2 minutes
       setTimerActive(true);
       setLoading(false);
 
@@ -241,7 +241,7 @@ const ForgotPassword = ({ onClose }) => {
           email: email,
           studentName: studentData.name || `${studentData.firstName} ${studentData.lastName}`,
           studentId: studentId,
-          expiryMinutes: 10
+          expiryMinutes: 2
         })
       });
 
@@ -253,7 +253,7 @@ const ForgotPassword = ({ onClose }) => {
 
       const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
       setSuccess(`New code sent to ${maskedEmail}`);
-      setTimeRemaining(600);
+      setTimeRemaining(120);
       setTimerActive(true);
 
     } catch (error) {
@@ -353,7 +353,7 @@ const ForgotPassword = ({ onClose }) => {
                   autoFocus
                 />
               </div>
-              <small>Code will expire in 1 minute</small>
+              <small>Code will expire in 2 minutes</small>
             </div>
 
             <button type="submit" className="submit-btn" disabled={loading}>

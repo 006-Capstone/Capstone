@@ -135,11 +135,11 @@ async function getClientFirestore() {
  * Persist verification code to Firestore collections ('password_resets' and 'verification_codes')
  * Guaranteed persistence: writes to Client Firestore (always available) and Admin Firestore if configured.
  */
-async function saveVerificationCode({ email, studentId, studentName, code, expiryMinutes = 10 }) {
+async function saveVerificationCode({ email, studentId, studentName, code, expiryMinutes = 2 }) {
   const normEmail = (email || '').toLowerCase().trim();
   const normId = (studentId || '').toString().trim();
   const normCode = (code || '').toString().trim();
-  const minutes = Math.max(Number(expiryMinutes) || 10, 10);
+  const minutes = Math.max(Number(expiryMinutes) || 2, 1);
   const expiryTime = Date.now() + (minutes * 60 * 1000);
 
   const docData = {

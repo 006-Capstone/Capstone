@@ -28,8 +28,8 @@ module.exports = async function handler(req, res) {
 
     const normEmail = email.toLowerCase().trim();
     const effectiveId = (studentId || username || '').toString().trim();
-    // Default expiration to 10 minutes (minimum 5-10 minutes)
-    const effectiveExpiryMinutes = Math.max(Number(expiryMinutes) || 10, 10);
+    // Expiration set to 2 minutes
+    const effectiveExpiryMinutes = Math.max(Number(expiryMinutes) || 2, 1);
 
     // Generate 6-digit verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
