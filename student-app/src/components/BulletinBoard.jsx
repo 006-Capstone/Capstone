@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FaCalendarAlt } from 'react-icons/fa';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
@@ -34,10 +35,37 @@ function BulletinBoard() {
       });
 
   // Pagination
-  const totalPages = Math.ceil(filteredAnnouncements.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const totalPages = Math.max(1, Math.ceil(filteredAnnouncements.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const paginatedAnnouncements = filteredAnnouncements.slice(startIndex, endIndex);
+
+  // Keep currentPage within bounds if announcements change or are filtered
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages >= 1) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  // Generate numbered pages with ellipsis for large page counts
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (safeCurrentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (safeCurrentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', safeCurrentPage - 1, safeCurrentPage, safeCurrentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -180,26 +208,47 @@ function BulletinBoard() {
               ))}
               
               {totalPages > 1 && (
-                <div className="pagination">
-                  <button
-                    className="pagination-btn"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    ← Previous
-                  </button>
-                  
-                  <div className="pagination-info">
-                    Page {currentPage} of {totalPages}
+                <div className="bulletin-pagination-wrapper">
+                  <div className="pagination">
+                    <button
+                      type="button"
+                      className="page-btn nav-btn"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={safeCurrentPage === 1}
+                      aria-label="Previous Page"
+                    >
+                      Previous
+                    </button>
+                    {getPageNumbers().map((page, idx) =>
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="pagination-ellipsis">
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          type="button"
+                          className={`page-btn ${safeCurrentPage === page ? 'active' : ''}`}
+                          onClick={() => setCurrentPage(page)}
+                          aria-current={safeCurrentPage === page ? 'page' : undefined}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
+                    <button
+                      type="button"
+                      className="page-btn nav-btn"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={safeCurrentPage === totalPages}
+                      aria-label="Next Page"
+                    >
+                      Next
+                    </button>
                   </div>
-                  
-                  <button
-                    className="pagination-btn"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next →
-                  </button>
+                  <div className="pagination-info">
+                    Showing {startIndex + 1}–{Math.min(endIndex, filteredAnnouncements.length)} of {filteredAnnouncements.length} announcements
+                  </div>
                 </div>
               )}
             </>
@@ -208,7 +257,7 @@ function BulletinBoard() {
 
         <div className="deadlines-section">
           <div className="deadlines-header">
-            <span>📅</span>
+            <FaCalendarAlt className="deadlines-header-icon" />
             <h3>Important Deadlines</h3>
           </div>
           
