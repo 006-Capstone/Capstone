@@ -2303,14 +2303,77 @@
   margin: 0 0 1rem 0;
 }
 
-/* Task Meta Box */
-.task-meta-box {
-  border-radius: 8px;
-  padding: 0.75rem 0.9rem;
-  margin-bottom: 0.75rem;
+/* Task Compact Meta Row */
+.task-compact-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+  padding: 0.45rem 0.65rem;
+  background: var(--sage-50, #f8fbf7);
+  border-radius: 6px;
+  border: 1px solid var(--sage-200, #e2ebe0);
 }
 
-.meta-box-label {
+.task-staff-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.task-meta-inline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.staff-tags-container.compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.staff-tag-pill.compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #ffffff;
+  border: 1px solid var(--color-border-soft, #e2e8f0);
+  padding: 0.12rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.task-impact-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.task-impact-pill .impact-pill-icon {
+  font-size: 0.75rem;
+  color: #16a34a;
+}
+
+.task-meta-label {
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -2322,60 +2385,17 @@
   margin-bottom: 0.45rem;
 }
 
-.meta-icon {
-  font-size: 0.85rem;
-  color: #64748b;
-}
-
-.impact-icon {
-  color: #ca8a04;
-}
-
-/* Affected Staff */
-.affected-staff-box {
-  background: var(--gray-50, #f8f9f7);
-  border: 1px solid var(--color-border-soft, #e5eae4);
-}
-
-.staff-tags-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.staff-tag-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: #ffffff;
-  border: 1px solid var(--color-border-soft, #e5eae4);
-  padding: 0.2rem 0.55rem;
-  border-radius: 9999px;
-  font-size: 0.78rem;
-  color: #1e293b;
-  font-weight: 500;
-}
-
-.staff-tag-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #0b3806;
-  color: #ffffff;
-  font-size: 0.65rem;
-  font-weight: 700;
-}
-
 /* Steps Box */
 .task-steps-box {
-  background: var(--gray-50, #f8f9f7);
-  border: 1px solid var(--color-border-soft, #e5eae4);
+  background: #fafbfc;
+  border: 1px solid #e5eaf0;
   border-radius: 8px;
   padding: 0.75rem 0.9rem;
   margin-bottom: 0.75rem;
+}
+
+.task-steps-box.collapsible-open {
+  animation: fadeInDown 0.2s ease-out;
 }
 
 .task-steps-timeline {
@@ -2415,32 +2435,50 @@
   flex: 1;
 }
 
-/* Expected Impact */
-.impact-box {
-  background: var(--sage-50, #f4f8f3);
-  border: 1px solid var(--sage-200, #dce3da);
-  border-left: 3px solid var(--color-primary, #105e06);
-}
-
-.impact-text {
-  font-size: 0.86rem;
-  color: #1e293b;
-  line-height: 1.5;
-  margin: 0;
-  font-weight: 500;
-}
-
 /* Card Footer */
 .task-card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.85rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   border-top: 1px solid var(--color-border-soft, #e5eae4);
   background: var(--color-surface, #ffffff);
   border-radius: 0 0 12px 12px;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.task-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.task-toggle-steps-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.task-toggle-steps-btn:hover {
+  background: #f1f5f9;
+  color: #0b3806;
+  border-color: #94a3b8;
+}
+
+.task-toggle-steps-btn .toggle-icon {
+  font-size: 0.75rem;
+  color: #105e06;
 }
 
 .task-card.status-completed .task-card-footer {

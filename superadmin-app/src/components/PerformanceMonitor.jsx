@@ -86,11 +86,19 @@ const PerformanceMonitor = () => {
     error: null
   });
   const [expandedRecSteps, setExpandedRecSteps] = useState({});
+  const [expandedTaskSteps, setExpandedTaskSteps] = useState({});
 
   const toggleRecSteps = (index) => {
     setExpandedRecSteps(prev => ({
       ...prev,
       [index]: !prev[index]
+    }));
+  };
+
+  const toggleTaskSteps = (taskId) => {
+    setExpandedTaskSteps(prev => ({
+      ...prev,
+      [taskId]: !prev[taskId]
     }));
   };
 
@@ -1202,6 +1210,7 @@ const PerformanceMonitor = () => {
               const isCompleted = task.status === 'completed';
               const isInProgress = task.status === 'in_progress';
               const priorityClass = task.priority || 'medium';
+              const isExpanded = !!expandedTaskSteps[task.id];
 
               return (
                 <div 
@@ -1211,10 +1220,6 @@ const PerformanceMonitor = () => {
                 >
                   <div className="task-card-header">
                     <div className="task-card-badges">
-                      <span className="task-origin-badge">
-                        <FaBrain className="origin-icon" />
-                        <span>AI Generated</span>
-                      </span>
                       <span className={`task-type-badge ${task.type}`}>
                         {getTaskTypeIcon(task.type)}
                         <span>{getTaskTypeLabel(task.type)}</span>
@@ -1245,28 +1250,37 @@ const PerformanceMonitor = () => {
                     <h4 className="task-title">{task.title}</h4>
                     <p className="task-description">{task.description}</p>
                     
-                    {task.affectedStaff && task.affectedStaff.length > 0 && (
-                      <div className="task-meta-box affected-staff-box">
-                        <div className="meta-box-label">
-                          <FaUserFriends className="meta-icon" />
-                          <span>Assigned / Affected Staff</span>
-                        </div>
-                        <div className="staff-tags-container">
-                          {task.affectedStaff.map((staffName, idx) => (
-                            <span key={idx} className="staff-tag-pill">
-                              <span className="staff-tag-avatar">{staffName.charAt(0).toUpperCase()}</span>
-                              <span className="staff-tag-name">{staffName}</span>
-                            </span>
-                          ))}
-                        </div>
+                    {/* Compact Inline Metadata Row (Staff + Impact) */}
+                    {((task.affectedStaff && task.affectedStaff.length > 0) || task.expectedImpact) && (
+                      <div className="task-compact-meta-row">
+                        {task.affectedStaff && task.affectedStaff.length > 0 && (
+                          <div className="task-staff-inline">
+                            <span className="task-meta-inline-label"><FaUsers className="meta-icon" /> Staff:</span>
+                            <div className="staff-tags-container compact">
+                              {task.affectedStaff.map((staffName, idx) => (
+                                <span key={idx} className="staff-tag-pill compact">
+                                  <span className="staff-tag-avatar">{staffName.charAt(0).toUpperCase()}</span>
+                                  <span className="staff-tag-name">{staffName}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {task.expectedImpact && (
+                          <span className="task-impact-pill">
+                            <FaChartLine className="impact-pill-icon" />
+                            <span className="impact-pill-text">{task.expectedImpact}</span>
+                          </span>
+                        )}
                       </div>
                     )}
-                    
-                    {task.steps && task.steps.length > 0 && (
-                      <div className="task-steps-box">
-                        <div className="meta-box-label">
-                          <FaClipboardCheck className="meta-icon" />
-                          <span>Implementation Steps</span>
+
+                    {/* Collapsible Steps Checklist */}
+                    {task.steps && task.steps.length > 0 && isExpanded && (
+                      <div className="task-steps-box collapsible-open">
+                        <div className="task-meta-label">
+                          <FaClipboardCheck className="meta-icon" /> Implementation Steps
                         </div>
                         <ol className="task-steps-timeline">
                           {task.steps.map((step, i) => (
@@ -1278,24 +1292,28 @@ const PerformanceMonitor = () => {
                         </ol>
                       </div>
                     )}
-                    
-                    {task.expectedImpact && (
-                      <div className="task-meta-box impact-box">
-                        <div className="meta-box-label">
-                          <FaLightbulb className="meta-icon impact-icon" />
-                          <span>Expected Operational Impact</span>
-                        </div>
-                        <p className="impact-text">{task.expectedImpact}</p>
-                      </div>
-                    )}
                   </div>
 
                   <div className="task-card-footer">
-                    <div className="task-date-info">
-                      <FaClock className="date-icon" />
-                      <span>
-                        Created {task.createdAt?.toDate ? task.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
-                      </span>
+                    <div className="task-footer-left">
+                      {task.steps && task.steps.length > 0 && (
+                        <button 
+                          type="button" 
+                          className="task-toggle-steps-btn" 
+                          onClick={() => toggleTaskSteps(task.id)}
+                          aria-expanded={isExpanded}
+                        >
+                          <FaClipboardList className="toggle-icon" />
+                          <span>{isExpanded ? 'Hide Steps' : `View Steps (${task.steps.length})`}</span>
+                          <FaChevronDown className={`toggle-chevron ${isExpanded ? 'rotated' : ''}`} />
+                        </button>
+                      )}
+                      <div className="task-date-info">
+                        <FaClock className="date-icon" />
+                        <span>
+                          Created {task.createdAt?.toDate ? task.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
+                        </span>
+                      </div>
                     </div>
                     <div className="task-footer-actions">
                       {task.status === 'pending' && (
