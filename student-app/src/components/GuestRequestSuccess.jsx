@@ -1,6 +1,5 @@
 import React from 'react';
-import { FaCheckCircle, FaDownload, FaArrowLeft, FaPlus } from 'react-icons/fa';
-import { MdExitToApp } from 'react-icons/md';
+import { FaCheckCircle, FaDownload, FaArrowLeft, FaPlus, FaSignInAlt } from 'react-icons/fa';
 import { useNotification } from '../context/NotificationContext';
 import Brand from './Brand';
 import '../styles/GuestRequestSuccess.css';
@@ -12,8 +11,8 @@ const GuestRequestSuccess = ({ requestData, onBackToLogin, onSubmitAnother, onTr
     const ok = await confirm({
       title: 'Exit Guest Session',
       message: 'Are you sure you want to exit and return to login?',
-      confirmText: 'Log Out',
-      variant: 'warning'
+      confirmText: 'Login',
+      variant: 'primary'
     });
     if (ok) {
       localStorage.removeItem('studentLoggedIn');
@@ -74,7 +73,7 @@ Thank you for using our service!
             Track Request Status →
           </button>
           <button type="button" className="guest-header-btn-logout" onClick={handleLogout}>
-            <MdExitToApp /> Logout
+            <FaSignInAlt /> Login
           </button>
         </div>
       </header>

@@ -1,11 +1,39 @@
 // AI-Powered Content Moderation using Groq
 import Groq from 'groq-sdk';
 
-// Initialize Groq AI
-const groq = new Groq({
-  apiKey: process.env.REACT_APP_GROQ_API_KEY || '',
-  dangerouslyAllowBrowser: true // Required for client-side usage
-});
+const apiKey = 
+  (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_GROQ_API_KEY || import.meta.env.REACT_APP_GROQ_API_KEY)) ||
+  (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_GROQ_API_KEY || process.env.GROQ_API_KEY));
+
+// Initialize Groq AI client when apiKey is present
+let groq = null;
+if (apiKey) {
+  try {
+    groq = new Groq({
+      apiKey,
+      dangerouslyAllowBrowser: true // Required for client-side usage
+    });
+  } catch (initErr) {
+    console.warn('Groq client initialization warning:', initErr);
+  }
+}
+
+const getGroqClient = () => {
+  if (groq) return groq;
+  const currentKey = 
+    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_GROQ_API_KEY || import.meta.env.REACT_APP_GROQ_API_KEY)) ||
+    (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_GROQ_API_KEY || process.env.GROQ_API_KEY));
+
+  if (!currentKey) {
+    throw new Error('Groq API key is missing or not configured');
+  }
+
+  groq = new Groq({
+    apiKey: currentKey,
+    dangerouslyAllowBrowser: true
+  });
+  return groq;
+};
 
 /**
  * Check if description length is appropriate (basic check before AI)
@@ -171,7 +199,8 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
 }`;
 
     // Call Groq AI (using GPT-OSS 20B - fastest current model)
-    const chatCompletion = await groq.chat.completions.create({
+    const client = getGroqClient();
+    const chatCompletion = await client.chat.completions.create({
       messages: [
         {
           role: 'user',
@@ -229,7 +258,7 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
     };
 
   } catch (error) {
-    console.error('AI validation error:', error);
+    console.error("Moderation error:", error);
     
     // Fallback: Allow submission with basic validation only
     console.warn('[Fallback] AI validation failed, using basic validation only');

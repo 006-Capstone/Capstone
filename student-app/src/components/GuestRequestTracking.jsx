@@ -1,6 +1,5 @@
 import React from 'react';
-import { FaArrowLeft, FaCheckCircle, FaClock, FaTimesCircle } from 'react-icons/fa';
-import { MdExitToApp } from 'react-icons/md';
+import { FaArrowLeft, FaCheckCircle, FaClock, FaTimesCircle, FaSignInAlt } from 'react-icons/fa';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/GuestRequestTracking.css';
 
@@ -11,8 +10,8 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
     const ok = await confirm({
       title: 'Exit Guest Session',
       message: 'Are you sure you want to exit and return to login?',
-      confirmText: 'Log Out',
-      variant: 'warning'
+      confirmText: 'Login',
+      variant: 'primary'
     });
     if (ok) {
       localStorage.removeItem('studentLoggedIn');
@@ -116,7 +115,7 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
             <span>Guest Account</span>
           </div>
           <button className="logout-btn-tracking" onClick={handleLogout}>
-            <MdExitToApp /> Logout
+            <FaSignInAlt /> Login
           </button>
         </div>
       </header>

@@ -88,20 +88,32 @@
   gap: 6px;
   padding: 6px 14px;
   background: #ffffff;
-  border: 1px solid #D9D9D9;
+  border: 1px solid #105E06;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #555555;
+  color: #105E06;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
 }
 
+.guest-exit-btn svg,
+.guest-exit-btn .guest-login-icon {
+  font-size: 14px;
+  color: #105E06;
+  transition: all 0.15s ease;
+}
+
 .guest-exit-btn:hover {
-  background: #F8E7E5;
-  border-color: #E0A8A0;
-  color: #A43B32;
+  background: #105E06;
+  border-color: #105E06;
+  color: #ffffff;
+}
+
+.guest-exit-btn:hover svg,
+.guest-exit-btn:hover .guest-login-icon {
+  color: #ffffff;
 }
 
 /* ---- Secondary Top Navigation ---- */

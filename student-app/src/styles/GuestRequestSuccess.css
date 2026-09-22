@@ -87,14 +87,23 @@
   font-weight: var(--font-weight-semibold);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  background: var(--red-50);
-  color: var(--red-600);
-  border: 1px solid var(--red-100);
+  background: #ffffff;
+  color: #105E06;
+  border: 1px solid #105E06;
   transition: all var(--transition-fast);
 }
 
+.guest-header-btn-logout svg {
+  color: #105E06;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
 .guest-header-btn-logout:hover {
-  background: var(--red-500);
+  background: #105E06;
+  color: #ffffff;
+}
+
+.guest-header-btn-logout:hover svg {
   color: #ffffff;
 }
 

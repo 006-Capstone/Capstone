@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignOutAlt } from 'react-icons/fa';
+import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignInAlt } from 'react-icons/fa';
 import { MdHome, MdTrackChanges, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -198,8 +198,8 @@ const GuestLogin = () => {
     const ok = await confirm({
       title: 'Exit Guest Mode',
       message: 'Exit Guest Mode and return to Student Login?',
-      confirmText: 'Exit to Login',
-      variant: 'warning'
+      confirmText: 'Login',
+      variant: 'primary'
     });
     if (ok) {
       localStorage.removeItem('studentLoggedIn');
@@ -575,7 +575,7 @@ const GuestLogin = () => {
             onClick={handleExitGuestMode}
             title="Exit guest mode and return to student login"
           >
-            <FaSignOutAlt /> Back to Login
+            <FaSignInAlt className="guest-login-icon" /> Login
           </button>
         </div>
       </header>

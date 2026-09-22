@@ -53,7 +53,7 @@
   align-items: center;
   gap: 6px;
   padding: 10px 18px;
-  background: #f44336;
+  background: #105E06;
   color: white;
   border: none;
   border-radius: 6px;
@@ -63,8 +63,12 @@
   transition: all 0.2s;
 }
 
+.logout-btn-tracking svg {
+  color: #ffffff;
+}
+
 .logout-btn-tracking:hover {
-  background: #d32f2f;
+  background: #0d4a05;
   transform: translateY(-1px);
 }
 
