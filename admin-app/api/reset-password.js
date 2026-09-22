@@ -1,5 +1,4 @@
-const { initFirebaseAdmin } = require('./_firebase.js');
-const { verificationCodes } = require('./_codes.js');
+const { initFirebaseAdmin, findVerificationCode, deleteVerificationCode } = require('./_firebase.js');
 
 module.exports = async function handler(req, res) {
   // Explicitly set JSON headers and enable CORS
@@ -17,55 +16,16 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { email, newPassword, verificationCode } = req.body || {};
+    const { email, studentId, username, newPassword, verificationCode } = req.body || {};
 
-    if (!email || !newPassword || !verificationCode) {
+    if ((!email && !studentId && !username) || !newPassword || !verificationCode) {
       return res.status(400).json({
         success: false,
-        error: 'Email, new password, and verification code are required'
+        error: 'Email or ID, new password, and verification code are required'
       });
     }
 
     const { app, auth, db, FieldValue } = await initFirebaseAdmin();
-    let storedData = null;
-
-    // Check Firestore first for verification code
-    if (app && db) {
-      try {
-        const docSnap = await db.collection('passwordResetCodes').doc(email).get();
-        if (docSnap.exists) {
-          storedData = docSnap.data();
-        }
-      } catch (firestoreError) {
-        console.warn('[Warning] Could not read reset code from Firestore:', firestoreError.message);
-      }
-    }
-
-    // Fallback to in-memory map
-    if (!storedData) {
-      storedData = verificationCodes.get(email);
-    }
-
-    if (!storedData || storedData.code !== verificationCode) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid or expired verification code'
-      });
-    }
-
-    if (Date.now() > storedData.expiry) {
-      verificationCodes.delete(email);
-      if (app && db) {
-        try {
-          await db.collection('passwordResetCodes').doc(email).delete();
-        } catch (e) {}
-      }
-      return res.status(400).json({
-        success: false,
-        error: 'Verification code has expired'
-      });
-    }
-
     if (!app || !auth) {
       return res.status(500).json({
         success: false,
@@ -73,15 +33,51 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // Get user by email
-    const userRecord = await auth.getUserByEmail(email);
+    const normCode = String(verificationCode).trim();
+    const result = await findVerificationCode({ email, studentId, username });
+
+    if (!result || !result.data) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or expired verification code'
+      });
+    }
+
+    const storedData = result.data;
+    const expiry = storedData.expiry || storedData.expiresAt || 0;
+
+    if (Date.now() > expiry) {
+      await deleteVerificationCode({ email, studentId, username });
+      return res.status(400).json({
+        success: false,
+        error: 'Verification code has expired'
+      });
+    }
+
+    if (String(storedData.code).trim() !== normCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid verification code'
+      });
+    }
+
+    const targetEmail = (email || storedData.email || '').toLowerCase().trim();
+    if (!targetEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid target email found for this account'
+      });
+    }
+
+    // Get user by email in Firebase Auth
+    const userRecord = await auth.getUserByEmail(targetEmail);
 
     // Update password using Firebase Admin SDK
     await auth.updateUser(userRecord.uid, {
       password: newPassword
     });
 
-    // Clear QR code data from Firestore (students collection)
+    // Clear QR code data from Firestore (students collection) if student
     if (db) {
       try {
         const studentsRef = db.collection('students');
@@ -100,14 +96,23 @@ module.exports = async function handler(req, res) {
         console.error('[Warning] Failed to clear QR code data:', qrError);
       }
 
-      // Delete the verification code after successful password reset
+      // Also update lastPasswordUpdate in staff collection if applicable
       try {
-        await db.collection('passwordResetCodes').doc(email).delete();
-      } catch (e) {}
+        const staffRef = db.collection('staff');
+        const staffQuery = await staffRef.where('email', '==', targetEmail).get();
+        if (!staffQuery.empty) {
+          await staffQuery.docs[0].ref.update({
+            lastPasswordUpdate: FieldValue ? FieldValue.serverTimestamp() : new Date().toISOString()
+          });
+        }
+      } catch (staffErr) {
+        console.error('[Warning] Failed to update staff document:', staffErr);
+      }
     }
 
-    verificationCodes.delete(email);
-    console.log(`[Success] Password reset for ${email}`);
+    // Delete verification code from Firestore
+    await deleteVerificationCode({ email: targetEmail, studentId, username });
+    console.log(`[Success] Password reset for ${targetEmail}`);
 
     return res.status(200).json({
       success: true,

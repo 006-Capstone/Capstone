@@ -1,5 +1,4 @@
-const { initFirebaseAdmin } = require('./_firebase.js');
-const { verificationCodes } = require('./_codes.js');
+const { findVerificationCode, deleteVerificationCode } = require('./_firebase.js');
 
 module.exports = async function handler(req, res) {
   // Explicitly set JSON headers and enable CORS
@@ -17,68 +16,47 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { email, code } = req.body || {};
+    const { email, studentId, username, code } = req.body || {};
 
-    if (!email || !code) {
+    if ((!email && !studentId && !username) || !code) {
       return res.status(400).json({
         success: false,
-        error: 'Email and code are required'
+        error: 'Email or ID and verification code are required'
       });
     }
 
-    let storedData = null;
+    const normCode = String(code).trim();
+    const result = await findVerificationCode({ email, studentId, username });
 
-    // Check Firestore first (persisted across serverless containers)
-    try {
-      const { app, db } = await initFirebaseAdmin();
-      if (app && db) {
-        const docSnap = await db.collection('passwordResetCodes').doc(email).get();
-        if (docSnap.exists) {
-          storedData = docSnap.data();
-        }
-      }
-    } catch (firestoreError) {
-      console.warn('[Warning] Could not read reset code from Firestore:', firestoreError.message);
-    }
-
-    // Fallback to in-memory store
-    if (!storedData) {
-      storedData = verificationCodes.get(email);
-    }
-
-    if (!storedData) {
+    if (!result || !result.data) {
       return res.status(400).json({
         success: false,
         error: 'No verification code found for this email'
       });
     }
 
+    const storedData = result.data;
+    const expiry = storedData.expiry || storedData.expiresAt || 0;
+
     // Check if code expired
-    if (Date.now() > storedData.expiry) {
-      verificationCodes.delete(email);
-      try {
-        const { app, db } = await initFirebaseAdmin();
-        if (app && db) {
-          await db.collection('passwordResetCodes').doc(email).delete();
-        }
-      } catch (e) {}
+    if (Date.now() > expiry) {
+      await deleteVerificationCode({ email, studentId, username });
       return res.status(400).json({
         success: false,
-        error: 'Verification code has expired'
+        error: 'Verification code has expired. Please request a new one.'
       });
     }
 
     // Check if code matches
-    if (storedData.code !== code) {
+    if (String(storedData.code).trim() !== normCode) {
       return res.status(400).json({
         success: false,
         error: 'Invalid verification code'
       });
     }
 
-    console.log(`[Success] Code verified for ${email}`);
+    console.log(`[Success] Code verified for ${email || studentId || username}`);
 
-    // Don't delete the code yet - will delete after password reset
     return res.status(200).json({
       success: true,
       message: 'Verification code is valid'

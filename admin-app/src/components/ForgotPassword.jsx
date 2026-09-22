@@ -15,8 +15,14 @@ const ForgotPassword = ({ onClose }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [staffData, setStaffData] = useState(null);
-  const [timeRemaining, setTimeRemaining] = useState(60); // 1 minute = 60 seconds
+  const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes = 600 seconds
   const [timerActive, setTimerActive] = useState(false);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   // Countdown timer for verification code expiration
   React.useEffect(() => {
@@ -72,7 +78,7 @@ const ForgotPassword = ({ onClose }) => {
           email: staff.email,
           studentName: staff.name,
           studentId: username, // Send username as identifier
-          expiryMinutes: 1 // 1 minute expiry
+          expiryMinutes: 10
         })
       });
 
@@ -90,7 +96,7 @@ const ForgotPassword = ({ onClose }) => {
         setSuccess('');
         setStep(2); // Move to verification step
       }, 2000);
-      setTimeRemaining(60); // Reset to 1 minute
+      setTimeRemaining(600); // 10 minutes
       setTimerActive(true);
       setLoading(false);
 
@@ -121,6 +127,8 @@ const ForgotPassword = ({ onClose }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email,
+          username: username,
+          studentId: username,
           code: verificationCode
         })
       });
@@ -136,6 +144,7 @@ const ForgotPassword = ({ onClose }) => {
         setSuccess('');
         setStep(3); // Move to password reset step
       }, 1500);
+      setTimerActive(false);
       setLoading(false);
 
     } catch (error) {
@@ -171,6 +180,8 @@ const ForgotPassword = ({ onClose }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email,
+          username: username,
+          studentId: username,
           newPassword: newPassword,
           verificationCode: verificationCode
         })
@@ -213,7 +224,7 @@ const ForgotPassword = ({ onClose }) => {
           email: email,
           studentName: staffData.name,
           studentId: username,
-          expiryMinutes: 1
+          expiryMinutes: 10
         })
       });
 
@@ -225,7 +236,7 @@ const ForgotPassword = ({ onClose }) => {
 
       const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
       setSuccess(`New code sent to ${maskedEmail}`);
-      setTimeRemaining(60);
+      setTimeRemaining(600);
       setTimerActive(true);
 
     } catch (error) {
@@ -339,9 +350,9 @@ const ForgotPassword = ({ onClose }) => {
 
             {/* Timer Display */}
             {timerActive && (
-              <div className={`timer-display ${timeRemaining <= 10 ? 'timer-warning' : ''}`}>
+              <div className={`timer-display ${timeRemaining <= 60 ? 'timer-warning' : ''}`}>
                 <FaKey className="timer-icon" />
-                <span>Code expires in: <strong>{timeRemaining}s</strong></span>
+                <span>Code expires in: <strong>{formatTime(timeRemaining)}</strong></span>
               </div>
             )}
             

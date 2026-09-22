@@ -5,7 +5,10 @@
   "dependencies": {
     "crypto-js": "^4.2.0",
     "firebase": "^12.16.0",
+    "firebase-admin": "^14.4.0",
     "html5-qrcode": "^2.3.8",
+    "jose": "^4.15.5",
+    "nodemailer": "^6.10.1",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -15,6 +18,9 @@
   "scripts": {
     "start": "set PORT=3001 && react-scripts start",
     "build": "react-scripts build"
+  },
+  "overrides": {
+    "jose": "4.15.5"
   },
   "browserslist": {
     "production": [

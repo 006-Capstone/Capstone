@@ -1,5 +1,4 @@
-const { initFirebaseAdmin } = require('./_firebase.js');
-const { verificationCodes } = require('./_codes.js');
+const { saveVerificationCode } = require('./_firebase.js');
 
 module.exports = async function handler(req, res) {
   // Explicitly return JSON headers and enable CORS
@@ -17,42 +16,31 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { email, studentName, studentId, expiryMinutes = 1 } = req.body || {};
+    const { email, studentName, studentId, username, expiryMinutes } = req.body || {};
 
     if (!email || !studentName) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Email and student name are required' 
+        error: 'Email and recipient name are required' 
       });
     }
+
+    const normEmail = email.toLowerCase().trim();
+    const effectiveId = (studentId || username || '').toString().trim();
+    // Default expiration to 10 minutes (minimum 5-10 minutes)
+    const effectiveExpiryMinutes = Math.max(Number(expiryMinutes) || 10, 10);
 
     // Generate 6-digit verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store code with expiry
-    const expiryTime = Date.now() + (expiryMinutes * 60 * 1000);
-    const codeData = {
+    // Persist to Firestore (required across serverless invocations)
+    await saveVerificationCode({
+      email: normEmail,
+      studentId: effectiveId,
+      studentName,
       code: verificationCode,
-      expiry: expiryTime,
-      studentId: studentId || ''
-    };
-
-    // Store in memory map
-    verificationCodes.set(email, codeData);
-
-    // Persist to Firestore using dynamic Firebase Admin
-    try {
-      const { app, db, FieldValue } = await initFirebaseAdmin();
-      if (app && db && FieldValue) {
-        await db.collection('passwordResetCodes').doc(email).set({
-          ...codeData,
-          createdAt: FieldValue.serverTimestamp()
-        });
-        console.log(`[Success] Reset code stored in Firestore for ${email}`);
-      }
-    } catch (firestoreError) {
-      console.warn('[Warning] Could not persist reset code to Firestore:', firestoreError.message);
-    }
+      expiryMinutes: effectiveExpiryMinutes
+    });
 
     // Lazily import nodemailer to keep startup lightweight
     const nodemailer = (await import('nodemailer')).default || (await import('nodemailer'));
@@ -69,7 +57,7 @@ module.exports = async function handler(req, res) {
     // Send email with Gmail SMTP
     const info = await transporter.sendMail({
       from: `Academia De San Jose <${fromEmail}>`,
-      to: email,
+      to: normEmail,
       subject: 'Password Reset Verification Code',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -90,13 +78,13 @@ module.exports = async function handler(req, res) {
             <div style="font-size: 36px; font-weight: bold; color: #2d5016; letter-spacing: 8px; font-family: 'Courier New', monospace;">
               ${verificationCode}
             </div>
-            <p style="color: #999; margin: 10px 0 0 0; font-size: 12px;">Valid for ${expiryMinutes} minute${expiryMinutes > 1 ? 's' : ''}</p>
+            <p style="color: #999; margin: 10px 0 0 0; font-size: 12px;">Valid for ${effectiveExpiryMinutes} minutes</p>
           </div>
 
           <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px;">
             <p style="color: #856404; margin: 0; font-weight: bold;">⚠️ Security Notice:</p>
             <ul style="color: #856404; margin: 10px 0 0 0; padding-left: 20px;">
-              <li>This code expires in ${expiryMinutes} minute${expiryMinutes > 1 ? 's' : ''}</li>
+              <li>This code expires in ${effectiveExpiryMinutes} minutes</li>
               <li>If you didn't request this, please ignore this email</li>
               <li>Never share this code with anyone</li>
               <li>Contact support if you notice suspicious activity</li>
@@ -119,7 +107,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ 
       success: true, 
       message: 'Verification code sent to email',
-      messageId: info.messageId
+      messageId: info.messageId,
+      expiresInMinutes: effectiveExpiryMinutes
     });
 
   } catch (error) {
@@ -131,4 +120,3 @@ module.exports = async function handler(req, res) {
   }
 };
 module.exports.default = module.exports;
-module.exports.verificationCodes = verificationCodes;
