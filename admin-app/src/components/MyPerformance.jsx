@@ -851,6 +851,8 @@ const MyPerformance = ({ userData }) => {
                   onMouseLeave={handleMouseLeaveTier}
                   tabIndex={0}
                   role="button"
+                  aria-expanded={showTierPopover || isHoveringTier}
+                  aria-haspopup="dialog"
                   aria-label={`Current Grade: ${grade.grade}. Click or hover to view Graded Tiers.`}
                   title="Click or hover to view Graded Tiers breakdown"
                   onKeyDown={(e) => {
@@ -860,6 +862,7 @@ const MyPerformance = ({ userData }) => {
                     }
                   }}
                 >
+                  <span className="grade-badge-dot" aria-hidden="true" />
                   {grade.grade}
                 </span>
               );
@@ -913,6 +916,7 @@ const MyPerformance = ({ userData }) => {
                       <div className="tier-item-top">
                         <div className="tier-item-badge-wrap">
                           <span className={`score-grade-badge ${tier.badgeClass}`}>
+                            <span className="grade-badge-dot" aria-hidden="true" />
                             {tier.grade}
                           </span>
                           <span className="tier-range-pill">{tier.scoreRange}</span>

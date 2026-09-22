@@ -652,18 +652,29 @@
 }
 
 .score-grade-badge {
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 2.5px 8px;
-  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill, 9999px);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background-color: var(--green-800);
-  color: #ffffff;
+  gap: 5px;
+  line-height: 1.25;
+  white-space: nowrap;
+  box-sizing: border-box;
   transition: all var(--transition-fast);
+}
+
+.score-grade-badge .grade-badge-dot,
+.score-grade-badge:not(:has(.grade-badge-dot))::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
 .score-grade-badge--interactive {
@@ -673,40 +684,60 @@
 
 .score-grade-badge--interactive:hover,
 .score-grade-badge--interactive:focus-visible {
-  filter: brightness(1.12);
+  filter: brightness(0.96);
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   outline: none;
 }
 
 .score-grade-badge.grade-badge--a-plus {
-  background-color: var(--green-900, #064e3b);
-  color: #ffffff;
-  border: 1px solid var(--green-700, #047857);
+  background-color: var(--status-resolved-bg, #dcfce7);
+  color: var(--status-resolved-text, #14532d);
+  border: 1px solid var(--status-resolved-border, #86efac);
+}
+.score-grade-badge.grade-badge--a-plus .grade-badge-dot,
+.score-grade-badge.grade-badge--a-plus::before {
+  background-color: var(--status-resolved-dot, #16a34a);
 }
 
 .score-grade-badge.grade-badge--a {
-  background-color: var(--green-800, #15803d);
-  color: #ffffff;
-  border: 1px solid var(--green-600, #16a34a);
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.score-grade-badge.grade-badge--a .grade-badge-dot,
+.score-grade-badge.grade-badge--a::before {
+  background-color: #10b981;
 }
 
 .score-grade-badge.grade-badge--b {
-  background-color: #1e40af;
-  color: #ffffff;
-  border: 1px solid #3b82f6;
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+.score-grade-badge.grade-badge--b .grade-badge-dot,
+.score-grade-badge.grade-badge--b::before {
+  background-color: #3b82f6;
 }
 
 .score-grade-badge.grade-badge--c {
-  background-color: #b45309;
-  color: #ffffff;
-  border: 1px solid #d97706;
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.score-grade-badge.grade-badge--c .grade-badge-dot,
+.score-grade-badge.grade-badge--c::before {
+  background-color: #f59e0b;
 }
 
 .score-grade-badge.grade-badge--needs-focus {
-  background-color: #b91c1c;
-  color: #ffffff;
-  border: 1px solid #ef4444;
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+.score-grade-badge.grade-badge--needs-focus .grade-badge-dot,
+.score-grade-badge.grade-badge--needs-focus::before {
+  background-color: #ef4444;
 }
 
 /* Graded Tiers Popover */

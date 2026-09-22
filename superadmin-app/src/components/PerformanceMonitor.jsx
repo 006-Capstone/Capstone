@@ -591,7 +591,7 @@ const PerformanceMonitor = () => {
         title: 'Apply Recommendation',
         message: `Apply this recommendation?\n\n${recommendation.title}\n\nImplementation Steps:\n• ${steps}\n\nThis will create a task record in Performance Improvement Tasks for follow-up.`,
         confirmText: 'Apply Recommendation',
-        variant: 'info'
+        variant: 'success'
       });
       
       if (confirmed) {
@@ -631,7 +631,7 @@ const PerformanceMonitor = () => {
         title: 'Staffing Request',
         message: `This recommendation suggests hiring additional staff.\n\n${recommendation.title}\n\n${recommendation.expectedImpact || ''}\n\nWould you like to create a staffing request?`,
         confirmText: 'Create Request',
-        variant: 'info'
+        variant: 'success'
       });
       
       if (confirmed) {
