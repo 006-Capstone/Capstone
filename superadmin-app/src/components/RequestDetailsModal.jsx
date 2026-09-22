@@ -371,7 +371,11 @@ const RequestDetailsModal = ({
                   <div className="inquiry-meta-row">
                     <div className="inquiry-meta-pill">
                       <span className="meta-lbl">Target Office:</span>
-                      <span className="meta-val font-semibold">{requestData?.office || 'General Administration'}</span>
+                      <span className="meta-val font-semibold">
+                        {requestData?.isNewStudentInquiry || requestData?.isAdmissionsInquiry || requestData?.targetRole === 'superadmin' || requestData?.office === 'Superadmin'
+                          ? 'Super Admin (Admissions)'
+                          : (requestData?.office || 'General Administration')}
+                      </span>
                     </div>
                     {requestData?.category && (
                       <div className="inquiry-meta-pill">

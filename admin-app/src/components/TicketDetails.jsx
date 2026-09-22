@@ -155,10 +155,24 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   useEffect(() => {
     if (ticketData) {
+      if (
+        ticketData.isNewStudentInquiry || 
+        ticketData.isGuest || 
+        ticketData.isAdmissionsInquiry || 
+        ticketData.category === 'Admissions / Login Support' || 
+        ticketData.targetRole === 'superadmin' ||
+        ticketData.assignedToOffice === 'Superadmin' ||
+        ticketData.office === 'Superadmin' ||
+        ticketData.department === 'Superadmin'
+      ) {
+        setLoading(false);
+        onNavigate && onNavigate('dashboard');
+        return;
+      }
       loadTicketDetails();
     } else {
       setLoading(false);
-      onNavigate('dashboard');
+      onNavigate && onNavigate('dashboard');
     }
     
     // Notifications listener

@@ -85,6 +85,9 @@ export const useOfficeTickets = (department) => {
           .filter(ticket => 
             !ticket.isGuest && 
             !ticket.isNewStudentInquiry && 
+            !ticket.isAdmissionsInquiry &&
+            ticket.targetRole !== 'superadmin' &&
+            ticket.assignedToOffice !== 'Superadmin' &&
             ticket.office !== 'Superadmin' && 
             ticket.department !== 'Superadmin' &&
             ticket.category !== 'Admissions / Login Support'

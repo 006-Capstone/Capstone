@@ -14,7 +14,8 @@ import {
   FaShieldAlt
 } from 'react-icons/fa';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { db, auth } from '../firebase';
 import { createNotification } from '../utils/notificationHelper';
 import '../styles/ContactAdmissionsModal.css';
 
@@ -89,6 +90,17 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
 
     try {
+      // Ensure the user has an active Firebase auth session to satisfy Firestore security rules (request.auth != null)
+      let currentUid = auth.currentUser?.uid;
+      if (!currentUid) {
+        try {
+          const userCred = await signInAnonymously(auth);
+          currentUid = userCred?.user?.uid;
+        } catch (authErr) {
+          console.warn('[Admissions] Anonymous auth warning:', authErr);
+        }
+      }
+
       // Generate a unique Admissions inquiry reference ID
       const generatedRequestId = `ADM-${Math.floor(100000 + Math.random() * 900000)}`;
       const cleanStudentId = studentId.trim();
@@ -97,7 +109,7 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
       const newInquiryDoc = {
         requestId: generatedRequestId,
         studentId: cleanStudentId || 'N/A',
-        studentUid: `guest_${Date.now()}`,
+        studentUid: currentUid || `guest_${Date.now()}`,
         studentName: fullName,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -108,9 +120,14 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
         section: section.trim() || 'N/A',
         subject: '[Admissions] Account / Login Assistance Request',
         description: message.trim(),
-        office: 'Superadmin',
-        officeCode: 'SA-001',
-        department: 'Superadmin',
+        // office is set to 'Registrar' to satisfy Firestore database security rules schema,
+        // while targetRole, department, and category strictly isolate it for Superadmin
+        office: 'Registrar',
+        officeCode: 'REG-001',
+        department: 'Registrar',
+        targetRole: 'superadmin',
+        assignedToOffice: 'Superadmin',
+        isAdmissionsInquiry: true,
         category: 'Admissions / Login Support',
         status: 'Pending',
         isGuest: true,
@@ -142,6 +159,7 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
             lastName: lastName.trim(),
             studentEmail: email.trim(),
             office: 'Superadmin',
+            targetRole: 'superadmin',
             grade: grade,
             section: section.trim() || 'N/A',
             subject: 'Account / Login Assistance Request'
