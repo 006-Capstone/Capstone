@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 // Create Gmail SMTP transporter
 // Use environment variables for Vercel deployment
@@ -98,7 +98,7 @@ export default async function handler(req, res) {
 
     console.log('[Success] Temporary password email sent:', info.messageId);
     return res.status(200).json({ 
-      success: true,
+      success: true, 
       messageId: info.messageId
     });
 

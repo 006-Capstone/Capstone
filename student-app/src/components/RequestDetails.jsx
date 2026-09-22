@@ -43,15 +43,17 @@ function RequestDetails({ requestData, onNavigate }) {
       
       if (docSnap.exists()) {
         const data = docSnap.data();
+        const createdDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : null);
+        const isValidDate = createdDate instanceof Date && !isNaN(createdDate.getTime());
         setRequest({
           ...data,
           firestoreId: docSnap.id,
-          date: data.createdAt?.toDate().toLocaleDateString('en-US', { 
+          date: isValidDate ? createdDate.toLocaleDateString('en-US', { 
             month: 'long', 
             day: 'numeric', 
             year: 'numeric' 
-          }) || 'N/A',
-          createdAtTimestamp: data.createdAt?.toDate().getTime() || 0
+          }) : 'N/A',
+          createdAtTimestamp: isValidDate ? createdDate.getTime() : 0
         });
       } else {
         alert('Request not found');
@@ -175,7 +177,8 @@ function RequestDetails({ requestData, onNavigate }) {
 
   const canCancelRequest = () => {
     if (!request || !request.createdAt) return false;
-    const createdDate = request.createdAt.toDate ? request.createdAt.toDate() : new Date(request.createdAt);
+    const createdDate = request.createdAt?.toDate ? request.createdAt.toDate() : new Date(request.createdAt);
+    if (!(createdDate instanceof Date) || isNaN(createdDate.getTime())) return false;
     const now = new Date();
     const daysSinceCreation = (now - createdDate) / (1000 * 60 * 60 * 24);
     return daysSinceCreation >= 3;
@@ -183,7 +186,8 @@ function RequestDetails({ requestData, onNavigate }) {
 
   const getDaysUntilCancellable = () => {
     if (!request || !request.createdAt) return 0;
-    const createdDate = request.createdAt.toDate ? request.createdAt.toDate() : new Date(request.createdAt);
+    const createdDate = request.createdAt?.toDate ? request.createdAt.toDate() : new Date(request.createdAt);
+    if (!(createdDate instanceof Date) || isNaN(createdDate.getTime())) return 0;
     const now = new Date();
     const daysSinceCreation = (now - createdDate) / (1000 * 60 * 60 * 24);
     const daysRemaining = Math.ceil(3 - daysSinceCreation);

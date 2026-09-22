@@ -60,7 +60,8 @@ const MyFeedback = ({ onNavigate }) => {
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp.toDate();
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (!(date instanceof Date) || isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 

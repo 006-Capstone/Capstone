@@ -65,7 +65,7 @@ const ForgotPassword = ({ onClose }) => {
       // Send verification code to staff's registered email
       const API_URL = process.env.NODE_ENV === 'production' 
         ? '' // Vercel will handle /api routes automatically
-        : 'http://localhost:3000'; // Point to student-app in development
+        : 'http://localhost:5000'; // Use email-backend in development
       
       const response = await fetch(`${API_URL}/api/send-reset-code`, {
         method: 'POST',
@@ -118,7 +118,7 @@ const ForgotPassword = ({ onClose }) => {
       // Verify code with backend
       const API_URL = process.env.NODE_ENV === 'production' 
         ? '' // Vercel will handle /api routes automatically
-        : 'http://localhost:3000'; // Point to student-app in development
+        : 'http://localhost:5000'; // Use email-backend in development
       
       const response = await fetch(`${API_URL}/api/verify-reset-code`, {
         method: 'POST',
@@ -170,7 +170,7 @@ const ForgotPassword = ({ onClose }) => {
       // Update password using backend API with Firebase Admin SDK
       const API_URL = process.env.NODE_ENV === 'production' 
         ? '' // Vercel will handle /api routes automatically
-        : 'http://localhost:3000'; // Point to student-app in development
+        : 'http://localhost:5000'; // Use email-backend in development
       
       const response = await fetch(`${API_URL}/api/reset-password`, {
         method: 'POST',

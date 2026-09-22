@@ -19,6 +19,15 @@ const Login = ({ onLogin, onForgotPassword }) => {
   const [qrScanner, setQrScanner] = useState(null);
   const [scanningStatus, setScanningStatus] = useState('initializing');
 
+  // Load remembered username on mount
+  useEffect(() => {
+    const remembered = localStorage.getItem('rememberedStaffUsername');
+    if (remembered) {
+      setUsername(remembered);
+      setRememberMe(true);
+    }
+  }, []);
+
   const departments = [
     { id: 'finance', name: 'Finance', icon: FaDollarSign },
     { id: 'library', name: 'Library', icon: FaBook },
@@ -46,13 +55,26 @@ const Login = ({ onLogin, onForgotPassword }) => {
     
     try {
       // First, find the staff member by username and office
-      const staffQuery = query(
+      let staffQuery = query(
         collection(db, 'staff'),
         where('username', '==', username.trim()),
         where('officeId', '==', selectedDepartment)
       );
       
-      const querySnapshot = await getDocs(staffQuery);
+      let querySnapshot = await getDocs(staffQuery);
+      
+      // Fallback: search by office name if officeId was not matched
+      if (querySnapshot.empty) {
+        const dept = departments.find(d => d.id === selectedDepartment);
+        if (dept) {
+          staffQuery = query(
+            collection(db, 'staff'),
+            where('username', '==', username.trim()),
+            where('office', '==', dept.name)
+          );
+          querySnapshot = await getDocs(staffQuery);
+        }
+      }
       
       if (querySnapshot.empty) {
         setError('Invalid username or office. Please check your credentials.');
@@ -64,7 +86,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
       const staffData = staffDoc.data();
 
       // Check if staff is active
-      if (!staffData.isActive) {
+      if (staffData.isActive === false) {
         setError('Your account has been suspended. Please contact the administrator.');
         setLoading(false);
         return;
@@ -72,6 +94,13 @@ const Login = ({ onLogin, onForgotPassword }) => {
 
       // Authenticate with Firebase using email and password
       await signInWithEmailAndPassword(auth, staffData.email, password);
+
+      // Save or remove remembered username based on checkbox
+      if (rememberMe) {
+        localStorage.setItem('rememberedStaffUsername', username.trim());
+      } else {
+        localStorage.removeItem('rememberedStaffUsername');
+      }
 
       // Store staff info in localStorage
       const staffInfo = {
@@ -87,7 +116,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
         staffId: staffData.staffId || '',
         phoneNumber: staffData.phoneNumber || '',
         profilePicture: staffData.profilePicture || '',
-        uid: staffData.uid,
+        uid: staffData.uid || auth.currentUser?.uid,
+        mustChangePassword: staffData.mustChangePassword === true,
         firestoreDocId: staffDoc.id // Save the document ID
       };
       
@@ -315,7 +345,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
       const staffData = staffDoc.data();
       console.log('[Success] Staff found:', staffData);
 
-      if (!staffData.isActive) {
+      if (staffData.isActive === false) {
         console.error('[Error] Account suspended');
         setScanningStatus('error');
         setError('Your account has been suspended. Please contact the administrator.');
@@ -341,7 +371,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
         staffId: staffData.staffId || '',
         phoneNumber: staffData.phoneNumber || '',
         profilePicture: staffData.profilePicture || '',
-        uid: staffData.uid,
+        uid: staffData.uid || auth.currentUser?.uid,
+        mustChangePassword: staffData.mustChangePassword === true,
         firestoreDocId: staffDoc.id
       };
       
@@ -390,6 +421,11 @@ const Login = ({ onLogin, onForgotPassword }) => {
         }
       } catch (err) {
         console.log('Scanner close error:', err);
+      }
+      try {
+        qrScanner.clear();
+      } catch (clearErr) {
+        // ignore
       }
       setQrScanner(null);
     }

@@ -101,18 +101,20 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
 
       const allRequests = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        const createdDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : null);
+        const isValidDate = createdDate instanceof Date && !isNaN(createdDate.getTime());
         return {
           firestoreId: doc.id,
           id: data.requestId,
           office: data.office,
           subject: data.subject,
-          date: data.createdAt?.toDate().toLocaleDateString('en-US', {
+          date: isValidDate ? createdDate.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
             year: 'numeric'
-          }) || 'N/A',
+          }) : 'N/A',
           status: data.status,
-          createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
+          createdAtTimestamp: isValidDate ? createdDate.getTime() : 0,
           ...data
         };
       });

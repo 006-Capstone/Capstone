@@ -1,5 +1,6 @@
-// Import the shared verification codes store
+// Import the shared verification codes store and firebase admin
 import { verificationCodes } from './send-reset-code.js';
+import { getAdminApp, getFirestore } from './_firebase.js';
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -25,7 +26,26 @@ export default async function handler(req, res) {
       });
     }
 
-    const storedData = verificationCodes.get(email);
+    let storedData = null;
+
+    // Check Firestore first (persisted across serverless containers)
+    try {
+      const app = getAdminApp();
+      if (app) {
+        const db = getFirestore(app);
+        const docSnap = await db.collection('passwordResetCodes').doc(email).get();
+        if (docSnap.exists) {
+          storedData = docSnap.data();
+        }
+      }
+    } catch (firestoreError) {
+      console.warn('[Warning] Could not read reset code from Firestore:', firestoreError.message);
+    }
+
+    // Fallback to in-memory store
+    if (!storedData) {
+      storedData = verificationCodes.get(email);
+    }
 
     if (!storedData) {
       return res.status(400).json({
@@ -37,6 +57,13 @@ export default async function handler(req, res) {
     // Check if code expired
     if (Date.now() > storedData.expiry) {
       verificationCodes.delete(email);
+      try {
+        const app = getAdminApp();
+        if (app) {
+          const db = getFirestore(app);
+          await db.collection('passwordResetCodes').doc(email).delete();
+        }
+      } catch (e) {}
       return res.status(400).json({
         success: false,
         error: 'Verification code has expired'

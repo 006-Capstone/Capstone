@@ -1,4 +1,5 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
+import { getAdminApp, getFirestore, FieldValue } from './_firebase.js';
 
 // Create Gmail SMTP transporter
 // Use environment variables for Vercel deployment
@@ -10,8 +11,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// In-memory store for verification codes
-// Note: In production with multiple serverless instances, use Redis or database
+// In-memory store for verification codes as fallback/local cache
 const verificationCodes = new Map();
 
 export default async function handler(req, res) {
@@ -43,11 +43,29 @@ export default async function handler(req, res) {
 
     // Store code with expiry
     const expiryTime = Date.now() + (expiryMinutes * 60 * 1000);
-    verificationCodes.set(email, {
+    const codeData = {
       code: verificationCode,
       expiry: expiryTime,
-      studentId
-    });
+      studentId: studentId || ''
+    };
+
+    // Store in memory map
+    verificationCodes.set(email, codeData);
+
+    // Persist to Firestore so it is shared across all serverless lambda instances
+    try {
+      const app = getAdminApp();
+      if (app) {
+        const db = getFirestore(app);
+        await db.collection('passwordResetCodes').doc(email).set({
+          ...codeData,
+          createdAt: FieldValue.serverTimestamp()
+        });
+        console.log(`[Success] Reset code stored in Firestore for ${email}`);
+      }
+    } catch (firestoreError) {
+      console.warn('[Warning] Could not persist reset code to Firestore:', firestoreError.message);
+    }
 
     const fromEmail = process.env.GMAIL_USER || 'academiadesanjose3@gmail.com';
 
@@ -102,7 +120,7 @@ export default async function handler(req, res) {
 
     console.log('[Success] Reset code sent:', info.messageId);
     return res.status(200).json({ 
-      success: true,
+      success: true, 
       message: 'Verification code sent to email',
       messageId: info.messageId
     });

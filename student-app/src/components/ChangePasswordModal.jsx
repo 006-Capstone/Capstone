@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaLock, FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
 import { auth, db } from '../firebase';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { updatePassword } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import '../styles/ChangePasswordModal.css';
 
@@ -54,28 +54,13 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged }) => {
 
     try {
       const user = auth.currentUser;
-      
-      // Check if new password is same as old password
-      // Try to reauthenticate with the new password to see if it's the current password
-      try {
-        const credential = EmailAuthProvider.credential(user.email, newPassword);
-        await reauthenticateWithCredential(user, credential);
-        
-        // If reauthentication succeeds, it means new password = old password
-        setError('You cannot reuse your previous password. Please choose a different password for security reasons.');
+      if (!user) {
+        setError('Your login session has expired. Please log in again to change your password.');
         setLoading(false);
         return;
-      } catch (reauthError) {
-        // If reauthentication fails, it means new password ≠ old password (good!)
-        // Continue with password change
-        if (reauthError.code !== 'auth/wrong-password' && reauthError.code !== 'auth/invalid-credential') {
-          // If error is NOT wrong-password, something else went wrong
-          throw reauthError;
-        }
-        // If it IS wrong-password, that's good - new password is different from old
       }
 
-      // Update password in Firebase Authentication
+      // Update password in Firebase Authentication directly
       await updatePassword(user, newPassword);
 
       // Update mustChangePassword flag in Firestore
@@ -102,6 +87,8 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged }) => {
         setError('For security reasons, please log in again to change your password.');
       } else if (error.code === 'auth/weak-password') {
         setError('Password is too weak. Please choose a stronger password.');
+      } else if (error.code === 'auth/invalid-credential') {
+        setError('Your login session has expired or is invalid. Please log in again to change your password.');
       } else {
         setError('Failed to change password: ' + error.message);
       }

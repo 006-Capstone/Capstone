@@ -1,20 +1,5 @@
-const admin = require('firebase-admin');
+import { getAdminApp, getAuth, getFirestore, FieldValue } from './_firebase.js';
 import { verificationCodes } from './send-reset-code.js';
-
-// Initialize Firebase Admin
-if (!admin.apps || admin.apps.length === 0) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-      })
-    });
-  } catch (error) {
-    console.error('[Error] Firebase Admin initialization failed:', error);
-  }
-}
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -40,8 +25,26 @@ export default async function handler(req, res) {
       });
     }
 
-    // Verify the code one more time
-    const storedData = verificationCodes.get(email);
+    const app = getAdminApp();
+    let storedData = null;
+
+    // Check Firestore first for verification code
+    if (app) {
+      try {
+        const db = getFirestore(app);
+        const docSnap = await db.collection('passwordResetCodes').doc(email).get();
+        if (docSnap.exists) {
+          storedData = docSnap.data();
+        }
+      } catch (firestoreError) {
+        console.warn('[Warning] Could not read reset code from Firestore:', firestoreError.message);
+      }
+    }
+
+    // Fallback to in-memory map
+    if (!storedData) {
+      storedData = verificationCodes.get(email);
+    }
 
     if (!storedData || storedData.code !== verificationCode) {
       return res.status(400).json({
@@ -52,23 +55,38 @@ export default async function handler(req, res) {
 
     if (Date.now() > storedData.expiry) {
       verificationCodes.delete(email);
+      if (app) {
+        try {
+          const db = getFirestore(app);
+          await db.collection('passwordResetCodes').doc(email).delete();
+        } catch (e) {}
+      }
       return res.status(400).json({
         success: false,
         error: 'Verification code has expired'
       });
     }
 
+    if (!app) {
+      return res.status(500).json({
+        success: false,
+        error: 'Firebase Admin authentication is not configured on the server'
+      });
+    }
+
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
     // Get user by email
-    const userRecord = await admin.auth().getUserByEmail(email);
+    const userRecord = await auth.getUserByEmail(email);
 
     // Update password using Firebase Admin SDK
-    await admin.auth().updateUser(userRecord.uid, {
+    await auth.updateUser(userRecord.uid, {
       password: newPassword
     });
 
     // Clear QR code data from Firestore (students collection)
     try {
-      const db = admin.firestore();
       const studentsRef = db.collection('students');
       const studentQuery = await studentsRef.where('uid', '==', userRecord.uid).get();
       
@@ -77,7 +95,7 @@ export default async function handler(req, res) {
         await studentDoc.ref.update({
           qrCodeData: '',
           qrCodeGeneratedAt: null,
-          lastPasswordUpdate: admin.firestore.FieldValue.serverTimestamp()
+          lastPasswordUpdate: FieldValue.serverTimestamp()
         });
         console.log(`[Success] Cleared QR code data for student UID: ${userRecord.uid}`);
       }
@@ -88,6 +106,9 @@ export default async function handler(req, res) {
 
     // Delete the verification code after successful password reset
     verificationCodes.delete(email);
+    try {
+      await db.collection('passwordResetCodes').doc(email).delete();
+    } catch (e) {}
 
     console.log(`[Success] Password reset for ${email}`);
 
@@ -108,7 +129,7 @@ export default async function handler(req, res) {
 
     return res.status(500).json({
       success: false,
-      error: 'Failed to reset password'
+      error: error.message || 'Failed to reset password'
     });
   }
 }

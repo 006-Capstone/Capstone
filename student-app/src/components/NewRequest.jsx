@@ -293,6 +293,11 @@ function NewRequest({ onNavigate }) {
 
       const student = JSON.parse(studentData);
       const selectedOfficeData = offices.find(o => o.id === selectedOffice);
+      if (!selectedOfficeData) {
+        setError('Selected office could not be found. Please re-select the office.');
+        setLoading(false);
+        return;
+      }
       
       // CHECK DAILY LIMIT: 2 tickets per department per day
       const today = new Date();
@@ -529,7 +534,7 @@ function NewRequest({ onNavigate }) {
                   <option value="">
                     {selectedOffice ? 'Select a subject from the list' : 'Please select an office first'}
                   </option>
-                  {selectedOffice && offices.find(o => o.id === selectedOffice)?.subjects.map((subj, index) => (
+                  {selectedOffice && offices.find(o => o.id === selectedOffice)?.subjects?.map((subj, index) => (
                     <option key={index} value={subj}>
                       {subj}
                     </option>

@@ -265,7 +265,7 @@ function ProfileSettings({ onClose }) {
         
         // Extract 4-digit ID from various formats
         let fourDigitId = '';
-        const rawId = data.studentId || data.id || '';
+        const rawId = String(data.studentId || data.id || '');
         
         if (rawId.includes('-')) {
           // Format: "05-2324-XXXX" -> extract "XXXX"
@@ -509,8 +509,12 @@ function ProfileSettings({ onClose }) {
       
     } catch (error) {
       console.error('Error changing password:', error);
-      if (error.code === 'auth/wrong-password') {
-        alert('Current password is incorrect');
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        alert('Current password is incorrect. Please check and try again.');
+      } else if (error.code === 'auth/requires-recent-login') {
+        alert('Your login session has expired. Please log out and log in again before changing your password.');
+      } else if (error.code === 'auth/weak-password') {
+        alert('Password is too weak. Please choose a stronger password.');
       } else {
         alert('Failed to change password: ' + error.message);
       }

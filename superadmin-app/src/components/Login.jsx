@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaShieldAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -12,6 +12,15 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Load remembered username on mount
+  useEffect(() => {
+    const remembered = localStorage.getItem('rememberedSuperadminUsername');
+    if (remembered) {
+      setUsername(remembered);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -63,8 +72,8 @@ const Login = ({ onLogin }) => {
 
       const superadminData = superadminDoc.data();
 
-      // Check if superadmin is active
-      if (!superadminData.isActive) {
+      // Check if superadmin is active (only block if explicitly false)
+      if (superadminData.isActive === false) {
         setError('Your account has been suspended.');
         setLoading(false);
         return;
@@ -73,12 +82,19 @@ const Login = ({ onLogin }) => {
       // Authenticate with Firebase using email and password
       await signInWithEmailAndPassword(auth, superadminData.email, password);
 
+      // Save or remove remembered username based on checkbox
+      if (rememberMe) {
+        localStorage.setItem('rememberedSuperadminUsername', inputVal);
+      } else {
+        localStorage.removeItem('rememberedSuperadminUsername');
+      }
+
       // Store superadmin info in localStorage
       localStorage.setItem('superadminAuth', 'true');
       localStorage.setItem('superadminData', JSON.stringify({
         username: superadminData.username,
         email: superadminData.email,
-        uid: superadminData.uid
+        uid: superadminData.uid || auth.currentUser?.uid
       }));
       
       console.log('[Success] Superadmin logged in');
@@ -158,7 +174,16 @@ const Login = ({ onLogin }) => {
               <div className="form-group">
                 <div className="password-label-row">
                   <label className="form-label" htmlFor="password">Password</label>
-                  <a href="#" className="forgot-password">Forgot Password?</a>
+                  <a
+                    href="#forgot-password"
+                    className="forgot-password"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      alert('To reset superadmin credentials, please contact the database administrator or system technician.');
+                    }}
+                  >
+                    Forgot Password?
+                  </a>
                 </div>
                 <div className="password-input-wrapper">
                   <input
@@ -192,7 +217,7 @@ const Login = ({ onLogin }) => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                 />
                 <label htmlFor="remember" className="remember-label">
-                  Remember this decive
+                  Remember this device
                 </label>
               </div>
               

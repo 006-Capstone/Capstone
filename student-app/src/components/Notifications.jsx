@@ -140,10 +140,11 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        const createdDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : null);
         notifs.push({
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate()
+          createdAt: (createdDate instanceof Date && !isNaN(createdDate.getTime())) ? createdDate : null
         });
         if (!data.isRead) unread++;
       });
