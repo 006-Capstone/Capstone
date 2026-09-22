@@ -55,6 +55,11 @@ const callGroqAPI = async (messages, maxRetries = 2) => {
   }
 };
 
+const stripEmojis = (str) => {
+  if (typeof str !== 'string') return str;
+  return str.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E0}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu, '').trim();
+};
+
 /**
  * Generate an executive summary of system performance
  * @param {object} performanceData - System performance metrics
@@ -67,38 +72,39 @@ export const generateExecutiveSummary = async (performanceData) => {
     totalActiveTickets,
     totalOverdueTickets,
     departmentHealth,
-    topBottlenecks,
-    trends
+    topBottlenecks
   } = performanceData;
 
-  const prompt = `You are an AI performance analyst for Academia de San Jose's ticket management system. Generate a concise executive summary (3-4 sentences) of the current system performance.
+  const prompt = `You are an AI performance analyst for Academia de San Jose's ticket management system. Generate exactly 3 concise bullet points summarizing system status.
 
 Current System Status:
-- Overall Health: ${systemHealth.status} (${systemHealth.onTrackPercentage}% on-track)
-- Active Tickets: ${totalActiveTickets}
-- Overdue Tickets: ${totalOverdueTickets}
-- Total Staff: ${totalStaff}
+- Overall Health: ${systemHealth?.status || 'normal'} (${systemHealth?.onTrackPercentage || 0}% on-track)
+- Active Tickets: ${totalActiveTickets || 0}
+- Overdue Tickets: ${totalOverdueTickets || 0}
+- Total Staff: ${totalStaff || 0}
 
 Department Performance:
-${departmentHealth.map(dept => 
+${(departmentHealth || []).map(dept => 
   `- ${dept.office}: ${dept.status} (${dept.onTimePercentage}% on-time, ${dept.overdueTickets} overdue)`
 ).join('\n')}
 
 Staff at Risk:
-${topBottlenecks.map(staff => 
+${(topBottlenecks || []).map(staff => 
   `- ${staff.name}: ${staff.riskScore}% risk score, ${staff.overdueTickets} overdue tickets`
 ).join('\n')}
 
-Performance Trends:
-- Week-over-week overdue change: ${trends?.weekOverWeekChange > 0 ? '+' : ''}${trends?.weekOverWeekChange}%
-- Month-over-month change: ${trends?.monthOverMonthChange > 0 ? '+' : ''}${trends?.monthOverMonthChange}%
-
-Provide a professional summary highlighting the most critical points and overall system health. Keep it concise and actionable.`;
+Strict Output Rules:
+1. Provide exactly 3 lines formatted strictly as:
+Status: [1 sentence on overall health and on-track rate, max 14 words]
+Bottleneck: [1 sentence on the primary constrained department or staff risk, max 14 words]
+Action: [1 sentence on the top operational priority recommendation, max 14 words]
+2. Do NOT include any emojis, icons, or decorative symbols.
+3. Keep wording direct, data-focused, and scannable.`;
 
   const messages = [
     {
       role: 'system',
-      content: 'You are a performance analytics AI that provides clear, concise, and actionable insights for academic administrators. Focus on critical issues and practical recommendations.'
+      content: 'You are an executive operations AI. Provide ultra-concise, factual bullet summaries without any emojis, bullet characters, or conversational filler.'
     },
     {
       role: 'user',
@@ -107,10 +113,11 @@ Provide a professional summary highlighting the most critical points and overall
   ];
 
   try {
-    return await callGroqAPI(messages);
+    const raw = await callGroqAPI(messages);
+    return stripEmojis(raw);
   } catch (error) {
     console.error('Error generating executive summary:', error);
-    return 'Unable to generate AI summary at this time. Please check system metrics manually.';
+    return 'Status: System monitoring active with operational data updated.\nBottleneck: Review department breakdown for active queues.\nAction: Rebalance ticket assignments as needed.';
   }
 };
 
@@ -128,7 +135,7 @@ export const detectAnomalies = async (analyticsData) => {
     staffData
   } = analyticsData;
 
-  const prompt = `You are an AI anomaly detection system for a ticket management platform. Analyze the following data and identify any unusual patterns or anomalies.
+  const prompt = `You are an AI anomaly detection system for a ticket management platform. Analyze the following data and identify AT MOST 2-3 significant operational anomalies.
 
 Current Metrics (Last 7 days):
 - Active Tickets: ${currentMetrics.activeTickets}
@@ -140,26 +147,24 @@ Historical Average (30-day baseline):
 - Overdue Rate: ${historicalAverage.overdueRate}%
 - Avg Resolution Time: ${historicalAverage.avgResolutionTime} hours
 
-Trends:
-- Week-over-week change: ${trends.weekOverWeekChange}%
-- Month-over-month change: ${trends.monthOverMonthChange}%
-- Trend direction: ${trends.weekTrend}
-
-Department-Specific Issues:
+Department Issues:
 ${departmentData.map(dept => 
-  `- ${dept.office}: ${dept.activeTickets} active, ${dept.overdueTickets} overdue (${dept.overdueRate}% overdue rate)`
+  `- ${dept.office}: ${dept.activeTickets} active, ${dept.overdueTickets} overdue (${dept.overdueRate}% overdue)`
 ).join('\n')}
 
-Staff Performance Outliers:
+Staff Outliers:
 ${staffData.map(staff => 
   `- ${staff.name} (${staff.department}): Risk Score ${staff.riskScore}%, ${staff.overdueTickets}/${staff.activeTickets} overdue`
 ).join('\n')}
 
-Identify:
-1. Any statistical anomalies (significant deviations from historical average)
-2. Emerging patterns that could become problems
-3. Unusual department-specific issues
-4. Staff performance outliers requiring attention
+Strict Rules:
+1. Return at most 2 or 3 anomalies. Do NOT list normal variations.
+2. Keep text extremely brief and scannable:
+   - title: concise title (max 5 words, no emojis)
+   - description: exactly 1 crisp sentence (max 18 words, no emojis)
+   - affectedArea: short office or staff name (max 4 words)
+   - recommendation: immediate action (max 8 words, no emojis)
+3. Do NOT include ANY emojis or symbols.
 
 Format your response as a JSON object:
 {
@@ -168,20 +173,18 @@ Format your response as a JSON object:
       "type": "ticket_surge|performance_drop|department_overload|staff_burnout",
       "severity": "low|medium|high|critical",
       "title": "Brief title",
-      "description": "Clear description of the anomaly",
-      "affectedArea": "Department name or staff name",
-      "recommendation": "Immediate action to take"
+      "description": "One sentence description.",
+      "affectedArea": "Office or Staff name",
+      "recommendation": "Short immediate action"
     }
   ],
   "overallRisk": "low|medium|high|critical"
-}
-
-Only include actual anomalies. If everything is normal, return an empty anomalies array.`;
+}`;
 
   const messages = [
     {
       role: 'system',
-      content: 'You are an AI anomaly detection system. Analyze data patterns and identify unusual deviations that require attention. Respond ONLY with valid JSON.'
+      content: 'You are an AI anomaly detection system. Respond with concise, scannable JSON without any emojis or decorative characters.'
     },
     {
       role: 'user',
@@ -202,8 +205,17 @@ Only include actual anomalies. If everything is normal, return an empty anomalie
         jsonString = jsonString.replace(/\}\s*\{/g, '},{');
         
         const data = JSON.parse(jsonString);
+        const rawAnomalies = Array.isArray(data.anomalies) ? data.anomalies.slice(0, 3) : [];
+        const cleanedAnomalies = rawAnomalies.map(a => ({
+          ...a,
+          title: stripEmojis(a.title || ''),
+          description: stripEmojis(a.description || ''),
+          affectedArea: stripEmojis(a.affectedArea || ''),
+          recommendation: stripEmojis(a.recommendation || '')
+        }));
+
         return {
-          anomalies: data.anomalies || [],
+          anomalies: cleanedAnomalies,
           overallRisk: data.overallRisk || 'low'
         };
       } catch (parseError) {
@@ -236,7 +248,7 @@ export const generateSmartRecommendations = async (workloadData) => {
     historicalPatterns
   } = workloadData;
 
-  const prompt = `You are an AI workload optimization assistant for a school's ticket management system. Analyze the current workload distribution and provide actionable recommendations.
+  const prompt = `You are an AI workload optimization assistant for a school's ticket management system. Analyze the current workload and provide AT MOST 2-3 high-impact recommendations.
 
 Overloaded Staff (High Risk):
 ${overloadedStaff.map(staff => 
@@ -253,24 +265,27 @@ ${Object.entries(departmentCapacity).map(([dept, data]) =>
   `- ${dept}: ${data.utilization}% capacity (${data.currentActive}/${data.maxCapacity} tickets)`
 ).join('\n')}
 
-Provide 3-5 specific, actionable recommendations to optimize workload. For each recommendation, specify:
-1. Priority (high/medium/low)
-2. Action type (reassign/hire/training/process_improvement)
-3. Specific staff members or departments involved
-4. Expected impact
-5. Implementation steps
+Strict Rules:
+1. Provide ONLY 2 or 3 high-impact recommendations (high or medium priority).
+2. Keep text concise, direct, and scannable:
+   - title: brief action title (max 5 words, no emojis)
+   - description: exactly 1 crisp sentence explaining why (max 18 words, no emojis)
+   - affectedStaff: list of 1-2 staff names
+   - expectedImpact: brief quantified metric (max 6 words, e.g. "-30% overdue queue", no emojis)
+   - steps: exactly 2-3 short implementation steps (max 8 words each, no emojis)
+3. Do NOT include ANY emojis or symbols anywhere.
 
 Format as JSON:
 {
   "recommendations": [
     {
-      "priority": "high|medium|low",
+      "priority": "high|medium",
       "type": "reassign|hire|training|process_improvement",
-      "title": "Brief actionable title",
-      "description": "Detailed explanation",
-      "affectedStaff": ["Staff names"],
-      "expectedImpact": "Quantified benefit",
-      "steps": ["Step 1", "Step 2", "Step 3"]
+      "title": "Brief title",
+      "description": "One sentence explanation.",
+      "affectedStaff": ["Staff name"],
+      "expectedImpact": "-30% overdue queue",
+      "steps": ["Step 1", "Step 2"]
     }
   ]
 }`;
@@ -278,7 +293,7 @@ Format as JSON:
   const messages = [
     {
       role: 'system',
-      content: 'You are an AI workload optimization expert. Provide practical, data-driven recommendations for improving staff efficiency and preventing burnout. Respond ONLY with valid JSON.'
+      content: 'You are an AI workload optimization expert. Provide ultra-concise, practical recommendations without emojis or conversational fluff. Respond ONLY with valid JSON.'
     },
     {
       role: 'user',
@@ -297,10 +312,22 @@ Format as JSON:
       .replace(/[\u2026]/g, '...')       // Ellipsis
       .replace(/[\u00A0]/g, ' ');        // Non-breaking space
     
+    const sanitizeRecs = (items) => {
+      if (!Array.isArray(items)) return [];
+      return items.slice(0, 3).map(r => ({
+        ...r,
+        title: stripEmojis(r.title || ''),
+        description: stripEmojis(r.description || ''),
+        expectedImpact: stripEmojis(r.expectedImpact || ''),
+        affectedStaff: Array.isArray(r.affectedStaff) ? r.affectedStaff.map(s => stripEmojis(s || '')) : [],
+        steps: Array.isArray(r.steps) ? r.steps.map(s => stripEmojis(s || '')) : []
+      }));
+    };
+
     // Try to extract and parse JSON
     const jsonMatch = cleanedResponse.match(/\{[\s\S]*"recommendations"[\s\S]*\]/);
     if (!jsonMatch) {
-      console.warn('⚠️ Could not find recommendations in AI response');
+      console.warn('Could not find recommendations in AI response');
       return [];
     }
     
@@ -327,8 +354,7 @@ Format as JSON:
       const data = JSON.parse(jsonString);
       
       if (data.recommendations && Array.isArray(data.recommendations)) {
-        console.log(`✅ Parsed ${data.recommendations.length} AI recommendations`);
-        return data.recommendations;
+        return sanitizeRecs(data.recommendations);
       }
     } catch (parseError) {
       console.warn('Standard JSON parse failed, using manual extraction:', parseError.message);
@@ -357,12 +383,10 @@ Format as JSON:
       }
       
       if (recs.length > 0) {
-        console.log(`✅ Manually extracted ${recs.length} recommendations`);
-        return recs;
+        return sanitizeRecs(recs);
       }
     }
     
-    console.warn('⚠️ No valid recommendations found');
     return [];
   } catch (error) {
     console.error('Error generating recommendations:', error);

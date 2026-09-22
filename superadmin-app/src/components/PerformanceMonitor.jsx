@@ -33,7 +33,11 @@ import {
   FaCheck,
   FaGraduationCap,
   FaCogs,
-  FaClipboardCheck
+  FaClipboardCheck,
+  FaChevronDown,
+  FaArrowRight,
+  FaBolt,
+  FaBuilding
 } from 'react-icons/fa';
 import {
   calculateStaffRiskScore,
@@ -81,6 +85,40 @@ const PerformanceMonitor = () => {
     loading: false,
     error: null
   });
+  const [expandedRecSteps, setExpandedRecSteps] = useState({});
+
+  const toggleRecSteps = (index) => {
+    setExpandedRecSteps(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
+  const parseExecutiveBullets = (summaryText) => {
+    if (!summaryText) return [];
+    const lines = summaryText
+      .split(/\n+/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (lines.length === 0) return [];
+
+    const items = [];
+    lines.forEach(line => {
+      const cleanLine = line.replace(/^[-•*]\s*/, '').trim();
+      if (/^status[:\-]/i.test(cleanLine)) {
+        items.push({ type: 'status', label: 'Status', text: cleanLine.replace(/^status[:\-]\s*/i, '').trim() });
+      } else if (/^(bottleneck|risk|warning|watch)[:\-]/i.test(cleanLine)) {
+        items.push({ type: 'bottleneck', label: 'Bottleneck', text: cleanLine.replace(/^(bottleneck|risk|warning|watch)[:\-]\s*/i, '').trim() });
+      } else if (/^(action|recommendation|priority|next step)[:\-]/i.test(cleanLine)) {
+        items.push({ type: 'action', label: 'Action Priority', text: cleanLine.replace(/^(action|recommendation|priority|next step)[:\-]\s*/i, '').trim() });
+      } else if (cleanLine) {
+        items.push({ type: 'general', label: 'Insight', text: cleanLine });
+      }
+    });
+
+    return items;
+  };
 
   useEffect(() => {
     loadPerformanceData();
@@ -873,11 +911,35 @@ const PerformanceMonitor = () => {
                   <span className="summary-icon-wrapper">
                     <FaLightbulb />
                   </span>
-                  <h4>Executive Summary</h4>
+                  <h4>Executive Briefing</h4>
                 </div>
-                <span className="summary-meta-pill">Real-Time Operational Diagnosis</span>
+                <span className="summary-meta-pill">Key Operational Diagnosis</span>
               </div>
-              <p className="summary-text">{aiInsights.executiveSummary}</p>
+              
+              {(() => {
+                const bullets = parseExecutiveBullets(aiInsights.executiveSummary);
+                if (bullets.length > 0) {
+                  return (
+                    <div className="summary-bullets-grid">
+                      {bullets.map((b, idx) => (
+                        <div key={idx} className={`summary-bullet-item bullet-${b.type}`}>
+                          <span className={`bullet-icon-wrapper bullet-${b.type}`}>
+                            {b.type === 'status' && <FaCheckCircle />}
+                            {b.type === 'bottleneck' && <FaExclamationTriangle />}
+                            {b.type === 'action' && <FaBolt />}
+                            {b.type === 'general' && <FaArrowRight />}
+                          </span>
+                          <div className="bullet-body">
+                            <span className="bullet-label">{b.label}</span>
+                            <p className="bullet-text">{b.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+                return <p className="summary-text">{aiInsights.executiveSummary}</p>;
+              })()}
             </div>
 
             {/* Anomalies Detected */}
@@ -910,14 +972,16 @@ const PerformanceMonitor = () => {
                       </div>
                       <h5>{anomaly.title}</h5>
                       <p className="anomaly-description">{anomaly.description}</p>
-                      <div className="anomaly-footer">
-                        <div className="anomaly-meta-item">
-                          <span className="meta-label">Affected Area:</span>
-                          <span className="meta-value area-value">{anomaly.affectedArea}</span>
+                      <div className="anomaly-footer compact-footer">
+                        <div className="anomaly-chip area-chip">
+                          <FaBuilding className="chip-icon" />
+                          <span className="chip-label">Affected:</span>
+                          <span className="chip-val">{anomaly.affectedArea}</span>
                         </div>
-                        <div className="anomaly-meta-item">
-                          <span className="meta-label">Recommended Action:</span>
-                          <span className="meta-value action-value">{anomaly.recommendation}</span>
+                        <div className="anomaly-chip action-chip">
+                          <FaArrowRight className="chip-icon" />
+                          <span className="chip-label">Action:</span>
+                          <span className="chip-val">{anomaly.recommendation}</span>
                         </div>
                       </div>
                     </div>
@@ -941,69 +1005,83 @@ const PerformanceMonitor = () => {
                   </span>
                 </div>
                 <div className="smart-recs-list">
-                  {aiInsights.smartRecommendations.map((rec, index) => (
-                    <div key={index} className={`smart-rec-card priority-${rec.priority}`}>
-                      <div className="smart-rec-header">
-                        <span className={`priority-badge ${rec.priority}`}>
-                          <span className="priority-dot"></span>
-                          {(rec.priority || 'NORMAL').toUpperCase()} PRIORITY
-                        </span>
-                        <span className="rec-type">{rec.type?.replace(/_/g, ' ')}</span>
+                  {aiInsights.smartRecommendations.map((rec, index) => {
+                    const isExpanded = !!expandedRecSteps[index];
+                    return (
+                      <div key={index} className={`smart-rec-card priority-${rec.priority}`}>
+                        <div className="smart-rec-header">
+                          <span className={`priority-badge ${rec.priority}`}>
+                            <span className="priority-dot"></span>
+                            {(rec.priority || 'NORMAL').toUpperCase()} PRIORITY
+                          </span>
+                          <span className="rec-type">{rec.type?.replace(/_/g, ' ')}</span>
+                        </div>
+                        <h5>{rec.title}</h5>
+                        <p className="smart-rec-description">{rec.description}</p>
+                        
+                        {/* Compact Metadata Row */}
+                        <div className="rec-compact-meta-row">
+                          {rec.affectedStaff && rec.affectedStaff.length > 0 && (
+                            <div className="rec-staff-inline">
+                              <span className="meta-inline-label"><FaUsers className="meta-icon" /> Staff:</span>
+                              <div className="staff-tags-container compact">
+                                {rec.affectedStaff.map((staff, idx) => (
+                                  <span key={idx} className="staff-tag-pill compact">
+                                    <span className="staff-tag-avatar">{staff.charAt(0).toUpperCase()}</span>
+                                    <span className="staff-tag-name">{staff}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {rec.expectedImpact && (
+                            <span className="rec-impact-pill">
+                              <FaChartLine className="impact-pill-icon" />
+                              <span className="impact-pill-text">{rec.expectedImpact}</span>
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Collapsible Steps Dropdown */}
+                        {rec.steps && rec.steps.length > 0 && isExpanded && (
+                          <div className="rec-steps-box collapsible-open">
+                            <div className="rec-meta-label">
+                              <FaClipboardCheck className="meta-icon" /> Implementation Steps
+                            </div>
+                            <ol className="rec-steps-list">
+                              {rec.steps.map((step, i) => (
+                                <li key={i} className="rec-step-item">
+                                  <span className="step-num">{i + 1}</span>
+                                  <span className="step-text">{step}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                        
+                        <div className="rec-card-footer">
+                          {rec.steps && rec.steps.length > 0 && (
+                            <button 
+                              type="button" 
+                              className="rec-toggle-steps-btn" 
+                              onClick={() => toggleRecSteps(index)}
+                              aria-expanded={isExpanded}
+                            >
+                              <span>{isExpanded ? 'Hide Steps' : 'View Steps'}</span>
+                              <FaChevronDown className={`toggle-chevron ${isExpanded ? 'rotated' : ''}`} />
+                            </button>
+                          )}
+                          <button 
+                            className="rec-apply-btn"
+                            onClick={() => handleApplyRecommendation(rec)}
+                          >
+                            Apply Recommendation
+                          </button>
+                        </div>
                       </div>
-                      <h5>{rec.title}</h5>
-                      <p className="smart-rec-description">{rec.description}</p>
-                      
-                      {rec.affectedStaff && rec.affectedStaff.length > 0 && (
-                        <div className="rec-meta-box affected-staff-box">
-                          <div className="rec-meta-label">
-                            <FaUsers className="meta-icon" /> Assigned / Affected Staff
-                          </div>
-                          <div className="staff-tags-container">
-                            {rec.affectedStaff.map((staff, idx) => (
-                              <span key={idx} className="staff-tag-pill">
-                                <span className="staff-tag-avatar">{staff.charAt(0).toUpperCase()}</span>
-                                <span className="staff-tag-name">{staff}</span>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {rec.expectedImpact && (
-                        <div className="rec-meta-box impact-box">
-                          <div className="rec-meta-label">
-                            <FaLightbulb className="meta-icon impact-icon" /> Expected Operational Impact
-                          </div>
-                          <p className="rec-impact-text">{rec.expectedImpact}</p>
-                        </div>
-                      )}
-                      
-                      {rec.steps && rec.steps.length > 0 && (
-                        <div className="rec-steps-box">
-                          <div className="rec-meta-label">
-                            <FaClipboardCheck className="meta-icon" /> Implementation Steps
-                          </div>
-                          <ol className="rec-steps-list">
-                            {rec.steps.map((step, i) => (
-                              <li key={i} className="rec-step-item">
-                                <span className="step-num">{i + 1}</span>
-                                <span className="step-text">{step}</span>
-                              </li>
-                            ))}
-                          </ol>
-                        </div>
-                      )}
-                      
-                      <div className="rec-card-footer">
-                        <button 
-                          className="rec-apply-btn"
-                          onClick={() => handleApplyRecommendation(rec)}
-                        >
-                          Apply Recommendation
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1018,14 +1096,14 @@ const PerformanceMonitor = () => {
         )}
       </div>
 
-      {/* Smart Recommendations */}
-      {recommendations.length > 0 && (
+      {/* Workload Rebalancing Suggestions (Heuristic fallback when AI recommendations are not active) */}
+      {recommendations.length > 0 && (!aiInsights.smartRecommendations || aiInsights.smartRecommendations.length === 0) && (
         <>
           <div className="section-header">
             <h3>
-              <FaChartLine /> AI Recommendations
+              <FaExchangeAlt /> Workload Rebalancing Suggestions
             </h3>
-            <p>Suggested actions to optimize workload</p>
+            <p>Suggested rule-based reassignments to balance queue distribution</p>
           </div>
           
           <div className="recommendations-list">
