@@ -1,11 +1,20 @@
 import React from 'react';
 import { FaArrowLeft, FaCheckCircle, FaClock, FaTimesCircle } from 'react-icons/fa';
 import { MdExitToApp } from 'react-icons/md';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/GuestRequestTracking.css';
 
 const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
+  const { confirm } = useNotification();
+
+  const handleLogout = async () => {
+    const ok = await confirm({
+      title: 'Exit Guest Session',
+      message: 'Are you sure you want to exit and return to login?',
+      confirmText: 'Log Out',
+      variant: 'warning'
+    });
+    if (ok) {
       localStorage.removeItem('studentLoggedIn');
       localStorage.removeItem('studentIsGuest');
       window.location.href = '/';

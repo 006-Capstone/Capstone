@@ -3,9 +3,11 @@ import { FaShieldAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/Login.css';
 
 const Login = ({ onLogin }) => {
+  const { alertModal } = useNotification();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -179,7 +181,11 @@ const Login = ({ onLogin }) => {
                     className="forgot-password"
                     onClick={(e) => {
                       e.preventDefault();
-                      alert('To reset superadmin credentials, please contact the database administrator or system technician.');
+                      alertModal({
+                        title: 'Superadmin Password Reset',
+                        message: 'To reset superadmin credentials, please contact the database administrator or system technician.',
+                        variant: 'info'
+                      });
                     }}
                   >
                     Forgot Password?

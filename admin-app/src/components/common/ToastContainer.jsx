@@ -1,15 +1,14 @@
 import React from 'react';
 import ToastItem from './ToastItem';
 
-function ToastContainer({ toasts, onRemove, position = 'top-right' }) {
+function ToastContainer({ toasts, onRemove }) {
   if (!toasts || toasts.length === 0) return null;
 
+  // Display the active modal notification (queue mode: handles one modal at a time cleanly)
+  const activeToast = toasts[toasts.length - 1];
+
   return (
-    <div className={`unified-toast-container ${position}`}>
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
-      ))}
-    </div>
+    <ToastItem key={activeToast.id} toast={activeToast} onRemove={onRemove} />
   );
 }
 

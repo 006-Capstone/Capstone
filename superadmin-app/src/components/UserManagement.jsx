@@ -43,6 +43,7 @@ import NotificationBell from './NotificationBell';
 import Archive from './Archive';
 import LoadingSpinner from './LoadingSpinner';
 import ChangePasswordModal from './ChangePasswordModal';
+import Toast from './Toast';
 import '../styles/UserManagement.css';
 
 const DATE_PRESET_OPTIONS = [
@@ -880,7 +881,7 @@ const UserManagement = () => {
       } catch (emailError) {
         console.error('[Error] Failed to send email:', emailError);
         // Continue anyway - account was created successfully
-        alert('Account created but email failed to send. Please manually share credentials with student:\nStudent ID: ' + studentId + '\nPassword: ' + password);
+        showToast('Account created but email failed to send. Please manually share credentials with student:\nStudent ID: ' + studentId + '\nPassword: ' + password, 'warning');
       }
 
       // Reload students list (real-time listener will update automatically)
@@ -1114,7 +1115,7 @@ const UserManagement = () => {
       } catch (emailError) {
         console.error('[Error] Failed to send email:', emailError);
         // Continue anyway - account was created successfully
-        alert('Account created but email failed to send. Please manually share credentials with staff:\nUsername: ' + staffUsername + '\nPassword: ' + password);
+        showToast('Account created but email failed to send. Please manually share credentials with staff:\nUsername: ' + staffUsername + '\nPassword: ' + password, 'warning');
       }
 
       // Reload staff list (real-time listener will update automatically)
@@ -2480,22 +2481,13 @@ const UserManagement = () => {
           </div>
         )}
 
-        {/* Toast notification */}
+        {/* Toast modal notification */}
         {toast && (
-          <div className={`action-toast ${toast.type === 'error' ? 'error' : 'success'}`} role="status">
-            <span className="action-toast-message">
-              {toast.type === 'error' ? <FaBan className="action-toast-icon" aria-hidden="true" /> : <FaCheck className="action-toast-icon" aria-hidden="true" />}
-              {toast.message}
-            </span>
-            <button
-              type="button"
-              className="action-toast-close"
-              onClick={() => setToast(null)}
-              aria-label="Dismiss notification"
-            >
-              <FaTimes aria-hidden="true" />
-            </button>
-          </div>
+          <Toast
+            type={toast.type}
+            message={toast.message}
+            onClose={() => setToast(null)}
+          />
         )}
       </div>
     );
@@ -3049,20 +3041,11 @@ const UserManagement = () => {
       )}
 
       {toast && (
-        <div className={`action-toast ${toast.type === 'error' ? 'error' : 'success'}`} role="status">
-          <span className="action-toast-message">
-            {toast.type === 'error' ? <FaBan className="action-toast-icon" aria-hidden="true" /> : <FaCheck className="action-toast-icon" aria-hidden="true" />}
-            {toast.message}
-          </span>
-          <button
-            type="button"
-            className="action-toast-close"
-            onClick={() => setToast(null)}
-            aria-label="Dismiss notification"
-          >
-            <FaTimes aria-hidden="true" />
-          </button>
-        </div>
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
       )}
 
       {showCreateForm && activeTab === 'students' && (

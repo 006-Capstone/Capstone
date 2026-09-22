@@ -4,6 +4,7 @@ import { FaArrowLeft, FaChevronRight } from 'react-icons/fa';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/Feedback.css';
 
 // Default office structure - will be populated with real data from Firebase
@@ -15,6 +16,7 @@ const DEFAULT_OFFICES = [
 ];
 
 function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }) {
+  const { toast, alertModal } = useNotification();
   const [selectedOffice, setSelectedOffice] = useState(initialOffice || (selectedRequest?.officeId) || null);
   const [responseTime, setResponseTime] = useState(0);
   const [responseTimeHover, setResponseTimeHover] = useState(0);
@@ -170,7 +172,7 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
 
   const handleSubmitFeedback = async () => {
     if (!responseTime || !helpfulness) {
-      alert('Please rate both Response Time and Helpfulness');
+      toast.warning('Please rate both Response Time and Helpfulness');
       return;
     }
 
@@ -228,7 +230,11 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
       // Wait a moment for Firestore real-time listeners to update
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      alert('Thank you for your feedback!');
+      await alertModal({
+        title: 'Thank You!',
+        message: 'Thank you for your feedback! Your evaluation helps us improve campus services.',
+        variant: 'success'
+      });
       
       // Reload ratings to reflect the new feedback
       await loadOfficeRatings();
@@ -250,7 +256,7 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
       
     } catch (error) {
       console.error('[Error] Error submitting feedback:', error);
-      alert('Failed to submit feedback: ' + error.message);
+      toast.error('Failed to submit feedback: ' + error.message);
     } finally {
       setSubmitting(false);
     }

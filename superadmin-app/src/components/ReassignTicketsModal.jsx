@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { FaTimes, FaExchangeAlt, FaUser, FaTicketAlt, FaCheckCircle } from 'react-icons/fa';
 import { collection, getDocs, doc, updateDoc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/ReassignTicketsModal.css';
 
 const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff }) => {
+  const { toast, alertModal } = useNotification();
   const [tickets, setTickets] = useState([]);
   const [selectedTickets, setSelectedTickets] = useState([]);
   const [targetStaff, setTargetStaff] = useState('');
@@ -50,7 +52,7 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff }) => {
       setTickets(staffTickets);
     } catch (error) {
       console.error('Error loading tickets:', error);
-      alert('Failed to load tickets');
+      toast.error('Failed to load tickets');
     } finally {
       setLoading(false);
     }
@@ -93,13 +95,13 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff }) => {
 
   const handleReassign = async () => {
     if (!targetStaff || selectedTickets.length === 0) {
-      alert('Please select target staff and at least one ticket');
+      toast.warning('Please select target staff and at least one ticket');
       return;
     }
 
     const targetStaffMember = allStaff.find(s => s.id === targetStaff);
     if (!targetStaffMember) {
-      alert('Invalid target staff selected');
+      toast.error('Invalid target staff selected');
       return;
     }
 
@@ -167,11 +169,15 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff }) => {
         reason: 'workload_rebalancing'
       });
 
-      alert(`✅ Successfully reassigned ${selectedTickets.length} ticket(s) to ${targetStaffMember.name}`);
+      await alertModal({
+        title: 'Tickets Reassigned',
+        message: `Successfully reassigned ${selectedTickets.length} ticket(s) to ${targetStaffMember.name}!`,
+        variant: 'success'
+      });
       onClose();
     } catch (error) {
       console.error('Error reassigning tickets:', error);
-      alert('❌ Failed to reassign tickets. Please try again.');
+      toast.error('Failed to reassign tickets. Please try again.');
     } finally {
       setReassigning(false);
     }

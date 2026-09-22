@@ -55,9 +55,11 @@ import LoadingSpinner from './LoadingSpinner';
 import NudgeModal from './NudgeModal';
 import ReassignTicketsModal from './ReassignTicketsModal';
 import PerformanceTrendCharts from './PerformanceTrendCharts';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/PerformanceMonitor.css';
 
 const PerformanceMonitor = () => {
+  const { toast, alertModal, confirm } = useNotification();
   const [loading, setLoading] = useState(true);
   const [systemHealth, setSystemHealth] = useState(null);
   const [departmentData, setDepartmentData] = useState([]);
@@ -276,12 +278,19 @@ const PerformanceMonitor = () => {
       );
     } catch (error) {
       console.error('Error updating task status:', error);
-      alert('Failed to update task status.');
+      toast.error('Failed to update task status.');
     }
   };
 
   const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('Are you sure you want to dismiss this improvement task?')) {
+    const confirmed = await confirm({
+      title: 'Dismiss Task',
+      message: 'Are you sure you want to dismiss this improvement task?',
+      confirmText: 'Dismiss',
+      variant: 'danger'
+    });
+
+    if (!confirmed) {
       return;
     }
     try {
@@ -289,7 +298,7 @@ const PerformanceMonitor = () => {
       setPerformanceTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (error) {
       console.error('Error deleting task:', error);
-      alert('Failed to dismiss task.');
+      toast.error('Failed to dismiss task.');
     }
   };
 
@@ -437,7 +446,7 @@ const PerformanceMonitor = () => {
 
   const handleApplyRecommendation = async (recommendation) => {
     if (!recommendation || !recommendation.type) {
-      alert('This recommendation cannot be applied automatically.');
+      toast.warning('This recommendation cannot be applied automatically.');
       return;
     }
 
@@ -471,7 +480,7 @@ const PerformanceMonitor = () => {
         setSelectedStaff(fromStaff);
         setReassignModalOpen(true);
       } else {
-        alert('Could not identify staff member. Please reassign tickets manually from the Staff Bottlenecks section.');
+        toast.warning('Could not identify staff member. Please reassign tickets manually from the Staff Bottlenecks section.');
       }
       return;
     }
@@ -479,9 +488,12 @@ const PerformanceMonitor = () => {
     // Handle training/process improvement recommendations
     if (recommendation.type === 'training' || recommendation.type === 'process_improvement') {
       const steps = recommendation.steps?.join('\n• ') || 'No specific steps provided';
-      const confirmed = window.confirm(
-        `Apply this recommendation?\n\n${recommendation.title}\n\nImplementation Steps:\n• ${steps}\n\nThis will create a task record for follow-up.`
-      );
+      const confirmed = await confirm({
+        title: 'Apply Recommendation',
+        message: `Apply this recommendation?\n\n${recommendation.title}\n\nImplementation Steps:\n• ${steps}\n\nThis will create a task record for follow-up.`,
+        confirmText: 'Apply Recommendation',
+        variant: 'info'
+      });
       
       if (confirmed) {
         try {
@@ -498,10 +510,10 @@ const PerformanceMonitor = () => {
             createdBy: 'superadmin'
           });
           loadPerformanceTasks();
-          alert('Recommendation has been recorded as a task for follow-up.');
+          toast.success('Recommendation has been recorded as a task for follow-up.');
         } catch (error) {
           console.error('Error creating task:', error);
-          alert('Failed to create task record.');
+          toast.error('Failed to create task record.');
         }
       }
       return;
@@ -513,9 +525,12 @@ const PerformanceMonitor = () => {
                         recommendation.description?.match(/\b(finance|guidance|library|registrar)\b/i)?.[1] || 
                         'Unknown';
       
-      const confirmed = window.confirm(
-        `This recommendation suggests hiring additional staff.\n\n${recommendation.title}\n\n${recommendation.expectedImpact || ''}\n\nWould you like to create a staffing request?`
-      );
+      const confirmed = await confirm({
+        title: 'Staffing Request',
+        message: `This recommendation suggests hiring additional staff.\n\n${recommendation.title}\n\n${recommendation.expectedImpact || ''}\n\nWould you like to create a staffing request?`,
+        confirmText: 'Create Request',
+        variant: 'info'
+      });
       
       if (confirmed) {
         try {
@@ -528,41 +543,44 @@ const PerformanceMonitor = () => {
             requestedAt: serverTimestamp(),
             requestedBy: 'superadmin_performance_system'
           });
-          alert('✅ Staffing request has been created and submitted for review.');
+          toast.success('Staffing request has been created and submitted for review.');
         } catch (error) {
           console.error('Error creating staffing request:', error);
-          alert('Failed to create staffing request.');
+          toast.error('Failed to create staffing request.');
         }
       }
       return;
     }
     
     // Unknown type
-    alert('This recommendation type is not yet supported for automatic application.');
+    toast.warning('This recommendation type is not yet supported for automatic application.');
   };
 
   const handleGenerateNTE = async (staff) => {
     // Only allow NTE generation for Stage 3 and 4
     if (!staff.warningStage || staff.warningStage.stage < 3) {
-      alert('Notice to Explain (NTE) is only generated for staff at Stage 3 (Serious Warning) or Stage 4 (Critical).');
+      toast.warning('Notice to Explain (NTE) is only generated for staff at Stage 3 (Serious Warning) or Stage 4 (Critical).');
       return;
     }
 
     // Check if already has pending NTE
     const hasPending = await hasPendingNTE(staff.uid);
     if (hasPending) {
-      alert(`${staff.name} already has a pending Notice to Explain. Please review existing NTE before generating a new one.`);
+      toast.warning(`${staff.name} already has a pending Notice to Explain. Please review existing NTE before generating a new one.`);
       return;
     }
 
-    const confirmed = window.confirm(
-      `Generate Notice to Explain (NTE) for ${staff.name}?\n\n` +
-      `Warning Stage: Stage ${staff.warningStage.stage} - ${staff.warningStage.stageName}\n` +
-      `Risk Score: ${staff.riskScore}%\n` +
-      `Active Tickets: ${staff.activeTickets}\n` +
-      `Overdue Tickets: ${staff.overdueTickets}\n\n` +
-      `This will create a formal NTE document that requires a response within 5 working days.`
-    );
+    const confirmed = await confirm({
+      title: 'Generate Notice to Explain',
+      message: `Generate Notice to Explain (NTE) for ${staff.name}?\n\n` +
+        `Warning Stage: Stage ${staff.warningStage.stage} - ${staff.warningStage.stageName}\n` +
+        `Risk Score: ${staff.riskScore}%\n` +
+        `Active Tickets: ${staff.activeTickets}\n` +
+        `Overdue Tickets: ${staff.overdueTickets}\n\n` +
+        `This will create a formal NTE document that requires a response within 5 working days.`,
+      confirmText: 'Generate NTE',
+      variant: 'danger'
+    });
 
     if (!confirmed) return;
 
@@ -573,19 +591,21 @@ const PerformanceMonitor = () => {
       // Download the NTE document
       downloadNTE(nte);
       
-      alert(
-        `✅ Notice to Explain generated successfully!\n\n` +
-        `Document ID: ${nte.id}\n` +
-        `Staff: ${staff.name}\n` +
-        `Response Deadline: ${new Date(nte.responseDeadline).toLocaleDateString()}\n\n` +
-        `The NTE document has been downloaded. Please provide it to the staff member.`
-      );
+      alertModal({
+        title: 'Notice to Explain Generated',
+        message: `Notice to Explain generated successfully!\n\n` +
+          `Document ID: ${nte.id}\n` +
+          `Staff: ${staff.name}\n` +
+          `Response Deadline: ${new Date(nte.responseDeadline).toLocaleDateString()}\n\n` +
+          `The NTE document has been downloaded. Please provide it to the staff member.`,
+        variant: 'success'
+      });
 
       // Reload performance data to reflect changes
       loadPerformanceData();
     } catch (error) {
       console.error('Error generating NTE:', error);
-      alert('Failed to generate Notice to Explain. Please try again.');
+      toast.error('Failed to generate Notice to Explain. Please try again.');
     }
   };
 

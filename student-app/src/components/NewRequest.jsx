@@ -18,6 +18,7 @@ import { validateContent } from '../utils/contentModeration';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/NewRequest.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -64,6 +65,7 @@ const compressImage = (file) => new Promise((resolve, reject) => {
 });
 
 function NewRequest({ onNavigate }) {
+  const { alertModal } = useNotification();
   const [selectedOffice, setSelectedOffice] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -370,8 +372,12 @@ function NewRequest({ onNavigate }) {
       // Wait a moment for Firestore real-time listeners to update
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Show success message
-      alert(`Request submitted successfully! Your request ID is: ${requestId}${attachments.length > 0 ? `\n${attachments.length} file(s) attached` : ''}`);
+      // Show success modal
+      await alertModal({
+        title: 'Request Submitted',
+        message: `Request submitted successfully!\n\nYour request ID is: ${requestId}${attachments.length > 0 ? `\n${attachments.length} file(s) attached` : ''}`,
+        variant: 'success'
+      });
 
       // Reset form
       setSelectedOffice('');

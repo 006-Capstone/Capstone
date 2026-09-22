@@ -8,6 +8,7 @@ import { validateContent } from '../utils/contentModeration';
 import GuestSubmitted from './GuestSubmitted';
 import GuestRequestStatus from './GuestRequestStatus';
 import LoadingSpinner from './LoadingSpinner';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/GuestLogin.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -133,6 +134,7 @@ const fileToBase64 = (file) => {
 };
 
 const GuestLogin = () => {
+  const { toast, confirm } = useNotification();
   const [view, setView] = useState('home'); // 'home' | 'status' | 'submitted'
   const [requestId, setRequestId] = useState('');
   const [officeCode, setOfficeCode] = useState('');
@@ -192,8 +194,14 @@ const GuestLogin = () => {
     return () => clearTimeout(timeoutId);
   }, [description, subject, selectedOffice]);
 
-  const handleExitGuestMode = () => {
-    if (window.confirm('Exit Guest Mode and return to Student Login?')) {
+  const handleExitGuestMode = async () => {
+    const ok = await confirm({
+      title: 'Exit Guest Mode',
+      message: 'Exit Guest Mode and return to Student Login?',
+      confirmText: 'Exit to Login',
+      variant: 'warning'
+    });
+    if (ok) {
       localStorage.removeItem('studentLoggedIn');
       localStorage.removeItem('studentIsGuest');
       window.location.reload();
@@ -218,7 +226,7 @@ const GuestLogin = () => {
   const handleAuthChange = (e) => {
     const file = e.target.files[0];
     if (file && file.size > 5 * 1024 * 1024) {
-      alert('Authorization file exceeds 5MB limit');
+      toast.warning('Authorization file exceeds 5MB limit');
       e.target.value = '';
       return;
     }
@@ -229,7 +237,7 @@ const GuestLogin = () => {
   const handleAttachmentChange = (e) => {
     const file = e.target.files[0];
     if (file && file.size > 5 * 1024 * 1024) {
-      alert('Attachment file exceeds 5MB limit');
+      toast.warning('Attachment file exceeds 5MB limit');
       e.target.value = '';
       return;
     }
@@ -505,7 +513,7 @@ const GuestLogin = () => {
       setView('submitted');
     } catch (error) {
       console.error('[Error] Error submitting guest request:', error);
-      alert('Failed to submit request: ' + error.message);
+      toast.error('Failed to submit request: ' + error.message);
     } finally {
       setSubmitting(false);
     }

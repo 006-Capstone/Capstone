@@ -17,9 +17,11 @@ import IdleTimeout from './components/IdleTimeout';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { signInAnonymously } from 'firebase/auth';
+import { useNotification } from './context/NotificationContext';
 import './App.css';
 
 function App() {
+  const { toast } = useNotification();
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('studentLoggedIn') === 'true';
   });
@@ -128,7 +130,7 @@ function App() {
       localStorage.setItem('studentLoggedIn', 'false');
     } catch (error) {
       console.error('[Guest] Error signing in anonymously:', error);
-      alert('Failed to access guest mode. Please try again.');
+      toast.error('Failed to access guest mode. Please try again.');
     }
   };
 

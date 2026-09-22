@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   FaCheckCircle, 
-  FaExclamationCircle, 
+  FaTimesCircle, 
   FaExclamationTriangle, 
   FaInfoCircle, 
   FaTimes 
@@ -16,29 +16,43 @@ const DEFAULT_TITLES = {
 
 const DEFAULT_ICONS = {
   success: FaCheckCircle,
-  error: FaExclamationCircle,
+  error: FaTimesCircle,
   warning: FaExclamationTriangle,
   info: FaInfoCircle
 };
 
 function ToastItem({ toast, onRemove }) {
-  const { id, type = 'info', title, message, duration = 4500 } = toast;
-  const [isExiting, setIsExiting] = useState(false);
+  const { id, type = 'info', title, message, duration = 4500, confirmText = 'OK' } = toast;
   const [isPaused, setIsPaused] = useState(false);
   const remainingTimeRef = useRef(duration);
   const timerStartRef = useRef(Date.now());
   const timerTimeoutRef = useRef(null);
+  const confirmButtonRef = useRef(null);
 
   const IconComponent = DEFAULT_ICONS[type] || FaInfoCircle;
   const displayTitle = title !== undefined && title !== null ? title : DEFAULT_TITLES[type];
 
   const handleClose = () => {
-    setIsExiting(true);
-    setTimeout(() => {
-      onRemove(id);
-    }, 240);
+    onRemove(id);
   };
 
+  // Focus action button when modal opens & support Escape key
+  useEffect(() => {
+    if (confirmButtonRef.current) {
+      confirmButtonRef.current.focus();
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [id, onRemove]);
+
+  // Auto-dismiss countdown timer with pause on hover
   useEffect(() => {
     if (duration <= 0) return;
 
@@ -77,40 +91,60 @@ function ToastItem({ toast, onRemove }) {
 
   return (
     <div
-      role="alert"
-      aria-live="assertive"
-      className={`unified-toast-item toast-${type} ${isExiting ? 'exiting' : ''} ${isPaused ? 'toast-item-paused' : ''}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      className="unified-notification-modal-overlay"
+      onClick={handleClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={`notification-modal-title-${id}`}
     >
-      <div className="toast-icon-wrapper">
-        <IconComponent />
-      </div>
-
-      <div className="toast-content-wrapper">
-        {displayTitle && <div className="toast-title">{displayTitle}</div>}
-        {message && <div className="toast-message">{message}</div>}
-      </div>
-
-      <button
-        type="button"
-        className="toast-close-btn"
-        onClick={handleClose}
-        aria-label="Close notification"
+      <div
+        className={`unified-notification-modal-card modal-variant-${type} ${isPaused ? 'modal-timer-paused' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
-        <FaTimes />
-      </button>
-
-      {duration > 0 && (
-        <div className="toast-progress-bar-container">
-          <div
-            className="toast-progress-bar"
-            style={{
-              animationDuration: `${duration}ms`
-            }}
-          />
+        <div className="notification-modal-header">
+          <div className={`notification-modal-icon-box variant-${type}`}>
+            <IconComponent />
+          </div>
+          <div className="notification-modal-header-content">
+            <h3 id={`notification-modal-title-${id}`} className="notification-modal-title">
+              {displayTitle}
+            </h3>
+            <p className="notification-modal-message">
+              {message}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="notification-modal-close-btn"
+            onClick={handleClose}
+            aria-label="Close modal"
+          >
+            <FaTimes />
+          </button>
         </div>
-      )}
+
+        {duration > 0 && (
+          <div className="notification-modal-progress-container">
+            <div
+              className={`notification-modal-progress-bar variant-${type}`}
+              style={{ animationDuration: `${duration}ms` }}
+            />
+          </div>
+        )}
+
+        <div className="notification-modal-actions">
+          <button
+            type="button"
+            ref={confirmButtonRef}
+            className={`notification-modal-btn-action variant-${type}`}
+            onClick={handleClose}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

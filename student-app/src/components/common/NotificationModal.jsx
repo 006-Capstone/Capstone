@@ -6,7 +6,6 @@ import {
   FaInfoCircle, 
   FaTimes 
 } from 'react-icons/fa';
-import '../styles/notification-modal-system.css';
 
 const DEFAULT_TITLES = {
   success: 'Success',
@@ -22,16 +21,10 @@ const DEFAULT_ICONS = {
   info: FaInfoCircle
 };
 
-const Toast = ({ 
-  type = 'success', 
-  message, 
-  title, 
-  onClose, 
-  autoDismiss = 4000, 
-  confirmText = 'OK' 
-}) => {
+function NotificationModal({ toast, onClose }) {
+  const { id, type = 'info', title, message, duration = 4500, confirmText = 'OK' } = toast;
   const [isPaused, setIsPaused] = useState(false);
-  const remainingTimeRef = useRef(autoDismiss);
+  const remainingTimeRef = useRef(duration);
   const timerStartRef = useRef(Date.now());
   const timerTimeoutRef = useRef(null);
   const confirmButtonRef = useRef(null);
@@ -39,14 +32,14 @@ const Toast = ({
   const IconComponent = DEFAULT_ICONS[type] || FaInfoCircle;
   const displayTitle = title !== undefined && title !== null ? title : DEFAULT_TITLES[type];
 
-  // Auto-focus confirmation button & support Escape key
+  // Auto focus action button when modal opens & support Escape key
   useEffect(() => {
     if (confirmButtonRef.current) {
       confirmButtonRef.current.focus();
     }
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && onClose) {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
@@ -55,14 +48,14 @@ const Toast = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Auto-dismiss countdown with hover pause
+  // Auto-dismiss timer with pause on hover
   useEffect(() => {
-    if (!message || autoDismiss <= 0) return undefined;
+    if (duration <= 0) return;
 
     const startTimer = (time) => {
       timerStartRef.current = Date.now();
       timerTimeoutRef.current = setTimeout(() => {
-        if (onClose) onClose();
+        onClose();
       }, time);
     };
 
@@ -75,10 +68,10 @@ const Toast = ({
         clearTimeout(timerTimeoutRef.current);
       }
     };
-  }, [message, isPaused, autoDismiss, onClose]);
+  }, [isPaused, duration, onClose]);
 
   const handleMouseEnter = () => {
-    if (autoDismiss <= 0) return;
+    if (duration <= 0) return;
     setIsPaused(true);
     if (timerTimeoutRef.current) {
       clearTimeout(timerTimeoutRef.current);
@@ -88,21 +81,19 @@ const Toast = ({
   };
 
   const handleMouseLeave = () => {
-    if (autoDismiss <= 0) return;
+    if (duration <= 0) return;
     setIsPaused(false);
   };
 
-  if (!message) return null;
-
   return (
-    <div 
+    <div
       className="unified-notification-modal-overlay"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="superadmin-notification-modal-title"
+      aria-labelledby={`notification-modal-title-${id || 'active'}`}
     >
-      <div 
+      <div
         className={`unified-notification-modal-card modal-variant-${type} ${isPaused ? 'modal-timer-paused' : ''}`}
         onClick={(e) => e.stopPropagation()}
         onMouseEnter={handleMouseEnter}
@@ -113,7 +104,7 @@ const Toast = ({
             <IconComponent />
           </div>
           <div className="notification-modal-header-content">
-            <h3 id="superadmin-notification-modal-title" className="notification-modal-title">
+            <h3 id={`notification-modal-title-${id || 'active'}`} className="notification-modal-title">
               {displayTitle}
             </h3>
             <p className="notification-modal-message">
@@ -130,11 +121,11 @@ const Toast = ({
           </button>
         </div>
 
-        {autoDismiss > 0 && (
+        {duration > 0 && (
           <div className="notification-modal-progress-container">
             <div
               className={`notification-modal-progress-bar variant-${type}`}
-              style={{ animationDuration: `${autoDismiss}ms` }}
+              style={{ animationDuration: `${duration}ms` }}
             />
           </div>
         )}
@@ -152,6 +143,6 @@ const Toast = ({
       </div>
     </div>
   );
-};
+}
 
-export default Toast;
+export default NotificationModal;

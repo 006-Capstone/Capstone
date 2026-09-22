@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaTimes, FaBell, FaExclamationTriangle } from 'react-icons/fa';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/NudgeModal.css';
 
 const NUDGE_TEMPLATES = {
@@ -20,6 +21,7 @@ const NUDGE_TEMPLATES = {
 };
 
 const NudgeModal = ({ isOpen, onClose, staffMember }) => {
+  const { toast, alertModal } = useNotification();
   const [selectedTemplate, setSelectedTemplate] = useState('gentle');
   const [customMessage, setCustomMessage] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -71,11 +73,15 @@ const NudgeModal = ({ isOpen, onClose, staffMember }) => {
         }
       });
 
-      alert('✅ Nudge sent successfully!');
+      await alertModal({
+        title: 'Nudge Sent',
+        message: `Nudge sent successfully to ${staffMember.name}!`,
+        variant: 'success'
+      });
       onClose();
     } catch (error) {
       console.error('Error sending nudge:', error);
-      alert('❌ Failed to send nudge. Please try again.');
+      toast.error('Failed to send nudge. Please try again.');
     } finally {
       setSending(false);
     }

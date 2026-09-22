@@ -15,9 +15,11 @@ import { notifyStaffFollowUp } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import StatusBadge from './StatusBadge';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/RequestDetails.css';
 
 function RequestDetails({ requestData, onNavigate }) {
+  const { toast, alertModal, confirm } = useNotification();
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
@@ -56,11 +58,11 @@ function RequestDetails({ requestData, onNavigate }) {
           createdAtTimestamp: isValidDate ? createdDate.getTime() : 0
         });
       } else {
-        alert('Request not found');
+        toast.error('Request not found');
       }
     } catch (error) {
       console.error('[Error] Error loading request:', error);
-      alert('Failed to load request details');
+      toast.error('Failed to load request details');
     } finally {
       setLoading(false);
     }
@@ -71,7 +73,7 @@ function RequestDetails({ requestData, onNavigate }) {
     const validFiles = files.filter(file => file.size <= 5 * 1024 * 1024);
     
     if (validFiles.length < files.length) {
-      alert('Some files exceed 5MB and were not added');
+      toast.warning('Some files exceed 5MB and were not added');
     }
     
     setFollowUpFiles(prev => [...prev, ...validFiles]);
@@ -84,14 +86,14 @@ function RequestDetails({ requestData, onNavigate }) {
 
   const handleSendFollowUp = async () => {
     if (!comment.trim()) {
-      alert('Please add a comment');
+      toast.warning('Please add a comment');
       return;
     }
 
     const followUps = request.followUps || [];
     const studentFollowUps = followUps.filter(f => f.sentBy === 'student');
     if (studentFollowUps.length >= 3) {
-      alert('Maximum 3 follow-up comments allowed');
+      toast.warning('Maximum 3 follow-up comments allowed');
       return;
     }
 
@@ -142,20 +144,31 @@ function RequestDetails({ requestData, onNavigate }) {
 
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      alert('Follow-up sent successfully!');
+      await alertModal({
+        title: 'Follow-up Sent',
+        message: 'Follow-up sent successfully!',
+        variant: 'success'
+      });
       setComment('');
       setFollowUpFiles([]);
       loadRequestDetails();
     } catch (error) {
       console.error('[Error] Error sending follow-up:', error);
-      alert('Failed to send follow-up: ' + error.message);
+      toast.error('Failed to send follow-up: ' + error.message);
     } finally {
       setSending(false);
     }
   };
 
   const handleCancelRequest = async () => {
-    if (!window.confirm('Are you sure you want to cancel this request?')) {
+    const confirmed = await confirm({
+      title: 'Cancel Request',
+      message: 'Are you sure you want to cancel this request?',
+      confirmText: 'Yes, Cancel',
+      variant: 'danger'
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -167,11 +180,15 @@ function RequestDetails({ requestData, onNavigate }) {
       });
       
       await new Promise(resolve => setTimeout(resolve, 500));
-      alert('Request cancelled successfully');
+      await alertModal({
+        title: 'Request Cancelled',
+        message: 'Request cancelled successfully',
+        variant: 'info'
+      });
       onNavigate('request');
     } catch (error) {
       console.error('[Error] Error cancelling request:', error);
-      alert('Failed to cancel request');
+      toast.error('Failed to cancel request');
     }
   };
 
