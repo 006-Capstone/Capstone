@@ -94,6 +94,24 @@ const PerformanceMonitor = () => {
     }));
   };
 
+  const findMatchingTask = (rec) => {
+    if (!rec || !rec.title) return null;
+    return performanceTasks.find(t => 
+      t.title?.trim().toLowerCase() === rec.title?.trim().toLowerCase()
+    );
+  };
+
+  const scrollToTask = (taskId) => {
+    const el = document.getElementById(`task-card-${taskId}`) || document.getElementById('performance-tasks-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('task-card-highlight');
+      setTimeout(() => {
+        el.classList.remove('task-card-highlight');
+      }, 2500);
+    }
+  };
+
   const parseExecutiveBullets = (summaryText) => {
     if (!summaryText) return [];
     const lines = summaryText
@@ -524,17 +542,24 @@ const PerformanceMonitor = () => {
     
     // Handle training/process improvement recommendations
     if (recommendation.type === 'training' || recommendation.type === 'process_improvement') {
+      const existing = findMatchingTask(recommendation);
+      if (existing) {
+        toast.info('This recommendation is already tracked in Performance Improvement Tasks.');
+        scrollToTask(existing.id);
+        return;
+      }
+
       const steps = recommendation.steps?.join('\n• ') || 'No specific steps provided';
       const confirmed = await confirm({
         title: 'Apply Recommendation',
-        message: `Apply this recommendation?\n\n${recommendation.title}\n\nImplementation Steps:\n• ${steps}\n\nThis will create a task record for follow-up.`,
+        message: `Apply this recommendation?\n\n${recommendation.title}\n\nImplementation Steps:\n• ${steps}\n\nThis will create a task record in Performance Improvement Tasks for follow-up.`,
         confirmText: 'Apply Recommendation',
         variant: 'info'
       });
       
       if (confirmed) {
         try {
-          await addDoc(collection(db, 'performance_tasks'), {
+          const docRef = await addDoc(collection(db, 'performance_tasks'), {
             type: recommendation.type,
             title: recommendation.title,
             description: recommendation.description,
@@ -547,7 +572,10 @@ const PerformanceMonitor = () => {
             createdBy: 'superadmin'
           });
           loadPerformanceTasks();
-          toast.success('Recommendation has been recorded as a task for follow-up.');
+          toast.success('Recommendation converted into an active improvement task.');
+          setTimeout(() => {
+            scrollToTask(docRef.id);
+          }, 350);
         } catch (error) {
           console.error('Error creating task:', error);
           toast.error('Failed to create task record.');
@@ -854,8 +882,23 @@ const PerformanceMonitor = () => {
               AI-Powered Insights
             </h3>
           </div>
-          {aiInsights.executiveSummary && (
-            <div className="section-actions">
+          <div className="section-actions ai-header-actions">
+            {performanceTasks.length > 0 && (
+              <button 
+                type="button"
+                className="btn-jump-tasks"
+                onClick={() => {
+                  const el = document.getElementById('performance-tasks-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                title="Jump to Performance Improvement Tasks"
+              >
+                <FaClipboardList className="btn-icon" />
+                <span>{performanceTasks.length} {performanceTasks.length === 1 ? 'Action Task' : 'Action Tasks'}</span>
+                <FaArrowRight className="jump-arrow" />
+              </button>
+            )}
+            {aiInsights.executiveSummary && (
               <button 
                 className="btn-ai-refresh" 
                 onClick={refreshAIInsights}
@@ -864,8 +907,8 @@ const PerformanceMonitor = () => {
                 <FaBrain className="btn-icon" />
                 <span>{aiInsights.loading ? 'Analyzing...' : 'Refresh AI Analysis'}</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {aiInsights.error && (
@@ -1007,14 +1050,28 @@ const PerformanceMonitor = () => {
                 <div className="smart-recs-list">
                   {aiInsights.smartRecommendations.map((rec, index) => {
                     const isExpanded = !!expandedRecSteps[index];
+                    const matchingTask = findMatchingTask(rec);
                     return (
-                      <div key={index} className={`smart-rec-card priority-${rec.priority}`}>
+                      <div key={index} className={`smart-rec-card priority-${rec.priority} ${matchingTask ? 'has-active-task' : ''}`}>
                         <div className="smart-rec-header">
-                          <span className={`priority-badge ${rec.priority}`}>
-                            <span className="priority-dot"></span>
-                            {(rec.priority || 'NORMAL').toUpperCase()} PRIORITY
-                          </span>
-                          <span className="rec-type">{rec.type?.replace(/_/g, ' ')}</span>
+                          <div className="smart-rec-header-badges">
+                            <span className={`priority-badge ${rec.priority}`}>
+                              <span className="priority-dot"></span>
+                              {(rec.priority || 'NORMAL').toUpperCase()} PRIORITY
+                            </span>
+                            <span className="rec-type">{rec.type?.replace(/_/g, ' ')}</span>
+                          </div>
+                          {matchingTask && (
+                            <span className={`rec-task-status-pill status-${matchingTask.status}`}>
+                              {matchingTask.status === 'completed' && <FaCheckCircle className="status-pill-icon" />}
+                              {matchingTask.status === 'in_progress' && <FaClock className="status-pill-icon" />}
+                              {matchingTask.status === 'pending' && <FaClipboardList className="status-pill-icon" />}
+                              <span>
+                                {matchingTask.status === 'completed' ? 'Task Completed' : 
+                                 matchingTask.status === 'in_progress' ? 'Task In Progress' : 'Task Active'}
+                              </span>
+                            </span>
+                          )}
                         </div>
                         <h5>{rec.title}</h5>
                         <p className="smart-rec-description">{rec.description}</p>
@@ -1072,12 +1129,25 @@ const PerformanceMonitor = () => {
                               <FaChevronDown className={`toggle-chevron ${isExpanded ? 'rotated' : ''}`} />
                             </button>
                           )}
-                          <button 
-                            className="rec-apply-btn"
-                            onClick={() => handleApplyRecommendation(rec)}
-                          >
-                            Apply Recommendation
-                          </button>
+                          {matchingTask ? (
+                            <button 
+                              type="button"
+                              className="rec-view-task-btn"
+                              onClick={() => scrollToTask(matchingTask.id)}
+                              title="Scroll to tracked task"
+                            >
+                              <FaClipboardList className="btn-icon" />
+                              <span>View Tracked Task</span>
+                              <FaArrowRight className="arrow-icon" />
+                            </button>
+                          ) : (
+                            <button 
+                              className="rec-apply-btn"
+                              onClick={() => handleApplyRecommendation(rec)}
+                            >
+                              Apply Recommendation
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1093,6 +1163,173 @@ const PerformanceMonitor = () => {
               </div>
             )}
           </>
+        )}
+      </div>
+
+      {/* Connected Action Board: Performance Improvement Tasks */}
+      <div id="performance-tasks-section" className="performance-tasks-section">
+        <div className="section-header performance-tasks-header">
+          <div className="tasks-header-left">
+            <h3>
+              <span className="tasks-header-icon-wrapper">
+                <FaClipboardList />
+              </span>
+              Performance Improvement Tasks
+            </h3>
+            <p className="tasks-subtitle">Operational action tracking connected directly to AI Strategic Recommendations</p>
+          </div>
+          <div className="tasks-header-right">
+            <span className="task-count-pill">
+              <FaClipboardCheck className="count-icon" />
+              {performanceTasks.length} {performanceTasks.length === 1 ? 'Tracked Action' : 'Tracked Actions'}
+            </span>
+          </div>
+        </div>
+
+        {performanceTasks.length === 0 ? (
+          <div className="tasks-empty-state">
+            <div className="tasks-empty-icon-wrapper">
+              <FaClipboardList />
+            </div>
+            <h5>No Active Improvement Tasks</h5>
+            <p>
+              Click <strong>"Apply Recommendation"</strong> on any AI Strategic Recommendation above to convert it into a tracked operational task.
+            </p>
+          </div>
+        ) : (
+          <div className="tasks-grid">
+            {performanceTasks.map(task => {
+              const isCompleted = task.status === 'completed';
+              const isInProgress = task.status === 'in_progress';
+              const priorityClass = task.priority || 'medium';
+
+              return (
+                <div 
+                  key={task.id} 
+                  id={`task-card-${task.id}`}
+                  className={`task-card priority-${priorityClass} task-status-${task.status}`}
+                >
+                  <div className="task-card-header">
+                    <div className="task-card-badges">
+                      <span className="task-origin-badge">
+                        <FaBrain className="origin-icon" />
+                        <span>AI Generated</span>
+                      </span>
+                      <span className={`task-type-badge ${task.type}`}>
+                        {getTaskTypeIcon(task.type)}
+                        <span>{getTaskTypeLabel(task.type)}</span>
+                      </span>
+                      <span className={`task-priority-badge priority-${priorityClass}`}>
+                        <span className="priority-dot"></span>
+                        {(task.priority || 'Normal').toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="task-card-controls">
+                      <span className={`task-status-badge ${task.status}`}>
+                        {isCompleted && <FaCheckCircle className="status-badge-icon" />}
+                        {isInProgress && <FaClock className="status-badge-icon" />}
+                        {task.status?.replace(/_/g, ' ')}
+                      </span>
+                      <button 
+                        className="task-delete-btn"
+                        onClick={() => handleDeleteTask(task.id)}
+                        title="Dismiss task"
+                        aria-label="Dismiss task"
+                      >
+                        <FaTrashAlt />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="task-card-body">
+                    <h4 className="task-title">{task.title}</h4>
+                    <p className="task-description">{task.description}</p>
+                    
+                    {task.affectedStaff && task.affectedStaff.length > 0 && (
+                      <div className="task-meta-box affected-staff-box">
+                        <div className="meta-box-label">
+                          <FaUserFriends className="meta-icon" />
+                          <span>Assigned / Affected Staff</span>
+                        </div>
+                        <div className="staff-tags-container">
+                          {task.affectedStaff.map((staffName, idx) => (
+                            <span key={idx} className="staff-tag-pill">
+                              <span className="staff-tag-avatar">{staffName.charAt(0).toUpperCase()}</span>
+                              <span className="staff-tag-name">{staffName}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {task.steps && task.steps.length > 0 && (
+                      <div className="task-steps-box">
+                        <div className="meta-box-label">
+                          <FaClipboardCheck className="meta-icon" />
+                          <span>Implementation Steps</span>
+                        </div>
+                        <ol className="task-steps-timeline">
+                          {task.steps.map((step, i) => (
+                            <li key={i} className="task-step-item">
+                              <span className="step-number">{i + 1}</span>
+                              <span className="step-text">{step}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    
+                    {task.expectedImpact && (
+                      <div className="task-meta-box impact-box">
+                        <div className="meta-box-label">
+                          <FaLightbulb className="meta-icon impact-icon" />
+                          <span>Expected Operational Impact</span>
+                        </div>
+                        <p className="impact-text">{task.expectedImpact}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="task-card-footer">
+                    <div className="task-date-info">
+                      <FaClock className="date-icon" />
+                      <span>
+                        Created {task.createdAt?.toDate ? task.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
+                      </span>
+                    </div>
+                    <div className="task-footer-actions">
+                      {task.status === 'pending' && (
+                        <button 
+                          className="btn-task-action start-btn"
+                          onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
+                        >
+                          <span>Start Task</span>
+                          <FaChevronRight className="btn-icon" />
+                        </button>
+                      )}
+                      {task.status === 'in_progress' && (
+                        <button 
+                          className="btn-task-action complete-btn"
+                          onClick={() => handleUpdateTaskStatus(task.id, 'completed')}
+                        >
+                          <FaCheck className="btn-icon" />
+                          <span>Mark Completed</span>
+                        </button>
+                      )}
+                      {task.status === 'completed' && (
+                        <button 
+                          className="btn-task-action reopen-btn"
+                          onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
+                        >
+                          <span>Reopen</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -1124,156 +1361,6 @@ const PerformanceMonitor = () => {
             ))}
           </div>
         </>
-      )}
-
-      {/* Performance Tasks */}
-      {performanceTasks.length > 0 && (
-        <div className="performance-tasks-section">
-          <div className="section-header performance-tasks-header">
-            <div className="tasks-header-left">
-              <h3>
-                <span className="tasks-header-icon-wrapper">
-                  <FaClipboardList />
-                </span>
-                Performance Improvement Tasks
-              </h3>
-            </div>
-            <div className="tasks-header-right">
-              <span className="task-count-pill">
-                {performanceTasks.length} {performanceTasks.length === 1 ? 'Action' : 'Actions'}
-              </span>
-            </div>
-          </div>
-
-          <div className="tasks-grid">
-            {performanceTasks.map(task => {
-                  const isCompleted = task.status === 'completed';
-                  const isInProgress = task.status === 'in_progress';
-                  const priorityClass = task.priority || 'medium';
-
-                  return (
-                    <div 
-                      key={task.id} 
-                      className={`task-card priority-${priorityClass} task-status-${task.status}`}
-                    >
-                      <div className="task-card-header">
-                        <div className="task-card-badges">
-                          <span className={`task-type-badge ${task.type}`}>
-                            {getTaskTypeIcon(task.type)}
-                            <span>{getTaskTypeLabel(task.type)}</span>
-                          </span>
-                          <span className={`task-priority-badge priority-${priorityClass}`}>
-                            <span className="priority-dot"></span>
-                            {(task.priority || 'Normal').toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="task-card-controls">
-                          <span className={`task-status-badge ${task.status}`}>
-                            {isCompleted && <FaCheckCircle className="status-badge-icon" />}
-                            {isInProgress && <FaClock className="status-badge-icon" />}
-                            {task.status?.replace(/_/g, ' ')}
-                          </span>
-                          <button 
-                            className="task-delete-btn"
-                            onClick={() => handleDeleteTask(task.id)}
-                            title="Dismiss task"
-                            aria-label="Dismiss task"
-                          >
-                            <FaTrashAlt />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="task-card-body">
-                        <h4 className="task-title">{task.title}</h4>
-                        <p className="task-description">{task.description}</p>
-                        
-                        {task.affectedStaff && task.affectedStaff.length > 0 && (
-                          <div className="task-meta-box affected-staff-box">
-                            <div className="meta-box-label">
-                              <FaUserFriends className="meta-icon" />
-                              <span>Assigned / Affected Staff</span>
-                            </div>
-                            <div className="staff-tags-container">
-                              {task.affectedStaff.map((staffName, idx) => (
-                                <span key={idx} className="staff-tag-pill">
-                                  <span className="staff-tag-avatar">{staffName.charAt(0).toUpperCase()}</span>
-                                  <span className="staff-tag-name">{staffName}</span>
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {task.steps && task.steps.length > 0 && (
-                          <div className="task-steps-box">
-                            <div className="meta-box-label">
-                              <FaClipboardCheck className="meta-icon" />
-                              <span>Implementation Steps</span>
-                            </div>
-                            <ol className="task-steps-timeline">
-                              {task.steps.map((step, i) => (
-                                <li key={i} className="task-step-item">
-                                  <span className="step-number">{i + 1}</span>
-                                  <span className="step-text">{step}</span>
-                                </li>
-                              ))}
-                            </ol>
-                          </div>
-                        )}
-                        
-                        {task.expectedImpact && (
-                          <div className="task-meta-box impact-box">
-                            <div className="meta-box-label">
-                              <FaLightbulb className="meta-icon impact-icon" />
-                              <span>Expected Operational Impact</span>
-                            </div>
-                            <p className="impact-text">{task.expectedImpact}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="task-card-footer">
-                        <div className="task-date-info">
-                          <FaClock className="date-icon" />
-                          <span>
-                            Created {task.createdAt?.toDate ? task.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
-                          </span>
-                        </div>
-                        <div className="task-footer-actions">
-                          {task.status === 'pending' && (
-                            <button 
-                              className="btn-task-action start-btn"
-                              onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
-                            >
-                              <span>Start Task</span>
-                              <FaChevronRight className="btn-icon" />
-                            </button>
-                          )}
-                          {task.status === 'in_progress' && (
-                            <button 
-                              className="btn-task-action complete-btn"
-                              onClick={() => handleUpdateTaskStatus(task.id, 'completed')}
-                            >
-                              <FaCheck className="btn-icon" />
-                              <span>Mark Completed</span>
-                            </button>
-                          )}
-                          {task.status === 'completed' && (
-                            <button 
-                              className="btn-task-action reopen-btn"
-                              onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
-                            >
-                              <span>Reopen</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-          </div>
       )}
 
       {/* Modals */}
