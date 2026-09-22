@@ -3,9 +3,11 @@ import { FaLock, FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
 import { auth, db } from '../firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/ChangePasswordModal.css';
 
 const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
+  const { toast } = useNotification();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -92,7 +94,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
       };
       localStorage.setItem('staffData', JSON.stringify(updatedStaffData));
 
-      alert('✓ Password changed successfully! You can now access the admin portal.');
+      toast.success('Password changed successfully! You can now access the admin portal.');
       onPasswordChanged();
 
     } catch (error) {

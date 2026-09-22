@@ -18,9 +18,11 @@ import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
 import { notifyStudentStatusChange, notifyStudentEtcChange } from '../utils/notificationHelper';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import LoadingSpinner from './LoadingSpinner';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/AdminDashboard.css';
 
 const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
+  const { toast, alertModal } = useNotification();
   const [activeTab, setActiveTab] = useState('new');
   const [searchQuery, setSearchQuery] = useState('');
   const { tickets, loading } = useOfficeTickets(department);
@@ -300,14 +302,16 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
   const handleClaimTicket = async (ticket, etc = '') => {
     if (!staffData) {
-      alert('Staff data not found. Please login again.');
+      toast.error('Staff data not found. Please login again.');
       return;
     }
 
     if (isAtClaimLimit) {
-      alert(
-        `Anti-Hoarding Policy:\nYou currently have ${myInProgressCount} requests in In Progress (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (limit: ${HOARDING_DAILY_LIMIT} per day).\n\nPlease complete and resolve your current in-progress requests before accepting more.`
-      );
+      alertModal({
+        title: 'Anti-Hoarding Policy Notice',
+        message: `You currently have ${myInProgressCount} requests in In Progress (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (limit: ${HOARDING_DAILY_LIMIT} per day).\n\nPlease complete and resolve your current in-progress requests before accepting more.`,
+        variant: 'warning'
+      });
       return;
     }
 
@@ -357,10 +361,10 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         await notifyStudentEtcChange(ticket.studentUid, ticket.id || ticket.requestId, ticket.title || ticket.subject, etc);
       }
 
-      alert(`Request ${ticket.id || ticket.requestId} has been assigned to you!`);
+      toast.success(`Request ${ticket.id || ticket.requestId} has been assigned to you!`, 'Request Claimed');
     } catch (error) {
       console.error('[Error] Error claiming ticket:', error);
-      alert('Failed to claim request: ' + error.message);
+      toast.error('Failed to claim request: ' + error.message);
     } finally {
       setClaimingTicketId(null);
     }
@@ -369,9 +373,11 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   // Intercept the claim click: check anti-hoarding rule, then open ETC modal
   const handleClaimRequest = (ticket) => {
     if (isAtClaimLimit) {
-      alert(
-        `Anti-Hoarding Policy:\n\nYou currently have ${myInProgressCount} requests in In Progress (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (daily limit: ${HOARDING_DAILY_LIMIT} per day).\n\nTo ensure fair distribution and prevent backlogs, please finish and resolve your active in-progress requests before accepting new ones today.`
-      );
+      alertModal({
+        title: 'Anti-Hoarding Policy Notice',
+        message: `You currently have ${myInProgressCount} requests in In Progress (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (daily limit: ${HOARDING_DAILY_LIMIT} per day).\n\nTo ensure fair distribution and prevent backlogs, please finish and resolve your active in-progress requests before accepting new ones today.`,
+        variant: 'warning'
+      });
       return;
     }
     setEtcClaimTicket(ticket);

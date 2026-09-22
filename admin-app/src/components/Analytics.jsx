@@ -8,6 +8,7 @@ import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/Analytics.css';
 
 const MONTH_KEYS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -98,6 +99,7 @@ const donutSegmentPath = (startAngle, endAngle) => {
 };
 
 const Analytics = ({ department, onViewRequest }) => {
+  const { toast } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [staffMembers, setStaffMembers] = useState([]);
@@ -114,57 +116,49 @@ const Analytics = ({ department, onViewRequest }) => {
   useEffect(() => {
     let active = true;
     setStaffLoading(true);
-
-    // Safety net: if the fetch stalls, stop loading so the page can't get
-    // stuck behind the full-screen spinner.
-    const timer = setTimeout(() => {
+    const q = query(
+      collection(db, 'staff'),
+      where('office', '==', department)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      if (!active) return;
+      const list = [];
+      snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
+      setStaffMembers(list);
+      setStaffLoading(false);
+    }, (err) => {
+      console.error('[Analytics] Error listening to staff:', err);
       if (active) setStaffLoading(false);
-    }, 12000);
-
-    const loadStaff = async () => {
-      try {
-        const q = query(
-          collection(db, 'staff'),
-          where('office', '==', department)
-        );
-        const snapshot = await getDocs(q);
-        if (active) {
-          setStaffMembers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        }
-      } catch (error) {
-        console.error('[Error] Error loading staff:', error);
-      } finally {
-        clearTimeout(timer);
-        if (active) setStaffLoading(false);
-      }
-    };
-
-    loadStaff();
+    });
     return () => {
       active = false;
-      clearTimeout(timer);
+      unsub();
     };
   }, [department]);
 
-  // Unread notification count
+  // Read unread notifications count for bell badge
   useEffect(() => {
-    const staffData = JSON.parse(localStorage.getItem('staffData'));
-    if (!staffData?.uid) return undefined;
-
-    const q = query(
-      collection(db, 'notifications'),
-      where('recipientId', '==', staffData.uid),
-      where('recipientType', '==', 'staff')
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      setUnreadCount(querySnapshot.docs.filter(doc => !doc.data().isRead).length);
-    });
-
-    return () => unsubscribe();
+    const staffData = localStorage.getItem('staffData');
+    if (!staffData) return;
+    try {
+      const parsed = JSON.parse(staffData);
+      const staffEmail = parsed.email || '';
+      if (!staffEmail) return;
+      const notifQ = query(
+        collection(db, 'notifications'),
+        where('recipientEmail', '==', staffEmail),
+        where('read', '==', false)
+      );
+      const unsub = onSnapshot(notifQ, (snap) => {
+        setUnreadCount(snap.size);
+      }, () => {});
+      return () => unsub();
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
-  // Reset the date filter when the department changes
+  // Reset filter on department switch
   useEffect(() => {
     setDateFilter(EMPTY_FILTER);
     setAppliedFilter(EMPTY_FILTER);
@@ -174,7 +168,7 @@ const Analytics = ({ department, onViewRequest }) => {
     const target = overrideFilter || dateFilter;
     // Validate range: From cannot be after To
     if (target.from && target.to && target.from > target.to) {
-      alert('The "From" date cannot be later than the "To" date.');
+      toast.warning('The "From" date cannot be later than the "To" date.', 'Invalid Date Range');
       return false;
     }
     if (overrideFilter) {

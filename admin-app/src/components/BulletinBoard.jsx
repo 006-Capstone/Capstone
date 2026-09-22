@@ -3,6 +3,7 @@ import { FaBell, FaPlus, FaCalendarAlt, FaTimes, FaUpload, FaTrash, FaEllipsisV,
 import { collection, query, where, onSnapshot, addDoc, updateDoc, setDoc, serverTimestamp, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import Notifications from './Notifications';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/BulletinBoard.css';
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -192,6 +193,7 @@ function AdminAnnouncementCard({
 }
 
 const BulletinBoard = ({ department, onViewRequest }) => {
+  const { toast, confirm } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -412,11 +414,11 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
   const handleCreateAnnouncement = async () => {
     if (!announcementTitle.trim()) {
-      alert('Please enter an announcement title.');
+      toast.warning('Please enter an announcement title.');
       return;
     }
     if (!announcementBody.trim()) {
-      alert('Please enter announcement content.');
+      toast.warning('Please enter announcement content.');
       return;
     }
 
@@ -433,6 +435,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
           photo: announcementPhoto || null,
           updatedAt: serverTimestamp()
         });
+        toast.success('Announcement updated successfully!');
       } else {
         await addDoc(collection(db, 'announcements'), {
           department,
@@ -442,12 +445,13 @@ const BulletinBoard = ({ department, onViewRequest }) => {
           createdBy: staffData?.name || 'Staff',
           createdAt: serverTimestamp()
         });
+        toast.success('Announcement posted successfully!');
       }
 
       closeCreateModal();
     } catch (error) {
       console.error('[Error] Error saving announcement:', error);
-      alert(editingAnnouncement
+      toast.error(editingAnnouncement
         ? 'Failed to update announcement. Please try again.'
         : 'Failed to create announcement. Please try again.');
     } finally {
@@ -478,23 +482,23 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
   const handleCreateImportantDate = async () => {
     if (!dateTitle.trim()) {
-      alert('Please enter a title.');
+      toast.warning('Please enter a title.');
       return;
     }
     if (!dateMonth) {
-      alert('Please select a month.');
+      toast.warning('Please select a month.');
       return;
     }
 
     const dayNum = parseInt(dateDay, 10);
     if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
-      alert('Please enter a valid day (1–31).');
+      toast.warning('Please enter a valid day (1–31).');
       return;
     }
     const monthNum = MONTHS.indexOf(dateMonth) + 1;
     const daysInMonth = new Date(2000, monthNum, 0).getDate();
     if (dayNum > daysInMonth) {
-      alert(`Please enter a valid day for ${dateMonth} (1–${daysInMonth}).`);
+      toast.warning(`Please enter a valid day for ${dateMonth} (1–${daysInMonth}).`);
       return;
     }
 
@@ -516,6 +520,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
           updatedBy: staffData?.name || 'Staff',
           updatedAt: serverTimestamp()
         });
+        toast.success('Important date updated successfully!');
       } else {
         await addDoc(collection(db, 'importantDates'), {
           office: department,
@@ -526,12 +531,13 @@ const BulletinBoard = ({ department, onViewRequest }) => {
           createdBy: staffData?.name || 'Staff',
           createdAt: serverTimestamp()
         });
+        toast.success('Important date added successfully!');
       }
 
       closeCreateModal();
     } catch (error) {
       console.error('[Error] Error saving important date:', error);
-      alert(editingDate ? 'Failed to update important date. Please try again.' : 'Failed to create important date. Please try again.');
+      toast.error(editingDate ? 'Failed to update important date. Please try again.' : 'Failed to create important date. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -540,22 +546,40 @@ const BulletinBoard = ({ department, onViewRequest }) => {
   /* ---------- Delete ---------- */
 
   const handleDeleteAnnouncement = async (announcementId) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+    const isConfirmed = await confirm({
+      title: 'Delete Announcement',
+      message: 'Are you sure you want to delete this announcement? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    if (!isConfirmed) return;
+
     try {
       await deleteDoc(doc(db, 'announcements', announcementId));
+      toast.success('Announcement deleted successfully.');
     } catch (error) {
       console.error('[Error] Error deleting announcement:', error);
-      alert('Failed to delete announcement.');
+      toast.error('Failed to delete announcement.');
     }
   };
 
   const handleDeleteImportantDate = async (dateId) => {
-    if (!window.confirm('Are you sure you want to delete this important date?')) return;
+    const isConfirmed = await confirm({
+      title: 'Delete Important Date',
+      message: 'Are you sure you want to delete this important date? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    if (!isConfirmed) return;
+
     try {
       await deleteDoc(doc(db, 'importantDates', dateId));
+      toast.success('Important date deleted successfully.');
     } catch (error) {
       console.error('[Error] Error deleting important date:', error);
-      alert('Failed to delete important date.');
+      toast.error('Failed to delete important date.');
     }
   };
 

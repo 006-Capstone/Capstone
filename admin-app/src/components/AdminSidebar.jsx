@@ -12,9 +12,11 @@ import {
 } from 'react-icons/fa';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/AdminSidebar.css';
 
 const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile, isOpen = false, onClose }) => {
+  const { confirm, toast } = useNotification();
   const [staffName, setStaffName] = useState('Staff User');
   const [profilePicture, setProfilePicture] = useState('');
 
@@ -37,14 +39,22 @@ const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile, isOpe
   }, []);
 
   const handleLogout = async () => {
-    if (window.confirm('Are you sure you want to logout?')) {
+    const isConfirmed = await confirm({
+      title: 'Confirm Logout',
+      message: 'Are you sure you want to logout of the admin portal?',
+      confirmText: 'Log Out',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+
+    if (isConfirmed) {
       try {
         await signOut(auth);
         localStorage.removeItem('staffData');
         window.location.reload();
       } catch (error) {
         console.error('Logout error:', error);
-        alert('Failed to logout. Please try again.');
+        toast.error('Failed to logout. Please try again.');
       }
     }
   };

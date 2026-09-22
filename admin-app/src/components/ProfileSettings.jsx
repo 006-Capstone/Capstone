@@ -8,12 +8,14 @@ import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
 import { encryptCredentials } from '../utils/qrEncryption';
 import LoadingSpinner from './LoadingSpinner';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/ProfileSettings.css';
 
 // Only the fields the user can actually edit count toward "changed"
 const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix', 'phoneNumber', 'twoFactorEnabled'];
 
 function ProfileSettings({ onClose }) {
+  const { toast, alertModal } = useNotification();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -95,11 +97,11 @@ function ProfileSettings({ onClose }) {
   const generateQRCode = async (username, officeId, password) => {
     try {
       if (!username || !officeId) {
-        alert('Missing username or office. Please contact support.');
+        toast.error('Missing username or office. Please contact support.');
         return;
       }
       if (!password) {
-        alert('Password is required for QR generation');
+        toast.warning('Password is required for QR generation');
         return;
       }
 
@@ -130,7 +132,7 @@ function ProfileSettings({ onClose }) {
       }
     } catch (error) {
       console.error('Error generating QR code:', error);
-      alert('Failed to generate QR code. Please try again.');
+      toast.error('Failed to generate QR code. Please try again.');
     }
   };
 
@@ -141,12 +143,12 @@ function ProfileSettings({ onClose }) {
 
   const handleQRPasswordSubmit = async () => {
     if (!qrPassword) {
-      alert('Please enter your password');
+      toast.warning('Please enter your password');
       return;
     }
 
     if (!profileData.username || !profileData.officeId) {
-      alert('Missing username or office. Please contact support.');
+      toast.error('Missing username or office. Please contact support.');
       return;
     }
 
@@ -159,12 +161,12 @@ function ProfileSettings({ onClose }) {
       setQrPassword('');
 
       const message = profileData.qrCodeData
-        ? '✓ QR code regenerated successfully! Your old QR code is now invalidated.'
-        : '✓ QR code generated successfully! You can now download it.';
-      alert(message);
+        ? 'QR code regenerated successfully! Your old QR code is now invalidated.'
+        : 'QR code generated successfully! You can now download it.';
+      toast.success(message);
     } catch (error) {
       console.error('Password verification failed:', error);
-      alert('Incorrect password. Please try again.');
+      toast.error('Incorrect password. Please try again.');
     }
   };
 
@@ -182,7 +184,7 @@ function ProfileSettings({ onClose }) {
     try {
       const staffData = JSON.parse(localStorage.getItem('staffData'));
       if (!staffData) {
-        alert('Please log in again');
+        toast.warning('Please log in again');
         return;
       }
 
@@ -260,11 +262,11 @@ function ProfileSettings({ onClose }) {
         setOriginalProfileData(loadedProfile);
         setProfilePicturePreview(data.profilePicture || '');
       } else {
-        alert('Profile data not found. Please contact admin.');
+        toast.error('Profile data not found. Please contact admin.');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
-      alert('Failed to load profile data: ' + error.message);
+      toast.error('Failed to load profile data: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -289,7 +291,7 @@ function ProfileSettings({ onClose }) {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
+        toast.warning('File size must be less than 5MB');
         return;
       }
       setProfilePicture(file);
@@ -316,7 +318,7 @@ function ProfileSettings({ onClose }) {
       const staffData = JSON.parse(localStorage.getItem('staffData'));
       
       if (!staffData?.firestoreDocId) {
-        alert('Session error. Please log in again.');
+        toast.error('Session error. Please log in again.');
         setSaving(false);
         return;
       }
@@ -357,11 +359,13 @@ function ProfileSettings({ onClose }) {
       };
       
       localStorage.setItem('staffData', JSON.stringify(updatedStaffData));
-      alert('✓ Profile updated successfully!');
-      window.location.reload();
+      toast.success('Profile updated successfully!');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile: ' + error.message);
+      toast.error('Failed to update profile: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -369,12 +373,12 @@ function ProfileSettings({ onClose }) {
 
   const handleChangePassword = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('New passwords do not match');
+      toast.warning('New passwords do not match');
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      alert('Password must be at least 6 characters');
+      toast.warning('Password must be at least 6 characters');
       return;
     }
 
@@ -397,7 +401,12 @@ function ProfileSettings({ onClose }) {
         qrCodeData: ''
       });
 
-      alert('✓ Password changed successfully!\n\n⚠ IMPORTANT: Your old QR code will no longer work. Please regenerate your QR code with the new password.');
+      toast.success('Password changed successfully!');
+      alertModal({
+        title: 'Security Notice: New QR Required',
+        message: 'Your password was changed successfully.\n\nIMPORTANT: Your old QR code will no longer work. Please regenerate and download a new QR code with your new password.',
+        variant: 'warning'
+      });
       setShowPasswordModal(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
@@ -411,9 +420,9 @@ function ProfileSettings({ onClose }) {
     } catch (error) {
       console.error('Error changing password:', error);
       if (error.code === 'auth/wrong-password') {
-        alert('Current password is incorrect');
+        toast.error('Current password is incorrect');
       } else {
-        alert('Failed to change password: ' + error.message);
+        toast.error('Failed to change password: ' + error.message);
       }
     } finally {
       setSaving(false);

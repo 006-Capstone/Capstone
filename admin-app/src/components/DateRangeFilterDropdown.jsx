@@ -8,6 +8,7 @@ import {
   FaChevronDown,
   FaCheck
 } from 'react-icons/fa';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/DateRangeFilter.css';
 
 /**
@@ -58,6 +59,7 @@ const DateRangeFilterDropdown = ({
   idPrefix = 'date-filter',
   appliedFilter = { from: '', to: '' }
 }) => {
+  const { toast } = useNotification();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('days'); // 'days' | 'weeks' | 'months' | 'custom'
   const wrapRef = useRef(null);
@@ -276,7 +278,7 @@ const DateRangeFilterDropdown = ({
   const handleApplyCustom = () => {
     if (!filter.from && !filter.to) return;
     if (filter.from && filter.to && filter.from > filter.to) {
-      alert('The "From" date cannot be later than the "To" date.');
+      toast.warning('The "From" date cannot be later than the "To" date.', 'Invalid Date Range');
       return;
     }
     let label = '';

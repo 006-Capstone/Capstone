@@ -23,6 +23,7 @@ import {
 } from '../utils/notificationHelper';
 import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/TicketDetails.css';
 
 const isISODate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
@@ -115,13 +116,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [completionReason, setCompletionReason] = useState('');
   const [updatingEtc, setUpdatingEtc] = useState(false);
 
-  // Toast feedback
-  const [toast, setToast] = useState(null);
-
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
-  };
+  // Unified Toast feedback hook
+  const { showToast } = useNotification();
 
   // Current logged-in staff member info
   const currentStaff = useMemo(() => {
@@ -883,16 +879,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   return (
     <div className="ticket-details-container">
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`figma-toast toast-${toast.type}`}>
-          {toast.type === 'success' && <FaCheck className="toast-icon" />}
-          {toast.type === 'error' && <FaTimes className="toast-icon" />}
-          {toast.type === 'info' && <FaInfoCircle className="toast-icon" />}
-          <span>{toast.message}</span>
-        </div>
-      )}
-
       {/* Breadcrumb Navigation & Notification Bell */}
       <div className="figma-breadcrumbs-row">
         <nav className="figma-breadcrumbs" aria-label="Breadcrumb">

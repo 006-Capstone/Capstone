@@ -6,7 +6,6 @@
     }
   ],
   "env": {
-    "REACT_APP_GROQ_API_KEY": "@react-app-groq-api-key",
     "REACT_APP_QR_ENCRYPTION_KEY": "@react-app-qr-encryption-key",
     "GMAIL_USER": "@gmail-user",
     "GMAIL_APP_PASSWORD": "@gmail-app-password",

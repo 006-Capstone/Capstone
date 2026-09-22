@@ -5,6 +5,7 @@ import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, serve
 import { db } from '../firebase';
 import Notifications from './Notifications';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/Feedback.css';
 
 const EMPTY_FILTER = { from: '', to: '' };
@@ -117,6 +118,7 @@ const buildSatisfactionStats = (items) => {
 };
 
 const Feedback = ({ department, onViewRequest }) => {
+  const { toast } = useNotification();
   const [expandedCard, setExpandedCard] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -246,7 +248,7 @@ const Feedback = ({ department, onViewRequest }) => {
     const target = overrideFilter || dateFilter;
     // Validate range: From cannot be after To
     if (target.from && target.to && target.from > target.to) {
-      alert('The "From" date cannot be later than the "To" date.');
+      toast.warning('The "From" date cannot be later than the "To" date.', 'Invalid Date Range');
       return false;
     }
     // A filter can move cards around, so close any open reply form first —
@@ -318,12 +320,12 @@ const Feedback = ({ department, onViewRequest }) => {
       });
 
       console.log('[Success] Reply sent successfully');
-      alert('Reply sent successfully!');
+      toast.success('Reply sent successfully!');
       closeReplyModal();
       
     } catch (error) {
       console.error('[Error] Error sending reply:', error);
-      alert('Failed to send reply: ' + error.message);
+      toast.error('Failed to send reply: ' + error.message);
     }
   };
 
