@@ -15,7 +15,7 @@ import {
 } from 'react-icons/fa';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { createNotification, notifyStaffNewRequest } from '../utils/notificationHelper';
+import { createNotification } from '../utils/notificationHelper';
 import '../styles/ContactAdmissionsModal.css';
 
 const GRADE_LEVELS = [
@@ -108,9 +108,9 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
         section: section.trim() || 'N/A',
         subject: '[Admissions] Account / Login Assistance Request',
         description: message.trim(),
-        office: 'Registrar',
-        officeCode: 'REG-001',
-        department: 'Registrar',
+        office: 'Superadmin',
+        officeCode: 'SA-001',
+        department: 'Superadmin',
         category: 'Admissions / Login Support',
         status: 'Pending',
         isGuest: true,
@@ -125,7 +125,7 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
       // 1. Save directly into Firestore 'requests' collection
       await addDoc(collection(db, 'requests'), newInquiryDoc);
 
-      // 2. Dispatch real-time background notifications (non-blocking)
+      // 2. Dispatch real-time background notification to Superadmin only (non-blocking)
       try {
         const studentIdLabel = cleanStudentId ? ` [ID: ${cleanStudentId}]` : '';
         await createNotification(
@@ -141,18 +141,11 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             studentEmail: email.trim(),
-            office: 'Registrar',
+            office: 'Superadmin',
             grade: grade,
             section: section.trim() || 'N/A',
             subject: 'Account / Login Assistance Request'
           }
-        );
-
-        await notifyStaffNewRequest(
-          'Registrar',
-          generatedRequestId,
-          'Account / Login Assistance Request',
-          `${fullName}${studentIdLabel} (${grade})`
         );
       } catch (notifErr) {
         console.warn('[Warning] Notification dispatch warning:', notifErr);

@@ -65,22 +65,30 @@ export const useOfficeTickets = (department) => {
 
         console.log('[useOfficeTickets] Received', querySnapshot.docs.length, 'requests for', department);
 
-        const ticketsData = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          console.log('[useOfficeTickets] Request:', data.requestId, 'Office:', data.office, 'IsGuest:', data.isGuest);
-          return {
-            firestoreId: doc.id,
-            id: data.requestId,
-            title: data.subject,
-            student: data.studentName,
-            studentId: data.studentId,
-            status: data.status,
-            assignedTo: data.assignedTo || null,
-            assignedToStaff: data.assignedToStaff || null,
-            createdAtTimestamp: data.createdAt?.toDate?.().getTime?.() || 0,
-            ...data
-          };
-        });
+        const ticketsData = querySnapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            console.log('[useOfficeTickets] Request:', data.requestId, 'Office:', data.office, 'IsGuest:', data.isGuest);
+            return {
+              firestoreId: doc.id,
+              id: data.requestId,
+              title: data.subject,
+              student: data.studentName,
+              studentId: data.studentId,
+              status: data.status,
+              assignedTo: data.assignedTo || null,
+              assignedToStaff: data.assignedToStaff || null,
+              createdAtTimestamp: data.createdAt?.toDate?.().getTime?.() || 0,
+              ...data
+            };
+          })
+          .filter(ticket => 
+            !ticket.isGuest && 
+            !ticket.isNewStudentInquiry && 
+            ticket.office !== 'Superadmin' && 
+            ticket.department !== 'Superadmin' &&
+            ticket.category !== 'Admissions / Login Support'
+          );
 
         // Newest first — same ordering the Dashboard always used
         ticketsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
