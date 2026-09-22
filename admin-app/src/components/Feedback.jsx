@@ -10,50 +10,7 @@ import '../styles/Feedback.css';
 
 const EMPTY_FILTER = { from: '', to: '' };
 
-// Demo feedback (static). Real feedback from the feedback collection can be
-// dropped in later — it carries rating, comment, and createdAt fields, which
-// the helpers below already understand.
-const DEMO_FEEDBACK = [
-  {
-    name: 'RICKY LIAM',
-    date: '03-11-2026',
-    rating: 5,
-    comment: 'The transaction process was fast and smooth. It saved time and improved overall user experience.',
-    responseTime: 5,
-    helpfulness: 5
-  },
-  {
-    name: 'JANE DOE',
-    date: '03-11-2026',
-    rating: 5,
-    comment: 'Fast transaction speed helped reduce waiting time. It improved user satisfaction.',
-    responseTime: 5,
-    helpfulness: 5
-  },
-  {
-    name: 'Ruth Mitch',
-    date: '03-11-2026',
-    rating: 5,
-    comment: 'The transaction was completed quickly without delays. It made the process efficient and convenient.',
-    responseTime: 5,
-    helpfulness: 5
-  },
-  {
-    name: 'JAYSONN MILLER',
-    date: '03-11-2026',
-    rating: 5,
-    comment: 'The system handled the transaction instantly. It made the experience smooth and reliable.',
-    responseTime: 5,
-    helpfulness: 5
-  }
-];
-
-/* ---------------------------------------------------------------------------
-   Date helpers — the demo cards use the "MM-DD-YYYY" display format, but real
-   feedback docs from the feedback collection carry a createdAt Timestamp.
-   parseFeedbackDate accepts both (plus ISO strings) so the filter keeps
-   working either way.
---------------------------------------------------------------------------- */
+// Date helpers — parses timestamps, ISO strings, and standard date formats.
 const parseFeedbackDate = (value) => {
   if (!value) return null;
 
@@ -146,7 +103,7 @@ const Feedback = ({ department, onViewRequest }) => {
     
     if (!officeId) {
       console.warn('Unknown department:', department);
-      setFeedbackData(DEMO_FEEDBACK);
+      setFeedbackData([]);
       setLoading(false);
       return;
     }
@@ -157,23 +114,10 @@ const Feedback = ({ department, onViewRequest }) => {
       where('officeId', '==', officeId)
     );
 
-    console.log(`🔍 Admin querying feedback with officeId: "${officeId}" for department: "${department}"`);
+    console.log(`[Feedback] Admin querying feedback with officeId: "${officeId}" for department: "${department}"`);
 
     const unsubscribe = onSnapshot(feedbackQuery, (querySnapshot) => {
-      console.log(`📊 Firebase returned ${querySnapshot.docs.length} feedback documents`);
-      
-      // Log the first document to see its structure
-      if (querySnapshot.docs.length > 0) {
-        const firstDoc = querySnapshot.docs[0].data();
-        console.log('[File] First feedback document:', {
-          officeId: firstDoc.officeId,
-          officeName: firstDoc.officeName,
-          studentName: firstDoc.studentName,
-          rating: firstDoc.overallRating,
-          repliesCount: firstDoc.replies?.length || 0,
-          hasReplies: !!(firstDoc.replies && firstDoc.replies.length > 0)
-        });
-      }
+      console.log(`[Feedback] Firebase returned ${querySnapshot.docs.length} feedback documents`);
       
       const feedback = querySnapshot.docs.map(doc => {
         const data = doc.data();
@@ -199,12 +143,12 @@ const Feedback = ({ department, onViewRequest }) => {
         return dateB - dateA;
       });
 
-      setFeedbackData(feedback.length > 0 ? feedback : DEMO_FEEDBACK);
+      setFeedbackData(feedback);
       setLoading(false);
-      console.log(`✅ Loaded ${feedback.length} feedback items for ${department}`);
+      console.log(`[Feedback] Loaded ${feedback.length} feedback items for ${department}`);
     }, (error) => {
       console.error('[Error] Error loading feedback:', error);
-      setFeedbackData(DEMO_FEEDBACK);
+      setFeedbackData([]);
       setLoading(false);
     });
 
@@ -394,7 +338,9 @@ const Feedback = ({ department, onViewRequest }) => {
                     />
                   ))}
                 </div>
-                <p className="average-label">Average Rating</p>
+                <p className="average-label">
+                  {satisfactionStats.total > 0 ? 'Average Rating' : 'No ratings yet'}
+                </p>
               </div>
 
               <div className="satisfaction-bars">
