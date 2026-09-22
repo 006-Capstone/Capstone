@@ -25,11 +25,13 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const { app, auth, db, FieldValue } = await initFirebaseAdmin();
+    const adminInit = await initFirebaseAdmin();
+    const { app, auth, db, FieldValue } = adminInit;
     if (!app || !auth) {
+      const detail = adminInit.error ? adminInit.error.message : 'Missing FIREBASE_CLIENT_EMAIL or FIREBASE_PRIVATE_KEY';
       return res.status(500).json({
         success: false,
-        error: 'Firebase Admin authentication is not configured on the server'
+        error: `Firebase Admin authentication is not configured on the server (${detail}). Please ensure FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY are added to your Vercel Project Settings > Environment Variables.`
       });
     }
 

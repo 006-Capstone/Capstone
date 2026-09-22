@@ -8,25 +8,59 @@ let adminFieldValue = null;
  * which crashes with ERR_REQUIRE_ESM on Vercel serverless functions.
  */
 async function initFirebaseAdmin() {
-  if (adminApp && adminDb) {
+  if (adminApp && adminAuth) {
     return { app: adminApp, auth: adminAuth, db: adminDb, FieldValue: adminFieldValue };
   }
 
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  let clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  let projectId = process.env.FIREBASE_PROJECT_ID || 'academia-de-san-jose';
+
+  // Support full service account JSON in environment variables if provided
+  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (rawServiceAccount) {
+    try {
+      let parsed = null;
+      try {
+        parsed = JSON.parse(rawServiceAccount);
+      } catch (e) {
+        parsed = JSON.parse(Buffer.from(rawServiceAccount, 'base64').toString('utf8'));
+      }
+      if (parsed) {
+        if (parsed.private_key) privateKey = parsed.private_key;
+        if (parsed.client_email) clientEmail = parsed.client_email;
+        if (parsed.project_id) projectId = parsed.project_id;
+      }
+    } catch (e) {
+      console.warn('[Warning] Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:', e.message);
+    }
+  }
+
   if (privateKey) {
     privateKey = privateKey.trim();
     if ((privateKey.startsWith('"') && privateKey.endsWith('"')) ||
         (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
       privateKey = privateKey.slice(1, -1);
     }
+    // Handle base64 encoded private key if provided
+    if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+      try {
+        const decoded = Buffer.from(privateKey, 'base64').toString('utf8');
+        if (decoded.includes('BEGIN PRIVATE KEY')) {
+          privateKey = decoded;
+        }
+      } catch (e) {}
+    }
     privateKey = privateKey.replace(/\\n/g, '\n');
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID || 'academia-de-san-jose';
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-
   if (!clientEmail || !privateKey) {
-    return { app: null, auth: null, db: null, FieldValue: null };
+    const missing = [];
+    if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL');
+    if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY');
+    const msg = `Missing required environment variable(s) in Vercel: ${missing.join(', ')}`;
+    console.warn(`[Warning] Firebase Admin cannot initialize: ${msg}`);
+    return { app: null, auth: null, db: null, FieldValue: null, error: new Error(msg) };
   }
 
   try {
@@ -53,7 +87,7 @@ async function initFirebaseAdmin() {
 
     return { app: adminApp, auth: adminAuth, db: adminDb, FieldValue: adminFieldValue };
   } catch (err) {
-    console.warn('[Warning] Firebase Admin dynamic init failed:', err.message);
+    console.error('[Error] Firebase Admin dynamic init failed:', err.message);
     return { app: null, auth: null, db: null, FieldValue: null, error: err };
   }
 }
