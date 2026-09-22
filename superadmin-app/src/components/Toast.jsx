@@ -28,7 +28,8 @@ const Toast = ({
   title, 
   onClose, 
   autoDismiss = 4000, 
-  confirmText = 'OK' 
+  confirmText = 'OK',
+  closeOnOverlayClick = true
 }) => {
   const [isPaused, setIsPaused] = useState(false);
   const remainingTimeRef = useRef(autoDismiss);
@@ -39,21 +40,21 @@ const Toast = ({
   const IconComponent = DEFAULT_ICONS[type] || FaInfoCircle;
   const displayTitle = title !== undefined && title !== null ? title : DEFAULT_TITLES[type];
 
-  // Auto-focus confirmation button & support Escape key
+  // Auto-focus confirmation button & support Escape key (if overlay click/escape dismissal allowed)
   useEffect(() => {
     if (confirmButtonRef.current) {
       confirmButtonRef.current.focus();
     }
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && onClose) {
+      if (e.key === 'Escape' && closeOnOverlayClick && onClose) {
         onClose();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, closeOnOverlayClick]);
 
   // Auto-dismiss countdown with hover pause
   useEffect(() => {
@@ -97,7 +98,7 @@ const Toast = ({
   return (
     <div 
       className="unified-notification-modal-overlay"
-      onClick={onClose}
+      onClick={closeOnOverlayClick ? onClose : undefined}
       role="dialog"
       aria-modal="true"
       aria-labelledby="superadmin-notification-modal-title"

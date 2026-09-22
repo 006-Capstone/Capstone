@@ -117,7 +117,16 @@ const UserManagement = () => {
 
   // Archiving state
   const [actionLoading, setActionLoading] = useState(false);
-  const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
+  const [toast, setToast] = useState(null); // { message, type: 'success' | 'error', ... }
+  const toastTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
   const [archiveRequestsStaff, setArchiveRequestsStaff] = useState(null);
   const [handledRequests, setHandledRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
@@ -853,6 +862,7 @@ const UserManagement = () => {
       });
 
       // Send credentials via email
+      let emailFailed = false;
       try {
         const apiUrl = process.env.NODE_ENV === 'production' 
           ? '/api/send-temporary-password'
@@ -881,7 +891,11 @@ const UserManagement = () => {
       } catch (emailError) {
         console.error('[Error] Failed to send email:', emailError);
         // Continue anyway - account was created successfully
-        showToast('Account created but email failed to send. Please manually share credentials with student:\nStudent ID: ' + studentId + '\nPassword: ' + password, 'warning');
+        emailFailed = true;
+        showToast('Account created but email failed to send. Please manually share credentials with student:\nStudent ID: ' + studentId + '\nPassword: ' + password, 'warning', {
+          autoDismiss: 0,
+          closeOnOverlayClick: false
+        });
       }
 
       // Reload students list (real-time listener will update automatically)
@@ -890,13 +904,15 @@ const UserManagement = () => {
       // Wait a moment for Firestore real-time listeners to update
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Show simple success message
-      setCreatedStudent({
-        id: studentId,
-        name: fullName,
-        email: studentEmail.trim()
-      });
-      setShowSuccessModal(true);
+      // Show simple success message only if email sent successfully
+      if (!emailFailed) {
+        setCreatedStudent({
+          id: studentId,
+          name: fullName,
+          email: studentEmail.trim()
+        });
+        setShowSuccessModal(true);
+      }
       setShowCreateForm(false);
       setStudentId('');
       setStudentFirstName('');
@@ -1086,6 +1102,7 @@ const UserManagement = () => {
       });
 
       // Send credentials via email
+      let emailFailed = false;
       try {
         const apiUrl = process.env.NODE_ENV === 'production'
           ? '/api/send-temporary-password'
@@ -1115,7 +1132,11 @@ const UserManagement = () => {
       } catch (emailError) {
         console.error('[Error] Failed to send email:', emailError);
         // Continue anyway - account was created successfully
-        showToast('Account created but email failed to send. Please manually share credentials with staff:\nUsername: ' + staffUsername + '\nPassword: ' + password, 'warning');
+        emailFailed = true;
+        showToast('Account created but email failed to send. Please manually share credentials with staff:\nUsername: ' + staffUsername + '\nPassword: ' + password, 'warning', {
+          autoDismiss: 0,
+          closeOnOverlayClick: false
+        });
       }
 
       // Reload staff list (real-time listener will update automatically)
@@ -1124,14 +1145,16 @@ const UserManagement = () => {
       // Wait a moment for Firestore real-time listeners to update
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Show success message
-      setCreatedStaff({
-        name: fullName,
-        email: staffEmail.trim(),
-        username: staffUsername.trim(),
-        office: selectedOffice.name
-      });
-      setShowSuccessModal(true);
+      // Show success message only if email sent successfully
+      if (!emailFailed) {
+        setCreatedStaff({
+          name: fullName,
+          email: staffEmail.trim(),
+          username: staffUsername.trim(),
+          office: selectedOffice.name
+        });
+        setShowSuccessModal(true);
+      }
       setShowCreateForm(false);
       setStaffFirstName('');
       setStaffLastName('');
@@ -1574,9 +1597,43 @@ const UserManagement = () => {
     setConfirmAction(null);
   };
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    window.setTimeout(() => setToast(null), 4000);
+  const showToast = (message, type = 'success', options = {}) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
+
+    const isCredentialsWarning = 
+      (typeof message === 'string' && message.includes('Account created but email failed to send')) ||
+      options.persistent ||
+      options.autoDismiss === 0;
+
+    const autoDismiss = isCredentialsWarning ? 0 : (options.autoDismiss !== undefined ? options.autoDismiss : 4000);
+    const closeOnOverlayClick = isCredentialsWarning ? false : (options.closeOnOverlayClick !== undefined ? options.closeOnOverlayClick : true);
+
+    setToast({
+      message,
+      type,
+      autoDismiss,
+      closeOnOverlayClick,
+      title: options.title,
+      confirmText: options.confirmText || 'OK'
+    });
+
+    if (autoDismiss > 0) {
+      toastTimeoutRef.current = window.setTimeout(() => {
+        setToast(null);
+        toastTimeoutRef.current = null;
+      }, autoDismiss);
+    }
+  };
+
+  const handleCloseToast = () => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
+    setToast(null);
   };
 
   const formatRequestDate = (ts) => {
@@ -2486,7 +2543,11 @@ const UserManagement = () => {
           <Toast
             type={toast.type}
             message={toast.message}
-            onClose={() => setToast(null)}
+            title={toast.title}
+            autoDismiss={toast.autoDismiss}
+            closeOnOverlayClick={toast.closeOnOverlayClick}
+            confirmText={toast.confirmText}
+            onClose={handleCloseToast}
           />
         )}
       </div>
@@ -3044,7 +3105,11 @@ const UserManagement = () => {
         <Toast
           type={toast.type}
           message={toast.message}
-          onClose={() => setToast(null)}
+          title={toast.title}
+          autoDismiss={toast.autoDismiss}
+          closeOnOverlayClick={toast.closeOnOverlayClick}
+          confirmText={toast.confirmText}
+          onClose={handleCloseToast}
         />
       )}
 
