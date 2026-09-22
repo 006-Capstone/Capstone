@@ -54,7 +54,6 @@ import { createNTE, downloadNTE, hasPendingNTE } from '../utils/nteGenerator';
 import LoadingSpinner from './LoadingSpinner';
 import NudgeModal from './NudgeModal';
 import ReassignTicketsModal from './ReassignTicketsModal';
-import PerformanceTrendCharts from './PerformanceTrendCharts';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/PerformanceMonitor.css';
 
@@ -1048,9 +1047,6 @@ const PerformanceMonitor = () => {
           </div>
         </>
       )}
-
-      {/* Performance Trend Charts */}
-      <PerformanceTrendCharts />
 
       {/* Performance Tasks */}
       {performanceTasks.length > 0 && (
