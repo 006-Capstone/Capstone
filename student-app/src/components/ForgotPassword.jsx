@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaEnvelope, FaKey, FaLock, FaTimes, FaCheckCircle, FaArrowLeft } from 'react-icons/fa';
+import { FaEnvelope, FaKey, FaLock, FaTimes, FaCheckCircle, FaArrowLeft, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import '../styles/ForgotPassword.css';
@@ -24,6 +24,8 @@ const ForgotPassword = ({ onClose }) => {
   const [verificationCode, setVerificationCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -269,6 +271,8 @@ const ForgotPassword = ({ onClose }) => {
     setVerificationCode('');
     setNewPassword('');
     setConfirmPassword('');
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     setError('');
     setSuccess('');
   };
@@ -277,6 +281,8 @@ const ForgotPassword = ({ onClose }) => {
     setStep(2);
     setNewPassword('');
     setConfirmPassword('');
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     setError('');
     setSuccess('');
   };
@@ -424,7 +430,7 @@ const ForgotPassword = ({ onClose }) => {
               <div className="input-with-icon">
                 <FaLock className="input-icon" />
                 <input
-                  type="password"
+                  type={showNewPassword ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => {
                     setNewPassword(e.target.value);
@@ -435,6 +441,14 @@ const ForgotPassword = ({ onClose }) => {
                   required
                   autoFocus
                 />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
               </div>
               <small>Minimum 6 characters</small>
             </div>
@@ -444,7 +458,7 @@ const ForgotPassword = ({ onClose }) => {
               <div className="input-with-icon">
                 <FaLock className="input-icon" />
                 <input
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => {
                     setConfirmPassword(e.target.value);
@@ -454,6 +468,14 @@ const ForgotPassword = ({ onClose }) => {
                   minLength={6}
                   required
                 />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
               </div>
             </div>
 
