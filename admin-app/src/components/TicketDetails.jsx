@@ -895,9 +895,14 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   return (
     <div className="ticket-details-container">
-      {/* Page Title & Notification Bell */}
-      <div className="figma-header-title-row">
-        <h1 className="figma-page-title">Request Details</h1>
+      {/* Header */}
+      <div className="dashboard-header ticket-details-header">
+        <div className="dashboard-title-group">
+          <h1 className="dashboard-title">Request Details</h1>
+          <p className="dashboard-subtitle">
+            Monitor and manage student request details
+          </p>
+        </div>
         <div className="header-right">
           <div 
             className="notification-bell" 
