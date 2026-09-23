@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  FaBell, FaDownload, FaCalendarAlt
+  FaBell, FaDownload, FaCalendarAlt, FaPrint
 } from 'react-icons/fa';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -335,6 +335,193 @@ const Analytics = ({ department, onViewRequest }) => {
     URL.revokeObjectURL(url);
   };
 
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    const filterInfo = isFilterActive
+      ? appliedFilter.label
+        ? `${appliedFilter.label}${appliedFilter.from && appliedFilter.to && appliedFilter.from !== appliedFilter.to ? `: ${formatFilterDate(appliedFilter.from)} – ${formatFilterDate(appliedFilter.to)}` : ''}`
+        : `${appliedFilter.from ? `from ${formatFilterDate(appliedFilter.from)}` : ''}${appliedFilter.from && appliedFilter.to ? ' to ' : ''}${appliedFilter.to ? formatFilterDate(appliedFilter.to) : ''}`
+      : 'All Time';
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${department} Analytics Report</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          .header { margin-bottom: 30px; border-bottom: 3px solid #2c5282; padding-bottom: 20px; }
+          .header h1 { font-size: 28px; color: #2c5282; margin-bottom: 5px; }
+          .header .subtitle { color: #666; font-size: 14px; }
+          .header .date { color: #999; font-size: 12px; margin-top: 10px; }
+          .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+          .stat-box { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; }
+          .stat-label { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 5px; }
+          .stat-value { font-size: 32px; font-weight: bold; color: #2c5282; }
+          .section { margin-bottom: 30px; }
+          .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c5282; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background: #2c5282; color: white; padding: 12px; text-align: left; font-size: 13px; }
+          td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+          tr:nth-child(even) { background: #f7fafc; }
+          .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+          .status-pending { background: #fef3c7; color: #92400e; }
+          .status-in-process { background: #dbeafe; color: #1e40af; }
+          .status-resolved { background: #d1fae5; color: #065f46; }
+          .status-cancelled { background: #fee2e2; color: #991b1b; }
+          @media print {
+            body { padding: 20px; }
+            .stat-box { break-inside: avoid; }
+            table { break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${department} Office Analytics Report</h1>
+          <div class="subtitle">Performance Overview and Request Analytics</div>
+          <div class="date">
+            Report Period: ${filterInfo}<br>
+            Generated: ${new Date().toLocaleString('en-US', { 
+              month: 'long', 
+              day: 'numeric', 
+              year: 'numeric', 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">Total Requests</div>
+            <div class="stat-value">${analytics.total}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Avg Resolution Time</div>
+            <div class="stat-value">${analytics.avgResolutionTime}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Cancelled Rate</div>
+            <div class="stat-value">${analytics.cancelledRate}%</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Status Breakdown</div>
+          <table>
+            <tr>
+              <th>Status</th>
+              <th>Count</th>
+              <th>Percentage</th>
+            </tr>
+            <tr>
+              <td>Pending</td>
+              <td>${analytics.pending}</td>
+              <td>${analytics.total > 0 ? Math.round((analytics.pending / analytics.total) * 100) : 0}%</td>
+            </tr>
+            <tr>
+              <td>In Process</td>
+              <td>${analytics.inProcess}</td>
+              <td>${analytics.total > 0 ? Math.round((analytics.inProcess / analytics.total) * 100) : 0}%</td>
+            </tr>
+            <tr>
+              <td>Resolved</td>
+              <td>${analytics.resolved}</td>
+              <td>${analytics.total > 0 ? Math.round((analytics.resolved / analytics.total) * 100) : 0}%</td>
+            </tr>
+            <tr>
+              <td>Cancelled</td>
+              <td>${analytics.cancelled}</td>
+              <td>${analytics.total > 0 ? Math.round((analytics.cancelled / analytics.total) * 100) : 0}%</td>
+            </tr>
+          </table>
+        </div>
+
+        ${topSubjects.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Top Request Subjects</div>
+          <table>
+            <tr>
+              <th>Rank</th>
+              <th>Subject</th>
+              <th>Count</th>
+              <th>Percentage</th>
+            </tr>
+            ${topSubjects.map((item, index) => `
+              <tr>
+                <td>#${index + 1}</td>
+                <td>${item.subject}</td>
+                <td>${item.count}</td>
+                <td>${item.percentage}%</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+        ` : ''}
+
+        ${staffActivity.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Staff Activity</div>
+          <table>
+            <tr>
+              <th>Staff Member</th>
+              <th>Resolved</th>
+              <th>Total Handled</th>
+              <th>Resolution Rate</th>
+            </tr>
+            ${staffActivity.map(staff => `
+              <tr>
+                <td>${staff.name}</td>
+                <td>${staff.resolved}</td>
+                <td>${staff.handled}</td>
+                <td>${staff.percentage}%</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+        ` : ''}
+
+        ${recentTickets.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Recent Requests</div>
+          <table>
+            <tr>
+              <th>Request ID</th>
+              <th>Subject</th>
+              <th>Student</th>
+              <th>Status</th>
+              <th>Assigned To</th>
+              <th>Submitted</th>
+            </tr>
+            ${recentTickets.map(ticket => {
+              const statusClass = `status-${(ticket.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`;
+              return `
+                <tr>
+                  <td>${ticket.id || ticket.requestId}</td>
+                  <td>${ticket.subject || ticket.title}</td>
+                  <td>${ticket.studentName || ticket.student}</td>
+                  <td><span class="status-badge ${statusClass}">${ticket.status || 'Pending'}</span></td>
+                  <td>${ticket.assignedTo || 'Unassigned'}</td>
+                  <td>${formatTicketDate(ticket)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </table>
+        </div>
+        ` : ''}
+      </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
   if (ticketsLoading || staffLoading) {
     return <LoadingSpinner message="Loading analytics..." fullScreen={true} />;
   }
@@ -349,6 +536,10 @@ Understand your office's performance at a glance
           </p>
         </div>
         <div className="analytics-header-actions">
+          <button className="export-pdf-btn" onClick={handlePrint}>
+            <FaPrint />
+            Print
+          </button>
           <button className="export-pdf-btn" onClick={exportToCSV}>
             <FaDownload />
             Export CSV
