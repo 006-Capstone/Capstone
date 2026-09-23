@@ -11,22 +11,12 @@ const Login = ({ onLogin, onForgotPassword }) => {
   const [selectedDepartment, setSelectedDepartment] = useState('finance');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [qrScanner, setQrScanner] = useState(null);
   const [scanningStatus, setScanningStatus] = useState('initializing');
-
-  // Load remembered username on mount
-  useEffect(() => {
-    const remembered = localStorage.getItem('rememberedStaffUsername');
-    if (remembered) {
-      setUsername(remembered);
-      setRememberMe(true);
-    }
-  }, []);
 
   const departments = [
     { id: 'finance', name: 'Finance', icon: FaDollarSign },
@@ -94,13 +84,6 @@ const Login = ({ onLogin, onForgotPassword }) => {
 
       // Authenticate with Firebase using email and password
       await signInWithEmailAndPassword(auth, staffData.email, password);
-
-      // Save or remove remembered username based on checkbox
-      if (rememberMe) {
-        localStorage.setItem('rememberedStaffUsername', username.trim());
-      } else {
-        localStorage.removeItem('rememberedStaffUsername');
-      }
 
       // Store staff info in localStorage
       const staffInfo = {
@@ -590,20 +573,6 @@ const Login = ({ onLogin, onForgotPassword }) => {
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
-            </div>
-            
-            <div className="remember-section">
-              <input
-                type="checkbox"
-                id="remember"
-                className="remember-checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                disabled={loading}
-              />
-              <label htmlFor="remember" className="remember-label">
-                Remember this session for 8 hours
-              </label>
             </div>
             
             <button type="submit" className="sign-in-button" disabled={loading} aria-busy={loading}>
