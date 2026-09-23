@@ -4,6 +4,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, setDoc, server
 import { db } from '../firebase';
 import Notifications from './Notifications';
 import { useNotification } from '../context/NotificationContext';
+import { notifyStudentsNewAnnouncement } from '../utils/notificationHelper';
 import '../styles/BulletinBoard.css';
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -437,7 +438,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
         });
         toast.success('Announcement updated successfully!');
       } else {
-        await addDoc(collection(db, 'announcements'), {
+        const newAnnouncementRef = await addDoc(collection(db, 'announcements'), {
           department,
           title: announcementTitle.trim(),
           body: announcementBody.trim(),
@@ -445,6 +446,15 @@ const BulletinBoard = ({ department, onViewRequest }) => {
           createdBy: staffData?.name || 'Staff',
           createdAt: serverTimestamp()
         });
+        
+        // Notify all students about the new announcement
+        await notifyStudentsNewAnnouncement(
+          department,
+          announcementTitle.trim(),
+          newAnnouncementRef.id,
+          staffData?.name || 'Staff'
+        );
+        
         toast.success('Announcement posted successfully!');
       }
 

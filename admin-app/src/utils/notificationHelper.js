@@ -271,3 +271,41 @@ export const notifyStaffReassignment = async (toOffice, requestId, requestSubjec
     console.error('[Error] Error notifying staff about reassignment:', error);
   }
 };
+
+/**
+ * Helper to notify all students about new bulletin board announcement
+ */
+export const notifyStudentsNewAnnouncement = async (department, announcementTitle, announcementId, postedBy) => {
+  try {
+    // Get all active students
+    const studentsQuery = query(
+      collection(db, 'students'),
+      where('isActive', '==', true)
+    );
+    const querySnapshot = await getDocs(studentsQuery);
+    
+    const officeDisplay = department === 'All Offices' ? 'General' : department;
+    
+    // Create notification for each student
+    const notificationPromises = querySnapshot.docs.map(studentDoc => 
+      createNotification(
+        studentDoc.data().uid,
+        'student',
+        'new_announcement',
+        `New ${officeDisplay} Announcement`,
+        `"${announcementTitle}" - Check the Bulletin Board for details`,
+        { 
+          announcementId, 
+          department, 
+          postedBy,
+          source: 'bulletin_board'
+        }
+      )
+    );
+    
+    await Promise.all(notificationPromises);
+    console.log(`[Success] Notified ${querySnapshot.size} students about new announcement`);
+  } catch (error) {
+    console.error('[Error] Error notifying students about new announcement:', error);
+  }
+};
