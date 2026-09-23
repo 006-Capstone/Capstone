@@ -735,10 +735,6 @@ const BulletinBoard = ({ department, onViewRequest }) => {
               <p className="bulletin-empty-text">
                 Create an announcement to keep students informed.
               </p>
-              <button className="create-announcement-btn" onClick={openCreateModal}>
-                <FaPlus />
-                Create announcement
-              </button>
             </div>
           ) : (
             <>
