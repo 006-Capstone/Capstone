@@ -63,12 +63,13 @@ export const useOfficeTickets = (department) => {
         if (settled) return;
         finish();
 
+        console.log('[useOfficeTickets] 🔥 Firestore snapshot received!');
         console.log('[useOfficeTickets] Received', querySnapshot.docs.length, 'requests for', department);
 
         const ticketsData = querySnapshot.docs
           .map(doc => {
             const data = doc.data();
-            console.log('[useOfficeTickets] Request:', data.requestId, 'Office:', data.office, 'IsGuest:', data.isGuest);
+            console.log('[useOfficeTickets] Request:', data.requestId, 'Office:', data.office, 'Status:', data.status, 'IsGuest:', data.isGuest);
             return {
               firestoreId: doc.id,
               id: data.requestId,
@@ -96,6 +97,9 @@ export const useOfficeTickets = (department) => {
         // Newest first — same ordering the Dashboard always used
         ticketsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
 
+        console.log('[useOfficeTickets] ✅ Setting', ticketsData.length, 'tickets in state');
+        console.log('[useOfficeTickets] Ticket statuses:', ticketsData.map(t => `${t.requestId}:${t.status}`).join(', '));
+        
         setTickets(ticketsData);
         setLoading(false);
       },

@@ -231,6 +231,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   }, [loading, nearingRequests]);
 
   const filteredTickets = useMemo(() => {
+    console.log('[AdminDashboard] Filtering tickets. Total:', tickets.length, 'Active tab:', activeTab);
+    
     let filtered = [...tickets];
 
     // Filter by tab
@@ -238,10 +240,13 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       // Cancelled tickets aren't "new" — they only match because they have
       // no assignee, so exclude them explicitly.
       filtered = filtered.filter(t => t.status !== 'Cancelled' && (t.status === 'Pending' || !t.assignedTo));
+      console.log('[AdminDashboard] New requests filtered:', filtered.length, 'tickets');
     } else if (activeTab === 'progress') {
       filtered = filtered.filter(t => t.status === 'In Process');
+      console.log('[AdminDashboard] In Progress filtered:', filtered.length, 'tickets');
     } else if (activeTab === 'resolved') {
       filtered = filtered.filter(t => t.status === 'Resolved');
+      console.log('[AdminDashboard] Resolved filtered:', filtered.length, 'tickets');
     }
 
     // Filter by search query (matches ID, title/subject, student name, student ID, assignee, urgency)
@@ -337,9 +342,13 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     try {
       // Update ticket in Firestore (the shared live listener refreshes the UI)
       const ticketRef = doc(db, 'requests', ticket.firestoreId);
+      console.log('[AdminDashboard] Claiming ticket:', ticket.firestoreId, 'Status:', ticket.status, '→ In Process');
+      console.log('[AdminDashboard] Update data:', updateData);
+      
       await updateDoc(ticketRef, updateData);
 
       console.log('✅ Ticket claimed by', staffData.name, etc ? `with ETC ${etc}` : 'without ETC');
+      console.log('✅ Firestore update completed. onSnapshot should trigger now.');
 
       // Create notification for the student about status change
       if (ticket.studentUid) {
