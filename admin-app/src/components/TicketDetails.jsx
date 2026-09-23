@@ -1534,29 +1534,34 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </p>
             ) : null}
 
-            {isReroutedTicket && (
-              <div className="mgmt-form-item">
-                <label className="mgmt-input-label">TARGET DATE (REROUTED OFFICE)</label>
-                <input
-                  type="date"
-                  className="figma-select-input"
-                  value={internalTargetDate}
-                  onChange={(e) => handleInternalTargetDateChange(e.target.value)}
-                  disabled={true}
-                  title="Deadline set by original office - rerouted office cannot change this"
-                  min={new Date().toISOString().split('T')[0]}
-                />
-                <p className="mgmt-info-text">
-                  <FaLock style={{ marginRight: '4px' }} />
-                  Deadline set by {ticket.estimatedCompletionSetBy || 'original office'}. This is your target completion date.
-                </p>
-                {etc && (
-                  <p className="mgmt-info-text">
-                    Student ETC (Status Timeline): {formatEtcLabel(etc)} - shown to student
-                  </p>
+            <div className="mgmt-form-item">
+              <label className="mgmt-input-label">TARGET COMPLETION DATE</label>
+              <input
+                type="date"
+                className="figma-select-input"
+                value={internalTargetDate}
+                onChange={(e) => handleInternalTargetDateChange(e.target.value)}
+                disabled={isTicketClosed || !isOwner || (isReroutedTicket && ticket.internalTargetSetBy)}
+                title={
+                  (isReroutedTicket && ticket.internalTargetSetBy)
+                    ? `Deadline set by ${ticket.internalTargetSetBy} - cannot be changed`
+                    : !isOwner 
+                    ? `Only ${ticketHandler || 'the assigned staff'} can set this date` 
+                    : "Set internal target date (does not affect Status Timeline or student)"
+                }
+                min={new Date().toISOString().split('T')[0]}
+              />
+              <p className="mgmt-info-text">
+                {(isReroutedTicket && ticket.internalTargetSetBy) ? (
+                  <>
+                    <FaLock style={{ marginRight: '4px' }} />
+                    Deadline set by {ticket.internalTargetSetBy} for this office to complete
+                  </>
+                ) : (
+                  'Internal deadline for office - does not appear in Status Timeline or affect student'
                 )}
-              </div>
-            )}
+              </p>
+            </div>
 
             <div className="mgmt-form-item">
               <label className="mgmt-input-label">REASSIGN TO</label>
