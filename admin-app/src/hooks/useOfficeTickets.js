@@ -59,11 +59,25 @@ export const useOfficeTickets = (department) => {
 
     const unsubscribe = onSnapshot(
       q,
+      { includeMetadataChanges: true },
       (querySnapshot) => {
         if (settled) return;
+        
+        // Skip metadata-only changes
+        if (querySnapshot.metadata.hasPendingWrites) {
+          console.log('[useOfficeTickets] Skipping snapshot - has pending writes');
+          return;
+        }
+        
+        if (querySnapshot.metadata.fromCache) {
+          console.log('[useOfficeTickets] Snapshot from cache');
+        } else {
+          console.log('[useOfficeTickets] Snapshot from server');
+        }
+        
         finish();
 
-        console.log('[useOfficeTickets] 🔥 Firestore snapshot received!');
+        console.log('[useOfficeTickets] Firestore snapshot received');
         console.log('[useOfficeTickets] Received', querySnapshot.docs.length, 'requests for', department);
 
         const ticketsData = querySnapshot.docs
@@ -97,7 +111,7 @@ export const useOfficeTickets = (department) => {
         // Newest first — same ordering the Dashboard always used
         ticketsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
 
-        console.log('[useOfficeTickets] ✅ Setting', ticketsData.length, 'tickets in state');
+        console.log('[useOfficeTickets] Setting', ticketsData.length, 'tickets in state');
         console.log('[useOfficeTickets] Ticket statuses:', ticketsData.map(t => `${t.requestId}:${t.status}`).join(', '));
         
         setTickets(ticketsData);

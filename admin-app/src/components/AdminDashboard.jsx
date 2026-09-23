@@ -347,8 +347,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       
       await updateDoc(ticketRef, updateData);
 
-      console.log('✅ Ticket claimed by', staffData.name, etc ? `with ETC ${etc}` : 'without ETC');
-      console.log('✅ Firestore update completed. onSnapshot should trigger now.');
+      console.log('Ticket claimed by', staffData.name, etc ? `with ETC ${etc}` : 'without ETC');
+      console.log('Firestore update completed. onSnapshot should trigger now.');
 
       // Create notification for the student about status change
       if (ticket.studentUid) {
