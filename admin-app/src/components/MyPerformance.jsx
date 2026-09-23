@@ -702,29 +702,29 @@ const MyPerformance = ({ userData }) => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     
     // Add summary header with performance metrics
-    let csv = `"My Performance Report - ${staffName || 'Staff Member'}"\n`;
-    csv += `"Time Period: ${timeRange === 'all' ? 'All Time' : timeRange === 'month' ? 'This Month' : timeRange === '30days' ? 'Last 30 Days' : timeRange === '7days' ? 'Last 7 Days' : 'Today'}"\n`;
-    csv += `"Generated: ${new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}"\n`;
+    let csv = `My Performance Report - ${staffName || 'Staff Member'}\n`;
+    csv += `Time Period: ${timeRange === 'all' ? 'All Time' : timeRange === 'month' ? 'This Month' : timeRange === '30days' ? 'Last 30 Days' : timeRange === '7days' ? 'Last 7 Days' : 'Today'}\n`;
+    csv += `Generated: ${new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}\n`;
     csv += '\n';
     
     // Performance Summary Section
-    csv += '"PERFORMANCE SUMMARY"\n';
-    csv += `"Efficiency Score","${metrics.performanceScore}/100"\n`;
-    csv += `"Performance Grade","${getGradeInfo(metrics.performanceScore).grade}"\n`;
-    csv += `"Standing","${metrics.standing.label}"\n`;
-    csv += `"Active Requests","${metrics.activeCount}"\n`;
-    csv += `"Overdue Requests","${metrics.overdueCount}"\n`;
-    csv += `"Due Today","${metrics.dueTodayCount}"\n`;
-    csv += `"Resolved Tickets","${metrics.resolvedCount}"\n`;
-    csv += `"All-Time Resolved","${metrics.allTimeResolved}"\n`;
-    csv += `"On-Time SLA Rate","${metrics.onTimeRate}%"\n`;
-    csv += `"Average Turnaround","${metrics.avgTurnaroundDisplay}"\n`;
-    csv += `"Accepted Today","${metrics.acceptedTodayCount}"\n`;
-    csv += `"Anti-Hoarding Status","${metrics.isRestrictedByHoarding ? 'Restricted (10+ active)' : 'Normal'}"\n`;
+    csv += 'PERFORMANCE SUMMARY\n';
+    csv += `Efficiency Score,${metrics.performanceScore}/100\n`;
+    csv += `Performance Grade,${getGradeInfo(metrics.performanceScore).grade}\n`;
+    csv += `Standing,${metrics.standing.label}\n`;
+    csv += `Active Requests,${metrics.activeCount}\n`;
+    csv += `Overdue Requests,${metrics.overdueCount}\n`;
+    csv += `Due Today,${metrics.dueTodayCount}\n`;
+    csv += `Resolved Tickets,${metrics.resolvedCount}\n`;
+    csv += `All-Time Resolved,${metrics.allTimeResolved}\n`;
+    csv += `On-Time SLA Rate,${metrics.onTimeRate}%\n`;
+    csv += `Average Turnaround,${metrics.avgTurnaroundDisplay}\n`;
+    csv += `Accepted Today,${metrics.acceptedTodayCount}\n`;
+    csv += `Anti-Hoarding Status,${metrics.isRestrictedByHoarding ? 'Restricted (10+ active)' : 'Normal'}\n`;
     csv += '\n';
     
     // Request Details Section
-    csv += '"REQUEST DETAILS"\n';
+    csv += 'REQUEST DETAILS\n';
     csv += 'Request ID,Subject,Student Name,Student ID,Is Guest,Status,Office,Assigned To,Estimated Completion,SLA Compliance,Claimed At,Resolved At,Created At,Resolution Note\n';
     
     tableTickets.forEach(t => {
