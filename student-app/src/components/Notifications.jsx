@@ -10,7 +10,8 @@ import {
   FaTicketAlt,
   FaExchangeAlt,
   FaClock,
-  FaInfoCircle
+  FaInfoCircle,
+  FaBullhorn
 } from 'react-icons/fa';
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -60,6 +61,8 @@ const getNotificationIcon = (notif) => {
       return { icon: <FaExchangeAlt />, className: 'type-rerouted' };
     case 'etc_update':
       return { icon: <FaClock />, className: 'type-etc' };
+    case 'new_announcement':
+      return { icon: <FaBullhorn />, className: 'type-announcement' };
     default:
       return { icon: <FaInfoCircle />, className: 'type-default' };
   }
