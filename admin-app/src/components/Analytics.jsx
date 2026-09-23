@@ -337,6 +337,12 @@ const Analytics = ({ department, onViewRequest }) => {
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
+    
+    if (!printWindow) {
+      alert('Please allow pop-ups to print the report');
+      return;
+    }
+    
     const filterInfo = isFilterActive
       ? appliedFilter.label
         ? `${appliedFilter.label}${appliedFilter.from && appliedFilter.to && appliedFilter.from !== appliedFilter.to ? `: ${formatFilterDate(appliedFilter.from)} – ${formatFilterDate(appliedFilter.to)}` : ''}`
@@ -516,10 +522,21 @@ const Analytics = ({ department, onViewRequest }) => {
     `);
     
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    
+    // Use requestAnimationFrame to avoid blocking the main thread
+    requestAnimationFrame(() => {
+      printWindow.focus();
+      
+      // Trigger print and auto-close after print dialog
+      printWindow.onafterprint = () => {
+        printWindow.close();
+      };
+      
+      // Small delay to ensure content is fully rendered
+      setTimeout(() => {
+        printWindow.print();
+      }, 100);
+    });
   };
 
   if (ticketsLoading || staffLoading) {
