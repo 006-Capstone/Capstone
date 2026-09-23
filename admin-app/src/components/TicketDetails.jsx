@@ -1534,37 +1534,29 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </p>
             ) : null}
 
-            <div className="mgmt-form-item">
-              <label className="mgmt-input-label">
-                {isReroutedTicket ? 'TARGET DATE (REROUTED OFFICE)' : 'ESTIMATED COMPLETION DATE'}
-              </label>
-              <input
-                type="date"
-                className="figma-select-input"
-                value={isReroutedTicket ? internalTargetDate : etc}
-                onChange={(e) => isReroutedTicket ? handleInternalTargetDateChange(e.target.value) : handleEstimatedCompletionDateChange(e.target.value)}
-                disabled={isTicketClosed || !isOwner}
-                title={
-                  !isOwner 
-                    ? `Only ${ticketHandler || 'the assigned staff'} can set this date` 
-                    : isReroutedTicket
-                    ? "Set internal target date for rerouted office (does not affect Status Timeline)"
-                    : "Set estimated completion date (appears in Status Timeline)"
-                }
-                min={new Date().toISOString().split('T')[0]}
-              />
-              {isReroutedTicket && etc && (
+            {isReroutedTicket && (
+              <div className="mgmt-form-item">
+                <label className="mgmt-input-label">TARGET DATE (REROUTED OFFICE)</label>
+                <input
+                  type="date"
+                  className="figma-select-input"
+                  value={internalTargetDate}
+                  onChange={(e) => handleInternalTargetDateChange(e.target.value)}
+                  disabled={true}
+                  title="Deadline set by original office - rerouted office cannot change this"
+                  min={new Date().toISOString().split('T')[0]}
+                />
                 <p className="mgmt-info-text">
                   <FaLock style={{ marginRight: '4px' }} />
-                  Student ETC: {formatEtcLabel(etc)} (set by {ticket.estimatedCompletionSetBy || 'original office'}) - shown in Status Timeline
+                  Deadline set by {ticket.estimatedCompletionSetBy || 'original office'}. This is your target completion date.
                 </p>
-              )}
-              {isReroutedTicket && (
-                <p className="mgmt-info-text">
-                  Your target date is for internal tracking only and does not affect the Status Timeline or student notifications
-                </p>
-              )}
-            </div>
+                {etc && (
+                  <p className="mgmt-info-text">
+                    Student ETC (Status Timeline): {formatEtcLabel(etc)} - shown to student
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="mgmt-form-item">
               <label className="mgmt-input-label">REASSIGN TO</label>
