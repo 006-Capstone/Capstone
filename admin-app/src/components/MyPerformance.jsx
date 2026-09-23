@@ -16,7 +16,8 @@ import {
   FaArrowDown, 
   FaBolt, 
   FaCheck,
-  FaInfoCircle
+  FaInfoCircle,
+  FaDownload
 } from 'react-icons/fa';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -696,6 +697,48 @@ const MyPerformance = ({ userData }) => {
     return { label: ticket.status, className: 'sla-pending' };
   };
 
+  // Export table data to CSV
+  const exportToCSV = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    let csv = 'Request ID,Subject,Student,Student ID,Status,Office,Assigned To,Estimated Completion,SLA Compliance,Claimed At,Resolved At,Created At\n';
+    
+    tableTickets.forEach(t => {
+      const createdAt = parseDate(t.createdAt);
+      const claimedAt = parseDate(t.claimedAt);
+      const resolvedAt = parseDate(t.resolvedAt);
+      const slaTag = getTicketSlaTag(t);
+      
+      csv += [
+        esc(t.id),
+        esc(t.subject),
+        esc(t.student),
+        esc(t.studentId),
+        esc(t.status),
+        esc(t.office),
+        esc(t.assignedTo || 'Unassigned'),
+        esc(formatDate(t.etc)),
+        esc(slaTag.label),
+        esc(claimedAt ? claimedAt.toISOString() : ''),
+        esc(resolvedAt ? resolvedAt.toISOString() : ''),
+        esc(createdAt ? createdAt.toISOString() : '')
+      ].join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    const rangeLabel = timeRange === 'all' ? 'all-time' : timeRange;
+    link.download = `my-performance-${rangeLabel}-${timestamp}.csv`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="my-performance-loading">
@@ -1278,6 +1321,10 @@ const MyPerformance = ({ userData }) => {
           </div>
 
           <div className="toolbar-right-group">
+            <button className="export-pdf-btn" onClick={exportToCSV}>
+              <FaDownload />
+              Export CSV
+            </button>
             <div className="table-search-box">
               <FaSearch className="table-search-icon" aria-hidden="true" />
               <input

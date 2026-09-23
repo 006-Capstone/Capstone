@@ -1769,3 +1769,36 @@
     justify-content: center;
   }
 }
+
+/* Export CSV Button */
+.toolbar-right-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.export-pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--green-800) 0%, var(--green-900) 100%);
+  color: #ffffff;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(16, 94, 6, 0.25);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.export-pdf-btn:hover {
+  background: linear-gradient(135deg, var(--green-750) 0%, var(--green-850) 100%);
+  transform: translateY(-1px);
+}
+
+.export-pdf-btn:active {
+  transform: translateY(0);
+}
