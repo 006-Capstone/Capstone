@@ -800,6 +800,12 @@ const MyPerformance = ({ userData }) => {
             </button>
           </div>
 
+          {/* Export CSV Button */}
+          <button className="export-pdf-btn" onClick={exportToCSV}>
+            <FaDownload />
+            Export CSV
+          </button>
+
           {/* Notification Bell */}
           <div
             className="notification-bell"
@@ -1321,10 +1327,6 @@ const MyPerformance = ({ userData }) => {
           </div>
 
           <div className="toolbar-right-group">
-            <button className="export-pdf-btn" onClick={exportToCSV}>
-              <FaDownload />
-              Export CSV
-            </button>
             <div className="table-search-box">
               <FaSearch className="table-search-icon" aria-hidden="true" />
               <input
