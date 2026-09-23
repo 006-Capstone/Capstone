@@ -144,9 +144,9 @@ export const GRADED_TIERS = [
 ];
 
 const formatDate = (date) => {
-  if (!date) return '—';
+  if (!date) return 'N/A';
   const d = parseDate(date);
-  if (!d) return '—';
+  if (!d) return 'N/A';
   return d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -466,7 +466,7 @@ const MyPerformance = ({ userData }) => {
 
     // Average Turnaround time
     let avgTurnaroundHours = 0;
-    let avgTurnaroundDisplay = '—';
+    let avgTurnaroundDisplay = 'N/A';
     if (turnAroundValidCount > 0) {
       avgTurnaroundHours = Math.round(turnAroundTotalMs / (turnAroundValidCount * 1000 * 60 * 60) * 10) / 10;
       if (avgTurnaroundHours >= 48) {
@@ -1455,7 +1455,7 @@ const MyPerformance = ({ userData }) => {
 
                         <td>
                           <div style={{ fontWeight: 500, color: '#374151' }}>
-                            {ticket.status === 'Resolved' && formattedResolved !== '—'
+                            {ticket.status === 'Resolved' && formattedResolved !== 'N/A'
                               ? `Resolved: ${formattedResolved}`
                               : formattedEtc}
                           </div>
