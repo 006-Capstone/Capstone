@@ -89,6 +89,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [reassignOffice, setReassignOffice] = useState('');
   const [urgencyLevel, setUrgencyLevel] = useState('Normal');
   const [etc, setEtc] = useState('');
+  const [internalTargetDate, setInternalTargetDate] = useState('');
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignNote, setReassignNote] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -235,6 +236,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         setReassignOffice(data.office || '');
         setUrgencyLevel(data.urgencyLevel || 'Normal');
         setEtc(data.etc || '');
+        setInternalTargetDate(data.internalTargetDate || '');
       } else {
         showToast('Request not found', 'error');
       }
@@ -734,6 +736,38 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     } catch (error) {
       console.error('Error updating estimated completion date:', error);
       showToast('Failed to update date: ' + error.message, 'error');
+    }
+  };
+
+  const handleInternalTargetDateChange = async (newDate) => {
+    if (!isOwner) {
+      showToast('You do not have permission to set the target date.', 'error');
+      return;
+    }
+
+    if (!newDate) {
+      showToast('Please select a valid date.', 'error');
+      return;
+    }
+
+    setInternalTargetDate(newDate);
+
+    try {
+      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
+      const docRef = doc(db, 'requests', ticket.firestoreId);
+
+      await updateDoc(docRef, {
+        internalTargetDate: newDate,
+        internalTargetSetBy: staffData.name,
+        internalTargetSetAt: new Date(),
+        updatedAt: serverTimestamp()
+      });
+
+      showToast('Internal target date set successfully!', 'success');
+      loadTicketDetails();
+    } catch (error) {
+      console.error('Error setting target date:', error);
+      showToast('Failed to set target date: ' + error.message, 'error');
     }
   };
 
@@ -1501,28 +1535,30 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             ) : null}
 
             <div className="mgmt-form-item">
-              <label className="mgmt-input-label">ESTIMATED COMPLETION DATE</label>
+              <label className="mgmt-input-label">TARGET DATE (INTERNAL TRACKING)</label>
               <input
                 type="date"
                 className="figma-select-input"
-                value={etc}
-                onChange={(e) => handleEstimatedCompletionDateChange(e.target.value)}
-                disabled={isTicketClosed || !isOwner || isReroutedTicket}
+                value={internalTargetDate}
+                onChange={(e) => handleInternalTargetDateChange(e.target.value)}
+                disabled={isTicketClosed || !isOwner}
                 title={
-                  isReroutedTicket 
-                    ? `Deadline set by ${ticket.estimatedCompletionSetBy || 'the original office'} - rerouted office cannot change this`
-                    : !isOwner 
+                  !isOwner 
                     ? `Only ${ticketHandler || 'the assigned staff'} can set this date` 
-                    : "Set estimated completion date"
+                    : "Set internal target date (does not affect Status Timeline or student)"
                 }
                 min={new Date().toISOString().split('T')[0]}
               />
-              {isReroutedTicket && etc && (
-                <p className="mgmt-info-text">
-                  <FaLock style={{ marginRight: '4px' }} />
-                  Deadline set by {ticket.estimatedCompletionSetBy || 'original office'}. Rerouted office must complete by this date.
-                </p>
-              )}
+              <p className="mgmt-info-text">
+                {isReroutedTicket && etc ? (
+                  <>
+                    <FaLock style={{ marginRight: '4px' }} />
+                    Student ETC: {formatEtcLabel(etc)} (set by {ticket.estimatedCompletionSetBy || 'original office'})
+                  </>
+                ) : (
+                  'Internal deadline for office tracking only - does not appear in Status Timeline'
+                )}
+              </p>
             </div>
 
             <div className="mgmt-form-item">
