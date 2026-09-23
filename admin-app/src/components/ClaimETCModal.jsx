@@ -14,6 +14,9 @@ const isoDateFromOffset = (offsetDays) => {
 
 const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
   const [date, setDate] = useState(isoDateFromOffset(2));
+  
+  // Check if ticket is rerouted (original office already set the date)
+  const isReroutedTicket = ticket && ticket.previousOffice && ticket.internalTargetDate;
 
   return (
     <div className="etc-modal-overlay" onClick={onCancel}>
@@ -29,32 +32,46 @@ const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
         </button>
 
         <div className="etc-modal-icon">
-          <FaCalendarAlt />
+          {isReroutedTicket ? <FaUserCheck /> : <FaCalendarAlt />}
         </div>
 
-        <h2 id="etc-modal-title" className="etc-modal-title">Set Completion Date</h2>
+        <h2 id="etc-modal-title" className="etc-modal-title">
+          {isReroutedTicket ? 'Claim Rerouted Request' : 'Set Completion Date'}
+        </h2>
         <p className="etc-modal-subtitle">
           Claiming <strong>#{ticket.id}</strong> — {ticket.title}
         </p>
 
         <div className="etc-modal-body">
-          <label className="etc-field-label" htmlFor="etc-date">
-            ESTIMATED TIME OF COMPLETION
-          </label>
-          <input
-            id="etc-date"
-            type="date"
-            className="etc-date-input"
-            value={date}
-            min={isoDateFromOffset(0)}
-            onChange={(e) => setDate(e.target.value)}
-            required
-          />
+          {isReroutedTicket ? (
+            <div className="etc-notice">
+              <FaUserCheck className="etc-notice-icon" />
+              <span>
+                This request was rerouted from <strong>{ticket.previousOffice}</strong> with a deadline already set. 
+                You can claim it directly without setting a new completion date.
+              </span>
+            </div>
+          ) : (
+            <>
+              <label className="etc-field-label" htmlFor="etc-date">
+                ESTIMATED TIME OF COMPLETION
+              </label>
+              <input
+                id="etc-date"
+                type="date"
+                className="etc-date-input"
+                value={date}
+                min={isoDateFromOffset(0)}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
 
-          <div className="etc-notice">
-            <FaUserCheck className="etc-notice-icon" />
-            <span>Setting this date notifies the student about the estimated turnaround time.</span>
-          </div>
+              <div className="etc-notice">
+                <FaUserCheck className="etc-notice-icon" />
+                <span>Setting this date notifies the student about the estimated turnaround time.</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="etc-modal-actions">
@@ -64,8 +81,8 @@ const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
           <button
             type="button"
             className="etc-btn-primary"
-            onClick={() => onConfirm(date)}
-            disabled={!date}
+            onClick={() => onConfirm(isReroutedTicket ? null : date)}
+            disabled={!isReroutedTicket && !date}
           >
             <FaCheck /> Confirm & Claim Request
           </button>
