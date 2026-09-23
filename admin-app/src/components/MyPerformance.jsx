@@ -700,19 +700,48 @@ const MyPerformance = ({ userData }) => {
   // Export table data to CSV
   const exportToCSV = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    let csv = 'Request ID,Subject,Student,Student ID,Status,Office,Assigned To,Estimated Completion,SLA Compliance,Claimed At,Resolved At,Created At\n';
+    
+    // Add summary header with performance metrics
+    let csv = `"My Performance Report - ${staffName || 'Staff Member'}"\n`;
+    csv += `"Time Period: ${timeRange === 'all' ? 'All Time' : timeRange === 'month' ? 'This Month' : timeRange === '30days' ? 'Last 30 Days' : timeRange === '7days' ? 'Last 7 Days' : 'Today'}"\n`;
+    csv += `"Generated: ${new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}"\n`;
+    csv += '\n';
+    
+    // Performance Summary Section
+    csv += '"PERFORMANCE SUMMARY"\n';
+    csv += `"Efficiency Score","${metrics.performanceScore}/100"\n`;
+    csv += `"Performance Grade","${getGradeInfo(metrics.performanceScore).grade}"\n`;
+    csv += `"Standing","${metrics.standing.label}"\n`;
+    csv += `"Active Requests","${metrics.activeCount}"\n`;
+    csv += `"Overdue Requests","${metrics.overdueCount}"\n`;
+    csv += `"Due Today","${metrics.dueTodayCount}"\n`;
+    csv += `"Resolved Tickets","${metrics.resolvedCount}"\n`;
+    csv += `"All-Time Resolved","${metrics.allTimeResolved}"\n`;
+    csv += `"On-Time SLA Rate","${metrics.onTimeRate}%"\n`;
+    csv += `"Average Turnaround","${metrics.avgTurnaroundDisplay}"\n`;
+    csv += `"Accepted Today","${metrics.acceptedTodayCount}"\n`;
+    csv += `"Anti-Hoarding Status","${metrics.isRestrictedByHoarding ? 'Restricted (10+ active)' : 'Normal'}"\n`;
+    csv += '\n';
+    
+    // Request Details Section
+    csv += '"REQUEST DETAILS"\n';
+    csv += 'Request ID,Subject,Student Name,Student ID,Is Guest,Status,Office,Assigned To,Estimated Completion,SLA Compliance,Claimed At,Resolved At,Created At,Resolution Note\n';
     
     tableTickets.forEach(t => {
       const createdAt = parseDate(t.createdAt);
       const claimedAt = parseDate(t.claimedAt);
       const resolvedAt = parseDate(t.resolvedAt);
       const slaTag = getTicketSlaTag(t);
+      const isGuest = Boolean(t.isGuest);
+      const studentName = t.student || t.studentName || (isGuest ? 'Guest User' : 'Student');
+      const studentId = t.studentId || t.studentID || t.idNumber || '';
       
       csv += [
         esc(t.id),
-        esc(t.subject),
-        esc(t.student),
-        esc(t.studentId),
+        esc(t.subject || t.title),
+        esc(studentName),
+        esc(studentId),
+        esc(isGuest ? 'Yes' : 'No'),
         esc(t.status),
         esc(t.office),
         esc(t.assignedTo || 'Unassigned'),
@@ -720,7 +749,8 @@ const MyPerformance = ({ userData }) => {
         esc(slaTag.label),
         esc(claimedAt ? claimedAt.toISOString() : ''),
         esc(resolvedAt ? resolvedAt.toISOString() : ''),
-        esc(createdAt ? createdAt.toISOString() : '')
+        esc(createdAt ? createdAt.toISOString() : ''),
+        esc(t.resolutionNote || '')
       ].join(',') + '\n';
     });
 
@@ -731,7 +761,8 @@ const MyPerformance = ({ userData }) => {
     
     const timestamp = new Date().toISOString().split('T')[0];
     const rangeLabel = timeRange === 'all' ? 'all-time' : timeRange;
-    link.download = `my-performance-${rangeLabel}-${timestamp}.csv`;
+    const staffSlug = (staffName || 'staff').toLowerCase().replace(/\s+/g, '-');
+    link.download = `${staffSlug}-performance-${rangeLabel}-${timestamp}.csv`;
     
     document.body.appendChild(link);
     link.click();
