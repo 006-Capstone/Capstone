@@ -1164,3 +1164,141 @@
     letter-spacing: 0;
   }
 }
+
+/* ==========================================================================
+   PRINT-ONLY STYLES
+   ========================================================================== */
+
+/* Hide the print report section on screen, show only when printing */
+.print-only-report {
+  display: none;
+}
+
+@media print {
+  /* Hide everything except the print report */
+  body * {
+    visibility: hidden;
+  }
+  
+  .print-only-report,
+  .print-only-report * {
+    visibility: visible;
+  }
+  
+  .print-only-report {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+    background: white;
+    color: #333;
+    font-family: Arial, sans-serif;
+  }
+  
+  .print-header {
+    margin-bottom: 30px;
+    border-bottom: 3px solid #2c5282;
+    padding-bottom: 20px;
+  }
+  
+  .print-header h1 {
+    font-size: 28px;
+    color: #2c5282;
+    margin: 0 0 5px 0;
+    font-weight: bold;
+  }
+  
+  .print-subtitle {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  .print-date {
+    color: #999;
+    font-size: 12px;
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+  
+  .print-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .print-stat-box {
+    border: 1px solid #e2e8f0;
+    padding: 15px;
+    border-radius: 8px;
+    break-inside: avoid;
+  }
+  
+  .print-stat-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  
+  .print-stat-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: #2c5282;
+  }
+  
+  .print-section {
+    margin-bottom: 30px;
+    break-inside: avoid;
+  }
+  
+  .print-section-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #2c5282;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+  }
+  
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+  
+  .print-table th {
+    background: #2c5282;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: bold;
+  }
+  
+  .print-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+  }
+  
+  .print-table tr:nth-child(even) {
+    background: #f7fafc;
+  }
+  
+  /* Ensure tables don't break across pages */
+  .print-table {
+    page-break-inside: avoid;
+  }
+  
+  .print-table thead {
+    display: table-header-group;
+  }
+  
+  .print-table tbody tr {
+    page-break-inside: avoid;
+  }
+}
