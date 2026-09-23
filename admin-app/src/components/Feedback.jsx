@@ -124,7 +124,7 @@ const Feedback = ({ department, onViewRequest }) => {
         const data = doc.data();
         return {
           id: doc.id,
-          name: data.studentName || 'Anonymous',
+          name: data.studentId || 'Anonymous',
           date: data.createdAt?.toDate().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) || 'N/A',
           rating: data.overallRating || 0,
           comment: data.comments || 'No comment provided',
