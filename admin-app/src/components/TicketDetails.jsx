@@ -89,7 +89,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [reassignOffice, setReassignOffice] = useState('');
   const [urgencyLevel, setUrgencyLevel] = useState('Normal');
   const [etc, setEtc] = useState('');
-  const [reroutedTargetDate, setReroutedTargetDate] = useState('');
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignNote, setReassignNote] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -236,7 +235,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         setReassignOffice(data.office || '');
         setUrgencyLevel(data.urgencyLevel || 'Normal');
         setEtc(data.etc || '');
-        setReroutedTargetDate(data.reroutedTargetDate || '');
       } else {
         showToast('Request not found', 'error');
       }
@@ -736,38 +734,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     } catch (error) {
       console.error('Error updating estimated completion date:', error);
       showToast('Failed to update date: ' + error.message, 'error');
-    }
-  };
-
-  const handleReroutedTargetDateChange = async (newDate) => {
-    if (!isOwner) {
-      showToast('You do not have permission to set the target date.', 'error');
-      return;
-    }
-
-    if (!newDate) {
-      showToast('Please select a valid date.', 'error');
-      return;
-    }
-
-    setReroutedTargetDate(newDate);
-
-    try {
-      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
-      const docRef = doc(db, 'requests', ticket.firestoreId);
-
-      await updateDoc(docRef, {
-        reroutedTargetDate: newDate,
-        reroutedTargetSetBy: staffData.name,
-        reroutedTargetSetAt: new Date(),
-        updatedAt: serverTimestamp()
-      });
-
-      showToast('Target completion date set successfully!', 'success');
-      loadTicketDetails();
-    } catch (error) {
-      console.error('Error setting target date:', error);
-      showToast('Failed to set target date: ' + error.message, 'error');
     }
   };
 
@@ -1535,32 +1501,26 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             ) : null}
 
             <div className="mgmt-form-item">
-              <label className="mgmt-input-label">
-                {isReroutedTicket ? 'TARGET COMPLETION DATE (REROUTED OFFICE)' : 'ESTIMATED COMPLETION DATE'}
-              </label>
+              <label className="mgmt-input-label">ESTIMATED COMPLETION DATE</label>
               <input
                 type="date"
                 className="figma-select-input"
-                value={isReroutedTicket ? reroutedTargetDate : etc}
-                onChange={(e) => isReroutedTicket ? handleReroutedTargetDateChange(e.target.value) : handleEstimatedCompletionDateChange(e.target.value)}
-                disabled={isTicketClosed || !isOwner}
+                value={etc}
+                onChange={(e) => handleEstimatedCompletionDateChange(e.target.value)}
+                disabled={isTicketClosed || !isOwner || isReroutedTicket}
                 title={
-                  !isOwner 
+                  isReroutedTicket 
+                    ? `Deadline set by ${ticket.estimatedCompletionSetBy || 'the original office'} - rerouted office cannot change this`
+                    : !isOwner 
                     ? `Only ${ticketHandler || 'the assigned staff'} can set this date` 
-                    : isReroutedTicket
-                    ? "Set target completion date for rerouted office (does not affect student ETC)"
-                    : "Set estimated completion date for student"
+                    : "Set estimated completion date"
                 }
                 min={new Date().toISOString().split('T')[0]}
               />
-              {isReroutedTicket && (
+              {isReroutedTicket && etc && (
                 <p className="mgmt-info-text">
-                  <strong>Student ETC:</strong> {etc ? formatEtcLabel(etc) : 'Not set'} (set by {ticket.estimatedCompletionSetBy || 'original office'})
-                </p>
-              )}
-              {isReroutedTicket && reroutedTargetDate && (
-                <p className="mgmt-info-text">
-                  Internal target for {ticket.office} to complete their part
+                  <FaLock style={{ marginRight: '4px' }} />
+                  Deadline set by {ticket.estimatedCompletionSetBy || 'original office'}. Rerouted office must complete by this date.
                 </p>
               )}
             </div>
