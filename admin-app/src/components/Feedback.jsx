@@ -4,6 +4,7 @@ import { BsChatDots } from 'react-icons/bs';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import Notifications from './Notifications';
+import LoadingSpinner from './LoadingSpinner';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/Feedback.css';
@@ -362,7 +363,7 @@ const Feedback = ({ department, onViewRequest }) => {
 
           {loading ? (
             <div className="feedback-loading">
-              <p>Loading feedback...</p>
+              <LoadingSpinner message="Loading feedback..." />
             </div>
           ) : filteredFeedback.length === 0 ? (
             <div className="feedback-empty-state">
