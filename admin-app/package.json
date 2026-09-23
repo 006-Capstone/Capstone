@@ -6,6 +6,7 @@
     "crypto-js": "^4.2.0",
     "firebase": "^12.16.0",
     "firebase-admin": "^14.4.0",
+    "groq-sdk": "^1.6.0",
     "html5-qrcode": "^2.3.8",
     "jose": "4.15.5",
     "nodemailer": "^6.9.13",

@@ -21,6 +21,7 @@ import {
   notifyStudentEtcChange,
   notifyStaffReassignment 
 } from '../utils/notificationHelper';
+import { validateReassignmentNote } from '../utils/contentModeration';
 import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotification } from '../context/NotificationContext';
@@ -794,6 +795,20 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     if (!reassignNote.trim() || reassignNote.trim().length < 10) {
       showToast('Please provide a detailed reason (at least 10 characters)', 'error');
       return;
+    }
+
+    // AI validation for inappropriate language
+    try {
+      showToast('Validating reassignment note...', 'info');
+      const validation = await validateReassignmentNote(reassignNote.trim());
+      
+      if (!validation.isValid) {
+        showToast(validation.message, 'error');
+        return;
+      }
+    } catch (error) {
+      console.error('AI validation error:', error);
+      // Continue with reassignment even if AI validation fails
     }
 
     try {
