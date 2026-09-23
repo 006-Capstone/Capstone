@@ -164,6 +164,20 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     );
   }, [ticket]);
 
+  // Check if current staff can reply to student - only original office can reply for rerouted tickets
+  const canReplyToStudent = useMemo(() => {
+    if (!isOwner) return false;
+    if (!isReroutedTicket) return true; // Not rerouted, owner can reply
+    
+    // For rerouted tickets, only original office (previousOffice) can reply to students
+    if (!ticket || !currentStaff) return false;
+    
+    const currentOffice = (currentStaff.office || currentStaff.officeId || ticket.office || '').trim().toLowerCase();
+    const originalOffice = (ticket.previousOffice || '').trim().toLowerCase();
+    
+    return currentOffice === originalOffice;
+  }, [isOwner, isReroutedTicket, ticket, currentStaff]);
+
   useEffect(() => {
     if (ticketData) {
       if (
@@ -249,8 +263,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const handleSendReply = async () => {
-    if (!isOwner) {
-      showToast('You do not have permission to reply. Only the assigned staff member can reply to this request.', 'error');
+    if (!canReplyToStudent) {
+      if (!isOwner) {
+        showToast('You do not have permission to reply. Only the assigned staff member can reply to this request.', 'error');
+      } else if (isReroutedTicket) {
+        showToast(`Only the original office (${ticket.previousOffice}) can reply to students on rerouted requests.`, 'error');
+      }
       return;
     }
 
@@ -1157,24 +1175,31 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
             {/* Reply to Student Composer */}
             {!isTicketClosed && (
-              <div className={`reply-composer-section ${!isOwner ? 'reply-composer-readonly' : ''}`}>
+              <div className={`reply-composer-section ${!canReplyToStudent ? 'reply-composer-readonly' : ''}`}>
                 <div className="reply-composer-header">
                   <FaUserCircle className="reply-composer-avatar" />
                   <span className="reply-composer-title">Reply to student</span>
-                  {!isOwner && (
+                  {!canReplyToStudent && (
                     <span className="reply-readonly-badge">
-                      <FaLock className="reply-lock-icon" /> View Only
+                      <FaLock className="reply-lock-icon" /> 
+                      {!isOwner ? 'View Only' : 'Original Office Only'}
                     </span>
                   )}
                 </div>
 
-                <div className={`reply-textarea-wrapper ${!isOwner ? 'disabled' : ''}`}>
+                <div className={`reply-textarea-wrapper ${!canReplyToStudent ? 'disabled' : ''}`}>
                   <textarea
                     className="reply-native-textarea"
-                    placeholder={!isOwner ? `View-only mode — this request is claimed by ${ticketHandler || 'another staff member'}.` : "Type your message here...."}
+                    placeholder={
+                      !isOwner 
+                        ? `View-only mode — this request is claimed by ${ticketHandler || 'another staff member'}.`
+                        : (isReroutedTicket && !canReplyToStudent)
+                        ? `Only the original office (${ticket.previousOffice}) can reply to students on rerouted requests.`
+                        : "Type your message here...."
+                    }
                     value={replyMessage}
                     onChange={(e) => setReplyMessage(e.target.value)}
-                    disabled={sending || !isOwner}
+                    disabled={sending || !canReplyToStudent}
                   />
 
                   <input
@@ -1184,7 +1209,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     onChange={handleFileSelect}
                     style={{ display: 'none' }}
                     accept="image/*,.pdf,.doc,.docx,.txt"
-                    disabled={!isOwner}
+                    disabled={!canReplyToStudent}
                   />
 
                   {replyFiles.length > 0 && (
@@ -1211,11 +1236,17 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     type="button" 
                     className="btn-attach-action"
                     onClick={() => {
-                      if (!isOwner) return;
+                      if (!canReplyToStudent) return;
                       fileInputRef.current?.click();
                     }}
-                    disabled={sending || !isOwner}
-                    title={!isOwner ? `Only ${ticketHandler || 'the assigned staff'} can attach files` : "Attach files to message"}
+                    disabled={sending || !canReplyToStudent}
+                    title={
+                      !isOwner 
+                        ? `Only ${ticketHandler || 'the assigned staff'} can attach files` 
+                        : (isReroutedTicket && !canReplyToStudent)
+                        ? `Only the original office (${ticket.previousOffice}) can reply to students`
+                        : "Attach files to message"
+                    }
                   >
                     <FaPaperclip className="attach-action-icon" />
                     <span>Attach Files</span>
@@ -1225,8 +1256,14 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     type="button" 
                     className="btn-primary-action"
                     onClick={handleSendReply}
-                    disabled={sending || !isOwner || (!replyMessage.trim() && replyFiles.length === 0)}
-                    title={!isOwner ? `Only ${ticketHandler || 'the assigned staff'} can send replies` : "Send Message"}
+                    disabled={sending || !canReplyToStudent || (!replyMessage.trim() && replyFiles.length === 0)}
+                    title={
+                      !isOwner 
+                        ? `Only ${ticketHandler || 'the assigned staff'} can send replies` 
+                        : (isReroutedTicket && !canReplyToStudent)
+                        ? `Only the original office (${ticket.previousOffice}) can reply to students`
+                        : "Send Message"
+                    }
                   >
                     {sending ? 'Sending...' : 'Send Message'}
                   </button>
