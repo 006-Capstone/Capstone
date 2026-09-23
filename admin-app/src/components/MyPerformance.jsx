@@ -978,7 +978,7 @@ const MyPerformance = ({ userData }) => {
           </div>
         </div>
 
-        {/* 2. Active Requests (In Progress) */}
+        {/* 2. Active Requests (In Process) */}
         <div className="perf-card perf-card--active">
           <div className="perf-card-top">
             <span className="metric-micro-label">ACTIVE WORKLOAD</span>
@@ -1151,7 +1151,7 @@ const MyPerformance = ({ userData }) => {
                 <div
                   className="seg-part seg-inprogress"
                   style={{ width: `${(Math.max(0, metrics.activeCount - metrics.overdueCount) / metrics.totalHandled) * 100}%` }}
-                  title={`In Progress (On Track): ${Math.max(0, metrics.activeCount - metrics.overdueCount)}`}
+                  title={`In Process (On Track): ${Math.max(0, metrics.activeCount - metrics.overdueCount)}`}
                 />
                 {metrics.overdueCount > 0 && (
                   <div
@@ -1184,7 +1184,7 @@ const MyPerformance = ({ userData }) => {
             <div className="breakdown-item">
               <div className="breakdown-item-label">
                 <span className="legend-dot dot-inprogress" />
-                <span>Active In Progress</span>
+                <span>Active In Process</span>
               </div>
               <div className="breakdown-item-data">
                 <strong>{metrics.activeCount}</strong>
@@ -1247,7 +1247,7 @@ const MyPerformance = ({ userData }) => {
                 className={`tab ${tableTab === 'in_progress' ? 'active' : ''}`}
                 onClick={() => handleTabChange('in_progress')}
               >
-                <span>In Progress</span>
+                <span>In Process</span>
                 <span className="tab-count">
                   {myFilteredTickets.filter(t => t.status === 'In Process').length}
                 </span>

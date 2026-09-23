@@ -243,7 +243,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       console.log('[AdminDashboard] New requests filtered:', filtered.length, 'tickets');
     } else if (activeTab === 'progress') {
       filtered = filtered.filter(t => t.status === 'In Process');
-      console.log('[AdminDashboard] In Progress filtered:', filtered.length, 'tickets');
+      console.log('[AdminDashboard] In Process filtered:', filtered.length, 'tickets');
     } else if (activeTab === 'resolved') {
       filtered = filtered.filter(t => t.status === 'Resolved');
       console.log('[AdminDashboard] Resolved filtered:', filtered.length, 'tickets');
@@ -314,7 +314,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     if (isAtClaimLimit) {
       alertModal({
         title: 'Anti-Hoarding Policy Notice',
-        message: `You currently have ${myInProgressCount} requests in In Progress (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (limit: ${HOARDING_DAILY_LIMIT} per day).\n\nPlease complete and resolve your current in-progress requests before accepting more.`,
+        message: `You currently have ${myInProgressCount} requests in process (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (limit: ${HOARDING_DAILY_LIMIT} per day).\n\nPlease complete and resolve your current in-process requests before accepting more.`,
         variant: 'warning'
       });
       return;
@@ -384,7 +384,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     if (isAtClaimLimit) {
       alertModal({
         title: 'Anti-Hoarding Policy Notice',
-        message: `You currently have ${myInProgressCount} requests in In Progress (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (daily limit: ${HOARDING_DAILY_LIMIT} per day).\n\nTo ensure fair distribution and prevent backlogs, please finish and resolve your active in-progress requests before accepting new ones today.`,
+        message: `You currently have ${myInProgressCount} requests in process (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (daily limit: ${HOARDING_DAILY_LIMIT} per day).\n\nTo ensure fair distribution and prevent backlogs, please finish and resolve your active in-process requests before accepting new ones today.`,
         variant: 'warning'
       });
       return;
@@ -491,12 +491,12 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
             <span className="stat-value">{stats.unassigned}</span>
           </div>
 
-          {/* 4 Square Cards (Arrangement: In Progress Office, Resolved Office, My In Progress, My Resolved) */}
+          {/* 4 Square Cards (Arrangement: In Process Office, Resolved Office, My In Process, My Resolved) */}
           <div className="stats-squares-grid">
-            {/* 1. Office In Progress */}
+            {/* 1. Office In Process */}
             <div className="stat-card stat-card-square stat-inprogress">
               <div className="stat-square-header">
-                <span className="stat-label">In Progress</span>
+                <span className="stat-label">In Process</span>
                 <span className="scope-tag office">Office</span>
               </div>
               <div className="stat-square-body">
@@ -521,7 +521,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
               </div>
             </div>
 
-            {/* 3. Staff's My In Progress */}
+            {/* 3. Staff's My In Process */}
             <div className="stat-card stat-card-square stat-my-inprogress">
               <div className="stat-square-header">
                 <span className="stat-label">My In Progress</span>
@@ -603,7 +603,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                 className={`tab ${activeTab === 'progress' ? 'active' : ''}`}
                 onClick={() => setActiveTab('progress')}
               >
-                <span>In Progress</span>
+                <span>In Process</span>
               </button>
               <button
                 type="button"
@@ -761,7 +761,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                           <span className={`status-badge status-${(ticket.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
                             <span className="status-dot" aria-hidden="true" />
                             {ticket.status === 'Pending' && 'New Request'}
-                            {ticket.status === 'In Process' && 'In Progress'}
+                            {ticket.status === 'In Process' && 'In Process'}
                             {ticket.status === 'Resolved' && 'Resolved'}
                             {ticket.status === 'Cancelled' && 'Cancelled'}
                             {ticket.status === 'Rejected' && 'Rejected'}
@@ -807,9 +807,9 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                                 disabled={claimingTicketId === ticket.firestoreId}
                                 title={
                                   isAtClaimLimit
-                                    ? `Anti-hoarding limit reached: You currently have ${myInProgressCount} requests in In Progress and reached the daily limit of ${HOARDING_DAILY_LIMIT} accepted requests. Complete in-progress requests before accepting more.`
+                                    ? `Anti-hoarding limit reached: You currently have ${myInProgressCount} requests in process and reached the daily limit of ${HOARDING_DAILY_LIMIT} accepted requests. Complete in-process requests before accepting more.`
                                     : isUnderHoardingRestriction
-                                    ? `Anti-hoarding restricted (${myInProgressCount} in progress): Accepted ${myAcceptedTodayCount}/${HOARDING_DAILY_LIMIT} today`
+                                    ? `Anti-hoarding restricted (${myInProgressCount} in process): Accepted ${myAcceptedTodayCount}/${HOARDING_DAILY_LIMIT} today`
                                     : 'Claim request and set turnaround time'
                                 }
                               >

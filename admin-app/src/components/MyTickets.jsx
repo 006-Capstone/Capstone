@@ -259,7 +259,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                 className={`tab ${activeTab === 'in_progress' ? 'active' : ''}`}
                 onClick={() => setActiveTab('in_progress')}
               >
-                <span>In Progress</span>
+                <span>In Process</span>
                 <span className="tab-count">{inProgressCount}</span>
               </button>
               <button
@@ -330,7 +330,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                 : tickets.length === 0
                 ? "You haven't claimed any requests yet. Claim new requests from the Office Dashboard."
                 : activeTab === 'in_progress'
-                ? 'You have no requests currently in progress.'
+                ? 'You have no requests currently in process.'
                 : activeTab === 'resolved'
                 ? 'You have not marked any requests as resolved yet.'
                 : 'No requests match the selected view.'}
@@ -424,7 +424,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                           <span className={`status-badge status-${(ticket.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
                             <span className="status-dot" aria-hidden="true" />
                             {ticket.status === 'Pending' && 'New Request'}
-                            {ticket.status === 'In Process' && 'In Progress'}
+                            {ticket.status === 'In Process' && 'In Process'}
                             {ticket.status === 'Resolved' && 'Resolved'}
                             {ticket.status === 'Cancelled' && 'Cancelled'}
                             {ticket.status === 'Rejected' && 'Rejected'}
