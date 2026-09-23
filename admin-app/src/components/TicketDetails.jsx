@@ -153,6 +153,17 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     return Boolean(matchesName || matchesUid);
   }, [ticket, currentStaff]);
 
+  // Check if the ticket was rerouted and if ETC was already set by the original office
+  const isReroutedTicket = useMemo(() => {
+    if (!ticket) return false;
+    // Check if the ticket has been rerouted (has previousOffice field) and ETC was set by another office
+    return Boolean(
+      ticket.previousOffice && 
+      ticket.estimatedCompletionSetBy && 
+      ticket.estimatedCompletionSetAt
+    );
+  }, [ticket]);
+
   useEffect(() => {
     if (ticketData) {
       if (
@@ -655,6 +666,56 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     } catch (error) {
       console.error('Error updating urgency level:', error);
       showToast('Failed to update urgency level', 'error');
+    }
+  };
+
+  const handleEstimatedCompletionDateChange = async (newDate) => {
+    if (!isOwner) {
+      showToast('You do not have permission to change the estimated completion date.', 'error');
+      return;
+    }
+
+    if (isReroutedTicket) {
+      showToast(`Estimated completion date was set by ${ticket.estimatedCompletionSetBy || 'the original office'} and cannot be changed by rerouted office.`, 'error');
+      return;
+    }
+
+    if (!newDate) {
+      showToast('Please select a valid date.', 'error');
+      return;
+    }
+
+    setEtc(newDate);
+
+    try {
+      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
+      const docRef = doc(db, 'requests', ticket.firestoreId);
+      const completionDate = new Date(newDate + 'T23:59:59');
+
+      await updateDoc(docRef, {
+        etc: newDate,
+        estimatedCompletion: completionDate,
+        estimatedCompletionSetAt: new Date(),
+        estimatedCompletionSetBy: staffData.name,
+        updatedAt: serverTimestamp()
+      });
+
+      // Notify student
+      if (ticket.studentUid) {
+        await notifyStudentEtcChange(
+          ticket.studentUid,
+          ticket.requestId,
+          ticket.subject,
+          newDate,
+          ''
+        );
+      }
+
+      showToast('Estimated completion date updated successfully!', 'success');
+      loadTicketDetails();
+    } catch (error) {
+      console.error('Error updating estimated completion date:', error);
+      showToast('Failed to update date: ' + error.message, 'error');
     }
   };
 
@@ -1403,18 +1464,27 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             ) : null}
 
             <div className="mgmt-form-item">
-              <label className="mgmt-input-label">URGENCY LEVEL</label>
-              <select
+              <label className="mgmt-input-label">ESTIMATED COMPLETION DATE</label>
+              <input
+                type="date"
                 className="figma-select-input"
-                value={urgencyLevel}
-                onChange={(e) => handleUrgencyChange(e.target.value)}
-                disabled={isTicketClosed || !isOwner}
-                title={!isOwner ? `Urgency level can only be changed by ${ticketHandler || 'the assigned staff'}` : "Change urgency level"}
-              >
-                <option value="Normal">Normal - Process within 2-3 days</option>
-                <option value="Medium">Medium - Process within 1-2 days</option>
-                <option value="High">High - Process within the day</option>
-              </select>
+                value={etc}
+                onChange={(e) => handleEstimatedCompletionDateChange(e.target.value)}
+                disabled={isTicketClosed || !isOwner || isReroutedTicket}
+                title={
+                  isReroutedTicket 
+                    ? `Estimated completion date was set by ${ticket.estimatedCompletionSetBy || 'the original office'} and cannot be changed by rerouted office`
+                    : !isOwner 
+                    ? `Estimated completion date can only be changed by ${ticketHandler || 'the assigned staff'}` 
+                    : "Set estimated completion date"
+                }
+                min={new Date().toISOString().split('T')[0]}
+              />
+              {isReroutedTicket && etc && (
+                <p className="mgmt-info-text">
+                  Set by {ticket.estimatedCompletionSetBy || 'original office'} on {ticket.estimatedCompletionSetAt ? new Date(ticket.estimatedCompletionSetAt.toDate()).toLocaleDateString() : 'N/A'}
+                </p>
+              )}
             </div>
 
             <div className="mgmt-form-item">

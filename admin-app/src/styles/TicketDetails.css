@@ -1681,3 +1681,11 @@
     justify-content: center;
   }
 }
+
+/* Management info text for rerouted ETC */
+.mgmt-info-text {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
