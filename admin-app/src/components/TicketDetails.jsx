@@ -1812,53 +1812,19 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
             {/* Target Date: Month / Day / Year Selectors */}
             <div className="etc-mdy-container">
-              <label className="modal-label">Target Date (Month / Day / Year):</label>
-              <div className="etc-mdy-inputs-row">
-                
-                {/* Month */}
-                <div className="etc-mdy-field field-month">
-                  <span className="mdy-field-tag">MONTH</span>
-                  <select
-                    className="etc-select-box"
-                    value={etcMonth}
-                    onChange={(e) => setEtcMonth(e.target.value)}
-                  >
-                    {MONTHS.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Day */}
-                <div className="etc-mdy-field field-day">
-                  <span className="mdy-field-tag">DAY</span>
-                  <select
-                    className="etc-select-box"
-                    value={etcDay}
-                    onChange={(e) => setEtcDay(e.target.value)}
-                  >
-                    {Array.from({ length: getDaysInSelectedMonth(etcYear, etcMonth) }, (_, i) => {
-                      const dayNum = String(i + 1).padStart(2, '0');
-                      return <option key={dayNum} value={dayNum}>{dayNum}</option>;
-                    })}
-                  </select>
-                </div>
-
-                {/* Year */}
-                <div className="etc-mdy-field field-year">
-                  <span className="mdy-field-tag">YEAR</span>
-                  <select
-                    className="etc-select-box"
-                    value={etcYear}
-                    onChange={(e) => setEtcYear(e.target.value)}
-                  >
-                    {getYearOptions().map(yr => (
-                      <option key={yr} value={String(yr)}>{yr}</option>
-                    ))}
-                  </select>
-                </div>
-
-              </div>
+              <label className="modal-label">Target Date:</label>
+              <input
+                type="date"
+                className="etc-date-input"
+                value={`${etcYear}-${etcMonth}-${etcDay}`}
+                onChange={(e) => {
+                  const [year, month, day] = e.target.value.split('-');
+                  setEtcYear(year);
+                  setEtcMonth(month);
+                  setEtcDay(day);
+                }}
+                min={new Date().toISOString().split('T')[0]}
+              />
 
               {/* Formatted Date Banner */}
               <div className="etc-date-preview-banner">
