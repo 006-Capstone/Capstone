@@ -16,6 +16,7 @@ import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/f
 import { db } from '../firebase';
 import { markAsRead, markAllAsRead } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
+import { RequestFeedSkeleton } from './common/Skeleton';
 import '../styles/Notifications.css';
 
 // Anchor the panel consistently just below the notification bell
@@ -242,7 +243,7 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
         {/* Notification List */}
         <div className="notifications-list">
           {loading ? (
-            <LoadingSpinner message="Loading notifications..." fullScreen={false} />
+            <RequestFeedSkeleton count={4} />
           ) : notifications.length === 0 ? (
             <div className="notifications-empty">
               <div className="empty-bell-circle">

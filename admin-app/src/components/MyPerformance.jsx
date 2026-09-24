@@ -22,6 +22,7 @@ import {
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import { OverviewCardsSkeleton, AnalyticsChartSkeleton } from './common/Skeleton';
 import Notifications from './Notifications';
 import '../styles/MyPerformance.css';
 
@@ -772,8 +773,21 @@ const MyPerformance = ({ userData }) => {
 
   if (loading) {
     return (
-      <div className="my-performance-loading">
-        <LoadingSpinner message="Loading performance metrics and queue analytics..." />
+      <div className="my-performance-container">
+        <header className="performance-header">
+          <div className="header-left">
+            <div className="title-row">
+              <h1 className="performance-title">My Performance</h1>
+            </div>
+            <p className="performance-subtitle">
+              Track your personal request handling productivity, turnaround time, and institutional compliance standards
+            </p>
+          </div>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '16px' }}>
+          <OverviewCardsSkeleton count={4} />
+          <AnalyticsChartSkeleton height={320} />
+        </div>
       </div>
     );
   }

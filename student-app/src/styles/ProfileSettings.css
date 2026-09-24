@@ -504,6 +504,20 @@
   color: #333;
 }
 
+.password-modal .form-group,
+.form-group-modal {
+  margin-bottom: 16px;
+}
+
+.password-modal .form-group label,
+.form-group-modal label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
 .password-input-wrapper {
   position: relative;
 }

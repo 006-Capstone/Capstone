@@ -19,6 +19,7 @@ import { notifyStaffNewRequest } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import { useNotification } from '../context/NotificationContext';
+import { NewRequestSkeleton } from './common/Skeleton';
 import '../styles/NewRequest.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -413,7 +414,7 @@ function NewRequest({ onNavigate }) {
   );
 
   if (loadingConfig) {
-    return <LoadingSpinner message="Loading form..." fullScreen={true} />;
+    return <NewRequestSkeleton />;
   }
 
   const getOfficeIcon = (id) => {

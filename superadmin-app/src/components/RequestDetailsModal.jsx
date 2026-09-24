@@ -16,6 +16,7 @@ import {
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import { ChatPanelSkeleton } from './common/Skeleton';
 import '../styles/RequestDetailsModal.css';
 
 const RequestDetailsModal = ({
@@ -261,9 +262,7 @@ const RequestDetailsModal = ({
         {/* Modal Body */}
         <div className="req-modal-body">
           {loading ? (
-            <div className="req-modal-loading">
-              <LoadingSpinner message="Fetching request details..." fullScreen={false} />
-            </div>
+            <ChatPanelSkeleton compact={true} includeSidebar={false} />
           ) : (
             <>
               {/* Contextual Notice Banner for Login/Account Inquiries */}

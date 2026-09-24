@@ -12,6 +12,7 @@ import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import StatusBadge from './StatusBadge';
 import FilterDropdown from './FilterDropdown';
+import { DataTableSkeleton } from './common/Skeleton';
 import '../styles/MyRequest.css';
 
 // Same filter UI as the admin-app My Tickets page — status options cover every
@@ -203,7 +204,7 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
 
       <div className="request-table">
         {loading ? (
-          <LoadingSpinner message="Loading requests..." fullScreen={false} />
+          <DataTableSkeleton columns={6} rows={6} hasPagination={true} />
         ) : error ? (
           <div className="empty-state">
             <MdInbox className="empty-state-icon" aria-hidden="true" />

@@ -9,6 +9,7 @@ import QRCode from 'qrcode';
 import { encryptCredentials } from '../utils/qrEncryption';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotification } from '../context/NotificationContext';
+import { SettingsModalSkeleton, SettingsContentSkeleton } from './common/Skeleton';
 import '../styles/ProfileSettings.css';
 
 // Only the fields the user can actually edit count toward "changed"
@@ -401,7 +402,6 @@ function ProfileSettings({ onClose }) {
         qrCodeData: ''
       });
 
-      toast.success('Password changed successfully!');
       alertModal({
         title: 'Security Notice: New QR Required',
         message: 'Your password was changed successfully.\n\nIMPORTANT: Your old QR code will no longer work. Please regenerate and download a new QR code with your new password.',
@@ -448,10 +448,6 @@ function ProfileSettings({ onClose }) {
     return `${maskedName}@${parts[1]}`;
   };
 
-  if (loading) {
-    return <LoadingSpinner message="Loading profile..." fullScreen={true} />;
-  }
-
   return (
     <div className="profile-settings-overlay" onClick={onClose}>
       <div className="profile-settings-modal" onClick={(e) => e.stopPropagation()}>
@@ -463,9 +459,13 @@ function ProfileSettings({ onClose }) {
         </div>
 
         <div className="profile-settings-content">
-          {/* Profile Information Section */}
-          <div className="settings-section">
-            <h3>Profile Information</h3>
+          {loading ? (
+            <SettingsContentSkeleton />
+          ) : (
+            <>
+              {/* Profile Information Section */}
+              <div className="settings-section">
+                <h3>Profile Information</h3>
             
             <div className="profile-info-grid">
               <div className="profile-picture-section">
@@ -749,6 +749,8 @@ function ProfileSettings({ onClose }) {
               {saving ? 'Updating...' : 'Update Profile'}
             </button>
           </div>
+            </>
+          )}
         </div>
 
         {/* Password Change Modal */}

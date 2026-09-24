@@ -192,52 +192,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   5. Progress Bar
-   -------------------------------------------------------------------------- */
-.toast-progress-bar-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background-color: rgba(0, 0, 0, 0.04);
-}
 
-.toast-progress-bar {
-  height: 100%;
-  width: 100%;
-  transform-origin: left;
-  animation: toastProgress linear forwards;
-}
-
-.toast-item-paused .toast-progress-bar {
-  animation-play-state: paused;
-}
-
-.toast-success .toast-progress-bar {
-  background-color: #2E7D32;
-}
-
-.toast-error .toast-progress-bar {
-  background-color: #dc2626;
-}
-
-.toast-warning .toast-progress-bar {
-  background-color: #d97706;
-}
-
-.toast-info .toast-progress-bar {
-  background-color: #1d4ed8;
-}
-
-@keyframes toastProgress {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
 
 /* --------------------------------------------------------------------------
    6. Custom Confirmation Modal
@@ -587,41 +542,7 @@
   font-size: 14px;
 }
 
-.notification-modal-progress-container {
-  height: 3px;
-  width: 100%;
-  background-color: rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-}
 
-.notification-modal-progress-bar {
-  height: 100%;
-  width: 100%;
-  transform-origin: left;
-  animation: toastProgress linear forwards;
-}
-
-.modal-timer-paused .notification-modal-progress-bar {
-  animation-play-state: paused;
-}
-
-.notification-modal-progress-bar.variant-success {
-  background-color: #2E7D32;
-}
-
-.notification-modal-progress-bar.variant-error,
-.notification-modal-progress-bar.variant-danger {
-  background-color: #dc2626;
-}
-
-.notification-modal-progress-bar.variant-warning {
-  background-color: #d97706;
-}
-
-.notification-modal-progress-bar.variant-info,
-.notification-modal-progress-bar.variant-primary {
-  background-color: #1d4ed8;
-}
 
 .notification-modal-actions {
   display: flex;

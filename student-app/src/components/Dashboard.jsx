@@ -14,6 +14,7 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import LoadingSpinner from './LoadingSpinner';
 import StatusBadge from './StatusBadge';
+import { OverviewCardsSkeleton, DataTableSkeleton } from './common/Skeleton';
 import '../styles/Dashboard.css';
 
 // Each card opens Request History pre-filtered to the matching status
@@ -158,31 +159,35 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
         </button>
       </div>
 
-      <div className="stats" role="group" aria-label="Request summary">
-        {STAT_CARDS.map((card) => (
-          <button
-            key={card.id}
-            type="button"
-            className={`stat-card ${card.id}`}
-            onClick={() => onViewRequests?.(card.filter)}
-            aria-label={`View ${card.title} in Request History`}
-          >
-            <div className="stat-card-top-row">
-              <span className="stat-card-label">{card.top}</span>
-              <div className="stat-card-action-icon" aria-hidden="true">
-                <MdKeyboardArrowRight />
+      {loading ? (
+        <OverviewCardsSkeleton count={4} />
+      ) : (
+        <div className="stats" role="group" aria-label="Request summary">
+          {STAT_CARDS.map((card) => (
+            <button
+              key={card.id}
+              type="button"
+              className={`stat-card ${card.id}`}
+              onClick={() => onViewRequests?.(card.filter)}
+              aria-label={`View ${card.title} in Request History`}
+            >
+              <div className="stat-card-top-row">
+                <span className="stat-card-label">{card.top}</span>
+                <div className="stat-card-action-icon" aria-hidden="true">
+                  <MdKeyboardArrowRight />
+                </div>
               </div>
-            </div>
-            <div className="stat-card-body">
-              <div className="icon">{card.icon}</div>
-              <div className="stat-card-numbers">
-                <div className="number">{card.getValue(stats)}</div>
-                <h2>{card.title}</h2>
+              <div className="stat-card-body">
+                <div className="icon">{card.icon}</div>
+                <div className="stat-card-numbers">
+                  <div className="number">{card.getValue(stats)}</div>
+                  <h2>{card.title}</h2>
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
-      </div>
+            </button>
+          ))}
+        </div>
+      )}
 
       <section className="recent-requests" aria-labelledby="recent-requests-title">
         <div className="section-header">
@@ -198,7 +203,7 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
 
         <div className="table-container">
           {loading ? (
-            <LoadingSpinner message="Loading requests..." fullScreen={false} />
+            <DataTableSkeleton columns={6} rows={4} hasPagination={false} />
           ) : error ? (
             <div className="empty-state">
               <MdInbox className="empty-state-icon" aria-hidden="true" />

@@ -4,6 +4,7 @@ import { FaArrowLeft, FaChevronRight } from 'react-icons/fa';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import { Skeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/Feedback.css';
 
@@ -326,7 +327,33 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
           </div>
 
           {loadingRatings ? (
-            <LoadingSpinner message="Loading office ratings..." fullScreen={false} />
+            <div className="office-grid" aria-label="Loading office ratings..." role="status">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="office-rating-card" style={{ cursor: 'default' }}>
+                  <div className="office-card-header">
+                    <Skeleton variant="text" width="130px" height="22px" />
+                    <Skeleton variant="pill" width="60px" height="22px" />
+                  </div>
+                  <div className="rating-display" style={{ marginBottom: '14px' }}>
+                    <Skeleton variant="text" width="55px" height="32px" />
+                    <Skeleton variant="rounded" width="110px" height="20px" style={{ marginLeft: '12px' }} />
+                  </div>
+                  <Skeleton variant="text" width="80px" height="12px" style={{ marginBottom: '16px' }} />
+                  <div className="metrics" style={{ marginTop: 'auto' }}>
+                    <div className="metric-row">
+                      <Skeleton variant="text" width="90px" height="13px" />
+                      <Skeleton variant="rounded" width="100%" height="8px" />
+                      <Skeleton variant="text" width="30px" height="13px" />
+                    </div>
+                    <div className="metric-row">
+                      <Skeleton variant="text" width="75px" height="13px" />
+                      <Skeleton variant="rounded" width="100%" height="8px" />
+                      <Skeleton variant="text" width="30px" height="13px" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="office-grid">
               {offices.map((office) => (

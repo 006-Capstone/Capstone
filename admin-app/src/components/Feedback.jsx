@@ -5,6 +5,7 @@ import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, serve
 import { db } from '../firebase';
 import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
+import { RequestFeedSkeleton } from './common/Skeleton';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/Feedback.css';
@@ -362,9 +363,7 @@ const Feedback = ({ department, onViewRequest }) => {
           </div>
 
           {loading ? (
-            <div className="feedback-loading">
-              <LoadingSpinner message="Loading feedback..." />
-            </div>
+            <RequestFeedSkeleton count={3} />
           ) : filteredFeedback.length === 0 ? (
             <div className="feedback-empty-state">
               {isFilterActive

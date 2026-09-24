@@ -3,6 +3,7 @@ import { FaStar, FaUserCircle, FaClock, FaRegCommentDots } from 'react-icons/fa'
 import { MdAssignment } from 'react-icons/md';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
+import { RequestFeedSkeleton } from './common/Skeleton';
 import '../styles/MyFeedback.css';
 
 const MyFeedback = ({ onNavigate }) => {
@@ -74,9 +75,7 @@ const MyFeedback = ({ onNavigate }) => {
             <p className="page-subtitle">View all your submitted feedback and staff responses</p>
           </div>
         </div>
-        <div className="my-feedback-loading">
-          <p>Loading your feedback...</p>
-        </div>
+        <RequestFeedSkeleton count={3} />
       </div>
     );
   }

@@ -6,6 +6,7 @@ import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestor
 import { db } from '../firebase';
 import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
+import { OverviewCardsSkeleton, AnalyticsChartSkeleton } from './common/Skeleton';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import { useNotification } from '../context/NotificationContext';
@@ -340,7 +341,20 @@ const Analytics = ({ department, onViewRequest }) => {
   };
 
   if (ticketsLoading || staffLoading) {
-    return <LoadingSpinner message="Loading analytics..." fullScreen={true} />;
+    return (
+      <div className="analytics-container">
+        <div className="analytics-header">
+          <div className="analytics-header-left">
+            <h1 className="analytics-title">Analytics</h1>
+            <p className="analytics-subtitle">Understand your office's performance at a glance</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '16px' }}>
+          <OverviewCardsSkeleton count={4} />
+          <AnalyticsChartSkeleton height={380} />
+        </div>
+      </div>
+    );
   }
 
   return (

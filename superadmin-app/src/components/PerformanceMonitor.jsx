@@ -56,6 +56,7 @@ import {
 } from '../utils/groqService';
 import { createNTE, downloadNTE, hasPendingNTE } from '../utils/nteGenerator';
 import LoadingSpinner from './LoadingSpinner';
+import { OverviewCardsSkeleton, AnalyticsChartSkeleton, DataTableSkeleton } from './common/Skeleton';
 import NudgeModal from './NudgeModal';
 import ReassignTicketsModal from './ReassignTicketsModal';
 import { useNotification } from '../context/NotificationContext';
@@ -713,9 +714,12 @@ const PerformanceMonitor = () => {
 
   if (loading) {
     return (
-      <div className="performance-monitor-loading">
-        <LoadingSpinner />
-        <p>Analyzing system performance...</p>
+      <div className="performance-monitor">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <OverviewCardsSkeleton count={4} />
+          <AnalyticsChartSkeleton height={340} />
+          <DataTableSkeleton columns={6} rows={5} hasPagination={false} />
+        </div>
       </div>
     );
   }
@@ -956,9 +960,8 @@ const PerformanceMonitor = () => {
         )}
 
         {aiInsights.loading && (
-          <div className="ai-loading">
-            <LoadingSpinner />
-            <p>AI is analyzing performance patterns and evaluating system health...</p>
+          <div style={{ padding: '20px', background: '#ffffff', borderRadius: '12px', border: '1px solid var(--color-border-soft)' }}>
+            <OverviewCardsSkeleton count={3} />
           </div>
         )}
 

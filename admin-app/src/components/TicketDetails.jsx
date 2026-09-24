@@ -24,6 +24,7 @@ import {
 import { validateReassignmentNote } from '../utils/contentModeration';
 import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
+import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/TicketDetails.css';
 
@@ -1004,7 +1005,17 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   }
 
   if (loading) {
-    return <LoadingSpinner message="Loading request details..." fullScreen={true} />;
+    return (
+      <div className="ticket-details-container">
+        <div className="dashboard-header ticket-details-header">
+          <div className="dashboard-title-group">
+            <h1 className="dashboard-title">Request Details</h1>
+            <p className="dashboard-subtitle">Manage, update, and resolve office ticket inquiries</p>
+          </div>
+        </div>
+        <ChatPanelSkeleton includeSidebar={true} />
+      </div>
+    );
   }
 
   if (!ticket) {

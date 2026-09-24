@@ -3,6 +3,7 @@ import { FaBell, FaCheckDouble, FaTimes } from 'react-icons/fa';
 import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import { RequestFeedSkeleton } from './common/Skeleton';
 import RequestDetailsModal from './RequestDetailsModal';
 import '../styles/NotificationBell.css';
 
@@ -184,9 +185,7 @@ const NotificationBell = ({ onNavigate }) => {
 
           <div className="notification-dropdown-list">
             {loading ? (
-              <div className="notification-dropdown-loading">
-                <LoadingSpinner message="Loading notifications..." fullScreen={false} />
-              </div>
+              <RequestFeedSkeleton count={3} />
             ) : notifications.length === 0 ? (
               <div className="notification-empty">
                 <FaBell className="notification-empty-icon" aria-hidden="true" />

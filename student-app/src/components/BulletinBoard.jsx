@@ -4,6 +4,7 @@ import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
 import AnnouncementCard from './AnnouncementCard';
+import { RequestFeedSkeleton } from './common/Skeleton';
 import '../styles/BulletinBoard.css';
 
 // Default hero shown until an office saves a featured announcement
@@ -192,7 +193,7 @@ function BulletinBoard() {
         <div className="announcements-section">
           
           {loading ? (
-            <LoadingSpinner message="Loading announcements..." fullScreen={false} />
+            <RequestFeedSkeleton count={3} />
           ) : filteredAnnouncements.length === 0 ? (
             <div className="empty-state">
               <p>

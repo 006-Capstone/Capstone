@@ -20,6 +20,7 @@ import {
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import { OverviewCardsSkeleton, AnalyticsChartSkeleton } from './common/Skeleton';
 import NotificationBell from './NotificationBell';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import Toast from './Toast';
@@ -660,7 +661,20 @@ const Analytics = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner message="Loading analytics..." fullScreen={true} />;
+    return (
+      <div className="superadmin-page analytics-container">
+        <div className="page-header">
+          <div className="page-header-title-group">
+            <h1 className="analytics-title">Analytics</h1>
+            <p className="page-subtitle">Track request volume, satisfaction, and department performance</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '16px' }}>
+          <OverviewCardsSkeleton count={4} />
+          <AnalyticsChartSkeleton height={400} />
+        </div>
+      </div>
+    );
   }
 
   // Ticket Volume Trends — ticks from 0 up to a clean top value (0 at the bottom)

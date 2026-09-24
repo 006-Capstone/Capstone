@@ -23,6 +23,9 @@ export const useOfficeTickets = (department) => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refresh = () => setRefreshKey(k => k + 1);
 
   useEffect(() => {
     if (!department) {
@@ -62,12 +65,6 @@ export const useOfficeTickets = (department) => {
       { includeMetadataChanges: true },
       (querySnapshot) => {
         if (settled) return;
-        
-        // Skip metadata-only changes
-        if (querySnapshot.metadata.hasPendingWrites) {
-          console.log('[useOfficeTickets] Skipping snapshot - has pending writes');
-          return;
-        }
         
         if (querySnapshot.metadata.fromCache) {
           console.log('[useOfficeTickets] Snapshot from cache');
@@ -130,9 +127,9 @@ export const useOfficeTickets = (department) => {
       clearTimeout(timer);
       unsubscribe();
     };
-  }, [department]);
+  }, [department, refreshKey]);
 
-  return { tickets, loading, error };
+  return { tickets, loading, error, refresh, setTickets };
 };
 
 export default useOfficeTickets;

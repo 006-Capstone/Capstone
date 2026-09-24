@@ -19,6 +19,7 @@ import {
 import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import { OverviewCardsSkeleton, WorkflowPulseSkeleton, AnalyticsChartSkeleton, Skeleton } from './common/Skeleton';
 import NotificationBell from './NotificationBell';
 import RequestDetailsModal from './RequestDetailsModal';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
@@ -443,7 +444,24 @@ const SuperAdminDashboard = ({ onNavigate }) => {
       </div>
 
       {loading ? (
-        <LoadingSpinner message="Loading dashboard data..." fullScreen={true} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <OverviewCardsSkeleton count={4} />
+          <WorkflowPulseSkeleton />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+            <AnalyticsChartSkeleton height={380} />
+            <div className="skeleton-chart-card" style={{ minHeight: '380px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <Skeleton variant="text" width="160px" height="20px" />
+                <Skeleton variant="text" width="140px" height="13px" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
+                <Skeleton variant="rounded" width="100%" height="56px" />
+                <Skeleton variant="rounded" width="100%" height="56px" />
+                <Skeleton variant="rounded" width="100%" height="56px" />
+              </div>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           {/* Top 4 Executive Stat Cards */}

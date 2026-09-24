@@ -15,6 +15,7 @@ import { notifyStaffFollowUp } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import StatusBadge from './StatusBadge';
+import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/RequestDetails.css';
 
@@ -435,7 +436,24 @@ function RequestDetails({ requestData, onNavigate }) {
   };
 
   if (loading || !request) {
-    return <LoadingSpinner message="Loading request details..." fullScreen={true} />;
+    return (
+      <div className="request-details-page">
+        <Breadcrumb
+          items={[
+            { label: 'Request History', onClick: () => onNavigate?.('request') },
+            { label: 'Request Details', current: true },
+            { label: 'New Request', onClick: () => onNavigate?.('new-request') }
+          ]}
+        />
+        <div className="page-header">
+          <div className="page-title-group">
+            <h1 className="page-title">Request Details</h1>
+            <p className="page-subtitle">Review request timeline, handling status, and office communications</p>
+          </div>
+        </div>
+        <ChatPanelSkeleton includeSidebar={true} />
+      </div>
+    );
   }
 
   const studentFollowUpsCount = (request.followUps || []).filter(f => f.sentBy === 'student').length;

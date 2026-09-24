@@ -13,6 +13,7 @@ import Notifications from './Notifications';
 import NearingCompletionModal from './NearingCompletionModal';
 import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
 import LoadingSpinner from './LoadingSpinner';
+import { DataTableSkeleton } from './common/Skeleton';
 import '../styles/MyTickets.css';
 
 const MyTickets = ({ department, onNavigate, onViewRequest }) => {
@@ -315,9 +316,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
 
         {/* Content Area */}
         {loading ? (
-          <div className="table-loading-state">
-            <LoadingSpinner size="medium" message="Loading your requests..." fullScreen={false} />
-          </div>
+          <DataTableSkeleton columns={6} rows={6} hasPagination={true} />
         ) : filteredTickets.length === 0 ? (
           <div className="table-empty-state">
             <div className="empty-state-icon-box">

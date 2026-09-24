@@ -29,6 +29,7 @@ const ForgotPassword = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [resetComplete, setResetComplete] = useState(false);
   const [studentData, setStudentData] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(120); // 2 minutes = 120 seconds
   const [timerActive, setTimerActive] = useState(false);
@@ -215,11 +216,7 @@ const ForgotPassword = ({ onClose }) => {
 
       setTimerActive(false);
       setSuccess('Password reset successful! You can now login with your new password.');
-      
-      setTimeout(() => {
-        onClose();
-      }, 2500);
-
+      setResetComplete(true);
     } catch (error) {
       console.error('Error:', error);
       setError(error.message || 'Failed to reset password');
@@ -420,73 +417,88 @@ const ForgotPassword = ({ onClose }) => {
 
         {/* Step 3: Enter New Password */}
         {step === 3 && (
-          <form onSubmit={handleResetPassword} className="reset-form">
-            <p className="form-instruction">
-              Your code is verified! Now create a strong new password for your account.
-            </p>
-
-            <div className="form-group">
-              <label>New Password</label>
-              <div className="input-with-icon">
-                <FaLock className="input-icon" />
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => {
-                    setNewPassword(e.target.value);
-                    setError('');
-                  }}
-                  placeholder="Enter new password"
-                  minLength={6}
-                  required
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showNewPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-              <small>Minimum 6 characters</small>
+          resetComplete ? (
+            <div className="reset-success-box" style={{ textAlign: 'center', padding: '16px 0' }}>
+              <p style={{ marginBottom: '24px', color: 'var(--color-text, #374151)', fontSize: '14.5px', lineHeight: '1.5' }}>
+                Your password has been changed successfully. You can now log in with your new password.
+              </p>
+              <button
+                type="button"
+                className="submit-btn"
+                onClick={onClose}
+              >
+                Back to Login
+              </button>
             </div>
+          ) : (
+            <form onSubmit={handleResetPassword} className="reset-form">
+              <p className="form-instruction">
+                Your code is verified! Now create a strong new password for your account.
+              </p>
 
-            <div className="form-group">
-              <label>Confirm Password</label>
-              <div className="input-with-icon">
-                <FaLock className="input-icon" />
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setError('');
-                  }}
-                  placeholder="Confirm new password"
-                  minLength={6}
-                  required
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
+              <div className="form-group">
+                <label>New Password</label>
+                <div className="input-with-icon">
+                  <FaLock className="input-icon" />
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setError('');
+                    }}
+                    placeholder="Enter new password"
+                    minLength={6}
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+                <small>Minimum 6 characters</small>
               </div>
-            </div>
 
-            <button type="submit" className="submit-btn" disabled={loading}>
-              {loading ? 'Resetting Password...' : 'Reset Password'}
-            </button>
+              <div className="form-group">
+                <label>Confirm Password</label>
+                <div className="input-with-icon">
+                  <FaLock className="input-icon" />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setError('');
+                    }}
+                    placeholder="Confirm new password"
+                    minLength={6}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+              </div>
 
-            <button type="button" className="link-btn" onClick={handleBackToCode}>
-              <FaArrowLeft /> Back to Verification
-            </button>
-          </form>
+              <button type="submit" className="submit-btn" disabled={loading}>
+                {loading ? 'Resetting Password...' : 'Reset Password'}
+              </button>
+
+              <button type="button" className="link-btn" onClick={handleBackToCode}>
+                <FaArrowLeft /> Back to Verification
+              </button>
+            </form>
+          )
         )}
       </div>
     </div>

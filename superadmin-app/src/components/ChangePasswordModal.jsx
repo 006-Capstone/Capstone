@@ -20,12 +20,6 @@ const ChangePasswordModal = ({ user, onClose, onPasswordChanged }) => {
       await sendPasswordResetEmail(auth, user.email);
       
       setSuccess(`Password reset email sent to ${user.email}. The user can click the link in the email to set a new password.`);
-      
-      // Auto-close after 3 seconds
-      setTimeout(() => {
-        onPasswordChanged();
-      }, 3000);
-
     } catch (error) {
       console.error('Error sending password reset email:', error);
       
@@ -90,11 +84,11 @@ const ChangePasswordModal = ({ user, onClose, onPasswordChanged }) => {
 
           <button 
             type="button"
-            onClick={handleSendResetEmail}
+            onClick={success ? onPasswordChanged : handleSendResetEmail}
             className="submit-btn-modal" 
-            disabled={loading || success}
+            disabled={loading}
           >
-            {loading ? 'Sending Email...' : success ? '✓ Email Sent' : 'Send Password Reset Email'}
+            {loading ? 'Sending Email...' : success ? 'Close' : 'Send Password Reset Email'}
           </button>
         </div>
 

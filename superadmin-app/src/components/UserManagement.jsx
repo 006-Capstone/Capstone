@@ -42,6 +42,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import NotificationBell from './NotificationBell';
 import Archive from './Archive';
 import LoadingSpinner from './LoadingSpinner';
+import { DataTableSkeleton } from './common/Skeleton';
 import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';
 import '../styles/UserManagement.css';
@@ -89,6 +90,7 @@ const UserManagement = () => {
   const [error, setError] = useState('');
   const [students, setStudents] = useState([]);
   const [staffMembers, setStaffMembers] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdStudent, setCreatedStudent] = useState(null);
@@ -544,6 +546,7 @@ const UserManagement = () => {
             };
           });
           setStaffMembers(staffData);
+          setInitialLoading(false);
         }, (error) => {
           console.error('[Error] loading staff:', error);
           if (useOrderBy) {
@@ -597,6 +600,7 @@ const UserManagement = () => {
           });
           console.log('[Success] Loaded', studentsData.length, 'students');
           setStudents(studentsData);
+          setInitialLoading(false);
         }, (error) => {
           console.error('[Error] loading students:', error);
           if (useOrderBy) {
@@ -2141,10 +2145,7 @@ const UserManagement = () => {
                 </div>
                 
                 {loadingUserProfile ? (
-                  <div className="activity-loading">
-                    <LoadingSpinner />
-                    <p>Loading activity logs and audit records...</p>
-                  </div>
+                  <DataTableSkeleton columns={5} rows={4} hasPagination={false} />
                 ) : filteredActivityLogs.length === 0 ? (
                   <div className="activity-empty">
                     <div className="empty-icon-wrap">
@@ -3055,10 +3056,7 @@ const UserManagement = () => {
             </div>
 
             {requestsLoading ? (
-              <div className="requests-loading">
-                <span className="requests-spinner" aria-hidden="true" />
-                Loading request history...
-              </div>
+              <DataTableSkeleton columns={5} rows={3} hasPagination={false} />
             ) : handledRequests.length === 0 ? (
               <div className="empty-state">
                 <FaBoxOpen className="empty-state-icon" aria-hidden="true" />
@@ -3549,7 +3547,9 @@ const UserManagement = () => {
             )}
           </div>
 
-          {visibleStudents.pageItems.length === 0 ? (
+          {initialLoading ? (
+            <DataTableSkeleton columns={6} rows={8} hasCheckbox={true} hasPagination={true} />
+          ) : visibleStudents.pageItems.length === 0 ? (
             <div className="empty-state">
               <FaSearch className="empty-state-icon" aria-hidden="true" />
               <p>{students.length === 0 ? 'No student accounts yet. Click "Create Student Account" to add one.' : 'No students match your search or filter.'}</p>
@@ -3697,7 +3697,9 @@ const UserManagement = () => {
       ) : activeTab === 'archivedStaff' ? (
         <div className="card students-list-section">
           <h2 className="section-title-super">Archived Staff Accounts</h2>
-          {visibleArchivedStaff.pageItems.length === 0 ? (
+          {initialLoading ? (
+            <DataTableSkeleton columns={7} rows={8} hasCheckbox={false} hasPagination={true} />
+          ) : visibleArchivedStaff.pageItems.length === 0 ? (
             <div className="empty-state">
               <FaBoxOpen className="empty-state-icon" aria-hidden="true" />
               <p>{archivedStaffMembers.length === 0 ? 'No archived staff yet. Archiving a staff member moves them here while keeping their request history intact.' : 'No archived staff match your search.'}</p>
@@ -3786,7 +3788,9 @@ const UserManagement = () => {
       ) : (
         <div className="card students-list-section">
           <h2 className="section-title-super">Staff Accounts</h2>
-          {visibleStaff.pageItems.length === 0 ? (
+          {initialLoading ? (
+            <DataTableSkeleton columns={6} rows={8} hasCheckbox={false} hasPagination={true} />
+          ) : visibleStaff.pageItems.length === 0 ? (
             <div className="empty-state">
               <FaSearch className="empty-state-icon" aria-hidden="true" />
               <p>{staffMembers.length === 0 ? 'No staff accounts yet. Click "Create Staff Account" to add one.' : 'No staff match your search.'}</p>

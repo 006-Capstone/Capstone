@@ -9,6 +9,7 @@ import QRCode from 'qrcode';
 import { encryptCredentials } from '../utils/qrEncryption';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotification } from '../context/NotificationContext';
+import { SettingsModalSkeleton, SettingsContentSkeleton } from './common/Skeleton';
 import '../styles/ProfileSettings.css';
 
 // Only the fields the user can actually edit count toward "changed"
@@ -564,10 +565,6 @@ function ProfileSettings({ onClose }) {
     return `${maskedLocal}@${rest.join('@')}`;
   };
 
-  if (loading) {
-    return <LoadingSpinner message="Loading profile..." fullScreen={true} />;
-  }
-
   return (
     <div className="profile-settings-overlay" onClick={onClose}>
       <div className="profile-settings-modal" onClick={(e) => e.stopPropagation()}>
@@ -583,9 +580,13 @@ function ProfileSettings({ onClose }) {
         </div>
 
         <div className="profile-settings-content">
-          {/* Profile Information Section */}
-          <div className="settings-section">
-            <h3>Profile Information</h3>
+          {loading ? (
+            <SettingsContentSkeleton />
+          ) : (
+            <>
+              {/* Profile Information Section */}
+              <div className="settings-section">
+                <h3>Profile Information</h3>
             
             <div className="profile-info-grid">
               <div className="profile-picture-section">
@@ -866,25 +867,27 @@ function ProfileSettings({ onClose }) {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="settings-actions">
-            <button
-              className="logout-btn-settings"
-              onClick={handleLogout}
-              aria-label="Log out of your account"
-            >
-              <FaSignOutAlt aria-hidden="true" />
-              Log Out
-            </button>
-            <button 
-              className="update-btn" 
-              onClick={handleUpdateProfile}
-              disabled={saving || !hasChanges}
-              title={!hasChanges ? 'Make a change to enable saving' : undefined}
-            >
-              {saving ? 'Updating...' : 'Update Profile'}
-            </button>
-          </div>
+              {/* Action Buttons */}
+              <div className="settings-actions">
+                <button
+                  className="logout-btn-settings"
+                  onClick={handleLogout}
+                  aria-label="Log out of your account"
+                >
+                  <FaSignOutAlt aria-hidden="true" />
+                  Log Out
+                </button>
+                <button 
+                  className="update-btn" 
+                  onClick={handleUpdateProfile}
+                  disabled={saving || !hasChanges}
+                  title={!hasChanges ? 'Make a change to enable saving' : undefined}
+                >
+                  {saving ? 'Updating...' : 'Update Profile'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Password Change Modal */}
@@ -893,7 +896,7 @@ function ProfileSettings({ onClose }) {
             <div className="password-modal" onClick={(e) => e.stopPropagation()}>
               <h3>Change Password</h3>
               
-              <div className="form-group">
+              <div className="form-group-modal">
                 <label>Current Password</label>
                 <div className="password-input-wrapper">
                   <input
@@ -911,7 +914,7 @@ function ProfileSettings({ onClose }) {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group-modal">
                 <label>New Password</label>
                 <div className="password-input-wrapper">
                   <input
@@ -929,7 +932,7 @@ function ProfileSettings({ onClose }) {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group-modal">
                 <label>Confirm New Password</label>
                 <div className="password-input-wrapper">
                   <input
@@ -975,7 +978,7 @@ function ProfileSettings({ onClose }) {
                 }
               </p>
               
-              <div className="form-group">
+              <div className="form-group-modal">
                 <label>Password</label>
                 <div className="password-input-wrapper">
                   <input

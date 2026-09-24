@@ -17,6 +17,7 @@ import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/f
 import { db } from '../firebase';
 import { markAsRead, markAllAsRead } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
+import { RequestFeedSkeleton } from './common/Skeleton';
 import '../styles/Notifications.css';
 
 const CLOSE_ANIMATION_MS = 180;
@@ -266,7 +267,7 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
       {/* Notifications List */}
       <div className="notifications-list">
         {loading ? (
-          <LoadingSpinner message="Loading notifications..." fullScreen={false} />
+          <RequestFeedSkeleton count={4} />
         ) : notifications.length === 0 ? (
           <div className="notifications-empty">
             <div className="empty-bell-circle">

@@ -18,6 +18,7 @@ import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
 import { notifyStudentStatusChange, notifyStudentEtcChange } from '../utils/notificationHelper';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import LoadingSpinner from './LoadingSpinner';
+import { OverviewCardsSkeleton, DataTableSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/AdminDashboard.css';
 
@@ -25,7 +26,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const { toast, alertModal } = useNotification();
   const [activeTab, setActiveTab] = useState('new');
   const [searchQuery, setSearchQuery] = useState('');
-  const { tickets, loading } = useOfficeTickets(department);
+  const { tickets, loading, refresh } = useOfficeTickets(department);
   const [staffData, setStaffData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -371,6 +372,9 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       }
 
       toast.success(`Request ${ticket.id || ticket.requestId} has been assigned to you!`, 'Request Claimed');
+      
+      // Auto-refresh the dashboard so the ticket immediately moves and counts update
+      refresh?.();
     } catch (error) {
       console.error('[Error] Error claiming ticket:', error);
       toast.error('Failed to claim request: ' + error.message);
@@ -473,83 +477,87 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         </div>
 
         {/* Right Section: Rectangular Pending on top, 4 Square cards below in 2x2 grid */}
-        <div className="stats-right-section">
-          {/* Pending Card (Stays rectangular) */}
-          <div className="stat-card stat-pending">
-            <div className="stat-card-left">
-              <span className="stat-icon-container">
-                <FaTicketAlt className="stat-icon" />
-              </span>
-              <div className="stat-card-text">
-                <div className="stat-label-group">
-                  <span className="stat-label">Pending</span>
+        {loading ? (
+          <OverviewCardsSkeleton layout="admin" />
+        ) : (
+          <div className="stats-right-section">
+            {/* Pending Card (Stays rectangular) */}
+            <div className="stat-card stat-pending">
+              <div className="stat-card-left">
+                <span className="stat-icon-container">
+                  <FaTicketAlt className="stat-icon" />
+                </span>
+                <div className="stat-card-text">
+                  <div className="stat-label-group">
+                    <span className="stat-label">Pending</span>
+                    <span className="scope-tag office">Office</span>
+                  </div>
+                  <span className="stat-subtext">Awaiting Assignment</span>
+                </div>
+              </div>
+              <span className="stat-value">{stats.unassigned}</span>
+            </div>
+
+            {/* 4 Square Cards (Arrangement: In Process Office, Resolved Office, My In Process, My Resolved) */}
+            <div className="stats-squares-grid">
+              {/* 1. Office In Process */}
+              <div className="stat-card stat-card-square stat-inprogress">
+                <div className="stat-square-header">
+                  <span className="stat-label">In Process</span>
                   <span className="scope-tag office">Office</span>
                 </div>
-                <span className="stat-subtext">Awaiting Assignment</span>
+                <div className="stat-square-body">
+                  <span className="stat-value">{stats.claimed}</span>
+                </div>
+                <div className="stat-square-footer">
+                  <span className="stat-subtext">Office Overall</span>
+                </div>
               </div>
-            </div>
-            <span className="stat-value">{stats.unassigned}</span>
-          </div>
 
-          {/* 4 Square Cards (Arrangement: In Process Office, Resolved Office, My In Process, My Resolved) */}
-          <div className="stats-squares-grid">
-            {/* 1. Office In Process */}
-            <div className="stat-card stat-card-square stat-inprogress">
-              <div className="stat-square-header">
-                <span className="stat-label">In Process</span>
-                <span className="scope-tag office">Office</span>
+              {/* 2. Office Resolved */}
+              <div className="stat-card stat-card-square stat-resolved">
+                <div className="stat-square-header">
+                  <span className="stat-label">Resolved</span>
+                  <span className="scope-tag office">Office</span>
+                </div>
+                <div className="stat-square-body">
+                  <span className="stat-value">{stats.resolved}</span>
+                </div>
+                <div className="stat-square-footer">
+                  <span className="stat-subtext">Office Overall</span>
+                </div>
               </div>
-              <div className="stat-square-body">
-                <span className="stat-value">{stats.claimed}</span>
-              </div>
-              <div className="stat-square-footer">
-                <span className="stat-subtext">Office Overall</span>
-              </div>
-            </div>
 
-            {/* 2. Office Resolved */}
-            <div className="stat-card stat-card-square stat-resolved">
-              <div className="stat-square-header">
-                <span className="stat-label">Resolved</span>
-                <span className="scope-tag office">Office</span>
+              {/* 3. Staff's My In Process */}
+              <div className="stat-card stat-card-square stat-my-inprogress">
+                <div className="stat-square-header">
+                  <span className="stat-label">My In Process</span>
+                  <span className="scope-tag personal">My Workload</span>
+                </div>
+                <div className="stat-square-body">
+                  <span className="stat-value">{myStats.inProgress}</span>
+                </div>
+                <div className="stat-square-footer">
+                  <span className="stat-subtext">Assigned to You</span>
+                </div>
               </div>
-              <div className="stat-square-body">
-                <span className="stat-value">{stats.resolved}</span>
-              </div>
-              <div className="stat-square-footer">
-                <span className="stat-subtext">Office Overall</span>
-              </div>
-            </div>
 
-            {/* 3. Staff's My In Process */}
-            <div className="stat-card stat-card-square stat-my-inprogress">
-              <div className="stat-square-header">
-                <span className="stat-label">My In Progress</span>
-                <span className="scope-tag personal">My Workload</span>
-              </div>
-              <div className="stat-square-body">
-                <span className="stat-value">{myStats.inProgress}</span>
-              </div>
-              <div className="stat-square-footer">
-                <span className="stat-subtext">Assigned to You</span>
-              </div>
-            </div>
-
-            {/* 4. Staff's My Resolved */}
-            <div className="stat-card stat-card-square stat-my-resolved">
-              <div className="stat-square-header">
-                <span className="stat-label">My Resolved</span>
-                <span className="scope-tag personal">My Workload</span>
-              </div>
-              <div className="stat-square-body">
-                <span className="stat-value">{myStats.resolved}</span>
-              </div>
-              <div className="stat-square-footer">
-                <span className="stat-subtext">Completed by You</span>
+              {/* 4. Staff's My Resolved */}
+              <div className="stat-card stat-card-square stat-my-resolved">
+                <div className="stat-square-header">
+                  <span className="stat-label">My Resolved</span>
+                  <span className="scope-tag personal">My Workload</span>
+                </div>
+                <div className="stat-square-body">
+                  <span className="stat-value">{myStats.resolved}</span>
+                </div>
+                <div className="stat-square-footer">
+                  <span className="stat-subtext">Completed by You</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Nearing Estimated Completion Date Alert Banner */}
@@ -642,9 +650,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         </div>
 
         {loading ? (
-          <div className="table-loading-state">
-            <LoadingSpinner size="medium" message="Loading office requests..." />
-          </div>
+          <DataTableSkeleton columns={6} rows={5} hasPagination={false} />
         ) : filteredTickets.length === 0 ? (
           <div className="table-empty-state">
             <div className="empty-state-icon-box">

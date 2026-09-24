@@ -28,6 +28,7 @@ import {
 import { db, auth } from '../firebase';
 import NotificationBell from './NotificationBell';
 import LoadingSpinner from './LoadingSpinner';
+import { DataTableSkeleton } from './common/Skeleton';
 import Toast from './Toast';
 import '../styles/Archive.css';
 
@@ -285,7 +286,6 @@ const Archive = ({ isEmbedded = false }) => {
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
-    window.setTimeout(() => setToast(null), 4000);
   };
 
   // Request unarchive for multiple selected accounts
@@ -793,7 +793,7 @@ const Archive = ({ isEmbedded = false }) => {
       {/* Table Section Card */}
       <div className="card archive-table-card">
         {loading ? (
-          <LoadingSpinner message="Loading archive..." fullScreen={false} />
+          <DataTableSkeleton columns={6} rows={6} hasPagination={true} />
         ) : archivedAccounts.length === 0 ? (
           <div className="empty-state">
             <FaBoxOpen className="empty-state-icon" aria-hidden="true" />

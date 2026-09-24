@@ -1,9 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaChevronDown, FaChevronUp, FaQuestionCircle } from 'react-icons/fa';
+import { FAQSkeleton } from './common/Skeleton';
 import '../styles/FAQs.css';
 
-const FAQs = ({ onNavigate }) => {
+const FAQs = ({ onNavigate, loading: propLoading = false }) => {
   const [openIndex, setOpenIndex] = useState(0);
+  const [loading, setLoading] = useState(propLoading);
+
+  useEffect(() => {
+    if (propLoading) {
+      setLoading(true);
+    } else {
+      // Smooth brief skeleton transition on page mount
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [propLoading]);
 
   const faqSections = [
     {
@@ -103,6 +117,10 @@ const FAQs = ({ onNavigate }) => {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  if (loading) {
+    return <FAQSkeleton />;
+  }
 
   return (
     <div className="faqs-container">

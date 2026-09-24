@@ -1,0 +1,529 @@
+/* ==========================================================================
+   UNIFIED SKELETON LOADERS — Academia De San Jose Design System
+   White-themed shimmer effect with zero layout shift
+   ========================================================================== */
+
+:root {
+  --skeleton-base: #edf1ee;
+  --skeleton-highlight: #ffffff;
+  --skeleton-border: var(--color-border-soft, #e3e6e2);
+  --skeleton-border-subtle: #edf0ee;
+}
+
+@keyframes skeleton-shimmer-wave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes skeleton-pulse-fade {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+/* Base Shimmer Primitive */
+.skeleton-block {
+  display: inline-block;
+  vertical-align: middle;
+  background: linear-gradient(
+    90deg,
+    #edf1ee 0%,
+    #f8faf8 35%,
+    #ffffff 50%,
+    #f8faf8 65%,
+    #edf1ee 100%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shimmer-wave 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  flex-shrink: 0;
+}
+
+.skeleton-text {
+  height: 14px;
+  border-radius: 4px;
+}
+
+.skeleton-circular {
+  border-radius: 50% !important;
+}
+
+.skeleton-rectangular {
+  border-radius: 6px;
+}
+
+.skeleton-rounded {
+  border-radius: 10px;
+}
+
+.skeleton-pill {
+  border-radius: 9999px !important;
+}
+
+/* ==========================================================================
+   1. REQUEST & TICKET FEEDS SKELETON
+   ========================================================================== */
+
+.skeleton-feed-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.skeleton-feed-card {
+  background: #ffffff;
+  border: 1px solid var(--skeleton-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.skeleton-feed-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.skeleton-feed-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-feed-title-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeleton-feed-id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skeleton-feed-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 52px;
+}
+
+.skeleton-feed-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 52px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   2. CHAT & CONVERSATION PANELS SKELETON
+   ========================================================================== */
+
+.skeleton-chat-wrapper {
+  background: #ffffff;
+  border: 1px solid var(--skeleton-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.skeleton-chat-toolbar {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--skeleton-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.skeleton-chat-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.skeleton-chat-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skeleton-chat-messages {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: #fafbfa;
+  min-height: 280px;
+  box-sizing: border-box;
+}
+
+/* Left-aligned message bubble (e.g. Student inquiry or incoming message) */
+.skeleton-bubble-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 82%;
+  align-self: flex-start;
+}
+
+.skeleton-bubble-left-content {
+  background: #ffffff;
+  border: 1px solid var(--skeleton-border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  min-width: 220px;
+}
+
+.skeleton-bubble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Right-aligned user reply bubble */
+.skeleton-bubble-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: 78%;
+  align-self: flex-end;
+}
+
+.skeleton-bubble-right-content {
+  background: #f4f8f3;
+  border: 1px solid #dce9da;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(16, 94, 6, 0.05);
+  min-width: 200px;
+}
+
+/* Bottom Chat Input Bar */
+.skeleton-chat-input-bar {
+  padding: 14px 20px;
+  background: #ffffff;
+  border-top: 1px solid var(--skeleton-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.skeleton-chat-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Details Full Page Layout (Main + Sidebar) */
+.skeleton-details-layout {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.skeleton-details-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.skeleton-details-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-sidebar-card {
+  background: #ffffff;
+  border: 1px solid var(--skeleton-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ==========================================================================
+   3. ANALYTICS & OVERVIEW CARDS SKELETON
+   ========================================================================== */
+
+.skeleton-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.skeleton-overview-card {
+  background: #ffffff;
+  padding: 16px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--skeleton-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 106px;
+  box-sizing: border-box;
+  gap: 10px;
+}
+
+.skeleton-overview-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.skeleton-overview-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.skeleton-overview-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+/* Admin Dashboard 2-Column Stats Layout */
+.skeleton-admin-stats-row {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+}
+
+.skeleton-admin-stats-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.skeleton-admin-squares-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.skeleton-admin-square-card {
+  background: #ffffff;
+  border: 1px solid var(--skeleton-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+/* Analytics Chart Card Skeleton */
+.skeleton-chart-card {
+  background: #ffffff;
+  border: 1px solid var(--skeleton-border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.skeleton-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.skeleton-chart-bars-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  height: 220px;
+  padding-top: 16px;
+  border-bottom: 1px solid var(--skeleton-border);
+  box-sizing: border-box;
+}
+
+.skeleton-chart-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 8px;
+}
+
+.skeleton-chart-x-axis {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
+/* ==========================================================================
+   4. DATA TABLES & MANAGEMENT LISTS SKELETON
+   ========================================================================== */
+
+.skeleton-table-card {
+  background: #ffffff;
+  border: 1px solid var(--skeleton-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.skeleton-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.skeleton-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.skeleton-th {
+  background-color: #f6f8f5;
+  border-bottom: 1.5px solid var(--color-border, #cbd0ca);
+  padding: 10px 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.skeleton-th:first-child {
+  border-top-left-radius: 10px;
+  padding-left: 18px;
+}
+
+.skeleton-th:last-child {
+  border-top-right-radius: 10px;
+  padding-right: 18px;
+}
+
+.skeleton-td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--skeleton-border);
+  background-color: #ffffff;
+  vertical-align: middle;
+}
+
+.skeleton-tr:last-child .skeleton-td {
+  border-bottom: none;
+}
+
+.skeleton-td:first-child {
+  padding-left: 18px;
+}
+
+.skeleton-td:last-child {
+  padding-right: 18px;
+  text-align: right;
+}
+
+/* Pagination Bar Skeleton */
+.skeleton-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-top: 1px solid var(--skeleton-border);
+  background: #ffffff;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.skeleton-pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1199px) {
+  .skeleton-overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .skeleton-details-layout {
+    flex-direction: column;
+  }
+  .skeleton-details-sidebar {
+    width: 100%;
+  }
+}
+
+@media (max-width: 639px) {
+  .skeleton-overview-grid {
+    grid-template-columns: 1fr;
+  }
+  .skeleton-bubble-left,
+  .skeleton-bubble-right {
+    max-width: 95%;
+  }
+  .skeleton-feed-body,
+  .skeleton-feed-footer {
+    padding-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block {
+    animation: none;
+    background: #edf1ee;
+  }
+}

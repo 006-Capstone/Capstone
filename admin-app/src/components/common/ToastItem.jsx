@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   FaCheckCircle, 
   FaTimesCircle, 
@@ -22,11 +22,7 @@ const DEFAULT_ICONS = {
 };
 
 function ToastItem({ toast, onRemove }) {
-  const { id, type = 'info', title, message, duration = 4500, confirmText = 'OK' } = toast;
-  const [isPaused, setIsPaused] = useState(false);
-  const remainingTimeRef = useRef(duration);
-  const timerStartRef = useRef(Date.now());
-  const timerTimeoutRef = useRef(null);
+  const { id, type = 'info', title, message, confirmText = 'OK' } = toast;
   const confirmButtonRef = useRef(null);
 
   const IconComponent = DEFAULT_ICONS[type] || FaInfoCircle;
@@ -52,43 +48,6 @@ function ToastItem({ toast, onRemove }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [id, onRemove]);
 
-  // Auto-dismiss countdown timer with pause on hover
-  useEffect(() => {
-    if (duration <= 0) return;
-
-    const startTimer = (time) => {
-      timerStartRef.current = Date.now();
-      timerTimeoutRef.current = setTimeout(() => {
-        handleClose();
-      }, time);
-    };
-
-    if (!isPaused) {
-      startTimer(remainingTimeRef.current);
-    }
-
-    return () => {
-      if (timerTimeoutRef.current) {
-        clearTimeout(timerTimeoutRef.current);
-      }
-    };
-  }, [isPaused, duration]);
-
-  const handleMouseEnter = () => {
-    if (duration <= 0) return;
-    setIsPaused(true);
-    if (timerTimeoutRef.current) {
-      clearTimeout(timerTimeoutRef.current);
-    }
-    const elapsed = Date.now() - timerStartRef.current;
-    remainingTimeRef.current = Math.max(0, remainingTimeRef.current - elapsed);
-  };
-
-  const handleMouseLeave = () => {
-    if (duration <= 0) return;
-    setIsPaused(false);
-  };
-
   return (
     <div
       className="unified-notification-modal-overlay"
@@ -98,10 +57,8 @@ function ToastItem({ toast, onRemove }) {
       aria-labelledby={`notification-modal-title-${id}`}
     >
       <div
-        className={`unified-notification-modal-card modal-variant-${type} ${isPaused ? 'modal-timer-paused' : ''}`}
+        className={`unified-notification-modal-card modal-variant-${type}`}
         onClick={(e) => e.stopPropagation()}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
       >
         <div className="notification-modal-header">
           <div className={`notification-modal-icon-box variant-${type}`}>
@@ -124,15 +81,6 @@ function ToastItem({ toast, onRemove }) {
             <FaTimes />
           </button>
         </div>
-
-        {duration > 0 && (
-          <div className="notification-modal-progress-container">
-            <div
-              className={`notification-modal-progress-bar variant-${type}`}
-              style={{ animationDuration: `${duration}ms` }}
-            />
-          </div>
-        )}
 
         <div className="notification-modal-actions">
           <button

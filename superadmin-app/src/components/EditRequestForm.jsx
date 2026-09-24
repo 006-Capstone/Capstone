@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
 import NotificationBell from './NotificationBell';
 import Toast from './Toast';
+import { Skeleton } from './common/Skeleton';
 import '../styles/EditRequestForm.css';
 
 const EditRequestForm = () => {
@@ -22,7 +23,6 @@ const EditRequestForm = () => {
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
-    window.setTimeout(() => setToast(null), 4000);
   };
 
   const defaultOffices = [
@@ -209,7 +209,57 @@ const EditRequestForm = () => {
   const selectedOfficeData = offices.find(o => o.id === selectedOffice);
 
   if (loading) {
-    return <LoadingSpinner message="Loading form configuration..." fullScreen={true} />;
+    return (
+      <div className="superadmin-page edit-request-form-container">
+        <div className="page-header">
+          <div className="page-header-title-group">
+            <h1 className="form-title">Edit Request Form</h1>
+            <p className="page-subtitle">Manage the offices, descriptions, and subjects students can request</p>
+          </div>
+          <div className="form-actions-header">
+            <Skeleton variant="circular" width={40} height={40} />
+          </div>
+        </div>
+
+        <div className="form-content">
+          <div className="form-section">
+            <div className="section-header">
+              <Skeleton variant="text" width="180px" height="24px" />
+            </div>
+            <div className="office-cards">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="office-card" style={{ cursor: 'default' }}>
+                  <Skeleton variant="circular" width={20} height={20} style={{ marginRight: '16px', flexShrink: 0, marginTop: '2px' }} />
+                  <div className="office-info" style={{ width: '100%' }}>
+                    <Skeleton variant="text" width="50%" height="20px" style={{ marginBottom: '8px' }} />
+                    <Skeleton variant="text" width="90%" height="14px" style={{ marginBottom: '4px' }} />
+                    <Skeleton variant="text" width="70%" height="14px" style={{ marginBottom: '12px' }} />
+                    <Skeleton variant="pill" width="60px" height="26px" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-section">
+            <div className="section-header">
+              <Skeleton variant="text" width="220px" height="24px" />
+            </div>
+            <div className="subjects-list">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="subject-item" style={{ cursor: 'default' }}>
+                  <Skeleton variant="text" width={i % 2 === 0 ? '45%' : '60%'} height="18px" />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Skeleton variant="rounded" width="55px" height="28px" borderRadius="4px" />
+                    <Skeleton variant="rounded" width="55px" height="28px" borderRadius="4px" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

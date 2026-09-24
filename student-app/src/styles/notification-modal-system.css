@@ -151,50 +151,7 @@
   font-size: 14px;
 }
 
-.notification-modal-progress-container {
-  height: 3px;
-  width: 100%;
-  background-color: rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-}
 
-.notification-modal-progress-bar {
-  height: 100%;
-  width: 100%;
-  transform-origin: left;
-  animation: toastProgress linear forwards;
-}
-
-@keyframes toastProgress {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
-
-.modal-timer-paused .notification-modal-progress-bar {
-  animation-play-state: paused;
-}
-
-.notification-modal-progress-bar.variant-success {
-  background-color: #2E7D32;
-}
-
-.notification-modal-progress-bar.variant-error,
-.notification-modal-progress-bar.variant-danger {
-  background-color: #dc2626;
-}
-
-.notification-modal-progress-bar.variant-warning {
-  background-color: #d97706;
-}
-
-.notification-modal-progress-bar.variant-info,
-.notification-modal-progress-bar.variant-primary {
-  background-color: #1d4ed8;
-}
 
 .notification-modal-actions {
   display: flex;
