@@ -6,13 +6,14 @@ import {
   MdClose, 
   MdBlock, 
   MdStar, 
-  MdInsertDriveFile 
+  MdInsertDriveFile,
+  MdDescription,
+  MdFormatQuote 
 } from 'react-icons/md';
-import { FaUserCircle } from 'react-icons/fa';
+import { FaUserCircle, FaExchangeAlt } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { notifyStaffFollowUp } from '../utils/notificationHelper';
-import Breadcrumb from './Breadcrumb';
 import StatusBadge from './StatusBadge';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
@@ -437,13 +438,6 @@ function RequestDetails({ requestData, onNavigate }) {
   if (loading || !request) {
     return (
       <div className="request-details-page">
-        <Breadcrumb
-          items={[
-            { label: 'Request History', onClick: () => onNavigate?.('request') },
-            { label: 'Request Details', current: true },
-            { label: 'New Request', onClick: () => onNavigate?.('new-request') }
-          ]}
-        />
         <div className="page-header">
           <div className="page-title-group">
             <h1 className="page-title">Request Details</h1>
@@ -459,14 +453,6 @@ function RequestDetails({ requestData, onNavigate }) {
 
   return (
     <div className="request-details-page">
-      <Breadcrumb
-        items={[
-          { label: 'Request History', onClick: () => onNavigate('request') },
-          { label: 'Request Details', current: true },
-          { label: 'New Request', onClick: () => onNavigate('new-request') }
-        ]}
-      />
-
       <div className="page-header">
         <div className="page-title-group">
           <h1 className="page-title">Request Details</h1>
@@ -510,58 +496,83 @@ function RequestDetails({ requestData, onNavigate }) {
               </div>
             </div>
 
-            {/* Rerouted info if request was reassigned */}
+            {/* Compact Rerouted indicator */}
             {request.reassignedFrom && (
-              <div className="reroute-banner">
-                <div className="reroute-banner-header">
-                  <span className="reroute-title">Rerouted from {request.reassignedFrom}</span>
-                  {request.reassignedAt && (
-                    <span className="reroute-date">
-                      {request.reassignedAt?.toDate ? request.reassignedAt.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''}
-                    </span>
+              <div className="reroute-banner-compact">
+                <div className="reroute-compact-info">
+                  <span className="reroute-badge">
+                    <FaExchangeAlt className="reroute-icon" />
+                    <span>Rerouted from {request.reassignedFrom}</span>
+                  </span>
+                  {request.previousRequestId && (
+                    <span className="reroute-prev-id">Prev #{request.previousRequestId}</span>
                   )}
                 </div>
-                {request.previousRequestId && (
-                  <p className="reroute-prev-id">Previous ID: #{request.previousRequestId}</p>
-                )}
-                {request.reassignmentNote && (
-                  <div className="reroute-note">
-                    <span className="reroute-note-label">Message from {request.reassignedFrom}:</span>
-                    <p className="reroute-note-body">{request.reassignmentNote}</p>
-                  </div>
+                {request.reassignedAt && (
+                  <span className="reroute-date">
+                    {request.reassignedAt?.toDate ? request.reassignedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                  </span>
                 )}
               </div>
             )}
 
             <div className="original-submission">
-              <div className="section-header">
-                <h3>Original Submission</h3>
-                <span className="created-date">Created on {request.date}</span>
+              <div className="submission-header">
+                <div className="submission-title-group">
+                  <span className="submission-icon-wrapper">
+                    <MdDescription className="submission-title-icon" />
+                  </span>
+                  <div className="submission-title-text">
+                    <h3>Original Submission</h3>
+                    <span className="created-date">Created on {request.date}</span>
+                  </div>
+                </div>
               </div>
-              <p className="submission-text">"{request.description}"</p>
+
+              <div className="submission-body">
+                <div className="submission-body-header">
+                  <span className="submission-note-label">
+                    <FaUserCircle className="submission-note-icon" />
+                    Your Message
+                  </span>
+                  <MdFormatQuote className="submission-quote-decor" />
+                </div>
+                <p className="submission-text">{request.description}</p>
+              </div>
               
               {request.attachments && request.attachments.length > 0 && (
-                <div className="attachments">
-                  {request.attachments.map((file, index) => (
-                    <div key={index} className="attachment-card">
-                      <MdInsertDriveFile className="attachment-file-icon" />
-                      <span className="attachment-name" title={file.name}>{file.name}</span>
-                      <button
-                        type="button"
-                        className="attachment-download-btn"
-                        onClick={() => downloadAttachment(file)}
-                        aria-label={`Download ${file.name}`}
-                      >
-                        <MdDownload /> Download
-                      </button>
-                    </div>
-                  ))}
+                <div className="submission-attachments">
+                  <span className="attachments-header-label">
+                    <MdAttachFile className="attachments-label-icon" /> Attachments ({request.attachments.length})
+                  </span>
+                  <div className="attachments">
+                    {request.attachments.map((file, index) => (
+                      <div key={index} className="attachment-card">
+                        <MdInsertDriveFile className="attachment-file-icon" />
+                        <span className="attachment-name" title={file.name}>{file.name}</span>
+                        <button
+                          type="button"
+                          className="attachment-download-btn"
+                          onClick={() => downloadAttachment(file)}
+                          aria-label={`Download ${file.name}`}
+                        >
+                          <MdDownload /> Download
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Display staff responses */}
-            {request.followUps && request.followUps.filter(f => f.sentBy === 'staff' && !f.message?.includes('automatically assigned to') && !f.message?.includes('Request marked as Resolved')).map((followUp, index) => (
+            {request.followUps && request.followUps.filter(f => 
+              f.sentBy === 'staff' && 
+              !f.message?.includes('automatically assigned to') && 
+              !f.message?.includes('Request marked as Resolved') &&
+              !f.message?.toLowerCase().includes('reassigned from') &&
+              !f.message?.toLowerCase().includes('rerouted from')
+            ).map((followUp, index) => (
               <div key={`staff-${index}`} className="staff-response">
                 <div className="response-header">
                   <FaUserCircle className="staff-icon" />
