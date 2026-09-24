@@ -25,6 +25,7 @@ import { validateReassignmentNote } from '../utils/contentModeration';
 import Notifications from './Notifications';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
+import DropdownCalendar from './common/DropdownCalendar';
 import '../styles/TicketDetails.css';
 
 const isISODate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
@@ -1561,11 +1562,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
             <div className="mgmt-form-item">
               <label className="mgmt-input-label">TARGET COMPLETION DATE</label>
-              <input
-                type="date"
-                className="figma-select-input"
+              <DropdownCalendar
                 value={internalTargetDate}
-                onChange={(e) => handleInternalTargetDateChange(e.target.value)}
+                onChange={handleInternalTargetDateChange}
                 disabled={isTicketClosed || !isOwner || (isReroutedTicket && ticket.internalTargetSetBy)}
                 title={
                   (isReroutedTicket && ticket.internalTargetSetBy)
@@ -1574,7 +1573,10 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     ? `Only ${ticketHandler || 'the assigned staff'} can set this date` 
                     : "Set internal target date (does not affect Status Timeline or student)"
                 }
-                min={new Date().toISOString().split('T')[0]}
+                minDate={new Date().toISOString().split('T')[0]}
+                inputClassName="figma-select-input"
+                placeholder="Set target completion date"
+                ariaLabel="Target Completion Date"
               />
               <p className="mgmt-info-text">
                 {(isReroutedTicket && ticket.internalTargetSetBy) ? (
@@ -1914,17 +1916,18 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             {/* Target Date: Month / Day / Year Selectors */}
             <div className="etc-mdy-container">
               <label className="modal-label">Target Date:</label>
-              <input
-                type="date"
-                className="etc-date-input"
+              <DropdownCalendar
                 value={`${etcYear}-${etcMonth}-${etcDay}`}
-                onChange={(e) => {
-                  const [year, month, day] = e.target.value.split('-');
+                onChange={(isoDate) => {
+                  const [year, month, day] = isoDate.split('-');
                   setEtcYear(year);
                   setEtcMonth(month);
                   setEtcDay(day);
                 }}
-                min={new Date().toISOString().split('T')[0]}
+                minDate={new Date().toISOString().split('T')[0]}
+                inputClassName="etc-date-input"
+                placeholder="Select target completion date"
+                ariaLabel="Target Completion Date"
               />
 
               {/* Formatted Date Banner */}

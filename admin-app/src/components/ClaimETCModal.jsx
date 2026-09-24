@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FaCalendarAlt, FaCheck, FaTimes, FaUserCheck } from 'react-icons/fa';
+import DropdownCalendar from './common/DropdownCalendar';
 import '../styles/ClaimETCModal.css';
 
 // Default estimate: two days from today
@@ -56,14 +57,14 @@ const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
               <label className="etc-field-label" htmlFor="etc-date">
                 ESTIMATED TIME OF COMPLETION
               </label>
-              <input
+              <DropdownCalendar
                 id="etc-date"
-                type="date"
-                className="etc-date-input"
                 value={date}
-                min={isoDateFromOffset(0)}
-                onChange={(e) => setDate(e.target.value)}
-                required
+                onChange={setDate}
+                minDate={isoDateFromOffset(0)}
+                placeholder="Select estimated completion date"
+                inputClassName="etc-date-input"
+                ariaLabel="Estimated Time of Completion"
               />
 
               <div className="etc-notice">

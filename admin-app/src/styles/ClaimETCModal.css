@@ -25,12 +25,18 @@
   max-width: 440px;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: visible;
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--color-border-soft);
   position: relative;
   text-align: center;
   animation: modalSlideIn 0.25s var(--ease-spring);
+}
+
+@media (max-height: 650px) {
+  .etc-modal {
+    overflow-y: auto;
+  }
 }
 
 .etc-modal-close {
