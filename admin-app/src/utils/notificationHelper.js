@@ -277,35 +277,109 @@ export const notifyStaffReassignment = async (toOffice, requestId, requestSubjec
  */
 export const notifyStudentsNewAnnouncement = async (department, announcementTitle, announcementId, postedBy) => {
   try {
-    // Get all active students
-    const studentsQuery = query(
-      collection(db, 'students'),
-      where('isActive', '==', true)
-    );
-    const querySnapshot = await getDocs(studentsQuery);
+    // Get all students (do not restrict query with where('isActive', '==', true) to prevent index requirement or missing fields)
+    const studentsSnapshot = await getDocs(collection(db, 'students'));
     
-    const officeDisplay = department === 'All Offices' ? 'General' : department;
-    
-    // Create notification for each student
-    const notificationPromises = querySnapshot.docs.map(studentDoc => 
+    // Filter active students (exclude explicitly suspended or archived accounts)
+    const eligibleStudents = studentsSnapshot.docs.filter(docSnap => {
+      const data = docSnap.data() || {};
+      if (data.isActive === false) return false;
+      if (data.status === 'Archived' || data.status === 'Suspended' || data.isArchived === true) return false;
+      return true;
+    });
+
+    const officeDisplay = (!department || department === 'All Offices') ? 'General' : department;
+    const author = postedBy || 'Staff Member';
+
+    // Collect distinct student UIDs
+    const studentUids = new Set();
+    eligibleStudents.forEach(docSnap => {
+      const data = docSnap.data() || {};
+      const uid = data.uid || docSnap.id;
+      if (uid && typeof uid === 'string') {
+        studentUids.add(uid);
+      }
+    });
+
+    console.log(`[Announcements] Sending notification to ${studentUids.size} active students...`);
+
+    // Create notification for each student concurrently
+    const notifications = Array.from(studentUids).map(studentUid => 
       createNotification(
-        studentDoc.data().uid,
+        studentUid,
         'student',
         'new_announcement',
         `New ${officeDisplay} Announcement`,
-        `"${announcementTitle}" - Check the Bulletin Board for details`,
+        `"${announcementTitle}" — posted by ${author}. Check the Bulletin Board for details.`,
         { 
           announcementId, 
-          department, 
-          postedBy,
+          department: officeDisplay, 
+          postedBy: author,
           source: 'bulletin_board'
         }
       )
     );
-    
-    await Promise.all(notificationPromises);
-    console.log(`[Success] Notified ${querySnapshot.size} students about new announcement`);
+
+    const results = await Promise.allSettled(notifications);
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    console.log(`[Success] Successfully notified ${successful}/${studentUids.size} students about announcement: "${announcementTitle}"`);
   } catch (error) {
     console.error('[Error] Error notifying students about new announcement:', error);
+  }
+};
+
+/**
+ * Helper to notify all students about a new important deadline on the bulletin board
+ */
+export const notifyStudentsNewDeadline = async (department, title, month, day, deadlineId, postedBy) => {
+  try {
+    const studentsSnapshot = await getDocs(collection(db, 'students'));
+    
+    const eligibleStudents = studentsSnapshot.docs.filter(docSnap => {
+      const data = docSnap.data() || {};
+      if (data.isActive === false) return false;
+      if (data.status === 'Archived' || data.status === 'Suspended' || data.isArchived === true) return false;
+      return true;
+    });
+
+    const officeDisplay = (!department || department === 'All Offices') ? 'General' : department;
+    const author = postedBy || 'Staff Member';
+    const dueDateDisplay = (month && day) ? `${month} ${day}` : 'Upcoming';
+
+    const studentUids = new Set();
+    eligibleStudents.forEach(docSnap => {
+      const data = docSnap.data() || {};
+      const uid = data.uid || docSnap.id;
+      if (uid && typeof uid === 'string') {
+        studentUids.add(uid);
+      }
+    });
+
+    console.log(`[Deadlines] Sending deadline notification to ${studentUids.size} active students...`);
+
+    const notifications = Array.from(studentUids).map(studentUid => 
+      createNotification(
+        studentUid,
+        'student',
+        'important_deadline',
+        `Important Deadline: ${title}`,
+        `"${title}" (${officeDisplay}) is due on ${dueDateDisplay}. Check the Bulletin Board for details.`,
+        { 
+          deadlineId, 
+          title,
+          month,
+          day,
+          department: officeDisplay, 
+          postedBy: author,
+          source: 'bulletin_board'
+        }
+      )
+    );
+
+    const results = await Promise.allSettled(notifications);
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    console.log(`[Success] Successfully notified ${successful}/${studentUids.size} students about deadline: "${title}"`);
+  } catch (error) {
+    console.error('[Error] Error notifying students about deadline:', error);
   }
 };

@@ -5,13 +5,12 @@ import {
   FaChevronRight,
   FaChevronDown,
   FaTimes,
-  FaCheck,
-  FaClock
+  FaCheck
 } from 'react-icons/fa';
 import '../../styles/DropdownCalendar.css';
 
 /**
- * Format Date object to local YYYY-MM-DD
+ * Format Date parts to local YYYY-MM-DD
  */
 const toIsoString = (year, monthIndex, day) => {
   const yyyy = String(year);
@@ -21,7 +20,7 @@ const toIsoString = (year, monthIndex, day) => {
 };
 
 /**
- * Parse YYYY-MM-DD to { year, month (0-11), day }
+ * Parse YYYY-MM-DD safely into local year, monthIndex (0-11), day
  */
 const parseIsoString = (isoStr) => {
   if (!isoStr || typeof isoStr !== 'string') return null;
@@ -67,15 +66,15 @@ const DEFAULT_PRESETS = [
 
 /**
  * DropdownCalendar
- * 
- * Reusable dropdown calendar picker for admin forms and modals.
- * Supports:
- * - Rich trigger button displaying formatted date and weekday badge
- * - Animated popover dropdown with outside-click and Escape key detection
- * - Month and Year navigation controls with fast dropdown jump
- * - Quick turnaround presets (Today, +1 Day, +2 Days, +3 Days, etc.)
- * - Highlighted today and active selection indicators
- * - Strict minDate / maxDate validation (disables past dates seamlessly)
+ *
+ * Polished, lightweight, modern dropdown calendar component.
+ * Features:
+ * - High-aesthetic trigger matching form select inputs
+ * - Formatted date display with weekday (e.g., "Sep 26, 2026 (Sat)")
+ * - Clean calendar popover with smart width fitting
+ * - One-click quick presets strip
+ * - High-contrast selection, today indicator, and disabled past dates
+ * - Keyboard (Esc) and outside-click auto-close
  */
 const DropdownCalendar = ({
   value = '',
@@ -83,11 +82,13 @@ const DropdownCalendar = ({
   minDate = '',
   maxDate = '',
   disabled = false,
-  placeholder = 'Select completion date',
+  placeholder = 'Select date...',
   className = '',
   inputClassName = '',
   showPresets = true,
   presets = DEFAULT_PRESETS,
+  allowClear = false,
+  footerActions = 'default', // 'default' | 'cancel'
   id,
   title,
   placement = 'auto',
@@ -99,15 +100,14 @@ const DropdownCalendar = ({
   const todayIso = useMemo(() => getTodayIso(), []);
   const effectiveMinDate = minDate !== undefined ? minDate : todayIso;
 
-  // Initial month/year view based on selected value or today
-  const initialDate = useMemo(() => {
-    return parseIsoString(value) || parseIsoString(todayIso);
-  }, [value, todayIso]);
+  // View year and month in the calendar matrix
+  const parsedValue = useMemo(() => parseIsoString(value), [value]);
+  const parsedToday = useMemo(() => parseIsoString(todayIso), [todayIso]);
 
-  const [viewYear, setViewYear] = useState(initialDate.year);
-  const [viewMonth, setViewMonth] = useState(initialDate.month);
+  const [viewYear, setViewYear] = useState(() => (parsedValue || parsedToday).year);
+  const [viewMonth, setViewMonth] = useState(() => (parsedValue || parsedToday).month);
 
-  // Sync calendar view month/year whenever value or initialDate changes when opened
+  // Sync calendar view month/year when value changes or when opening
   useEffect(() => {
     if (value) {
       const parsed = parseIsoString(value);
@@ -116,9 +116,9 @@ const DropdownCalendar = ({
         setViewMonth(parsed.month);
       }
     }
-  }, [value]);
+  }, [value, isOpen]);
 
-  // Click outside listener
+  // Click outside and ESC key handlers
   useEffect(() => {
     if (!isOpen) return;
 
@@ -148,7 +148,8 @@ const DropdownCalendar = ({
     setIsOpen((prev) => !prev);
   };
 
-  const handlePrevMonth = () => {
+  const handlePrevMonth = (e) => {
+    e.stopPropagation();
     setViewMonth((prev) => {
       if (prev === 0) {
         setViewYear((y) => y - 1);
@@ -158,7 +159,8 @@ const DropdownCalendar = ({
     });
   };
 
-  const handleNextMonth = () => {
+  const handleNextMonth = (e) => {
+    e.stopPropagation();
     setViewMonth((prev) => {
       if (prev === 11) {
         setViewYear((y) => y + 1);
@@ -166,14 +168,6 @@ const DropdownCalendar = ({
       }
       return prev + 1;
     });
-  };
-
-  const handleMonthSelect = (e) => {
-    setViewMonth(Number(e.target.value));
-  };
-
-  const handleYearSelect = (e) => {
-    setViewYear(Number(e.target.value));
   };
 
   const handleSelectDay = (dayIso) => {
@@ -187,12 +181,21 @@ const DropdownCalendar = ({
     setIsOpen(false);
   };
 
-  const handlePresetClick = (offset) => {
+  const handlePresetClick = (e, offset) => {
+    e.stopPropagation();
     const iso = getOffsetIso(offset);
     handleSelectDay(iso);
   };
 
-  // Build calendar matrix for current viewYear and viewMonth
+  const handleClear = (e) => {
+    e.stopPropagation();
+    if (disabled) return;
+    if (onChange) {
+      onChange('');
+    }
+  };
+
+  // Build 35-42 cell calendar grid for viewYear and viewMonth
   const calendarDays = useMemo(() => {
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
     const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Sun
@@ -233,7 +236,7 @@ const DropdownCalendar = ({
       });
     }
 
-    // Trailing padding days for next month to complete the grid
+    // Trailing padding days for next month to complete the row
     const remainingCells = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remainingCells; i++) {
       const nextMonth = viewMonth === 11 ? 0 : viewMonth + 1;
@@ -251,38 +254,22 @@ const DropdownCalendar = ({
     return days;
   }, [viewYear, viewMonth, effectiveMinDate, maxDate, value, todayIso]);
 
-  // Year options for jump selector (current year - 1 to current year + 6)
-  const yearOptions = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let y = currentYear - 1; y <= currentYear + 6; y++) {
-      years.push(y);
-    }
-    return years;
-  }, []);
-
-  // Format date for trigger button display
-  const formattedDisplay = useMemo(() => {
+  // Format readable trigger text
+  const displayLabel = useMemo(() => {
     if (!value) return null;
     const parsed = parseIsoString(value);
     if (!parsed) return value;
     const dateObj = new Date(parsed.year, parsed.month, parsed.day);
     if (isNaN(dateObj.getTime())) return value;
 
+    const shortMonth = dateObj.toLocaleDateString('en-US', { month: 'short' });
     const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-    const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
-    const day = parsed.day;
-    const year = parsed.year;
-
-    return {
-      text: `${month} ${day}, ${year}`,
-      weekday
-    };
+    return `${shortMonth} ${parsed.day}, ${parsed.year} (${weekday})`;
   }, [value]);
 
   return (
-    <div 
-      className={`dropdown-calendar-container ${className}`} 
+    <div
+      className={`dropdown-calendar-container ${className}`}
       ref={containerRef}
       title={title}
     >
@@ -297,66 +284,74 @@ const DropdownCalendar = ({
         aria-expanded={isOpen}
         aria-label={ariaLabel}
       >
-        <span className="dropdown-calendar-trigger-content">
-          <FaCalendarAlt className="dropdown-calendar-icon" aria-hidden="true" />
-          {formattedDisplay ? (
-            <span className="dropdown-calendar-value-wrapper">
-              <span className="dropdown-calendar-value-text">{formattedDisplay.text}</span>
-              <span className="dropdown-calendar-weekday-tag">{formattedDisplay.weekday}</span>
-            </span>
+        <div className="cal-trigger-left">
+          <FaCalendarAlt className="cal-trigger-icon" aria-hidden="true" />
+          {displayLabel ? (
+            <span className="cal-trigger-text">{displayLabel}</span>
           ) : (
-            <span className="dropdown-calendar-placeholder">{placeholder}</span>
+            <span className="cal-trigger-placeholder">{placeholder}</span>
           )}
-        </span>
-        <FaChevronDown 
-          className={`dropdown-calendar-caret ${isOpen ? 'is-open' : ''}`} 
-          aria-hidden="true" 
-        />
+        </div>
+
+        <div className="cal-trigger-right">
+          {allowClear && value && !disabled && (
+            <span
+              role="button"
+              tabIndex={0}
+              className="cal-trigger-clear-btn"
+              onClick={handleClear}
+              onKeyDown={(e) => e.key === 'Enter' && handleClear(e)}
+              title="Clear date"
+              aria-label="Clear date"
+            >
+              <FaTimes />
+            </span>
+          )}
+          <FaChevronDown
+            className={`cal-trigger-chevron ${isOpen ? 'is-open' : ''}`}
+            aria-hidden="true"
+          />
+        </div>
       </button>
 
-      {/* Popover Dropdown Calendar */}
+      {/* Popover Dropdown Window */}
       {isOpen && (
-        <div 
+        <div
           className={`dropdown-calendar-popover ${placement === 'right' ? 'align-right' : ''}`}
           role="dialog"
           aria-modal="true"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Quick Presets Bar */}
+          {/* Quick Presets Strip */}
           {showPresets && presets && presets.length > 0 && (
-            <div className="dropdown-calendar-presets-bar">
-              <span className="dropdown-calendar-presets-title">
-                <FaClock className="presets-clock-icon" /> Quick Presets:
-              </span>
-              <div className="dropdown-calendar-presets-list">
-                {presets.map((preset) => {
-                  const presetIso = getOffsetIso(preset.offset);
-                  const isPresetActive = value === presetIso;
-                  const isPresetDisabled = Boolean(effectiveMinDate && presetIso < effectiveMinDate);
+            <div className="cal-presets-strip">
+              {presets.map((preset) => {
+                const presetIso = getOffsetIso(preset.offset);
+                const isPresetActive = value === presetIso;
+                const isPresetDisabled = Boolean(effectiveMinDate && presetIso < effectiveMinDate);
 
-                  return (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      className={`dropdown-calendar-preset-btn ${isPresetActive ? 'is-selected' : ''}`}
-                      onClick={() => handlePresetClick(preset.offset)}
-                      disabled={isPresetDisabled}
-                      title={`Set date to ${presetIso}`}
-                    >
-                      {preset.label}
-                      {isPresetActive && <FaCheck className="preset-check-icon" />}
-                    </button>
-                  );
-                })}
-              </div>
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    className={`cal-preset-pill ${isPresetActive ? 'is-active' : ''}`}
+                    onClick={(e) => handlePresetClick(e, preset.offset)}
+                    disabled={isPresetDisabled}
+                    title={`Set to ${presetIso}`}
+                  >
+                    {preset.label}
+                    {isPresetActive && <FaCheck className="preset-check-icon" />}
+                  </button>
+                );
+              })}
             </div>
           )}
 
-          {/* Navigation Header */}
-          <div className="dropdown-calendar-header">
+          {/* Month & Year Navigation Header */}
+          <div className="cal-nav-header">
             <button
               type="button"
-              className="dropdown-calendar-nav-btn"
+              className="cal-nav-btn"
               onClick={handlePrevMonth}
               aria-label="Previous Month"
               title="Previous Month"
@@ -364,37 +359,13 @@ const DropdownCalendar = ({
               <FaChevronLeft />
             </button>
 
-            <div className="dropdown-calendar-selectors">
-              <select
-                className="dropdown-calendar-select month-select"
-                value={viewMonth}
-                onChange={handleMonthSelect}
-                aria-label="Select month"
-              >
-                {MONTH_NAMES.map((name, idx) => (
-                  <option key={name} value={idx}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                className="dropdown-calendar-select year-select"
-                value={viewYear}
-                onChange={handleYearSelect}
-                aria-label="Select year"
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <span className="cal-nav-title">
+              {MONTH_NAMES[viewMonth]} {viewYear}
+            </span>
 
             <button
               type="button"
-              className="dropdown-calendar-nav-btn"
+              className="cal-nav-btn"
               onClick={handleNextMonth}
               aria-label="Next Month"
               title="Next Month"
@@ -403,23 +374,23 @@ const DropdownCalendar = ({
             </button>
           </div>
 
-          {/* Weekday Headers */}
-          <div className="dropdown-calendar-weekdays">
+          {/* Weekday Row */}
+          <div className="cal-weekdays-row">
             {WEEKDAY_NAMES.map((name) => (
-              <span key={name} className="dropdown-calendar-weekday-cell">
+              <span key={name} className="cal-weekday-cell">
                 {name}
               </span>
             ))}
           </div>
 
-          {/* Days Grid */}
-          <div className="dropdown-calendar-grid">
+          {/* Days Matrix Grid */}
+          <div className="cal-days-grid">
             {calendarDays.map((item, idx) => {
               if (!item.isCurrentMonth) {
                 return (
-                  <div 
-                    key={`pad-${idx}`} 
-                    className="dropdown-calendar-day-cell is-pad"
+                  <div
+                    key={`pad-${idx}`}
+                    className="cal-day-cell is-pad"
                     aria-hidden="true"
                   >
                     {item.dayNum}
@@ -427,9 +398,9 @@ const DropdownCalendar = ({
                 );
               }
 
-              let cellClass = 'dropdown-calendar-day-cell is-current';
+              let cellClass = 'cal-day-cell is-current';
               if (item.isSelected) cellClass += ' is-selected';
-              if (item.isToday) cellClass += ' is-today';
+              else if (item.isToday) cellClass += ' is-today';
               if (item.isDisabled) cellClass += ' is-disabled';
 
               return (
@@ -441,42 +412,50 @@ const DropdownCalendar = ({
                   disabled={item.isDisabled}
                   aria-label={`${item.iso}${item.isToday ? ' (Today)' : ''}${item.isSelected ? ' (Selected)' : ''}`}
                 >
-                  <span className="dropdown-calendar-day-num">{item.dayNum}</span>
-                  {item.isToday && !item.isSelected && <span className="today-dot" />}
+                  <span className="cal-day-num">{item.dayNum}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Footer Bar */}
-          <div className="dropdown-calendar-footer">
-            <div className="dropdown-calendar-footer-info">
+          {/* Compact Footer */}
+          <div className="cal-footer">
+            <div className="cal-footer-text">
               {value ? (
-                <>
-                  <span className="footer-label">Target:</span>
-                  <strong className="footer-date">{value}</strong>
-                </>
+                <span>Selected: <strong>{value}</strong></span>
               ) : (
-                <span className="footer-hint">Click a date to select</span>
+                <span className="cal-footer-hint">Pick a date above</span>
               )}
             </div>
 
-            <div className="dropdown-calendar-footer-actions">
-              <button
-                type="button"
-                className="dropdown-calendar-footer-btn today-btn"
-                onClick={() => handlePresetClick(0)}
-                disabled={Boolean(effectiveMinDate && todayIso < effectiveMinDate)}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                className="dropdown-calendar-footer-btn close-btn"
-                onClick={() => setIsOpen(false)}
-              >
-                Close
-              </button>
+            <div className="cal-footer-buttons">
+              {footerActions === 'cancel' ? (
+                <button
+                  type="button"
+                  className="cal-footer-btn cal-cancel-btn"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Cancel
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="cal-footer-btn cal-today-btn"
+                    onClick={(e) => handlePresetClick(e, 0)}
+                    disabled={Boolean(effectiveMinDate && todayIso < effectiveMinDate)}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    className="cal-footer-btn cal-close-btn"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Close
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

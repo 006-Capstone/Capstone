@@ -157,6 +157,14 @@ function BulletinBoard() {
     }
   }, [announcements]);
 
+  // Mark deadlines as read when user views the bulletin board
+  useEffect(() => {
+    if (deadlines.length > 0) {
+      const deadlineIds = deadlines.map(d => d.id);
+      localStorage.setItem('readDeadlines', JSON.stringify(deadlineIds));
+    }
+  }, [deadlines]);
+
   return (
     <div className="bulletin-board-page">
       <div className="page-header">

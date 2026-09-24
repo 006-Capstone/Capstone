@@ -2044,6 +2044,12 @@ select.form-input-super option:disabled {
   border: 1px solid rgba(239, 68, 68, 0.45);
 }
 
+.profile-status-pill.archived {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
 .status-indicator-dot {
   width: 7px;
   height: 7px;
@@ -2059,6 +2065,11 @@ select.form-input-super option:disabled {
 .profile-status-pill.suspended .status-indicator-dot {
   background-color: #f87171;
   box-shadow: 0 0 8px #f87171;
+}
+
+.profile-status-pill.archived .status-indicator-dot {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
 }
 
 /* User Info Section */
@@ -2378,6 +2389,26 @@ select.form-input-super option:disabled {
 .stat-status .stat-card-icon-wrap {
   background: #fefce8;
   color: #ca8a04;
+}
+
+.stat-lifecycle.is-active .stat-card-icon-wrap {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.stat-lifecycle.is-suspended .stat-card-icon-wrap {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.stat-lifecycle.is-archived .stat-card-icon-wrap {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.stat-security .stat-card-icon-wrap {
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .stat-value {
@@ -2797,9 +2828,35 @@ select.form-input-super option:disabled {
 
 .activity-status-chip.resolved,
 .activity-status-chip.authorized,
+.activity-status-chip.active,
 .activity-status-chip.success {
   background: #dcfce7;
   color: #15803d;
+}
+
+.activity-status-chip.secured {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.activity-status-chip.suspended {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.activity-status-chip.archived {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.activity-status-chip.restored {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.activity-status-chip.dispatched {
+  background: #e0e7ff;
+  color: #4338ca;
 }
 
 .activity-status-chip.pending,
@@ -3026,6 +3083,11 @@ select.form-input-super option:disabled {
   color: #b91c1c;
 }
 
+.audit-metric-pill.archived {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 /* Filter Bar */
 .full-audit-filter-bar {
   padding: 14px 24px;
@@ -3210,9 +3272,35 @@ select.form-input-super option:disabled {
 
 .audit-status-badge.resolved,
 .audit-status-badge.authorized,
+.audit-status-badge.active,
 .audit-status-badge.success {
   background: #dcfce7;
   color: #15803d;
+}
+
+.audit-status-badge.secured {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.audit-status-badge.suspended {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.audit-status-badge.archived {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.audit-status-badge.restored {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.audit-status-badge.dispatched {
+  background: #e0e7ff;
+  color: #4338ca;
 }
 
 .audit-status-badge.pending,

@@ -7,19 +7,23 @@ import {
   FaClock,
   FaExclamationTriangle,
   FaSearch,
-  FaTimes
+  FaTimes,
+  FaExchangeAlt
 } from 'react-icons/fa';
 import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import Notifications from './Notifications';
 import ClaimETCModal from './ClaimETCModal';
 import NearingCompletionModal from './NearingCompletionModal';
+import EfficiencyWarningModal from './EfficiencyWarningModal';
 import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
+import { getStaffTickets, calculateEfficiencyMetrics, ensureEfficiencyWarningNotification } from '../utils/efficiencyHelper';
 import { notifyStudentStatusChange, notifyStudentEtcChange } from '../utils/notificationHelper';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import { OverviewCardsSkeleton, DataTableSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/AdminDashboard.css';
+import '../styles/EfficiencyWarningModal.css';
 
 const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const { toast, alertModal } = useNotification();
@@ -46,6 +50,10 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   // Nearing Estimated Completion Date Modal & Alert states
   const [showNearingModal, setShowNearingModal] = useState(false);
   const hasAutoOpenedModal = useRef(false);
+
+  // Efficiency Score Warning Modal states (<= 60%)
+  const [showEfficiencyWarningModal, setShowEfficiencyWarningModal] = useState(false);
+  const hasAutoOpenedEfficiencyModal = useRef(false);
 
   useEffect(() => {
     // Get staff data from localStorage
@@ -228,6 +236,48 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const nearingSummary = useMemo(() => {
     return getNearingSummary(nearingRequests);
   }, [nearingRequests]);
+
+  // Current staff member's tickets and efficiency metrics (connected to Superadmin Department Health)
+  const staffTickets = useMemo(() => {
+    return getStaffTickets(tickets, staffData?.name, staffData?.uid);
+  }, [tickets, staffData]);
+
+  const efficiencyMetrics = useMemo(() => {
+    return calculateEfficiencyMetrics(staffTickets);
+  }, [staffTickets]);
+
+  // Auto-trigger efficiency warning modal and notification when score drops to 60% or lower
+  useEffect(() => {
+    if (loading) return;
+
+    if (efficiencyMetrics.isWarning) {
+      if (staffData?.uid) {
+        ensureEfficiencyWarningNotification(staffData, efficiencyMetrics);
+      }
+
+      if (!hasAutoOpenedEfficiencyModal.current) {
+        try {
+          const isDismissed = sessionStorage.getItem('dismissed_efficiency_warning_popup') === 'true';
+          if (!isDismissed) {
+            setShowEfficiencyWarningModal(true);
+            hasAutoOpenedEfficiencyModal.current = true;
+          }
+        } catch (e) {
+          setShowEfficiencyWarningModal(true);
+          hasAutoOpenedEfficiencyModal.current = true;
+        }
+      }
+    }
+  }, [loading, efficiencyMetrics, staffData]);
+
+  // Listen for open-efficiency-warning custom event (from notification click)
+  useEffect(() => {
+    const handleOpenEff = () => {
+      setShowEfficiencyWarningModal(true);
+    };
+    window.addEventListener('open-efficiency-warning', handleOpenEff);
+    return () => window.removeEventListener('open-efficiency-warning', handleOpenEff);
+  }, []);
 
   // Auto-trigger modal popup on dashboard load if active requests are nearing/overdue
   useEffect(() => {
@@ -435,10 +485,22 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           </p>
         </div>
         <div className="header-right">
-          <div className="notification-bell" onClick={() => setShowNotifications(true)} title="Notifications">
-            <FaBell className="bell-icon" />
-            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-          </div>
+          <button
+            type="button"
+            className="notification-bell"
+            onClick={() => setShowNotifications(true)}
+            title="Notifications"
+            aria-label="Notifications"
+            aria-haspopup="true"
+            aria-expanded={showNotifications}
+          >
+            <FaBell className="bell-icon" aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -575,6 +637,42 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           </div>
         )}
       </div>
+
+      {/* Superadmin Connected Efficiency Score Warning Banner (<= 60%) */}
+      {efficiencyMetrics.isWarning && (
+        <div className="dashboard-efficiency-warning-banner">
+          <div className="eff-banner-left">
+            <div className="eff-banner-icon-box">
+              <FaExclamationTriangle />
+            </div>
+            <div className="eff-banner-text-group">
+              <h3 className="eff-banner-title">
+                Critical Performance Warning: Efficiency Score Dropped
+                <span className="eff-banner-score-tag">{efficiencyMetrics.score}%</span>
+              </h3>
+              <p className="eff-banner-desc">
+                Superadmin Department Health Monitor has detected your efficiency rating at <strong>{efficiencyMetrics.score}%</strong> (Threshold: &gt;60%). You have <strong>{efficiencyMetrics.overdueCount} overdue ticket(s)</strong> impacting department health.
+              </p>
+            </div>
+          </div>
+          <div className="eff-banner-actions">
+            <button
+              type="button"
+              className="eff-banner-btn-secondary"
+              onClick={() => onNavigate('my-performance')}
+            >
+              My Performance
+            </button>
+            <button
+              type="button"
+              className="eff-banner-btn-primary"
+              onClick={() => setShowEfficiencyWarningModal(true)}
+            >
+              Review Action Plan
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Nearing Estimated Completion Date Alert Banner */}
       {nearingRequests.length > 0 && (
@@ -752,6 +850,14 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                             </div>
                             <div className="ticket-meta-row">
                               <span className="ticket-id">{ticketIdDisplay}</span>
+                              {(ticket.reassignedFrom || ticket.previousOffice) && (
+                                <span
+                                  className="ticket-rerouted-badge"
+                                  title={`This request was rerouted from the ${ticket.reassignedFrom || ticket.previousOffice} Office`}
+                                >
+                                  <FaExchangeAlt className="rerouted-badge-icon" /> Rerouted from {ticket.reassignedFrom || ticket.previousOffice}
+                                </span>
+                              )}
                               {formattedDate && (
                                 <span className="ticket-meta-date" title={`Submitted on ${formattedDate}`}>
                                   • {formattedDate}
@@ -905,7 +1011,13 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         )}
       </div>
 
-      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
+      <Notifications
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onViewRequest={onViewRequest}
+        onOpenEfficiencyWarning={() => setShowEfficiencyWarningModal(true)}
+        onNavigate={onNavigate}
+      />
 
       {etcClaimTicket && (
         <ClaimETCModal
@@ -926,6 +1038,15 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           setActiveTab('progress');
           ticketsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }}
+      />
+
+      {/* Modal: Performance Efficiency Score Warning (<= 60%) */}
+      <EfficiencyWarningModal
+        isOpen={showEfficiencyWarningModal}
+        onClose={() => setShowEfficiencyWarningModal(false)}
+        metrics={efficiencyMetrics}
+        department={effectiveDepartment}
+        onNavigate={onNavigate}
       />
     </div>
   );

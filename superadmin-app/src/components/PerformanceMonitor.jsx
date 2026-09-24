@@ -47,7 +47,8 @@ import {
   calculateTicketRisk,
   generateWorkloadRecommendations,
   calculatePerformanceTrends,
-  forecastCapacity
+  forecastCapacity,
+  calculateStaffEfficiencyScore
 } from '../utils/performanceAnalytics';
 import {
   generateExecutiveSummary,
@@ -87,6 +88,14 @@ const PerformanceMonitor = () => {
   });
   const [expandedRecSteps, setExpandedRecSteps] = useState({});
   const [expandedTaskSteps, setExpandedTaskSteps] = useState({});
+  const [expandedDeptStaff, setExpandedDeptStaff] = useState({});
+
+  const toggleDeptStaff = (office) => {
+    setExpandedDeptStaff(prev => ({
+      ...prev,
+      [office]: !prev[office]
+    }));
+  };
 
   const toggleRecSteps = (index) => {
     setExpandedRecSteps(prev => ({
@@ -120,22 +129,122 @@ const PerformanceMonitor = () => {
     }
   };
 
-  const getCleanedStaffList = (staffList) => {
+  const detectItemDepartment = (item) => {
+    if (!item) return null;
+    const directDept = item.department || item.office;
+    if (directDept && ['finance', 'guidance', 'library', 'registrar'].includes(directDept.toLowerCase())) {
+      return directDept.charAt(0).toUpperCase() + directDept.slice(1).toLowerCase();
+    }
+
+    const text = `${item.title || ''} ${item.description || ''} ${item.reason || ''}`.toLowerCase();
+
+    const deptKeywords = {
+      Registrar: ['registrar', 'transcript', 'tor', 'certificate of enrollment', 'coe', 'form 137', 'form 138', 'diploma', 'academic record', 'graduation', 'curriculum', 'enrollment clearance', 'grade'],
+      Finance: ['finance', 'tuition', 'balance', 'fee', 'payment', 'receipt', 'assessment', 'cashier', 'accounting', 'promissory', 'billing'],
+      Library: ['library', 'book', 'librarian', 'borrow', 'circulation', 'catalog', 'overdue book', 'book clearance'],
+      Guidance: ['guidance', 'counseling', 'counselor', 'good moral', 'conduct', 'moral certificate', 'behavior']
+    };
+
+    for (const [dept, keywords] of Object.entries(deptKeywords)) {
+      if (keywords.some(kw => text.includes(kw))) {
+        return dept;
+      }
+    }
+
+    return null;
+  };
+
+  const getCleanedStaffList = (staffList, itemContext = null) => {
     if (!Array.isArray(staffList)) return [];
-    const invalidPattern = /^(all departments?|it support.*|helpdesk.*|technical support.*|staff.*|n\/a|none)$/i;
-    return staffList.filter(s => s && typeof s === 'string' && !invalidPattern.test(s.trim()));
+    const invalidPattern = /^(all departments?|it support.*|helpdesk.*|technical support.*|staff.*|n\/a|none|unknown|various)$/i;
+    const validDepts = ['finance', 'guidance', 'library', 'registrar'];
+
+    const targetDept = itemContext ? detectItemDepartment(itemContext) : null;
+    const cleaned = [];
+
+    staffList.forEach(raw => {
+      if (!raw || typeof raw !== 'string') return;
+      const s = raw.trim();
+      if (!s || invalidPattern.test(s)) return;
+
+      const sLower = s.toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+
+      // Check if it's a department name (e.g. "Registrar", "Finance")
+      if (validDepts.includes(sLower)) {
+        const formattedDept = sLower.charAt(0).toUpperCase() + sLower.slice(1);
+        if (!targetDept || targetDept.toLowerCase() === sLower) {
+          if (!cleaned.includes(formattedDept)) cleaned.push(formattedDept);
+        }
+        return;
+      }
+
+      // Check against real registered staff
+      const matchedStaff = allStaffData.find(staff => {
+        const staffName = (staff.name || '').trim().toLowerCase();
+        return staffName === sLower ||
+               (staffName.length > 3 && (sLower.includes(staffName) || staffName.includes(sLower)));
+      });
+
+      // Discard if not a registered staff member (prevents AI hallucinated names)
+      if (!matchedStaff) {
+        console.warn(`[Anti-Hallucination] Discarded non-registered staff name: "${s}"`);
+        return;
+      }
+
+      const staffDept = (matchedStaff.department || matchedStaff.office || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+
+      // Cross-department check:
+      // Staff MUST belong to the task/recommendation department!
+      // (e.g. Jefelah P. Amistoso from Finance cannot be attached to a Registrar task)
+      if (targetDept && staffDept && staffDept !== targetDept.toLowerCase()) {
+        console.warn(`[Anti-Hallucination] Discarded cross-department staff ${matchedStaff.name} (${staffDept}) from ${targetDept} item`);
+        return;
+      }
+
+      if (!cleaned.includes(matchedStaff.name)) {
+        cleaned.push(matchedStaff.name);
+      }
+    });
+
+    // If all staff were discarded (due to hallucination or cross-department mismatch),
+    // and we know the target department, show the target department badge instead!
+    if (cleaned.length === 0 && targetDept) {
+      cleaned.push(targetDept);
+    }
+
+    return cleaned;
+  };
+
+  const cleanDescriptionText = (text, itemContext = null) => {
+    if (!text || typeof text !== 'string') return text;
+    const targetDept = itemContext ? detectItemDepartment(itemContext) : null;
+    if (!targetDept || allStaffData.length === 0) return text;
+
+    let cleaned = text;
+    allStaffData.forEach(staff => {
+      const staffDept = (staff.department || staff.office || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+      if (staffDept && staffDept !== targetDept.toLowerCase()) {
+        const nameRegex = new RegExp(`\\b${staff.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'gi');
+        if (nameRegex.test(cleaned)) {
+          cleaned = cleaned.replace(nameRegex, `${targetDept} staff`);
+        }
+      }
+    });
+
+    return cleaned;
   };
 
   const renderTargetChip = (targetName, idx) => {
     const cleanName = (targetName || '').trim();
-    const lower = cleanName.toLowerCase();
+    const lower = cleanName.toLowerCase().replace(/\s+(office|department)$/i, '').trim();
     const isDept = ['finance', 'guidance', 'library', 'registrar'].includes(lower);
 
     if (isDept) {
+      const formattedDept = lower.charAt(0).toUpperCase() + lower.slice(1);
       return (
         <span key={idx} className="dept-tag-pill compact">
           <FaBuilding className="dept-tag-icon" />
-          <span className="dept-tag-name">{cleanName}</span>
+          <span className="dept-tag-name">{formattedDept}</span>
         </span>
       );
     }
@@ -224,20 +333,78 @@ const PerformanceMonitor = () => {
         status: onTrackPercentage >= 85 ? 'good' : onTrackPercentage >= 70 ? 'moderate' : 'critical'
       });
       
-      // Analyze each department
+      // Analyze each department comprehensively
       const offices = ['Finance', 'Guidance', 'Library', 'Registrar'];
       const deptData = [];
       
       for (const office of offices) {
-        const officeRequests = allRequests.filter(r => r.office === office);
-        const officeStaff = allStaff.filter(s => s.office === office);
+        const officeRequests = allRequests.filter(r => (r.office || '').toLowerCase() === office.toLowerCase());
+        const officeStaff = allStaff.filter(s => {
+          const staffOff = (s.office || s.department || s.officeId || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+          const targetOff = office.toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+          return staffOff === targetOff;
+        });
         
         const health = analyzeDepartmentHealth(officeRequests, officeStaff);
         
+        // Calculate each staff member's efficiency score
+        const staffWithEfficiency = officeStaff.map(staff => {
+          const efficiency = calculateStaffEfficiencyScore(staff, allRequests);
+          return {
+            ...staff,
+            efficiency
+          };
+        });
+
+        // Sort staff by efficiency score descending
+        staffWithEfficiency.sort((a, b) => b.efficiency.score - a.efficiency.score);
+
+        // Average efficiency of the department
+        const avgEfficiencyScore = staffWithEfficiency.length > 0
+          ? Math.round(staffWithEfficiency.reduce((acc, s) => acc + s.efficiency.score, 0) / staffWithEfficiency.length)
+          : (health.status === 'healthy' ? 95 : health.status === 'moderate' ? 80 : 65);
+
+        // Calculate average turnaround time for resolved requests
+        let turnAroundTotalMs = 0;
+        let turnAroundCount = 0;
+        const resolvedRequests = officeRequests.filter(r => r.status === 'Resolved');
+        resolvedRequests.forEach(r => {
+          const created = r.createdAt?.toDate ? r.createdAt.toDate() : (r.createdAt ? new Date(r.createdAt) : null);
+          const resolved = r.resolvedAt?.toDate ? r.resolvedAt.toDate() : (r.resolvedAt ? new Date(r.resolvedAt) : null);
+          if (created && resolved) {
+            const diff = resolved.getTime() - created.getTime();
+            if (diff > 0) {
+              turnAroundTotalMs += diff;
+              turnAroundCount++;
+            }
+          }
+        });
+        let avgTurnaround = 'N/A';
+        if (turnAroundCount > 0) {
+          const hours = Math.round(turnAroundTotalMs / (turnAroundCount * 1000 * 60 * 60) * 10) / 10;
+          if (hours >= 48) {
+            avgTurnaround = `${Math.round((hours / 24) * 10) / 10}d`;
+          } else {
+            avgTurnaround = `${hours}h`;
+          }
+        }
+
+        // Capacity utilization based on active tickets vs standard capacity (12 active tickets per staff)
+        const maxCapacity = officeStaff.length * 12;
+        const capacityUtilization = maxCapacity > 0
+          ? Math.min(100, Math.round((health.activeTickets / maxCapacity) * 100))
+          : 0;
+
         deptData.push({
           office,
           ...health,
-          staffCount: officeStaff.length
+          staffCount: officeStaff.length,
+          totalTickets: officeRequests.length,
+          resolvedTickets: resolvedRequests.length,
+          avgTurnaround,
+          capacityUtilization,
+          avgEfficiencyScore,
+          staffList: staffWithEfficiency
         });
       }
       
@@ -351,7 +518,32 @@ const PerformanceMonitor = () => {
       const tasksSnapshot = await getDocs(
         query(collection(db, 'performance_tasks'), orderBy('createdAt', 'desc'))
       );
-      const tasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const tasks = tasksSnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        const cleanedStaff = getCleanedStaffList(data.affectedStaff, data);
+        const cleanedDesc = cleanDescriptionText(data.description, data);
+
+        // If stored task had hallucinated staff or cross-department references, persist the cleaned version
+        if (
+          Array.isArray(data.affectedStaff) &&
+          (JSON.stringify(cleanedStaff) !== JSON.stringify(data.affectedStaff) || cleanedDesc !== data.description)
+        ) {
+          updateDoc(doc(db, 'performance_tasks', docSnap.id), {
+            affectedStaff: cleanedStaff,
+            description: cleanedDesc,
+            updatedAt: serverTimestamp()
+          }).catch(err => {
+            console.warn('[Anti-Hallucination] Could not update stored task in DB:', err);
+          });
+        }
+
+        return {
+          id: docSnap.id,
+          ...data,
+          affectedStaff: cleanedStaff,
+          description: cleanedDesc
+        };
+      });
       setPerformanceTasks(tasks);
     } catch (error) {
       console.error('Error loading tasks:', error);
@@ -416,6 +608,54 @@ const PerformanceMonitor = () => {
         return 'Capacity & Staffing';
       default:
         return type ? type.replace(/_/g, ' ') : 'Operational Task';
+    }
+  };
+
+  const sendStaffEfficiencyWarning = async (staff, score) => {
+    try {
+      const staffName = staff.name || staff.fullName || 'Staff Member';
+      const staffId = staff.uid || staff.id;
+      
+      if (!staffId) {
+        toast.error('Unable to send warning: staff ID missing.');
+        return;
+      }
+
+      await addDoc(collection(db, 'notifications'), {
+        recipientId: staffId,
+        recipientType: 'staff',
+        userId: staffId,
+        userType: 'staff',
+        type: 'efficiency_score_warning',
+        title: `🚨 Performance Alert: Efficiency Score Dropped to ${score}%`,
+        message: `Superadmin Department Health Monitor Alert: Your Efficiency Score has dropped to ${score}%, falling below the required standard of 60%. Please process overdue requests immediately to restore department health.`,
+        priority: 'high',
+        isRead: false,
+        read: false,
+        score: score,
+        createdAt: serverTimestamp(),
+        timestamp: serverTimestamp(),
+        metadata: {
+          sentBy: 'superadmin',
+          source: 'department_health_monitor',
+          staffName,
+          score,
+          office: staff.office || staff.department
+        }
+      });
+
+      await addDoc(collection(db, 'performance_logs'), {
+        action: 'efficiency_warning_sent',
+        staffId,
+        staffName,
+        score,
+        timestamp: serverTimestamp()
+      });
+
+      toast.success(`Efficiency warning sent to ${staffName}!`);
+    } catch (err) {
+      console.error('Error sending efficiency warning:', err);
+      toast.error('Failed to send warning: ' + err.message);
     }
   };
 
@@ -508,6 +748,10 @@ const PerformanceMonitor = () => {
           return acc;
         }, {}),
         allStaffNames: allStaffData.map(s => `${s.name} (${s.department || s.office})`),
+        allStaffDetails: allStaffData.map(s => ({
+          name: s.name,
+          department: s.department || s.office
+        })),
         upcomingDeadlines: [],
         historicalPatterns: {}
       };
@@ -599,8 +843,8 @@ const PerformanceMonitor = () => {
           const docRef = await addDoc(collection(db, 'performance_tasks'), {
             type: recommendation.type,
             title: recommendation.title,
-            description: recommendation.description,
-            affectedStaff: getCleanedStaffList(recommendation.affectedStaff),
+            description: cleanDescriptionText(recommendation.description, recommendation),
+            affectedStaff: getCleanedStaffList(recommendation.affectedStaff, recommendation),
             steps: recommendation.steps,
             expectedImpact: recommendation.expectedImpact,
             priority: recommendation.priority,
@@ -773,9 +1017,11 @@ const PerformanceMonitor = () => {
                 ? 'Queue clear • Zero backlog'
                 : 'Optimal pace • 100% on-time resolution';
 
+          const isStaffExpanded = Boolean(expandedDeptStaff[dept.office]);
+
           return (
-            <div key={dept.office} className={`dept-card dept-${dept.status}`}>
-              {/* Card Header: Avatar Icon, Name, Staff Count & Status Pill */}
+            <div key={dept.office} className={`dept-card dept-${dept.status} ${isStaffExpanded ? 'expanded' : ''}`}>
+              {/* Card Header: Avatar Icon, Name, Staff Count & Status Badges */}
               <div className="dept-card-header">
                 <div className="dept-title-group">
                   <div className={`dept-avatar-icon ${deptKey}`}>
@@ -788,13 +1034,20 @@ const PerformanceMonitor = () => {
                     </span>
                   </div>
                 </div>
-                <div className={`dept-health-pill ${dept.status}`}>
-                  <span className="health-pill-dot" />
-                  <span>{dept.status.replace('-', ' ')}</span>
+
+                <div className="dept-header-badges">
+                  <div className="dept-efficiency-score-pill" title={`Average Staff Efficiency Score for ${dept.office}: ${dept.avgEfficiencyScore}%`}>
+                    <span className="eff-pill-label">Efficiency</span>
+                    <span className="eff-pill-score">{dept.avgEfficiencyScore}%</span>
+                  </div>
+                  <div className={`dept-health-pill ${dept.status}`}>
+                    <span className="health-pill-dot" />
+                    <span>{dept.status.replace('-', ' ')}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Resolution Health Bar & On-Time Rate */}
+              {/* Resolution Health Bar, On-Time Rate & Capacity Load */}
               <div className="dept-sla-section">
                 <div className="sla-labels-row">
                   <span className="sla-title">On-Time Resolution Rate</span>
@@ -806,13 +1059,27 @@ const PerformanceMonitor = () => {
                     style={{ width: `${Math.max(5, dept.onTimePercentage)}%` }} 
                   />
                 </div>
+                <div className="dept-capacity-row">
+                  <span className="capacity-label">Workload Load:</span>
+                  <span className={`capacity-val ${dept.capacityUtilization > 85 ? 'heavy' : dept.capacityUtilization > 50 ? 'moderate' : 'optimal'}`}>
+                    {dept.capacityUtilization}% capacity ({dept.capacityUtilization > 85 ? 'High Load' : dept.capacityUtilization > 50 ? 'Moderate' : 'Optimal'})
+                  </span>
+                </div>
               </div>
 
-              {/* 3 Key Metrics Grid */}
-              <div className="dept-metrics-grid">
+              {/* Comprehensive 6-Metric Grid */}
+              <div className="dept-metrics-grid comprehensive">
+                <div className="dept-metric-cell">
+                  <span className="metric-val">{dept.totalTickets ?? (dept.activeTickets + (dept.resolvedTickets || 0))}</span>
+                  <span className="metric-lbl">Total Volume</span>
+                </div>
                 <div className="dept-metric-cell">
                   <span className="metric-val">{dept.activeTickets}</span>
                   <span className="metric-lbl">Active</span>
+                </div>
+                <div className="dept-metric-cell success-cell">
+                  <span className="metric-val">{dept.resolvedTickets ?? 0}</span>
+                  <span className="metric-lbl">Resolved</span>
                 </div>
                 <div className={`dept-metric-cell ${dept.atRiskTickets > 0 ? 'warning-cell' : ''}`}>
                   <span className="metric-val">{dept.atRiskTickets}</span>
@@ -821,6 +1088,10 @@ const PerformanceMonitor = () => {
                 <div className={`dept-metric-cell ${dept.overdueTickets > 0 ? 'critical-cell' : ''}`}>
                   <span className="metric-val">{dept.overdueTickets}</span>
                   <span className="metric-lbl">Overdue</span>
+                </div>
+                <div className="dept-metric-cell info-cell">
+                  <span className="metric-val">{dept.avgTurnaround || 'N/A'}</span>
+                  <span className="metric-lbl">Avg Turnaround</span>
                 </div>
               </div>
 
@@ -832,6 +1103,121 @@ const PerformanceMonitor = () => {
                   <FaExclamationTriangle className="footer-status-icon alert" />
                 )}
                 <span className="footer-insight-text">{insightText}</span>
+              </div>
+
+              {/* Staff Efficiency Score Accordion Toggle & Drawer */}
+              <div className="dept-staff-section">
+                <button
+                  type="button"
+                  className={`dept-staff-toggle-btn ${isStaffExpanded ? 'expanded' : ''}`}
+                  onClick={() => toggleDeptStaff(dept.office)}
+                  aria-expanded={isStaffExpanded}
+                  title="Click arrow to view the Efficiency Score of each staff in this department"
+                >
+                  <div className="staff-toggle-left">
+                    <FaChartLine className="staff-toggle-icon" />
+                    <span className="staff-toggle-title">Staff Efficiency Breakdown</span>
+                    <span className="staff-toggle-pill">{dept.staffList?.length || 0} Staff</span>
+                  </div>
+                  <div className="staff-toggle-right">
+                    <span className="staff-toggle-action-text">{isStaffExpanded ? 'Hide Staff' : 'View Scores'}</span>
+                    <FaChevronDown className={`staff-toggle-arrow ${isStaffExpanded ? 'rotate-open' : ''}`} />
+                  </div>
+                </button>
+
+                {/* Collapsible Staff Efficiency Score List */}
+                {isStaffExpanded && (
+                  <div className="dept-staff-drawer">
+                    {dept.staffList && dept.staffList.length > 0 ? (
+                      <div className="dept-staff-list">
+                        {dept.staffList.map((staff, sIdx) => {
+                          const eff = staff.efficiency || {};
+                          const initials = (staff.name || staff.fullName || 'Staff')
+                            .split(' ')
+                            .filter(Boolean)
+                            .map(n => n[0])
+                            .slice(0, 2)
+                            .join('')
+                            .toUpperCase();
+                          return (
+                            <div key={staff.id || staff.uid || sIdx} className={`dept-staff-card ${eff.score <= 60 ? 'score-dropped-warning' : ''}`}>
+                              <div className="staff-card-main-row">
+                                <div className="staff-info-col">
+                                  <div className={`staff-avatar-initials tier-${eff.tier || 'good'}`}>
+                                    {initials}
+                                  </div>
+                                  <div className="staff-meta-col">
+                                    <span className="staff-full-name">{staff.name || staff.fullName}</span>
+                                    <span className="staff-sub-text">{staff.email || staff.role || 'Staff Member'}</span>
+                                    {eff.score <= 60 && (
+                                      <span className="staff-drop-alert-tag">
+                                        <FaExclamationTriangle /> Dropped to {eff.score}% (Critical)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="staff-score-col">
+                                  <div className={`staff-efficiency-pill tier-${eff.tier || 'good'}`}>
+                                    <span className="eff-score-number">{eff.score ?? 100}%</span>
+                                    <span className="eff-tier-badge">{eff.tierLabel || 'Good Standing'}</span>
+                                  </div>
+                                  {eff.score <= 60 && (
+                                    <button
+                                      type="button"
+                                      className="btn-send-eff-warning"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        sendStaffEfficiencyWarning(staff, eff.score);
+                                      }}
+                                      title={`Send efficiency score warning alert to ${staff.name || staff.fullName}`}
+                                    >
+                                      <FaExclamationTriangle />
+                                      <span>Send Warning</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Visual Efficiency Progress Track */}
+                              <div className="staff-eff-track">
+                                <div 
+                                  className={`staff-eff-fill tier-${eff.tier || 'good'}`} 
+                                  style={{ width: `${Math.max(5, eff.score ?? 100)}%` }} 
+                                />
+                              </div>
+
+                              {/* Staff Micro Metrics */}
+                              <div className="staff-micro-stats">
+                                <div className="micro-stat-item">
+                                  <span className="micro-stat-val">{eff.activeCount ?? 0}</span>
+                                  <span className="micro-stat-lbl">Active</span>
+                                </div>
+                                <div className={`micro-stat-item ${eff.overdueCount > 0 ? 'overdue-alert' : ''}`}>
+                                  <span className="micro-stat-val">{eff.overdueCount ?? 0}</span>
+                                  <span className="micro-stat-lbl">Overdue</span>
+                                </div>
+                                <div className="micro-stat-item">
+                                  <span className="micro-stat-val">{eff.resolvedCount ?? 0}</span>
+                                  <span className="micro-stat-lbl">Resolved</span>
+                                </div>
+                                <div className="micro-stat-item">
+                                  <span className="micro-stat-val">{eff.onTimeRate ?? 100}%</span>
+                                  <span className="micro-stat-lbl">On-Time</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="dept-staff-empty">
+                        <FaUsers className="empty-staff-icon" />
+                        <p>No staff members currently assigned to {dept.office} Office.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1113,17 +1499,24 @@ const PerformanceMonitor = () => {
                           )}
                         </div>
                         <h5>{rec.title}</h5>
-                        <p className="smart-rec-description">{rec.description}</p>
+                        <p className="smart-rec-description">{cleanDescriptionText(rec.description, rec)}</p>
                         
                         {/* Compact Metadata Row */}
                         {(() => {
-                          const validStaff = getCleanedStaffList(rec.affectedStaff);
+                          const validStaff = getCleanedStaffList(rec.affectedStaff, rec);
                           if (validStaff.length === 0 && !rec.expectedImpact) return null;
+                          const hasDeptOnly = validStaff.some(s => ['Finance', 'Guidance', 'Library', 'Registrar'].includes(s));
                           return (
                             <div className="rec-compact-meta-row">
                               {validStaff.length > 0 && (
                                 <div className="rec-staff-inline">
-                                  <span className="meta-inline-label"><FaUsers className="meta-icon" /> Staff:</span>
+                                  <span className="meta-inline-label">
+                                    {hasDeptOnly ? (
+                                      <><FaBuilding className="meta-icon" /> Target:</>
+                                    ) : (
+                                      <><FaUsers className="meta-icon" /> Staff:</>
+                                    )}
+                                  </span>
                                   <div className="staff-tags-container compact">
                                     {validStaff.map((staffName, idx) => renderTargetChip(staffName, idx))}
                                   </div>
@@ -1280,17 +1673,24 @@ const PerformanceMonitor = () => {
 
                   <div className="task-card-body">
                     <h4 className="task-title">{task.title}</h4>
-                    <p className="task-description">{task.description}</p>
+                    <p className="task-description">{cleanDescriptionText(task.description, task)}</p>
                     
                     {/* Compact Inline Metadata Row (Staff + Impact) */}
                     {(() => {
-                      const validStaff = getCleanedStaffList(task.affectedStaff);
+                      const validStaff = getCleanedStaffList(task.affectedStaff, task);
                       if (validStaff.length === 0 && !task.expectedImpact) return null;
+                      const hasDeptOnly = validStaff.some(s => ['Finance', 'Guidance', 'Library', 'Registrar'].includes(s));
                       return (
                         <div className="task-compact-meta-row">
                           {validStaff.length > 0 && (
                             <div className="task-staff-inline">
-                              <span className="task-meta-inline-label"><FaUsers className="meta-icon" /> Staff:</span>
+                              <span className="task-meta-inline-label">
+                                {hasDeptOnly ? (
+                                  <><FaBuilding className="meta-icon" /> Target:</>
+                                ) : (
+                                  <><FaUsers className="meta-icon" /> Staff:</>
+                                )}
+                              </span>
                               <div className="staff-tags-container compact">
                                 {validStaff.map((staffName, idx) => renderTargetChip(staffName, idx))}
                               </div>

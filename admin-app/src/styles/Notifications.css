@@ -302,6 +302,51 @@
   border: 1px solid #e5e7eb;
 }
 
+.notif-type-icon.type-efficiency-warning {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+}
+
+.notification-item.eff-warning-item {
+  background-color: #fffaf9;
+}
+
+.notification-item.eff-warning-item:hover {
+  background-color: #fff1f0;
+}
+
+.notification-item.eff-warning-item.unread {
+  background-color: #fef2f2;
+}
+
+.notification-item.eff-warning-item.unread::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3.5px;
+  background-color: #dc2626;
+}
+
+.notification-item.eff-warning-item .notification-unread-dot {
+  background-color: #dc2626;
+  box-shadow: 0 0 0 2px #fee2e2;
+}
+
+.notif-warning-chip {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 /* Content */
 .notification-content {
   flex: 1;

@@ -299,6 +299,12 @@
   border: 1px solid #99f6e4;
 }
 
+.notif-type-icon.type-deadline {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border: 1px solid #f59e0b;
+}
+
 .notif-type-icon.type-default {
   background: #f3f4f6;
   color: #4b5563;
@@ -336,6 +342,26 @@
   border-radius: 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   white-space: nowrap;
+}
+
+.notif-announcement-chip {
+  color: #065f46;
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.notif-deadline-chip {
+  color: #92400e;
+  background: #fef3c7;
+  border-color: #fde68a;
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .notification-message {
@@ -413,5 +439,11 @@
 /* Announcement notification type */
 .type-announcement {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+/* Deadline notification type */
+.type-deadline {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: white;
 }

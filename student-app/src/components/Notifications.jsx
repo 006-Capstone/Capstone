@@ -11,7 +11,8 @@ import {
   FaExchangeAlt,
   FaClock,
   FaInfoCircle,
-  FaBullhorn
+  FaBullhorn,
+  FaCalendarAlt
 } from 'react-icons/fa';
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -63,12 +64,15 @@ const getNotificationIcon = (notif) => {
       return { icon: <FaClock />, className: 'type-etc' };
     case 'new_announcement':
       return { icon: <FaBullhorn />, className: 'type-announcement' };
+    case 'new_deadline':
+    case 'important_deadline':
+      return { icon: <FaCalendarAlt />, className: 'type-deadline' };
     default:
       return { icon: <FaInfoCircle />, className: 'type-default' };
   }
 };
 
-const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
+const Notifications = ({ isOpen, onClose, bellRef, onViewRequest, onNavigate }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -178,6 +182,22 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
     try {
       if (!notif.isRead) {
         await handleMarkAsRead(notif.id);
+      }
+
+      if (
+        notif.type === 'new_announcement' || 
+        notif.type === 'new_deadline' || 
+        notif.type === 'important_deadline' || 
+        notif.metadata?.source === 'bulletin_board' || 
+        notif.metadata?.announcementId || 
+        notif.metadata?.deadlineId
+      ) {
+        if (onNavigate) {
+          onNavigate('bulletin');
+        }
+        onClose();
+        bellRef?.current?.focus();
+        return;
       }
 
       const request = await fetchRequestByNotification(notif);
@@ -293,7 +313,13 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
                     handleNotificationClick(notif);
                   }
                 }}
-                title={requestId ? `Open Request #${requestId}` : undefined}
+                title={
+                  requestId 
+                    ? `Open Request #${requestId}` 
+                    : (notif.type === 'new_announcement' || notif.type === 'new_deadline' || notif.type === 'important_deadline')
+                    ? 'Open Bulletin Board' 
+                    : undefined
+                }
               >
                 <div className={`notif-type-icon ${iconClass}`}>
                   {icon}
@@ -305,12 +331,18 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
                     {requestId && (
                       <span className="notif-request-chip">#{requestId}</span>
                     )}
+                    {notif.type === 'new_announcement' && (
+                      <span className="notif-request-chip notif-announcement-chip">Bulletin</span>
+                    )}
+                    {(notif.type === 'new_deadline' || notif.type === 'important_deadline') && (
+                      <span className="notif-request-chip notif-deadline-chip">Deadline</span>
+                    )}
                   </div>
                   <div className="notification-message">{notif.message}</div>
                   <div className="notification-time">{getTimeAgo(notif.createdAt)}</div>
                 </div>
 
-                {requestId && (
+                {(requestId || notif.type === 'new_announcement' || notif.type === 'new_deadline' || notif.type === 'important_deadline') && (
                   <div className="notification-open-indicator" aria-hidden="true">
                     <FaArrowRight />
                   </div>

@@ -259,11 +259,46 @@ export const generateSmartRecommendations = async (workloadData) => {
     overloadedStaff,
     underloadedStaff,
     departmentCapacity,
-    allStaffNames
+    allStaffNames,
+    allStaffDetails
   } = workloadData;
 
   const validDepartments = ['Finance', 'Guidance', 'Library', 'Registrar'];
-  const realStaffList = (allStaffNames || []).filter(Boolean);
+  
+  // Build departmental staff roster & lookup map
+  const staffByDept = {
+    Registrar: [],
+    Finance: [],
+    Library: [],
+    Guidance: []
+  };
+  const realStaffMap = {}; // name.toLowerCase() -> department
+
+  if (Array.isArray(allStaffDetails) && allStaffDetails.length > 0) {
+    allStaffDetails.forEach(s => {
+      if (!s || !s.name) return;
+      const deptRaw = (s.department || s.office || '').replace(/\s+(office|department)$/i, '').trim();
+      const formattedDept = deptRaw ? deptRaw.charAt(0).toUpperCase() + deptRaw.slice(1).toLowerCase() : '';
+      if (staffByDept[formattedDept]) {
+        staffByDept[formattedDept].push(s.name);
+      }
+      realStaffMap[s.name.trim().toLowerCase()] = formattedDept;
+    });
+  } else if (Array.isArray(allStaffNames)) {
+    allStaffNames.forEach(raw => {
+      if (!raw) return;
+      const match = raw.match(/^(.*?)\s*\((.*?)\)$/);
+      if (match) {
+        const name = match[1].trim();
+        const deptRaw = match[2].replace(/\s+(office|department)$/i, '').trim();
+        const formattedDept = deptRaw ? deptRaw.charAt(0).toUpperCase() + deptRaw.slice(1).toLowerCase() : '';
+        if (staffByDept[formattedDept]) {
+          staffByDept[formattedDept].push(name);
+        }
+        realStaffMap[name.toLowerCase()] = formattedDept;
+      }
+    });
+  }
 
   const prompt = `You are an AI operations analyst for Academia de San Jose (a school ticket management system).
 Analyze the factual data below and provide AT MOST 2-3 genuine, high-impact recommendations.
@@ -272,6 +307,12 @@ Context & Institutional Boundaries:
 - The school ONLY has 4 administrative offices: Finance, Guidance, Library, Registrar.
 - Tickets are student academic/financial services: Transcripts, Certificates of Enrollment, Good Moral, Clearances, Tuition Balances, and Library Clearances.
 - DO NOT invent "IT Support", "IT Helpdesk", "technical support", or generic corporate IT terms like "keyword routing triage". Such departments DO NOT exist in this school.
+
+Departmental Staff Roster:
+- Registrar: ${staffByDept.Registrar.length > 0 ? staffByDept.Registrar.join(', ') : 'Dorothy Gerolaga'}
+- Finance: ${staffByDept.Finance.length > 0 ? staffByDept.Finance.join(', ') : 'None'}
+- Library: ${staffByDept.Library.length > 0 ? staffByDept.Library.join(', ') : 'None'}
+- Guidance: ${staffByDept.Guidance.length > 0 ? staffByDept.Guidance.join(', ') : 'None'}
 
 Overloaded Staff (High Risk):
 ${overloadedStaff && overloadedStaff.length > 0
@@ -288,21 +329,22 @@ ${Object.entries(departmentCapacity || {}).map(([dept, data]) =>
   `- ${dept}: ${data.utilization}% capacity (${data.currentActive}/${data.maxCapacity} tickets)`
 ).join('\n')}
 
-Registered Staff Members:
-${realStaffList.length > 0 ? realStaffList.join(', ') : 'Registered school staff across the 4 offices.'}
-
-Strict Rules:
-1. Provide ONLY 2 or 3 high-impact recommendations (priority: "high" or "medium").
-2. Focus strictly on real school office operations (Finance, Guidance, Library, Registrar).
-3. "affectedStaff": MUST ONLY be real staff names from the Registered Staff list above. If a recommendation applies to an entire department instead of a single staff member, set "affectedStaff": [] and specify the office name in the title/description.
-4. NEVER output "All departments", "IT Support Team", "IT Support", or imaginary names in "affectedStaff".
-5. Keep text concise and scannable:
+CRITICAL ANTI-HALLUCINATION & REASSIGNMENT RULES:
+1. STRICT DEPARTMENT ISOLATION: Staff belong EXCLUSIVELY to their designated office.
+   - Finance staff (e.g. Jefelah P. Amistoso, Dot g, b s) CAN NEVER handle Registrar, Library, or Guidance requests or backlogs!
+   - Registrar staff (e.g. Dorothy Gerolaga) CAN NEVER handle Finance, Library, or Guidance requests!
+   - Cross-department ticket reassignment or cross-department task assignment is STRICTLY FORBIDDEN!
+2. If an office (such as Registrar) has only one staff member and they are overloaded, DO NOT attempt to reassign their tickets to another office. Recommend type "hire" (request new staff for that office) or type "process_improvement" (workflow checklist, batch processing) instead.
+3. "affectedStaff": MUST ONLY contain staff who actually belong to the department of that recommendation. If a recommendation applies to the office as a whole, set "affectedStaff": ["<OfficeName>"] (e.g. ["Registrar"]).
+4. NEVER hallucinate fake staff names, fake departments, or cross-department assignments.
+5. Provide ONLY 2 or 3 high-impact recommendations (priority: "high" or "medium").
+6. Keep text concise and scannable:
    - title: brief action title (max 5 words, no emojis)
    - description: exactly 1 crisp sentence explaining why (max 18 words, no emojis)
-   - affectedStaff: array of 0-2 real staff names from the list above
+   - affectedStaff: array of 0-2 real staff names strictly from the department roster above, or office name
    - expectedImpact: brief quantified metric (max 6 words, e.g. "-25% overdue backlog", no emojis)
    - steps: exactly 2-3 short implementation steps (max 8 words each, no emojis)
-6. Do NOT include ANY emojis or symbols anywhere.
+7. Do NOT include ANY emojis or symbols anywhere.
 
 Format as JSON:
 {
@@ -312,7 +354,7 @@ Format as JSON:
       "type": "reassign|hire|training|process_improvement",
       "title": "Brief title",
       "description": "One sentence explanation.",
-      "affectedStaff": ["Real Staff Name"],
+      "affectedStaff": ["Real Staff Name or Office"],
       "expectedImpact": "-25% overdue backlog",
       "steps": ["Step 1", "Step 2"]
     }
@@ -322,7 +364,7 @@ Format as JSON:
   const messages = [
     {
       role: 'system',
-      content: 'You are an AI workload optimization expert for a school. Provide ultra-concise, practical recommendations grounded strictly in the 4 school departments without emojis or generic IT helpdesk hallucinations. Respond ONLY with valid JSON.'
+      content: 'You are an AI workload optimization expert for a school. Provide ultra-concise, practical recommendations grounded strictly in the 4 school departments without emojis, generic IT helpdesk hallucinations, or cross-department staff assignments. Respond ONLY with valid JSON.'
     },
     {
       role: 'user',
@@ -341,11 +383,21 @@ Format as JSON:
       .replace(/[\u2026]/g, '...')       // Ellipsis
       .replace(/[\u00A0]/g, ' ');        // Non-breaking space
     
+    const detectRecDept = (rec) => {
+      if (!rec) return null;
+      const text = `${rec.title || ''} ${rec.description || ''}`.toLowerCase();
+      if (/registrar|transcript|tor|coe|enrollment|clearance|diploma|academic record/i.test(text)) return 'Registrar';
+      if (/finance|tuition|balance|payment|receipt|cashier|assessment|fee/i.test(text)) return 'Finance';
+      if (/library|book|borrow|circulation/i.test(text)) return 'Library';
+      if (/guidance|counseling|good moral|conduct/i.test(text)) return 'Guidance';
+      return null;
+    };
+
     const sanitizeRecs = (items) => {
       if (!Array.isArray(items)) return [];
 
       const hallucinatedPattern = /it support|helpdesk|keyword routing|triage software|tier 1|tier 2|technical support/i;
-      const invalidStaffPattern = /^(all departments?|it support.*|helpdesk.*|department.*|staff.*|n\/a|none)$/i;
+      const invalidStaffPattern = /^(all departments?|it support.*|helpdesk.*|department.*|staff.*|n\/a|none|unknown)$/i;
 
       return items
         .filter(r => {
@@ -358,16 +410,64 @@ Format as JSON:
         })
         .slice(0, 3)
         .map(r => {
-          // Filter affectedStaff to exclude generic department names or hallucinations
+          const recDept = detectRecDept(r);
           const rawStaff = Array.isArray(r.affectedStaff) ? r.affectedStaff : [];
-          const cleanedStaff = rawStaff
-            .map(s => stripEmojis(s || '').trim())
-            .filter(s => s.length > 0 && !invalidStaffPattern.test(s));
+          
+          const cleanedStaff = [];
+          rawStaff.forEach(s => {
+            const clean = stripEmojis(s || '').trim();
+            if (!clean || invalidStaffPattern.test(clean)) return;
+
+            const cleanLower = clean.toLowerCase();
+
+            // Check if it's an office name
+            if (validDepartments.some(d => d.toLowerCase() === cleanLower || `${d.toLowerCase()} office` === cleanLower)) {
+              const formattedDept = cleanLower.replace(/\s+(office|department)$/i, '').trim();
+              const capDept = formattedDept.charAt(0).toUpperCase() + formattedDept.slice(1);
+              if (!recDept || recDept.toLowerCase() === capDept.toLowerCase()) {
+                if (!cleanedStaff.includes(capDept)) cleanedStaff.push(capDept);
+              }
+              return;
+            }
+
+            // Check against real staff roster
+            const staffDept = realStaffMap[cleanLower];
+            if (!staffDept) {
+              // Not a real registered staff member - discard hallucinated name!
+              return;
+            }
+
+            // Cross-department check: staff MUST belong to the recommendation's department
+            if (recDept && staffDept.toLowerCase() !== recDept.toLowerCase()) {
+              console.warn(`[Anti-Hallucination] Discarded cross-department staff ${clean} (${staffDept}) from ${recDept} recommendation`);
+              return;
+            }
+
+            if (!cleanedStaff.includes(clean)) {
+              cleanedStaff.push(clean);
+            }
+          });
+
+          // Fallback to department badge if all staff were hallucinated or cross-department
+          if (cleanedStaff.length === 0 && recDept) {
+            cleanedStaff.push(recDept);
+          }
+
+          // Clean description of any cross-department staff mentions
+          let sanitizedDescription = stripEmojis(r.description || '');
+          if (recDept) {
+            Object.entries(realStaffMap).forEach(([staffLower, dept]) => {
+              if (dept && dept.toLowerCase() !== recDept.toLowerCase()) {
+                const staffRegex = new RegExp(`\\b${staffLower}\\b`, 'gi');
+                sanitizedDescription = sanitizedDescription.replace(staffRegex, `${recDept} staff`);
+              }
+            });
+          }
 
           return {
             ...r,
             title: stripEmojis(r.title || ''),
-            description: stripEmojis(r.description || ''),
+            description: sanitizedDescription,
             expectedImpact: stripEmojis(r.expectedImpact || ''),
             affectedStaff: cleanedStaff,
             steps: Array.isArray(r.steps) ? r.steps.map(s => stripEmojis(s || '')) : []

@@ -851,19 +851,22 @@ const MyPerformance = ({ userData }) => {
           </button>
 
           {/* Notification Bell */}
-          <div
+          <button
+            type="button"
             className="notification-bell"
             onClick={() => setShowNotifications(true)}
-            title="View notifications"
-            role="button"
-            tabIndex={0}
-            aria-label="Open notifications"
+            title="Notifications"
+            aria-label="Notifications"
+            aria-haspopup="true"
+            aria-expanded={showNotifications}
           >
-            <FaBell className="bell-icon" />
+            <FaBell className="bell-icon" aria-hidden="true" />
             {unreadCount > 0 && (
-              <span className="notification-badge">{unreadCount}</span>
+              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
             )}
-          </div>
+          </button>
         </div>
       </header>
 

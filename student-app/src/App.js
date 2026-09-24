@@ -70,31 +70,55 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSidebarOpen]);
 
-  // Check for unread bulletin posts
+  // Check for unread bulletin posts and deadlines
   useEffect(() => {
     if (!isLoggedIn || isGuest) return;
+
+    let latestAnnouncements = [];
+    let latestDeadlines = [];
+
+    const evaluateUnread = () => {
+      const readAnnouncementsStr = localStorage.getItem('readAnnouncements');
+      const readDeadlinesStr = localStorage.getItem('readDeadlines');
+      
+      const readAnnouncements = readAnnouncementsStr ? JSON.parse(readAnnouncementsStr) : null;
+      const readDeadlines = readDeadlinesStr ? JSON.parse(readDeadlinesStr) : null;
+
+      const hasUnreadAnnouncements = !readAnnouncements
+        ? latestAnnouncements.length > 0
+        : latestAnnouncements.some(id => !readAnnouncements.includes(id));
+
+      const hasUnreadDeadlines = !readDeadlines
+        ? latestDeadlines.length > 0
+        : latestDeadlines.some(id => !readDeadlines.includes(id));
+
+      setHasUnreadBulletin(hasUnreadAnnouncements || hasUnreadDeadlines);
+    };
 
     const announcementsQuery = query(
       collection(db, 'announcements'),
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(announcementsQuery, (querySnapshot) => {
-      const currentAnnouncementIds = querySnapshot.docs.map(doc => doc.id);
-      const readAnnouncementsStr = localStorage.getItem('readAnnouncements');
-      
-      if (!readAnnouncementsStr) {
-        // No announcements have been read yet
-        setHasUnreadBulletin(currentAnnouncementIds.length > 0);
-      } else {
-        const readAnnouncements = JSON.parse(readAnnouncementsStr);
-        // Check if there are any new announcements not in the read list
-        const hasUnread = currentAnnouncementIds.some(id => !readAnnouncements.includes(id));
-        setHasUnreadBulletin(hasUnread);
-      }
+    const unsubscribeAnnouncements = onSnapshot(announcementsQuery, (querySnapshot) => {
+      latestAnnouncements = querySnapshot.docs.map(doc => doc.id);
+      evaluateUnread();
+    }, (error) => {
+      console.warn('Error listening to announcements:', error);
     });
 
-    return () => unsubscribe();
+    const deadlinesQuery = query(collection(db, 'importantDates'));
+    const unsubscribeDeadlines = onSnapshot(deadlinesQuery, (querySnapshot) => {
+      latestDeadlines = querySnapshot.docs.map(doc => doc.id);
+      evaluateUnread();
+    }, (error) => {
+      console.warn('Error listening to deadlines:', error);
+    });
+
+    return () => {
+      if (unsubscribeAnnouncements) unsubscribeAnnouncements();
+      if (unsubscribeDeadlines) unsubscribeDeadlines();
+    };
   }, [isLoggedIn, isGuest]);
 
   // Check if user must change password on login
@@ -258,6 +282,7 @@ function App() {
         onMenuToggle={() => setIsSidebarOpen(true)}
         isSidebarOpen={isSidebarOpen}
         onViewRequest={handleViewRequestDetails}
+        onNavigate={handleNavigate}
       />
       <div className="app-body">
         <Sidebar

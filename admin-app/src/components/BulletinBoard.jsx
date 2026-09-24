@@ -4,7 +4,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, setDoc, server
 import { db } from '../firebase';
 import Notifications from './Notifications';
 import { useNotification } from '../context/NotificationContext';
-import { notifyStudentsNewAnnouncement } from '../utils/notificationHelper';
+import { notifyStudentsNewAnnouncement, notifyStudentsNewDeadline } from '../utils/notificationHelper';
 import '../styles/BulletinBoard.css';
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -532,7 +532,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
         });
         toast.success('Important date updated successfully!');
       } else {
-        await addDoc(collection(db, 'importantDates'), {
+        const newDateRef = await addDoc(collection(db, 'importantDates'), {
           office: department,
           title: dateTitle.trim(),
           month: dateMonth,
@@ -541,6 +541,17 @@ const BulletinBoard = ({ department, onViewRequest }) => {
           createdBy: staffData?.name || 'Staff',
           createdAt: serverTimestamp()
         });
+
+        // Notify all students about the new important deadline
+        await notifyStudentsNewDeadline(
+          department,
+          dateTitle.trim(),
+          dateMonth,
+          String(dayNum).padStart(2, '0'),
+          newDateRef.id,
+          staffData?.name || staffData?.fullName || 'Staff'
+        );
+
         toast.success('Important date added successfully!');
       }
 
@@ -684,10 +695,22 @@ const BulletinBoard = ({ department, onViewRequest }) => {
             <FaPlus />
             Create new announcement
           </button>
-          <div className="notification-bell" onClick={() => setShowNotifications(true)}>
-            <FaBell className="bell-icon" />
-            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-          </div>
+          <button
+            type="button"
+            className="notification-bell"
+            onClick={() => setShowNotifications(true)}
+            title="Notifications"
+            aria-label="Notifications"
+            aria-haspopup="true"
+            aria-expanded={showNotifications}
+          >
+            <FaBell className="bell-icon" aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 

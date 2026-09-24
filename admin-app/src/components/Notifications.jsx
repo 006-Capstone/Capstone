@@ -10,7 +10,8 @@ import {
   FaTicketAlt,
   FaExchangeAlt,
   FaClock,
-  FaInfoCircle
+  FaInfoCircle,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -81,12 +82,16 @@ const getNotificationIcon = (notif) => {
       return { icon: <FaExchangeAlt />, className: 'type-rerouted' };
     case 'etc_update':
       return { icon: <FaClock />, className: 'type-etc' };
+    case 'efficiency_score_warning':
+    case 'performance_nudge':
+    case 'auto_performance_nudge':
+      return { icon: <FaExclamationTriangle />, className: 'type-efficiency-warning' };
     default:
       return { icon: <FaInfoCircle />, className: 'type-default' };
   }
 };
 
-const Notifications = ({ isOpen, onClose, onViewRequest }) => {
+const Notifications = ({ isOpen, onClose, onViewRequest, onOpenEfficiencyWarning, onNavigate }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -161,6 +166,27 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
     try {
       if (!notif.isRead) {
         await handleMarkAsRead(notif.id);
+      }
+
+      const isEffWarning = 
+        notif.type === 'efficiency_score_warning' || 
+        notif.type === 'performance_nudge' || 
+        notif.type === 'auto_performance_nudge';
+
+      if (isEffWarning) {
+        if (onOpenEfficiencyWarning) {
+          onOpenEfficiencyWarning(notif);
+          onClose();
+          return;
+        }
+        if (onNavigate) {
+          onNavigate('my-performance');
+          onClose();
+          return;
+        }
+        window.dispatchEvent(new CustomEvent('open-efficiency-warning', { detail: notif }));
+        onClose();
+        return;
       }
 
       const request = await fetchRequestByNotification(notif);
@@ -255,13 +281,17 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
             notifications.map((notif) => {
               const { icon, className: iconClass } = getNotificationIcon(notif);
               const requestId = notif.metadata?.requestId;
+              const isEffWarning = 
+                notif.type === 'efficiency_score_warning' || 
+                notif.type === 'performance_nudge' || 
+                notif.type === 'auto_performance_nudge';
 
               return (
                 <div
                   key={notif.id}
                   role="button"
                   tabIndex={0}
-                  className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
+                  className={`notification-item ${!notif.isRead ? 'unread' : ''} ${isEffWarning ? 'eff-warning-item' : ''}`}
                   onClick={() => handleNotificationClick(notif)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -269,7 +299,11 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
                       handleNotificationClick(notif);
                     }
                   }}
-                  title={requestId ? `Open Request #${requestId}` : undefined}
+                  title={
+                    requestId 
+                      ? `Open Request #${requestId}` 
+                      : (isEffWarning ? 'View Performance Warning & Details' : undefined)
+                  }
                 >
                   <div className={`notif-type-icon ${iconClass}`}>
                     {icon}
@@ -278,15 +312,19 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
                   <div className="notification-content">
                     <div className="notification-top-row">
                       <span className="notification-title">{notif.title}</span>
-                      {requestId && (
+                      {requestId ? (
                         <span className="notif-request-chip">#{requestId}</span>
-                      )}
+                      ) : isEffWarning ? (
+                        <span className="notif-warning-chip">
+                          {notif.score !== undefined ? `${notif.score}% Score` : 'Alert'}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="notification-message">{notif.message}</div>
                     <div className="notification-time">{getTimeAgo(notif.createdAt)}</div>
                   </div>
 
-                  {requestId && (
+                  {(requestId || isEffWarning) && (
                     <div className="notification-open-indicator" aria-hidden="true">
                       <FaArrowRight />
                     </div>

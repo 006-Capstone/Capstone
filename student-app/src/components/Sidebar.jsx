@@ -106,8 +106,8 @@ function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = f
             <span>Bulletin Board</span>
             {hasUnreadBulletin && (
               <>
-                <span className="unread-indicator" aria-hidden="true" />
-                <span className="sr-only">Unread announcements</span>
+                <span className="bulletin-unread-dot" aria-hidden="true" />
+                <span className="sr-only">Unread announcements and deadlines</span>
               </>
             )}
           </button>

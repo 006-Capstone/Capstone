@@ -15,7 +15,8 @@ import {
   FaStar,
   FaChevronRight,
   FaChartLine,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaExternalLinkAlt
 } from 'react-icons/fa';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -24,6 +25,7 @@ import NotificationBell from './NotificationBell';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import Toast from './Toast';
 import PerformanceMonitor from './PerformanceMonitor';
+import StudentFeedbackModal from './StudentFeedbackModal';
 import '../styles/Analytics.css';
 
 const EMPTY_FILTER = { from: '', to: '' };
@@ -123,7 +125,7 @@ const Analytics = () => {
   const [activeUsers, setActiveUsers] = useState(0);
   const [ticketData, setTicketData] = useState([]);
   const [departmentData, setDepartmentData] = useState([]);
-  const [satisfactionData, setSatisfactionData] = useState({ fiveStars: 0, fourStars: 0, percentage: 0, total: 0 });
+  const [satisfactionData, setSatisfactionData] = useState({ fiveStars: 0, fourStars: 0, threeStars: 0, twoStars: 0, percentage: 0, total: 0 });
   const [satisfactionOffice, setSatisfactionOffice] = useState('all');
   const [officeFilterOpen, setOfficeFilterOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
@@ -136,6 +138,14 @@ const Analytics = () => {
     guidance: false
   });
   const [toast, setToast] = useState(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [modalInitialOffice, setModalInitialOffice] = useState('all');
+  const [allFeedbacks, setAllFeedbacks] = useState([]);
+
+  const handleOpenSatisfactionModal = (officeId = satisfactionOffice) => {
+    setModalInitialOffice(officeId || 'all');
+    setShowFeedbackModal(true);
+  };
 
   const toggleDepartmentExpand = (deptId) => {
     setExpandedDepts(prev => ({
@@ -261,8 +271,9 @@ const Analytics = () => {
       // 3. Fetch feedback for satisfaction ratings
       try {
         const feedbackSnapshot = await getDocs(collection(db, 'feedback'));
-        feedbacks = feedbackSnapshot.docs.map(doc => doc.data());
+        feedbacks = feedbackSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         feedbacksRef.current = feedbacks;
+        setAllFeedbacks(feedbacks);
       } catch (err) {
         console.error('[Analytics] Error fetching feedback:', err);
       }
@@ -326,6 +337,16 @@ const Analytics = () => {
       const rating = f.overallRating || f.rating || 0;
       return Math.round(rating) === 4;
     }).length;
+
+    const threeStarsCount = officeFeedbacks.filter(f => {
+      const rating = f.overallRating || f.rating || 0;
+      return Math.round(rating) === 3;
+    }).length;
+
+    const twoStarsCount = officeFeedbacks.filter(f => {
+      const rating = f.overallRating || f.rating || 0;
+      return Math.round(rating) === 2;
+    }).length;
     
     const totalFeedback = officeFeedbacks.length;
     
@@ -343,6 +364,8 @@ const Analytics = () => {
     setSatisfactionData({
       fiveStars: fiveStarsCount,
       fourStars: fourStarsCount,
+      threeStars: threeStarsCount,
+      twoStars: twoStarsCount,
       percentage: satisfactionPercentage,
       total: totalFeedback
     });
@@ -611,6 +634,8 @@ const Analytics = () => {
     csvContent += `Total Feedback,${satisfactionData.total}\n`;
     csvContent += `5 Stars,${satisfactionData.fiveStars}\n`;
     csvContent += `4 Stars,${satisfactionData.fourStars}\n`;
+    csvContent += `3 Stars,${satisfactionData.threeStars || 0}\n`;
+    csvContent += `2 Stars,${satisfactionData.twoStars || 0}\n`;
     csvContent += '\n';
 
     // Request Volume Trends
@@ -814,14 +839,32 @@ const Analytics = () => {
           </div>
         </div>
 
-        <div className="satisfaction-card">
+        <div 
+          className="satisfaction-card clickable-card"
+          onClick={() => handleOpenSatisfactionModal(satisfactionOffice)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleOpenSatisfactionModal(satisfactionOffice);
+            }
+          }}
+          title="Click to view all student feedbacks and reviews"
+        >
           <div className="satisfaction-header">
-            <h2 className="satisfaction-title">Student Satisfaction</h2>
-            <div className="office-filter-wrap" ref={officeFilterRef}>
+            <div className="satisfaction-title-group">
+              <h2 className="satisfaction-title">Student Satisfaction</h2>
+              <span className="satisfaction-clickable-hint">Click card to view all feedbacks</span>
+            </div>
+            <div className="office-filter-wrap" ref={officeFilterRef} onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 className={`satisfaction-filter ${satisfactionOffice !== 'all' ? 'active' : ''}`}
-                onClick={() => setOfficeFilterOpen(prev => !prev)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOfficeFilterOpen(prev => !prev);
+                }}
                 aria-haspopup="true"
                 aria-expanded={officeFilterOpen}
               >
@@ -830,13 +873,16 @@ const Analytics = () => {
               </button>
 
               {officeFilterOpen && (
-                <div className="office-filter-menu">
+                <div className="office-filter-menu" onClick={(e) => e.stopPropagation()}>
                   {SATISFACTION_OFFICES.map(office => (
                     <button
                       key={office.id}
                       type="button"
                       className={`office-filter-option ${satisfactionOffice === office.id ? 'selected' : ''}`}
-                      onClick={() => applyOfficeFilter(office.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        applyOfficeFilter(office.id);
+                      }}
                     >
                       {office.name}
                     </button>
@@ -868,6 +914,25 @@ const Analytics = () => {
                 </div>
                 <span className="star-count">{satisfactionData.fourStars}</span>
               </div>
+              <div className="star-row">
+                <div className="star-info">
+                  <span className="star-dot"></span>
+                  <span className="star-label">3 Stars</span>
+                </div>
+                <span className="star-count">{satisfactionData.threeStars || 0}</span>
+              </div>
+              <div className="star-row">
+                <div className="star-info">
+                  <span className="star-dot"></span>
+                  <span className="star-label">2 Stars</span>
+                </div>
+                <span className="star-count">{satisfactionData.twoStars || 0}</span>
+              </div>
+            </div>
+
+            <div className="satisfaction-card-action">
+              <span>View All Feedbacks</span>
+              <FaExternalLinkAlt className="satisfaction-action-icon" />
             </div>
           </div>
         </div>
@@ -1064,7 +1129,17 @@ const Analytics = () => {
 
                       {/* 5. Satisfaction */}
                       <td>
-                        <div className="dept-satisfaction-cell">
+                        <div 
+                          className={`dept-satisfaction-cell ${dept.feedbackCount > 0 ? 'cell-clickable' : ''}`}
+                          onClick={() => {
+                            if (dept.feedbackCount > 0) {
+                              handleOpenSatisfactionModal(dept.id);
+                            }
+                          }}
+                          role={dept.feedbackCount > 0 ? 'button' : undefined}
+                          tabIndex={dept.feedbackCount > 0 ? 0 : undefined}
+                          title={dept.feedbackCount > 0 ? `Click to view ${dept.department} student feedbacks` : undefined}
+                        >
                           {dept.feedbackCount > 0 ? (
                             <>
                               <div className="satisfaction-rating-main">
@@ -1073,7 +1148,7 @@ const Analytics = () => {
                                 <span className="rating-max">/5.0</span>
                               </div>
                               <span className="feedback-count-label">
-                                {dept.feedbackCount} review{dept.feedbackCount !== 1 ? 's' : ''}
+                                {dept.feedbackCount} review{dept.feedbackCount !== 1 ? 's' : ''} →
                               </span>
                             </>
                           ) : (
@@ -1180,6 +1255,14 @@ const Analytics = () => {
           onClose={() => setToast(null)}
         />
       )}
+
+      {/* Student Satisfaction & Feedbacks Modal */}
+      <StudentFeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        feedbacks={allFeedbacks.length > 0 ? allFeedbacks : feedbacksRef.current}
+        initialOffice={modalInitialOffice}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FaCalendarAlt, FaCheck, FaTimes, FaUserCheck } from 'react-icons/fa';
 import DropdownCalendar from './common/DropdownCalendar';
 import '../styles/ClaimETCModal.css';
@@ -13,11 +13,72 @@ const isoDateFromOffset = (offsetDays) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+// Presets for Set Completion Date modal
+const SET_COMPLETION_DATE_PRESETS = [
+  { label: 'Today', offset: 0 },
+  { label: '+2 Days', offset: 2 },
+  { label: '+4 Days', offset: 4 },
+  { label: '+6 Days', offset: 6 }
+];
+
+const formatReadableDate = (dateVal) => {
+  if (!dateVal) return '';
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+    const [y, m, d] = dateVal.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+    return dateVal;
+  }
+  const d = dateVal?.toDate ? dateVal.toDate() : new Date(dateVal);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  }
+  return String(dateVal);
+};
+
 const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
   const [date, setDate] = useState(isoDateFromOffset(2));
   
-  // Check if ticket is rerouted (original office already set the date)
-  const isReroutedTicket = ticket && ticket.previousOffice && ticket.internalTargetDate;
+  // Check if ticket is rerouted (original office already set the target completion date)
+  const targetDate = ticket?.internalTargetDate || ticket?.etc;
+  const isReroutedTicket = Boolean(ticket && ticket.previousOffice && targetDate);
+  const formattedTargetDate = formatReadableDate(targetDate);
+
+  const targetDaysCount = useMemo(() => {
+    if (ticket?.targetDays) return ticket.targetDays;
+    if (targetDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let targetObj = null;
+      if (typeof targetDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(targetDate)) {
+        const [y, m, d] = targetDate.substring(0, 10).split('-').map(Number);
+        targetObj = new Date(y, m - 1, d);
+      } else if (targetDate?.toDate) {
+        targetObj = targetDate.toDate();
+      } else {
+        const p = new Date(targetDate);
+        if (!isNaN(p.getTime())) targetObj = p;
+      }
+      if (targetObj) {
+        targetObj.setHours(0, 0, 0, 0);
+        const diff = Math.round((targetObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return Math.max(1, diff);
+      }
+    }
+    return null;
+  }, [ticket, targetDate]);
 
   return (
     <div className="etc-modal-overlay" onClick={onCancel}>
@@ -45,13 +106,36 @@ const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
 
         <div className="etc-modal-body">
           {isReroutedTicket ? (
-            <div className="etc-notice">
-              <FaUserCheck className="etc-notice-icon" />
-              <span>
-                This request was rerouted from <strong>{ticket.previousOffice}</strong> with a deadline already set. 
-                You can claim it directly without setting a new completion date.
-              </span>
-            </div>
+            <>
+              {/* Highlight card displaying the original department's Target Completion Date */}
+              <div className="etc-rerouted-card">
+                <div className="etc-rerouted-card-header">
+                  <span className="etc-rerouted-card-label">TARGET COMPLETION DATE</span>
+                  <span className="etc-rerouted-dept-badge">{ticket.previousOffice} Office</span>
+                </div>
+
+                <div className="etc-rerouted-date-display">
+                  <FaCalendarAlt className="etc-rerouted-calendar-icon" />
+                  <span className="etc-rerouted-date-text">
+                    {formattedTargetDate}
+                    {targetDaysCount ? ` (${targetDaysCount} ${targetDaysCount === 1 ? 'day' : 'days'})` : ''}
+                  </span>
+                </div>
+
+                {ticket.internalTargetSetBy && (
+                  <div className="etc-rerouted-meta">
+                    Set by <strong>{ticket.internalTargetSetBy}</strong>
+                  </div>
+                )}
+              </div>
+
+              <div className="etc-notice">
+                <FaUserCheck className="etc-notice-icon" />
+                <span>
+                  This request was rerouted from <strong>{ticket.previousOffice}</strong> with this completion deadline. You can claim it directly to proceed.
+                </span>
+              </div>
+            </>
           ) : (
             <>
               <label className="etc-field-label" htmlFor="etc-date">
@@ -62,8 +146,8 @@ const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
                 value={date}
                 onChange={setDate}
                 minDate={isoDateFromOffset(0)}
+                presets={SET_COMPLETION_DATE_PRESETS}
                 placeholder="Select estimated completion date"
-                inputClassName="etc-date-input"
                 ariaLabel="Estimated Time of Completion"
               />
 

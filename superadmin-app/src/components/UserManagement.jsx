@@ -33,7 +33,8 @@ import {
   FaExternalLinkAlt,
   FaInfoCircle,
   FaArrowLeft,
-  FaTrashAlt
+  FaTrashAlt,
+  FaLock
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
@@ -695,11 +696,19 @@ const UserManagement = () => {
     try {
       if (confirmAction === 'suspend') {
         const newStatus = bulkSuspendTargetState;
+        const bulkPayload = {
+          isActive: newStatus
+        };
+        if (newStatus) {
+          bulkPayload.reactivatedAt = serverTimestamp();
+          bulkPayload.reactivatedBy = auth?.currentUser?.email || 'Super Admin';
+        } else {
+          bulkPayload.suspendedAt = serverTimestamp();
+          bulkPayload.suspendedBy = auth?.currentUser?.email || 'Super Admin';
+        }
         await Promise.all(
           selectedList.map((student) =>
-            updateDoc(doc(db, 'students', student.firestoreId), {
-              isActive: newStatus
-            })
+            updateDoc(doc(db, 'students', student.firestoreId), bulkPayload)
           )
         );
         showToast(`Successfully ${newStatus ? 'activated' : 'suspended'} ${selectedList.length} student account(s).`);
@@ -1387,17 +1396,117 @@ const UserManagement = () => {
         }
       }
 
-      // 4. Synthesize registration / lifecycle audit entry
-      if (user.createdAt) {
-        const userCreated = user.createdAt?.toDate?.() || new Date(user.createdAt);
-        if (!isNaN(userCreated.getTime())) {
+      // 4. Synthesize registration / directory entry
+      const userCreated = user.createdAt?.toDate?.() || (user.createdAt ? new Date(user.createdAt) : null);
+      if (userCreated && !isNaN(userCreated.getTime())) {
+        rawCompiledLogs.push({
+          id: `user-init-${user.id || user.uid || 'entry'}`,
+          action: `Account registered in School Directory`,
+          category: 'security',
+          details: `Enrolled as ${userType === 'student' ? 'Student' : 'Staff Member'} with verified credentials`,
+          status: 'Authorized',
+          timestamp: userCreated
+        });
+      }
+
+      // 5. Account Suspension Events (if currently suspended or recorded in history)
+      const suspendedDate = user.suspendedAt?.toDate?.() || (user.suspendedAt ? new Date(user.suspendedAt) : null);
+      if (user.isActive === false || (suspendedDate && !isNaN(suspendedDate.getTime()))) {
+        rawCompiledLogs.push({
+          id: `user-suspend-${user.id || user.uid || 'entry'}`,
+          action: `Account access suspended`,
+          category: 'security',
+          details: `Portal login authorization suspended by ${user.suspendedBy || 'Administrator'}. Access to school services restricted.`,
+          status: 'Suspended',
+          timestamp: (suspendedDate && !isNaN(suspendedDate.getTime())) ? suspendedDate : (user.updatedAt?.toDate?.() || (user.updatedAt ? new Date(user.updatedAt) : new Date()))
+        });
+      }
+      if (user.reactivatedAt) {
+        const reactivatedDate = user.reactivatedAt?.toDate?.() || new Date(user.reactivatedAt);
+        if (!isNaN(reactivatedDate.getTime())) {
           rawCompiledLogs.push({
-            id: `user-init-${user.id || user.uid || 'entry'}`,
-            action: `Account registered in School Directory`,
+            id: `user-reactivate-${user.id || user.uid || 'entry'}`,
+            action: `Account access reactivated`,
             category: 'security',
-            details: `Enrolled as ${userType === 'student' ? 'Student' : 'Staff Member'} with verified credentials`,
-            status: 'Authorized',
-            timestamp: userCreated
+            details: `Suspension lifted by ${user.reactivatedBy || 'Administrator'}. Full portal privileges restored.`,
+            status: 'Active',
+            timestamp: reactivatedDate
+          });
+        }
+      }
+
+      // 6. Account Archive Events (if archived or recorded in history)
+      const archivedDate = user.archivedAt?.toDate?.() || (user.archivedAt ? new Date(user.archivedAt) : null);
+      if (user.isArchived === true || (archivedDate && !isNaN(archivedDate.getTime()))) {
+        rawCompiledLogs.push({
+          id: `user-archive-${user.id || user.uid || 'entry'}`,
+          action: `Account moved to Archive Directory`,
+          category: 'admin',
+          details: `Account archived by ${user.archivedBy || 'Administrator'}${user.archivedReason ? ` (${user.archivedReason})` : ''}; removed from active roster.`,
+          status: 'Archived',
+          timestamp: (archivedDate && !isNaN(archivedDate.getTime())) ? archivedDate : (user.updatedAt?.toDate?.() || (user.updatedAt ? new Date(user.updatedAt) : new Date()))
+        });
+      }
+      if (user.restoredAt) {
+        const restoredDate = user.restoredAt?.toDate?.() || new Date(user.restoredAt);
+        if (!isNaN(restoredDate.getTime())) {
+          rawCompiledLogs.push({
+            id: `user-restore-${user.id || user.uid || 'entry'}`,
+            action: `Account restored to School Directory`,
+            category: 'admin',
+            details: `Account restored from Archive by ${user.restoredBy || 'Administrator'} into active directory.`,
+            status: 'Restored',
+            timestamp: restoredDate
+          });
+        }
+      }
+
+      // 7. Password Changes & Credential Lifecycle Events
+      if (user.passwordChangedAt) {
+        const pwdChangeDate = user.passwordChangedAt?.toDate?.() || new Date(user.passwordChangedAt);
+        if (!isNaN(pwdChangeDate.getTime())) {
+          rawCompiledLogs.push({
+            id: `user-pwd-change-${user.id || user.uid || 'entry'}`,
+            action: `Account password changed & verified`,
+            category: 'security',
+            details: `User successfully changed and confirmed new personal password credentials`,
+            status: 'Secured',
+            timestamp: pwdChangeDate
+          });
+        }
+      } else if (user.mustChangePassword === false && userCreated) {
+        const pwdInitDate = user.updatedAt?.toDate?.() || (user.updatedAt ? new Date(user.updatedAt) : new Date(userCreated.getTime() + 60000));
+        rawCompiledLogs.push({
+          id: `user-pwd-verified-${user.id || user.uid || 'entry'}`,
+          action: `Account password changed & verified`,
+          category: 'security',
+          details: `Initial temporary default password changed to verified personal credentials`,
+          status: 'Secured',
+          timestamp: pwdInitDate
+        });
+      }
+
+      if (user.mustChangePassword === true) {
+        rawCompiledLogs.push({
+          id: `user-pwd-pending-${user.id || user.uid || 'entry'}`,
+          action: `Password change required on next login`,
+          category: 'security',
+          details: `Default temporary credentials assigned; mandatory password change required upon first sign-in`,
+          status: 'Pending',
+          timestamp: userCreated || new Date()
+        });
+      }
+
+      if (user.passwordResetAt) {
+        const resetDate = user.passwordResetAt?.toDate?.() || new Date(user.passwordResetAt);
+        if (!isNaN(resetDate.getTime())) {
+          rawCompiledLogs.push({
+            id: `user-pwd-reset-${user.id || user.uid || 'entry'}`,
+            action: `Password reset email dispatched`,
+            category: 'security',
+            details: `Password reset recovery link generated and dispatched to ${user.email} by ${user.passwordResetBy || 'Administrator'}`,
+            status: 'Dispatched',
+            timestamp: resetDate
           });
         }
       }
@@ -1582,11 +1691,19 @@ const UserManagement = () => {
       if (confirmAction === 'suspend') {
         // Toggle suspension status
         const newStatus = !target.isActive;
-        await updateDoc(doc(db, collectionName, target.firestoreId), {
+        const updatePayload = {
           isActive: newStatus
-        });
+        };
+        if (newStatus) {
+          updatePayload.reactivatedAt = serverTimestamp();
+          updatePayload.reactivatedBy = auth?.currentUser?.email || 'Super Admin';
+        } else {
+          updatePayload.suspendedAt = serverTimestamp();
+          updatePayload.suspendedBy = auth?.currentUser?.email || 'Super Admin';
+        }
+        await updateDoc(doc(db, collectionName, target.firestoreId), updatePayload);
         if (selectedUserProfile) {
-          setSelectedUserProfile((prev) => (prev ? { ...prev, isActive: newStatus } : null));
+          setSelectedUserProfile((prev) => (prev ? { ...prev, ...updatePayload } : null));
         }
         
         // Wait a moment for Firestore real-time listeners to update
@@ -1851,9 +1968,9 @@ const UserManagement = () => {
                       </>
                     )}
                   </span>
-                  <span className={`profile-status-pill ${selectedUserProfile.isActive !== false ? 'active' : 'suspended'}`}>
+                  <span className={`profile-status-pill ${selectedUserProfile.isArchived ? 'archived' : selectedUserProfile.isActive !== false ? 'active' : 'suspended'}`}>
                     <span className="status-indicator-dot" />
-                    {selectedUserProfile.isActive !== false ? 'Active Account' : 'Suspended Account'}
+                    {selectedUserProfile.isArchived ? 'Archived Account' : selectedUserProfile.isActive !== false ? 'Active Account' : 'Suspended Account'}
                   </span>
                 </div>
               </div>
@@ -2069,6 +2186,70 @@ const UserManagement = () => {
                     </div>
                   </>
                 )}
+
+                {/* Account Standing: Active / Suspended / Archived */}
+                <div className={`user-stat-card stat-lifecycle ${
+                  selectedUserProfile.isArchived 
+                    ? 'is-archived' 
+                    : selectedUserProfile.isActive === false 
+                    ? 'is-suspended' 
+                    : 'is-active'
+                }`}>
+                  <div className="stat-card-top">
+                    <span className="stat-card-label">ACCOUNT STANDING</span>
+                    <div className="stat-card-icon-wrap">
+                      {selectedUserProfile.isArchived ? (
+                        <FaArchive className="stat-icon" />
+                      ) : selectedUserProfile.isActive === false ? (
+                        <FaBan className="stat-icon" />
+                      ) : (
+                        <FaCheckCircle className="stat-icon" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="stat-value text-lg">
+                    {selectedUserProfile.isArchived 
+                      ? 'Archived' 
+                      : selectedUserProfile.isActive === false 
+                      ? 'Suspended' 
+                      : 'Active'}
+                  </div>
+                  <p className="stat-period">
+                    {selectedUserProfile.isArchived 
+                      ? 'Moved to school archive' 
+                      : selectedUserProfile.isActive === false 
+                      ? 'Account access disabled' 
+                      : selectedUserProfile.restoredAt 
+                      ? 'Restored to directory' 
+                      : 'Active in directory'}
+                  </p>
+                </div>
+
+                {/* Password & Credential Security */}
+                <div className="user-stat-card stat-security">
+                  <div className="stat-card-top">
+                    <span className="stat-card-label">PASSWORD STATUS</span>
+                    <div className="stat-card-icon-wrap">
+                      <FaKey className="stat-icon" />
+                    </div>
+                  </div>
+                  <div className="stat-value text-lg">
+                    {selectedUserProfile.mustChangePassword === true
+                      ? 'Pending Change'
+                      : (selectedUserProfile.passwordChangedAt || selectedUserProfile.mustChangePassword === false)
+                      ? 'Changed & Secured'
+                      : 'Active Credentials'}
+                  </div>
+                  <p className="stat-period">
+                    {selectedUserProfile.mustChangePassword === true
+                      ? 'Temporary default password'
+                      : selectedUserProfile.passwordChangedAt
+                      ? 'User updated password'
+                      : selectedUserProfile.mustChangePassword === false
+                      ? 'Verified credentials set'
+                      : 'Security credentials active'}
+                  </p>
+                </div>
               </div>
 
               {/* Activity History Timeline & Audit Trail */}
@@ -2292,8 +2473,8 @@ const UserManagement = () => {
                 </div>
                 <div className="audit-metric-tile">
                   <span className="audit-metric-label">ACCOUNT STATUS</span>
-                  <span className={`audit-metric-pill ${selectedUserProfile.isActive !== false ? 'active' : 'suspended'}`}>
-                    {selectedUserProfile.isActive !== false ? 'Active' : 'Suspended'}
+                  <span className={`audit-metric-pill ${selectedUserProfile.isArchived ? 'archived' : selectedUserProfile.isActive !== false ? 'active' : 'suspended'}`}>
+                    {selectedUserProfile.isArchived ? 'Archived' : selectedUserProfile.isActive !== false ? 'Active' : 'Suspended'}
                   </span>
                 </div>
               </div>

@@ -108,19 +108,34 @@
   color: var(--color-primary);
 }
 
-.menu button .unread-indicator {
-  width: 8px;
-  height: 8px;
-  margin-left: auto;
-  background-color: #22c55e;
+/* Bulletin Board unread indicator — green circular dot with a soft halo effect */
+.bulletin-unread-dot {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--color-surface);
-  animation: sidebar-pulse 2s infinite;
+  background-color: var(--color-primary, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.22), 0 0 8px rgba(22, 163, 74, 0.45);
+  pointer-events: none;
+  animation: bulletin-halo-pulse 2.4s infinite ease-in-out;
 }
 
-@keyframes sidebar-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.2); opacity: 0.7; }
+@keyframes bulletin-halo-pulse {
+  0%, 100% {
+    transform: translateY(-50%) scale(1);
+    box-shadow: 0 0 0 2.5px rgba(22, 163, 74, 0.22), 0 0 6px rgba(22, 163, 74, 0.4);
+  }
+  50% {
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 0 0 4.5px rgba(22, 163, 74, 0.16), 0 0 10px rgba(22, 163, 74, 0.55);
+  }
+}
+
+.menu button .unread-indicator {
+  display: none;
 }
 
 /* ---- Submenu ---- */

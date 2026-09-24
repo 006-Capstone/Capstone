@@ -148,6 +148,123 @@ export const calculate30DayPerformance = (tickets) => {
 };
 
 /**
+ * Calculate staff member's overall Efficiency Score (0-100)
+ * Evaluates SLA compliance, queue health, workload balance, and resolution volume.
+ * @param {object} staff - Staff member object
+ * @param {array} allRequests - All tickets in the system
+ * @returns {object} - Efficiency score, tier, and breakdown metrics
+ */
+export const calculateStaffEfficiencyScore = (staff, allRequests = []) => {
+  if (!staff) {
+    return {
+      score: 100,
+      tier: 'excellent',
+      tierLabel: 'Excellent',
+      tierColor: '#059669',
+      activeCount: 0,
+      overdueCount: 0,
+      resolvedCount: 0,
+      totalCount: 0,
+      onTimeRate: 100
+    };
+  }
+
+  const staffNameLower = (staff.name || staff.fullName || '').trim().toLowerCase();
+  const staffUid = staff.uid || staff.id || '';
+
+  const staffRequests = allRequests.filter(r => {
+    const assigned = (r.assignedTo || '').trim().toLowerCase();
+    const claimed = (r.claimedBy || '').trim().toLowerCase();
+    const assignedStaff = (r.assignedToStaff || '').trim().toLowerCase();
+    const matchesName = Boolean(staffNameLower && (assigned === staffNameLower || claimed === staffNameLower || assignedStaff === staffNameLower));
+    const matchesUid = Boolean(staffUid && (r.assignedToStaff === staffUid || r.claimedByUid === staffUid));
+    return matchesName || matchesUid;
+  });
+
+  const activeTickets = staffRequests.filter(r => r.status !== 'Resolved' && r.status !== 'Cancelled');
+  const activeCount = activeTickets.length;
+
+  const resolvedTickets = staffRequests.filter(r => r.status === 'Resolved');
+  const resolvedCount = resolvedTickets.length;
+
+  const overdueTickets = activeTickets.filter(r => {
+    const { isOverdue } = calculateTicketOverdue(r);
+    return isOverdue;
+  });
+  const overdueCount = overdueTickets.length;
+
+  // On-time rate calculation
+  let onTimeCount = 0;
+  resolvedTickets.forEach(t => {
+    const { isOverdue } = calculateTicketOverdue(t);
+    if (!isOverdue) onTimeCount++;
+  });
+
+  const onTimeRate = resolvedCount > 0 
+    ? Math.round((onTimeCount / resolvedCount) * 100) 
+    : (overdueCount === 0 ? 100 : 70);
+
+  // 1. SLA On-Time compliance: up to 50 pts
+  const slaScore = Math.round((onTimeRate / 100) * 50);
+
+  // 2. Queue & Overdue Health: up to 30 pts
+  let queueScore = 30;
+  if (activeCount > 0 && overdueCount > 0) {
+    const overdueRatio = overdueCount / activeCount;
+    const penalty = Math.min(30, Math.round(overdueRatio * 20) + (overdueCount * 4));
+    queueScore = Math.max(0, 30 - penalty);
+  } else if (activeCount === 0 && overdueCount === 0) {
+    queueScore = 30;
+  }
+
+  // 3. Workload Balance: up to 20 pts (optimal <= 15 tickets)
+  let workloadScore = 20;
+  if (activeCount > 15) {
+    workloadScore = Math.max(5, 20 - Math.min(15, (activeCount - 15) * 2));
+  }
+
+  // 4. Resolution Productivity Bonus: up to 10 pts
+  const volumeBonus = Math.min(10, resolvedCount * 2);
+
+  const score = Math.max(0, Math.min(100, slaScore + queueScore + workloadScore + volumeBonus));
+
+  // Graded Tier categorization
+  let tier = 'good';
+  let tierLabel = 'Good Standing';
+  let tierColor = '#16a34a';
+
+  if (score >= 90) {
+    tier = 'excellent';
+    tierLabel = 'Excellent';
+    tierColor = '#059669';
+  } else if (score >= 75) {
+    tier = 'good';
+    tierLabel = 'Good Standing';
+    tierColor = '#16a34a';
+  } else if (score >= 60) {
+    tier = 'advisory';
+    tierLabel = 'Needs Focus';
+    tierColor = '#d97706';
+  } else {
+    tier = 'critical';
+    tierLabel = 'Critical Attention';
+    tierColor = '#dc2626';
+  }
+
+  return {
+    score,
+    tier,
+    tierLabel,
+    tierColor,
+    activeCount,
+    overdueCount,
+    resolvedCount,
+    totalCount: staffRequests.length,
+    onTimeRate
+  };
+};
+
+/**
  * Determine warning stage based on performance metrics
  * @param {object} performanceData - Staff performance data
  * @returns {object} - { stage: number, stageName: string, description: string }
@@ -286,20 +403,42 @@ export const generateWorkloadRecommendations = (staffWorkloads) => {
   const underloaded = staffWorkloads.filter(s => s.activeTickets < 8);
   
   overloaded.forEach(heavyStaff => {
-    underloaded.forEach(lightStaff => {
-      const ticketsToReassign = Math.floor((heavyStaff.activeTickets - 12) / 2);
-      
-      if (ticketsToReassign > 0) {
-        recommendations.push({
-          type: 'reassignment',
-          priority: 'high',
-          from: heavyStaff.name,
-          to: lightStaff.name,
-          ticketCount: ticketsToReassign,
-          reason: `${heavyStaff.name} is overloaded with ${heavyStaff.activeTickets} tickets. ${lightStaff.name} has capacity with only ${lightStaff.activeTickets} tickets.`
-        });
-      }
+    const heavyDept = (heavyStaff.department || heavyStaff.office || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+
+    // STRICT: Only reassign to colleagues in the EXACT same department
+    const sameDeptLightStaff = underloaded.filter(lightStaff => {
+      const lightDept = (lightStaff.department || lightStaff.office || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+      return heavyDept && lightDept && heavyDept === lightDept;
     });
+
+    if (sameDeptLightStaff.length > 0) {
+      sameDeptLightStaff.forEach(lightStaff => {
+        const ticketsToReassign = Math.floor((heavyStaff.activeTickets - 12) / 2);
+        
+        if (ticketsToReassign > 0) {
+          recommendations.push({
+            type: 'reassignment',
+            priority: 'high',
+            from: heavyStaff.name,
+            to: lightStaff.name,
+            ticketCount: ticketsToReassign,
+            reason: `${heavyStaff.name} is overloaded with ${heavyStaff.activeTickets} tickets. ${lightStaff.name} has capacity with only ${lightStaff.activeTickets} tickets in the same department.`
+          });
+        }
+      });
+    } else {
+      // Sole or overloaded department staff without peers in that department
+      // DO NOT pair with someone from another office (e.g. Finance staff cannot take Registrar tickets)
+      const deptName = heavyStaff.department || heavyStaff.office || 'Office';
+      recommendations.push({
+        type: 'hire',
+        priority: 'high',
+        department: deptName,
+        affectedStaff: [deptName],
+        title: `Staffing Support for ${deptName}`,
+        reason: `${heavyStaff.name} is handling ${heavyStaff.activeTickets} tickets as the primary staff member in ${deptName}. Departmental rules prohibit cross-department ticket transfer.`
+      });
+    }
   });
   
   return recommendations;

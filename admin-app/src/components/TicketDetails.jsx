@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   FaBell, 
   FaUndo, 
@@ -11,7 +11,10 @@ import {
   FaPencilAlt, 
   FaInfoCircle,
   FaPaperclip,
-  FaLock
+  FaLock,
+  FaExchangeAlt,
+  FaCalendarAlt,
+  FaClock
 } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -67,6 +70,64 @@ const getYearOptions = () => {
   return [currentYear, currentYear + 1, currentYear + 2];
 };
 
+const TARGET_COMPLETION_DATE_PRESETS = [
+  { label: 'Today', offset: 0 },
+  { label: '+1 Day', offset: 1 },
+  { label: '+2 Days', offset: 2 },
+  { label: '+3 Days', offset: 3 }
+];
+
+const isoDateFromOffset = (offsetDays = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const calculateDaysCount = (targetIso) => {
+  if (!targetIso) return 2;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (typeof targetIso === 'string' && /^\d{4}-\d{2}-\d{2}/.test(targetIso)) {
+    const [y, m, d] = targetIso.substring(0, 10).split('-').map(Number);
+    const target = new Date(y, m - 1, d);
+    target.setHours(0, 0, 0, 0);
+    const diffTime = target.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(1, diffDays);
+  }
+  return 2;
+};
+
+const formatReadableDate = (dateVal) => {
+  if (!dateVal) return '';
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+    const [y, m, d] = dateVal.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+    return dateVal;
+  }
+  const d = dateVal?.toDate ? dateVal.toDate() : new Date(dateVal);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  }
+  return String(dateVal);
+};
+
 const getFormattedPreviewDate = (year, month, day) => {
   const y = parseInt(year, 10);
   const m = parseInt(month, 10);
@@ -94,6 +155,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [internalTargetDate, setInternalTargetDate] = useState('');
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignNote, setReassignNote] = useState('');
+  const [reassignTargetDate, setReassignTargetDate] = useState(() => isoDateFromOffset(2));
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const fileInputRef = useRef(null);
@@ -167,19 +229,161 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     );
   }, [ticket]);
 
-  // Check if current staff can reply to student - only original office can reply for rerouted tickets
+  const cleanOffice = (str) => (str || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+
+  // Check if the ticket has been rerouted to another department
+  const isTicketRerouted = Boolean(ticket?.reassignedFrom || ticket?.previousOffice);
+
+  // Original department name where the request was first filed
+  const originalDepartmentName = useMemo(() => {
+    if (!ticket) return '';
+    if (ticket.originalOffice) return ticket.originalOffice;
+    if (ticket.officeHistory && Object.keys(ticket.officeHistory).length > 0) {
+      const historyEntries = Object.entries(ticket.officeHistory);
+      historyEntries.sort((a, b) => {
+        const timeA = a[1]?.handledAt ? new Date(a[1].handledAt).getTime() : 0;
+        const timeB = b[1]?.handledAt ? new Date(b[1].handledAt).getTime() : 0;
+        return timeA - timeB;
+      });
+      return historyEntries[0][0];
+    }
+    return ticket.previousOffice || ticket.reassignedFrom || 'original';
+  }, [ticket]);
+
+  // Check if the current office/staff belongs to the original department where the request originated
+  const isOriginalDepartment = useCallback(() => {
+    if (!ticket) return false;
+    // If ticket was never rerouted, the current office is the original department
+    if (!ticket.reassignedFrom && !ticket.previousOffice && (!ticket.officeHistory || Object.keys(ticket.officeHistory).length === 0)) {
+      return true;
+    }
+
+    const staffOffice = cleanOffice(department || currentStaff?.office || currentStaff?.officeId);
+
+    // If originalOffice explicitly exists on the ticket
+    if (ticket.originalOffice) {
+      if (staffOffice) return staffOffice === cleanOffice(ticket.originalOffice);
+      return cleanOffice(ticket.office) === cleanOffice(ticket.originalOffice);
+    }
+
+    // Check officeHistory for the earliest recorded office
+    if (ticket.officeHistory && Object.keys(ticket.officeHistory).length > 0) {
+      const historyEntries = Object.entries(ticket.officeHistory);
+      historyEntries.sort((a, b) => {
+        const timeA = a[1]?.handledAt ? new Date(a[1].handledAt).getTime() : 0;
+        const timeB = b[1]?.handledAt ? new Date(b[1].handledAt).getTime() : 0;
+        return timeA - timeB;
+      });
+      const originalOfficeName = historyEntries[0][0];
+      if (staffOffice) return staffOffice === cleanOffice(originalOfficeName);
+      return cleanOffice(ticket.office) === cleanOffice(originalOfficeName);
+    }
+
+    // If previousOffice or reassignedFrom is present, compare with staff office
+    if (ticket.previousOffice || ticket.reassignedFrom) {
+      const origin = cleanOffice(ticket.previousOffice || ticket.reassignedFrom);
+      if (staffOffice) return staffOffice === origin;
+      return cleanOffice(ticket.office) === origin;
+    }
+
+    return true;
+  }, [ticket, department, currentStaff]);
+
+  // Check if current staff can reply to student:
+  // - If the request is rerouted, ONLY the original department can communicate with the student
+  // - If the request is not rerouted, the assigned owner can reply
   const canReplyToStudent = useMemo(() => {
-    if (!isOwner) return false;
-    if (!isReroutedTicket) return true; // Not rerouted, owner can reply
+    if (!ticket) return false;
+    if (isTicketRerouted) {
+      return isOriginalDepartment();
+    }
+    return isOwner;
+  }, [ticket, isTicketRerouted, isOriginalDepartment, isOwner]);
+
+  // Status timeline permission: rerouted department cannot edit ETC; only the original department can edit
+  const canEditEtc = useMemo(() => {
+    if (!ticket) return false;
+    const isClosed = ticket.status === 'Resolved' || ticket.status === 'Cancelled' || ticket.status === 'Returned';
+    if (isClosed) return false;
+
+    if (isTicketRerouted) {
+      return isOriginalDepartment();
+    }
+    return isOwner;
+  }, [ticket, isTicketRerouted, isOriginalDepartment, isOwner]);
+
+  // Target date, duration (days), and reroute timestamp inputted by original department
+  const reroutedTargetInfo = useMemo(() => {
+    if (!ticket || (!ticket.reassignedFrom && !ticket.previousOffice)) return null;
+
+    // Target date set by the original department
+    const targetDateRaw = ticket.internalTargetDate || ticket.reroutedTargetDate || ticket.targetCompletionDate || ticket.etc || ticket.estimatedCompletion;
     
-    // For rerouted tickets, only original office (previousOffice) can reply to students
-    if (!ticket || !currentStaff) return false;
-    
-    const currentOffice = (currentStaff.office || currentStaff.officeId || ticket.office || '').trim().toLowerCase();
-    const originalOffice = (ticket.previousOffice || '').trim().toLowerCase();
-    
-    return currentOffice === originalOffice;
-  }, [isOwner, isReroutedTicket, ticket, currentStaff]);
+    let formattedTargetDate = '';
+    let targetDateObj = null;
+
+    if (targetDateRaw) {
+      if (typeof targetDateRaw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(targetDateRaw)) {
+        const [y, m, d] = targetDateRaw.substring(0, 10).split('-').map(Number);
+        targetDateObj = new Date(y, m - 1, d);
+      } else if (targetDateRaw?.toDate) {
+        targetDateObj = targetDateRaw.toDate();
+      } else {
+        const parsed = new Date(targetDateRaw);
+        if (!isNaN(parsed.getTime())) targetDateObj = parsed;
+      }
+    }
+
+    if (targetDateObj && !isNaN(targetDateObj.getTime())) {
+      formattedTargetDate = targetDateObj.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+
+    // Rerouted date
+    let reroutedDateObj = null;
+    let formattedReroutedDate = '';
+    const reassignedAtRaw = ticket.reassignedAt || ticket.updatedAt;
+    if (reassignedAtRaw) {
+      if (reassignedAtRaw?.toDate) {
+        reroutedDateObj = reassignedAtRaw.toDate();
+      } else {
+        const parsed = new Date(reassignedAtRaw);
+        if (!isNaN(parsed.getTime())) reroutedDateObj = parsed;
+      }
+    }
+    if (reroutedDateObj && !isNaN(reroutedDateObj.getTime())) {
+      formattedReroutedDate = reroutedDateObj.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+
+    // Days count: either explicitly stored in targetDays or calculated between reassignedAt and targetDate
+    let daysCount = ticket.targetDays;
+    if (!daysCount && targetDateObj) {
+      const baseDate = reroutedDateObj || new Date();
+      const d1 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+      const d2 = new Date(targetDateObj.getFullYear(), targetDateObj.getMonth(), targetDateObj.getDate());
+      const diffMs = d2.getTime() - d1.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      daysCount = Math.max(1, diffDays);
+    }
+
+    const daysText = daysCount ? `${daysCount} ${daysCount === 1 ? 'day' : 'days'}` : '';
+
+    return {
+      formattedTargetDate: formattedTargetDate || (targetDateRaw ? String(targetDateRaw) : null),
+      daysCount,
+      daysText,
+      formattedReroutedDate,
+      setterName: ticket.internalTargetSetBy || ticket.reassignedBy || `${ticket.reassignedFrom || ticket.previousOffice} Office`
+    };
+  }, [ticket]);
 
   useEffect(() => {
     if (ticketData) {
@@ -267,12 +471,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const handleSendReply = async () => {
+    if (isTicketRerouted && !isOriginalDepartment()) {
+      showToast(`Only the original office (${originalDepartmentName || 'original department'}) can reply to students on rerouted requests.`, 'error');
+      return;
+    }
+
     if (!canReplyToStudent) {
-      if (!isOwner) {
-        showToast('You do not have permission to reply. Only the assigned staff member can reply to this request.', 'error');
-      } else if (isReroutedTicket) {
-        showToast(`Only the original office (${ticket.previousOffice}) can reply to students on rerouted requests.`, 'error');
-      }
+      showToast('You do not have permission to reply. Only authorized staff from the responsible department can reply to this request.', 'error');
       return;
     }
 
@@ -340,8 +545,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const openEstimatedCompletionModal = () => {
-    if (!isOwner) {
-      showToast('You do not have permission to edit the estimated completion date.', 'error');
+    if (!canEditEtc) {
+      if (isTicketRerouted) {
+        showToast(`Estimated time of completion can only be modified by the original department (${ticket.previousOffice || ticket.reassignedFrom || 'original office'}).`, 'error');
+      } else {
+        showToast('You do not have permission to edit the estimated completion date.', 'error');
+      }
       return;
     }
 
@@ -374,8 +583,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const handleUpdateEstimatedCompletion = async () => {
     if (!ticket) return;
 
-    if (!isOwner) {
-      showToast('You do not have permission to update the estimated completion date.', 'error');
+    if (!canEditEtc) {
+      if (isTicketRerouted) {
+        showToast(`Estimated time of completion can only be modified by the original department (${ticket.previousOffice || ticket.reassignedFrom || 'original office'}).`, 'error');
+      } else {
+        showToast('You do not have permission to update the estimated completion date.', 'error');
+      }
       setShowEstimatedCompletionModal(false);
       return;
     }
@@ -497,38 +710,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     } finally {
       setReturning(false);
     }
-  };
-
-  // Check if the current office is the original department where the request originated
-  const isOriginalDepartment = () => {
-    if (!ticket) return false;
-    // If ticket was never rerouted, the current office is the original department
-    if (!ticket.reassignedFrom && !ticket.officeHistory) {
-      return true;
-    }
-
-    if (ticket.originalOffice) {
-      return (ticket.office || '').toLowerCase() === ticket.originalOffice.toLowerCase();
-    }
-
-    // Check officeHistory for the earliest recorded office
-    if (ticket.officeHistory && Object.keys(ticket.officeHistory).length > 0) {
-      const historyEntries = Object.entries(ticket.officeHistory);
-      historyEntries.sort((a, b) => {
-        const timeA = a[1]?.handledAt ? new Date(a[1].handledAt).getTime() : 0;
-        const timeB = b[1]?.handledAt ? new Date(b[1].handledAt).getTime() : 0;
-        return timeA - timeB;
-      });
-      const originalOfficeName = historyEntries[0][0];
-      return (ticket.office || '').toLowerCase() === originalOfficeName.toLowerCase();
-    }
-
-    // If reassignedFrom is present, current office must match the origin
-    if (ticket.reassignedFrom) {
-      return (ticket.office || '').toLowerCase() === (ticket.reassignedFrom || '').toLowerCase();
-    }
-
-    return true;
   };
 
   // Only Guidance Office and Library Department are permitted to reject requests
@@ -765,7 +946,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         updatedAt: serverTimestamp()
       });
 
-      showToast('Internal target date set successfully!', 'success');
       loadTicketDetails();
     } catch (error) {
       console.error('Error setting target date:', error);
@@ -783,6 +963,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       showToast('Request is already assigned to this office', 'info');
       return;
     }
+    const defaultDate = ticket.internalTargetDate || ticket.etc || isoDateFromOffset(2);
+    setReassignTargetDate(defaultDate);
     setShowReassignModal(true);
   };
 
@@ -818,6 +1000,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
       const currentOfficeHistory = ticket.officeHistory || {};
       const currentHandler = ticket.claimedBy || ticket.assignedTo || staffData.name;
+      const daysCount = calculateDaysCount(reassignTargetDate);
       
       if (currentHandler) {
         currentOfficeHistory[ticket.office] = {
@@ -837,6 +1020,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         reassignmentNote: reassignNote.trim(),
         previousRequestId: ticket.requestId,
         previousOffice: ticket.office,
+        internalTargetDate: reassignTargetDate,
+        reroutedTargetDate: reassignTargetDate,
+        targetDays: daysCount,
+        internalTargetSetBy: staffData.name,
+        internalTargetSetAt: serverTimestamp(),
         officeHistory: currentOfficeHistory,
         urgencyLevel: urgencyLevel,
         updatedAt: serverTimestamp()
@@ -851,7 +1039,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         
         updateData.followUps = arrayUnion(
           {
-            message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nReason: ${reassignNote.trim()}`,
+            message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nTarget Completion: ${reassignTargetDate} (${daysCount} ${daysCount === 1 ? 'day' : 'days'})\nReason: ${reassignNote.trim()}`,
             sentBy: 'system',
             sentByName: 'System',
             sentAt: new Date().toISOString()
@@ -871,7 +1059,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         updateData.status = 'Pending';
         
         updateData.followUps = arrayUnion({
-          message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nReason: ${reassignNote.trim()}`,
+          message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nTarget Completion: ${reassignTargetDate} (${daysCount} ${daysCount === 1 ? 'day' : 'days'})\nReason: ${reassignNote.trim()}`,
           sentBy: 'system',
           sentByName: 'System',
           sentAt: new Date().toISOString()
@@ -900,6 +1088,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       );
       
       setReassignNote('');
+      setReassignTargetDate(isoDateFromOffset(2));
       showToast(`Request reassigned to ${reassignOffice}!`, 'success');
       onNavigate('my-tickets');
     } catch (error) {
@@ -911,6 +1100,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const cancelReassign = () => {
     setShowReassignModal(false);
     setReassignNote('');
+    setReassignTargetDate(isoDateFromOffset(2));
   };
 
   const downloadAttachment = (attachment) => {
@@ -1043,17 +1233,22 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           </p>
         </div>
         <div className="header-right">
-          <div 
-            className="notification-bell" 
-            onClick={() => setShowNotifications(true)} 
-            role="button" 
-            tabIndex={0}
+          <button
+            type="button"
+            className="notification-bell"
+            onClick={() => setShowNotifications(true)}
             title="Notifications"
-            aria-label="View notifications"
+            aria-label="Notifications"
+            aria-haspopup="true"
+            aria-expanded={showNotifications}
           >
-            <FaBell className="bell-icon" />
-            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-          </div>
+            <FaBell className="bell-icon" aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -1062,6 +1257,38 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           <FaLock className="readonly-notice-icon" />
           <div className="readonly-notice-text">
             <strong>View-Only Mode:</strong> This request is {ticketHandler ? `claimed/managed by ${ticketHandler}` : 'not claimed by you'}. You can view the request details and history, but actions such as resolving, rejecting, replying, and editing completion dates are restricted to the assigned staff member.
+          </div>
+        </div>
+      )}
+
+      {/* Rerouted Request Reminder Callout (Compact) */}
+      {(ticket.reassignedFrom || ticket.previousOffice) && (
+        <div className="ticket-rerouted-callout">
+          <div className="rerouted-callout-icon-wrap">
+            <FaExchangeAlt />
+          </div>
+          <div className="rerouted-callout-main">
+            <div className="rerouted-callout-text">
+              <strong className="rerouted-callout-title">Rerouted Request Notice:</strong>{' '}
+              <span>
+                Transferred from <strong>{ticket.reassignedFrom || ticket.previousOffice} Office</strong> to <strong>{ticket.office || department} Office</strong>.
+              </span>
+            </div>
+
+            {reroutedTargetInfo && reroutedTargetInfo.formattedTargetDate && (
+              <div className="rerouted-compact-meta">
+                <span className="rerouted-compact-date">
+                  <FaCalendarAlt className="rerouted-compact-icon" />
+                  Target: <strong>{reroutedTargetInfo.formattedTargetDate}</strong>
+                </span>
+                {reroutedTargetInfo.daysText && (
+                  <span className="rerouted-compact-days">
+                    <FaClock className="rerouted-compact-icon" />
+                    {reroutedTargetInfo.daysText}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1231,10 +1458,25 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             )}
 
             {/* Dashed Separator */}
-            {!isTicketClosed && <div className="card-dashed-divider" />}
+            {!isTicketClosed && (!isTicketRerouted || isOriginalDepartment()) && (
+              <div className="card-dashed-divider" />
+            )}
 
-            {/* Reply to Student Composer */}
-            {!isTicketClosed && (
+            {/* Rerouted Request Notice: Direct student communication restricted to original department */}
+            {!isTicketClosed && isTicketRerouted && !isOriginalDepartment() && (
+              <div className="rerouted-reply-restricted-callout">
+                <FaLock className="restricted-callout-icon" />
+                <div className="restricted-callout-body">
+                  <span className="restricted-callout-title">Student Communication Restricted</span>
+                  <p className="restricted-callout-desc">
+                    This request was rerouted from the <strong>{originalDepartmentName} Office</strong>. Only the original department can communicate directly with the student.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Reply to Student Composer: only rendered if NOT rerouted, or if current staff belongs to the original department */}
+            {!isTicketClosed && (!isTicketRerouted || isOriginalDepartment()) && (
               <div className={`reply-composer-section ${!canReplyToStudent ? 'reply-composer-readonly' : ''}`}>
                 <div className="reply-composer-header">
                   <FaUserCircle className="reply-composer-avatar" />
@@ -1242,7 +1484,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   {!canReplyToStudent && (
                     <span className="reply-readonly-badge">
                       <FaLock className="reply-lock-icon" /> 
-                      {!isOwner ? 'View Only' : 'Original Office Only'}
+                      View Only
                     </span>
                   )}
                 </div>
@@ -1251,10 +1493,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   <textarea
                     className="reply-native-textarea"
                     placeholder={
-                      !isOwner 
+                      !canReplyToStudent 
                         ? `View-only mode — this request is claimed by ${ticketHandler || 'another staff member'}.`
-                        : (isReroutedTicket && !canReplyToStudent)
-                        ? `Only the original office (${ticket.previousOffice}) can reply to students on rerouted requests.`
                         : "Type your message here...."
                     }
                     value={replyMessage}
@@ -1301,10 +1541,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     }}
                     disabled={sending || !canReplyToStudent}
                     title={
-                      !isOwner 
-                        ? `Only ${ticketHandler || 'the assigned staff'} can attach files` 
-                        : (isReroutedTicket && !canReplyToStudent)
-                        ? `Only the original office (${ticket.previousOffice}) can reply to students`
+                      !canReplyToStudent 
+                        ? `Only authorized staff can attach files` 
                         : "Attach files to message"
                     }
                   >
@@ -1318,10 +1556,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     onClick={handleSendReply}
                     disabled={sending || !canReplyToStudent || (!replyMessage.trim() && replyFiles.length === 0)}
                     title={
-                      !isOwner 
-                        ? `Only ${ticketHandler || 'the assigned staff'} can send replies` 
-                        : (isReroutedTicket && !canReplyToStudent)
-                        ? `Only the original office (${ticket.previousOffice}) can reply to students`
+                      !canReplyToStudent 
+                        ? `Only authorized staff can send replies` 
                         : "Send Message"
                     }
                   >
@@ -1367,21 +1603,33 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   {ticket.etc ? (
                     <button
                       type="button"
-                      className={`figma-etc-pill ${!isOwner ? 'pill-readonly' : ''}`}
-                      onClick={isOwner ? openEstimatedCompletionModal : undefined}
-                      disabled={!isOwner}
-                      title={!isOwner ? `Estimated completion date can only be modified by ${ticketHandler || 'the assigned staff'}` : "Edit estimated completion date"}
+                      className={`figma-etc-pill ${!canEditEtc ? 'pill-readonly' : ''}`}
+                      onClick={canEditEtc ? openEstimatedCompletionModal : undefined}
+                      disabled={!canEditEtc}
+                      title={
+                        !canEditEtc
+                          ? (isTicketRerouted
+                              ? `Estimated time of completion can only be modified by the original department (${ticket.previousOffice || ticket.reassignedFrom || 'original office'})`
+                              : `Estimated completion date can only be modified by ${ticketHandler || 'the assigned staff'}`)
+                          : "Edit estimated completion date"
+                      }
                     >
                       <span>Estimated time of completion: {formatEtcLabel(ticket.etc)}</span>
-                      {isOwner && <FaPencilAlt className="etc-edit-pencil" />}
+                      {canEditEtc && <FaPencilAlt className="etc-edit-pencil" />}
                     </button>
                   ) : !isTicketClosed ? (
                     <button
                       type="button"
-                      className={`figma-etc-pill btn-set-etc ${!isOwner ? 'pill-readonly' : ''}`}
-                      onClick={isOwner ? openEstimatedCompletionModal : undefined}
-                      disabled={!isOwner}
-                      title={!isOwner ? `Estimated completion date can only be set by ${ticketHandler || 'the assigned staff'}` : "Set estimated completion date"}
+                      className={`figma-etc-pill btn-set-etc ${!canEditEtc ? 'pill-readonly' : ''}`}
+                      onClick={canEditEtc ? openEstimatedCompletionModal : undefined}
+                      disabled={!canEditEtc}
+                      title={
+                        !canEditEtc
+                          ? (isTicketRerouted
+                              ? `Estimated time of completion can only be set by the original department (${ticket.previousOffice || ticket.reassignedFrom || 'original office'})`
+                              : `Estimated completion date can only be set by ${ticketHandler || 'the assigned staff'}`)
+                          : "Set estimated completion date"
+                      }
                     >
                       <span>+ Set Estimated Completion Date</span>
                     </button>
@@ -1574,15 +1822,16 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     : "Set internal target date (does not affect Status Timeline or student)"
                 }
                 minDate={new Date().toISOString().split('T')[0]}
-                inputClassName="figma-select-input"
+                presets={TARGET_COMPLETION_DATE_PRESETS}
+                footerActions="cancel"
                 placeholder="Set target completion date"
                 ariaLabel="Target Completion Date"
               />
               <p className="mgmt-info-text">
-                {(isReroutedTicket && ticket.internalTargetSetBy) ? (
+                {(isReroutedTicket && (ticket.internalTargetSetBy || ticket.previousOffice)) ? (
                   <>
-                    <FaLock style={{ marginRight: '4px' }} />
-                    Deadline set by {ticket.internalTargetSetBy} for this office to complete
+                    <FaExchangeAlt style={{ marginRight: '5px', color: '#d97706' }} />
+                    Deadline set by {ticket.internalTargetSetBy ? `${ticket.internalTargetSetBy} (${ticket.previousOffice || 'previous'} Office)` : `${ticket.previousOffice} Office`} for this office to complete
                   </>
                 ) : (
                   'Internal deadline for office - does not appear in Status Timeline or affect student'
@@ -1821,16 +2070,36 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           <div className="figma-modal-window" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal-heading green-heading">Reassign to {reassignOffice}</h3>
             <p className="modal-explainer">
-              Please provide a reason for reassigning request #{ticket.requestId}
+              Please specify the target completion deadline and a reason for reassigning request #{ticket.requestId}
             </p>
             
             <div className="modal-field-group">
+              <label className="modal-label">
+                TARGET COMPLETION DATE &amp; DURATION
+              </label>
+              <DropdownCalendar
+                value={reassignTargetDate}
+                onChange={(newDate) => setReassignTargetDate(newDate)}
+                minDate={new Date().toISOString().split('T')[0]}
+                presets={TARGET_COMPLETION_DATE_PRESETS}
+                placeholder="Set target completion date"
+                ariaLabel="Reroute Target Completion Date"
+              />
+              <div className="reassign-duration-hint">
+                Allocated duration: <strong>{calculateDaysCount(reassignTargetDate)} {calculateDaysCount(reassignTargetDate) === 1 ? 'day' : 'days'}</strong> (Target: {formatReadableDate(reassignTargetDate)})
+              </div>
+            </div>
+
+            <div className="modal-field-group">
+              <label className="modal-label">
+                REASON FOR REASSIGNMENT
+              </label>
               <textarea
                 className="modal-input-area"
                 placeholder="Example: This inquiry belongs to the Finance Office..."
                 value={reassignNote}
                 onChange={(e) => setReassignNote(e.target.value)}
-                rows={5}
+                rows={4}
                 maxLength={500}
               />
               <div className="modal-char-counter">
@@ -1849,7 +2118,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 type="button"
                 className="btn-modal-submit btn-submit-green" 
                 onClick={confirmReassign}
-                disabled={reassignNote.trim().length < 10}
+                disabled={reassignNote.trim().length < 10 || !reassignTargetDate}
               >
                 Confirm Reassignment
               </button>
@@ -1925,7 +2194,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   setEtcDay(day);
                 }}
                 minDate={new Date().toISOString().split('T')[0]}
-                inputClassName="etc-date-input"
                 placeholder="Select target completion date"
                 ariaLabel="Target Completion Date"
               />
@@ -1986,7 +2254,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         </div>
       )}
       
-      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} onNavigate={onNavigate} />
     </div>
   );
 };

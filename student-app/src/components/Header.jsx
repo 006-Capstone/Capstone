@@ -7,7 +7,7 @@ import Notifications from './Notifications';
 import Brand from './Brand';
 import '../styles/Header.css';
 
-function Header({ onMenuToggle, isSidebarOpen = false, onViewRequest }) {
+function Header({ onMenuToggle, isSidebarOpen = false, onViewRequest, onNavigate }) {
   const [studentData, setStudentData] = useState(null);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -115,6 +115,7 @@ function Header({ onMenuToggle, isSidebarOpen = false, onViewRequest }) {
               onClose={handleCloseNotifications}
               bellRef={bellRef}
               onViewRequest={onViewRequest}
+              onNavigate={onNavigate}
             />
           </div>
         </div>

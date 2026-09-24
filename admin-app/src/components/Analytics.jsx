@@ -383,10 +383,22 @@ Understand your office's performance at a glance
             appliedFilter={appliedFilter}
             idPrefix="analytics"
           />
-          <div className="notification-bell" onClick={() => setShowNotifications(true)}>
-            <FaBell className="bell-icon" />
-            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-          </div>
+          <button
+            type="button"
+            className="notification-bell"
+            onClick={() => setShowNotifications(true)}
+            title="Notifications"
+            aria-label="Notifications"
+            aria-haspopup="true"
+            aria-expanded={showNotifications}
+          >
+            <FaBell className="bell-icon" aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 

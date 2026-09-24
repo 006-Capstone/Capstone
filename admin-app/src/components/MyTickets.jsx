@@ -4,7 +4,8 @@ import {
   FaSearch, 
   FaTimes,
   FaClock,
-  FaInbox
+  FaInbox,
+  FaExchangeAlt
 } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -222,17 +223,22 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
               <span className="trigger-badge">{nearingRequests.length}</span>
             </button>
           )}
-
-          <div 
-            className="notification-bell" 
-            onClick={() => setShowNotifications(true)} 
-            role="button" 
-            tabIndex={0}
-            aria-label="View notifications"
+          <button
+            type="button"
+            className="notification-bell"
+            onClick={() => setShowNotifications(true)}
+            title="Notifications"
+            aria-label="Notifications"
+            aria-haspopup="true"
+            aria-expanded={showNotifications}
           >
-            <FaBell className="bell-icon" />
-            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-          </div>
+            <FaBell className="bell-icon" aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -391,6 +397,14 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                             </div>
                             <div className="ticket-meta-row">
                               <span className="ticket-id">{ticketIdDisplay}</span>
+                              {(ticket.reassignedFrom || ticket.previousOffice) && (
+                                <span
+                                  className="ticket-rerouted-badge"
+                                  title={`This request was rerouted from the ${ticket.reassignedFrom || ticket.previousOffice} Office`}
+                                >
+                                  <FaExchangeAlt className="rerouted-badge-icon" /> Rerouted from {ticket.reassignedFrom || ticket.previousOffice}
+                                </span>
+                              )}
                               {formattedDate && (
                                 <span className="ticket-meta-date" title={`Submitted on ${formattedDate}`}>
                                   • {formattedDate}
@@ -502,7 +516,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
         )}
       </div>
 
-      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} onNavigate={onNavigate} />
 
       {/* Modal: Summary of Requests Nearing Estimated Completion */}
       <NearingCompletionModal

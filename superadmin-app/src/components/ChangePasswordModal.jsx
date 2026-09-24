@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FaLock, FaTimes, FaShieldAlt, FaEnvelope } from 'react-icons/fa';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 import '../styles/ChangePasswordModal.css';
 
 const ChangePasswordModal = ({ user, onClose, onPasswordChanged }) => {
@@ -18,6 +20,20 @@ const ChangePasswordModal = ({ user, onClose, onPasswordChanged }) => {
       
       // Send password reset email
       await sendPasswordResetEmail(auth, user.email);
+
+      // Record password reset dispatch in Firestore so it's captured in audit history
+      try {
+        const targetCollection = (user.userType === 'student' || user.accountType === 'student' || (!user.office && user.id)) ? 'students' : 'staff';
+        const docId = user.firestoreId || user.id;
+        if (docId) {
+          await updateDoc(doc(db, targetCollection, docId), {
+            passwordResetAt: serverTimestamp(),
+            passwordResetBy: auth?.currentUser?.email || 'Super Admin'
+          });
+        }
+      } catch (docErr) {
+        console.warn('Could not record passwordResetAt on user document:', docErr);
+      }
       
       setSuccess(`Password reset email sent to ${user.email}. The user can click the link in the email to set a new password.`);
     } catch (error) {
