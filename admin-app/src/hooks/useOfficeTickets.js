@@ -38,41 +38,40 @@ export const useOfficeTickets = (department) => {
     setLoading(true);
     setError(null);
 
-    const q = query(
-      collection(db, 'requests'),
-      where('office', '==', department)
-    );
+    const deptStr = String(department).trim();
+    const deptLower = deptStr.toLowerCase();
+    const deptTitle = deptLower.charAt(0).toUpperCase() + deptLower.slice(1);
+    const deptUpper = deptStr.toUpperCase();
+    const deptVariations = Array.from(new Set([deptStr, deptTitle, deptUpper, deptLower])).filter(Boolean);
 
-    console.log('[useOfficeTickets] Querying requests for department:', department);
-    console.log('[useOfficeTickets] Query will match requests where office ==', department);
+    const q = deptVariations.length > 1
+      ? query(collection(db, 'requests'), where('office', 'in', deptVariations))
+      : query(collection(db, 'requests'), where('office', '==', deptStr));
 
-    // Safety net: if Firestore never responds, stop loading so the page
-    // renders an (empty/error) state and stays fully navigable.
-    let settled = false;
+    console.log('[useOfficeTickets] Querying requests for department variations:', deptVariations);
+
+    // Safety net: if Firestore never responds on initial load (e.g. offline),
+    // stop loading so the page renders cleanly and stays navigable.
+    let initialLoadComplete = false;
     const timer = setTimeout(() => {
-      settled = true;
-      setError(new Error('Timed out while loading tickets. Check your connection.'));
-      setLoading(false);
+      if (!initialLoadComplete) {
+        setError(new Error('Timed out while loading tickets. Check your connection.'));
+        setLoading(false);
+      }
     }, SNAPSHOT_TIMEOUT_MS);
-
-    const finish = () => {
-      clearTimeout(timer);
-      settled = true;
-    };
 
     const unsubscribe = onSnapshot(
       q,
       { includeMetadataChanges: true },
       (querySnapshot) => {
-        if (settled) return;
-        
+        clearTimeout(timer);
+        initialLoadComplete = true;
+
         if (querySnapshot.metadata.fromCache) {
           console.log('[useOfficeTickets] Snapshot from cache');
         } else {
           console.log('[useOfficeTickets] Snapshot from server');
         }
-        
-        finish();
 
         console.log('[useOfficeTickets] Firestore snapshot received');
         console.log('[useOfficeTickets] Received', querySnapshot.docs.length, 'requests for', department);
@@ -80,6 +79,16 @@ export const useOfficeTickets = (department) => {
         const ticketsData = querySnapshot.docs
           .map(doc => {
             const data = doc.data();
+            let createdAtTimestamp = 0;
+            if (data.createdAt?.toDate) {
+              createdAtTimestamp = data.createdAt.toDate().getTime();
+            } else if (data.createdAt) {
+              const d = new Date(data.createdAt).getTime();
+              createdAtTimestamp = isNaN(d) ? 0 : d;
+            } else if (doc.metadata.hasPendingWrites) {
+              createdAtTimestamp = Date.now();
+            }
+
             console.log('[useOfficeTickets] Request:', data.requestId, 'Office:', data.office, 'Status:', data.status, 'IsGuest:', data.isGuest);
             return {
               firestoreId: doc.id,
@@ -90,8 +99,8 @@ export const useOfficeTickets = (department) => {
               status: data.status,
               assignedTo: data.assignedTo || null,
               assignedToStaff: data.assignedToStaff || null,
-              createdAtTimestamp: data.createdAt?.toDate?.().getTime?.() || 0,
-              ...data
+              ...data,
+              createdAtTimestamp
             };
           })
           .filter(ticket => 
@@ -112,11 +121,11 @@ export const useOfficeTickets = (department) => {
         console.log('[useOfficeTickets] Ticket statuses:', ticketsData.map(t => `${t.requestId}:${t.status}`).join(', '));
         
         setTickets(ticketsData);
+        setError(null);
         setLoading(false);
       },
       (err) => {
-        if (settled) return;
-        finish();
+        clearTimeout(timer);
         console.error('[Error] Error loading tickets:', err);
         setError(err);
         setLoading(false);

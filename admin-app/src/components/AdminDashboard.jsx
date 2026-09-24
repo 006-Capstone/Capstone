@@ -25,8 +25,15 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const { toast, alertModal } = useNotification();
   const [activeTab, setActiveTab] = useState('new');
   const [searchQuery, setSearchQuery] = useState('');
-  const { tickets, loading, refresh } = useOfficeTickets(department);
-  const [staffData, setStaffData] = useState(null);
+  const [staffData, setStaffData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('staffData') || 'null');
+    } catch {
+      return null;
+    }
+  });
+  const effectiveDepartment = department || staffData?.office || '';
+  const { tickets, loading, refresh } = useOfficeTickets(effectiveDepartment);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,10 +51,14 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     // Get staff data from localStorage
     const storedStaffData = localStorage.getItem('staffData');
     if (storedStaffData) {
-      const parsedData = JSON.parse(storedStaffData);
-      console.log('[AdminDashboard] Staff office:', parsedData.office);
-      console.log('[AdminDashboard] Department prop:', department);
-      setStaffData(parsedData);
+      try {
+        const parsedData = JSON.parse(storedStaffData);
+        console.log('[AdminDashboard] Staff office:', parsedData.office);
+        console.log('[AdminDashboard] Department prop:', department);
+        setStaffData(parsedData);
+      } catch (e) {
+        console.error('Error parsing staffData:', e);
+      }
     }
   }, [department]);
 
@@ -61,13 +72,19 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       where('recipientType', '==', 'staff')
     );
 
+    let isFirst = true;
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
       setUnreadCount(unread);
+      if (!isFirst) {
+        // Automatically refresh tickets feed if a new notification arrives
+        refresh?.();
+      }
+      isFirst = false;
     });
 
     return () => unsubscribe();
-  }, [staffData]);
+  }, [staffData?.uid, refresh]);
 
   // Helper to extract timestamp from ticket
   const getTicketTimestamp = (ticket) => {
