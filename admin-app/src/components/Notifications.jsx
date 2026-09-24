@@ -15,7 +15,6 @@ import {
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { markAsRead, markAllAsRead } from '../utils/notificationHelper';
-import LoadingSpinner from './LoadingSpinner';
 import { RequestFeedSkeleton } from './common/Skeleton';
 import '../styles/Notifications.css';
 

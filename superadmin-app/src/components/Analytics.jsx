@@ -19,7 +19,6 @@ import {
 } from 'react-icons/fa';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import LoadingSpinner from './LoadingSpinner';
 import { OverviewCardsSkeleton, AnalyticsChartSkeleton } from './common/Skeleton';
 import NotificationBell from './NotificationBell';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';

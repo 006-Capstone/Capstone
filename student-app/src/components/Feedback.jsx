@@ -3,7 +3,6 @@ import { MdStar, MdStarHalf, MdStarBorder } from 'react-icons/md';
 import { FaArrowLeft, FaChevronRight } from 'react-icons/fa';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import LoadingSpinner from './LoadingSpinner';
 import { Skeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/Feedback.css';
@@ -550,7 +549,6 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
             disabled={!isFormValid || submitting}
             title={!isFormValid ? 'Rate Response Time and Helpfulness to submit' : undefined}
           >
-            {submitting && <span className="btn-spinner"></span>}
             {submitting ? 'Submitting...' : 'Submit Feedback'}
           </button>
         </div>

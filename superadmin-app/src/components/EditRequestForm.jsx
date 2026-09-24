@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import LoadingSpinner from './LoadingSpinner';
 import NotificationBell from './NotificationBell';
 import Toast from './Toast';
 import { Skeleton } from './common/Skeleton';
@@ -487,8 +486,6 @@ const EditRequestForm = () => {
           onClose={() => setToast(null)}
         />
       )}
-
-      {saving && <LoadingSpinner message="Saving configuration..." fullScreen={true} />}
     </div>
   );
 };

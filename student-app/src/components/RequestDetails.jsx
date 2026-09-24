@@ -12,7 +12,6 @@ import { FaUserCircle } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { notifyStaffFollowUp } from '../utils/notificationHelper';
-import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import StatusBadge from './StatusBadge';
 import { ChatPanelSkeleton } from './common/Skeleton';

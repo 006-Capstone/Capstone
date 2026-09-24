@@ -23,7 +23,6 @@ import {
 } from '../utils/notificationHelper';
 import { validateReassignmentNote } from '../utils/contentModeration';
 import Notifications from './Notifications';
-import LoadingSpinner from './LoadingSpinner';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/TicketDetails.css';

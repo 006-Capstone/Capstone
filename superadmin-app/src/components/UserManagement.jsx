@@ -41,7 +41,6 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import NotificationBell from './NotificationBell';
 import Archive from './Archive';
-import LoadingSpinner from './LoadingSpinner';
 import { DataTableSkeleton } from './common/Skeleton';
 import ChangePasswordModal from './ChangePasswordModal';
 import Toast from './Toast';

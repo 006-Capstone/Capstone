@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaBell, FaCheckDouble, FaTimes } from 'react-icons/fa';
 import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import LoadingSpinner from './LoadingSpinner';
 import { RequestFeedSkeleton } from './common/Skeleton';
 import RequestDetailsModal from './RequestDetailsModal';
 import '../styles/NotificationBell.css';

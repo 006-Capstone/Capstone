@@ -21,7 +21,6 @@ import {
 } from 'react-icons/fa';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import LoadingSpinner from './LoadingSpinner';
 import { OverviewCardsSkeleton, AnalyticsChartSkeleton } from './common/Skeleton';
 import Notifications from './Notifications';
 import '../styles/MyPerformance.css';

@@ -15,7 +15,6 @@ import {
 } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import LoadingSpinner from './LoadingSpinner';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import '../styles/RequestDetailsModal.css';
 

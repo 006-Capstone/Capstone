@@ -16,7 +16,6 @@ import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { validateContent } from '../utils/contentModeration';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
-import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import { useNotification } from '../context/NotificationContext';
 import { NewRequestSkeleton } from './common/Skeleton';
@@ -686,7 +685,6 @@ function NewRequest({ onNavigate }) {
                 disabled={loading || !isFormValid}
                 title={!isFormValid ? 'Complete all required fields to submit' : undefined}
               >
-                {loading && <span className="btn-spinner"></span>}
                 {loading ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>
@@ -735,8 +733,6 @@ function NewRequest({ onNavigate }) {
           </div>
         </aside>
       </div>
-
-      {loading && <LoadingSpinner message="Submitting your request..." fullScreen={true} />}
     </div>
   );
 }

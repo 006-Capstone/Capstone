@@ -7,7 +7,6 @@ import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload, FaSignOutAlt, FaList
 import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
 import { encryptCredentials } from '../utils/qrEncryption';
-import LoadingSpinner from './LoadingSpinner';
 import { useNotification } from '../context/NotificationContext';
 import { SettingsModalSkeleton, SettingsContentSkeleton } from './common/Skeleton';
 import '../styles/ProfileSettings.css';

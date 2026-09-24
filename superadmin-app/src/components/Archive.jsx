@@ -27,7 +27,6 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import NotificationBell from './NotificationBell';
-import LoadingSpinner from './LoadingSpinner';
 import { DataTableSkeleton } from './common/Skeleton';
 import Toast from './Toast';
 import '../styles/Archive.css';

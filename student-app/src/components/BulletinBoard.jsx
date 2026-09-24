@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { FaCalendarAlt } from 'react-icons/fa';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import LoadingSpinner from './LoadingSpinner';
 import AnnouncementCard from './AnnouncementCard';
 import { RequestFeedSkeleton } from './common/Skeleton';
 import '../styles/BulletinBoard.css';

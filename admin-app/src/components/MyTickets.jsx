@@ -12,7 +12,6 @@ import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import Notifications from './Notifications';
 import NearingCompletionModal from './NearingCompletionModal';
 import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
-import LoadingSpinner from './LoadingSpinner';
 import { DataTableSkeleton } from './common/Skeleton';
 import '../styles/MyTickets.css';
 
