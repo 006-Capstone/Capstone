@@ -77,6 +77,12 @@ export const generateExecutiveSummary = async (performanceData) => {
 
   const prompt = `You are an AI performance analyst for Academia de San Jose's ticket management system. Generate exactly 3 concise bullet points summarizing system status.
 
+Institutional Context & Boundaries:
+- The school ONLY has 4 administrative offices: Finance, Guidance, Library, Registrar.
+- DO NOT invent "IT Support", "IT Helpdesk", "technical support", "portal glitch", or generic corporate IT terms.
+- Real Staff: Registrar (Dorothy Gerolaga); Finance (Jefelah P. Amistoso, Dot g, b s); Library (Ban S).
+- STRICT ISOLATION: Staff belong exclusively to their designated office. NEVER suggest Finance staff (e.g. Jefelah P. Amistoso) to handle Registrar requests or Dorothy's backlog.
+
 Current System Status:
 - Overall Health: ${systemHealth?.status || 'normal'} (${systemHealth?.onTrackPercentage || 0}% on-track)
 - Active Tickets: ${totalActiveTickets || 0}
@@ -90,7 +96,7 @@ ${(departmentHealth || []).map(dept =>
 
 Staff at Risk:
 ${(topBottlenecks || []).map(staff => 
-  `- ${staff.name}: ${staff.riskScore}% risk score, ${staff.overdueTickets} overdue tickets`
+  `- ${staff.name} (${staff.department || staff.office}): ${staff.riskScore}% risk score, ${staff.overdueTickets} overdue tickets`
 ).join('\n')}
 
 Strict Output Rules:
@@ -104,7 +110,7 @@ Action: [1 sentence on the top operational priority recommendation, max 14 words
   const messages = [
     {
       role: 'system',
-      content: 'You are an executive operations AI. Provide ultra-concise, factual bullet summaries without any emojis, bullet characters, or conversational filler.'
+      content: 'You are an executive operations AI. Provide ultra-concise, factual bullet summaries without any emojis, bullet characters, IT helpdesk hallucinations, or cross-department staff assignments.'
     },
     {
       role: 'user',
@@ -114,10 +120,18 @@ Action: [1 sentence on the top operational priority recommendation, max 14 words
 
   try {
     const raw = await callGroqAPI(messages);
-    return stripEmojis(raw);
+    let cleaned = stripEmojis(raw);
+    // Sanitize any generic corporate IT hallucinations
+    cleaned = cleaned.replace(/it support|helpdesk|technical support|it department|it team/gi, 'administrative office');
+    cleaned = cleaned.replace(/keyword routing( triage)?/gi, 'request processing');
+    // Sanitize cross-department staff hallucinations (e.g. Jefelah resolving Registrar)
+    if (/registrar/i.test(cleaned) && /jefelah/i.test(cleaned)) {
+      cleaned = cleaned.replace(/\bjefelah(\s+p\.?)?(\s+amistoso)?\b/gi, 'Registrar staff');
+    }
+    return cleaned;
   } catch (error) {
     console.error('Error generating executive summary:', error);
-    return 'Status: System monitoring active with operational data updated.\nBottleneck: Review department breakdown for active queues.\nAction: Rebalance ticket assignments as needed.';
+    return 'Status: System monitoring active with operational data updated.\nBottleneck: Review department breakdown for active queues.\nAction: Rebalance department ticket assignments as needed.';
   }
 };
 
@@ -135,11 +149,15 @@ export const detectAnomalies = async (analyticsData) => {
     staffData
   } = analyticsData;
 
+  const validOffices = ['Finance', 'Guidance', 'Library', 'Registrar'];
+
   const prompt = `You are an AI anomaly detection system for Academia de San Jose's student services ticketing platform. Analyze the following data and identify AT MOST 2-3 significant operational anomalies.
 
-Institutional Context:
+Institutional Context & Boundaries:
 - The school ONLY has 4 administrative offices: Finance, Guidance, Library, Registrar.
-- DO NOT invent "IT Support", "IT Helpdesk", or non-existent external teams.
+- DO NOT invent "IT Support", "IT Helpdesk", "technical support", "portal downtime", or generic corporate IT terms.
+- Real Staff: Registrar: Dorothy Gerolaga. Finance: Jefelah P. Amistoso, Dot g, b s. Library: Ban S.
+- STRICT ISOLATION: Staff can only handle work within their own office. NEVER suggest Finance staff (e.g. Jefelah P. Amistoso) for Registrar backlogs. Jefelah is in Finance only.
 
 Current Metrics (Last 7 days):
 - Active Tickets: ${currentMetrics.activeTickets}
@@ -166,7 +184,7 @@ Strict Rules:
 2. Keep text extremely brief and scannable:
    - title: concise title (max 5 words, no emojis)
    - description: exactly 1 crisp sentence (max 18 words, no emojis)
-   - affectedArea: MUST BE either one of the 4 offices (Finance, Guidance, Library, Registrar) or a specific staff name from Staff Outliers (max 4 words).
+   - affectedArea: MUST BE strictly either one of the 4 offices (Finance, Guidance, Library, Registrar) or a specific staff member who belongs to that office (max 4 words).
    - recommendation: immediate action (max 8 words, no emojis)
 3. Do NOT include ANY emojis or symbols.
 
@@ -188,7 +206,7 @@ Format your response as a JSON object:
   const messages = [
     {
       role: 'system',
-      content: 'You are an AI anomaly detection system for a school. Respond with concise, scannable JSON without any emojis, IT helpdesk hallucinations, or decorative characters.'
+      content: 'You are an AI anomaly detection system for a school. Respond with concise, scannable JSON without any emojis, IT helpdesk hallucinations, or cross-department staff assignments.'
     },
     {
       role: 'user',
@@ -210,7 +228,7 @@ Format your response as a JSON object:
         
         const data = JSON.parse(jsonString);
         const rawAnomalies = Array.isArray(data.anomalies) ? data.anomalies : [];
-        const hallucinatedPattern = /it support|helpdesk|keyword routing|technical support/i;
+        const hallucinatedPattern = /it support|helpdesk|keyword routing|triage software|tier 1|tier 2|technical support|portal downtime|server|database|network|admissions|human resources|\bhr\b/i;
 
         const cleanedAnomalies = rawAnomalies
           .filter(a => {
@@ -220,14 +238,62 @@ Format your response as a JSON object:
             }
             return true;
           })
-          .slice(0, 3)
-          .map(a => ({
-            ...a,
-            title: stripEmojis(a.title || ''),
-            description: stripEmojis(a.description || ''),
-            affectedArea: stripEmojis(a.affectedArea || ''),
-            recommendation: stripEmojis(a.recommendation || '')
-          }));
+          .map(a => {
+            let affected = stripEmojis(a.affectedArea || '').trim();
+            let desc = stripEmojis(a.description || '');
+            let title = stripEmojis(a.title || '');
+
+            // Validate affectedArea against valid offices
+            const matchedOffice = validOffices.find(o => 
+              o.toLowerCase() === affected.toLowerCase() || 
+              `${o.toLowerCase()} office` === affected.toLowerCase()
+            );
+
+            if (matchedOffice) {
+              affected = matchedOffice;
+            } else {
+              // Check if affected matches a real staff member
+              const matchedStaff = (staffData || []).find(s => 
+                s.name && s.name.toLowerCase() === affected.toLowerCase()
+              );
+
+              if (matchedStaff) {
+                const staffDept = (matchedStaff.department || '').toLowerCase();
+                // Check if staff member belongs to the context described in the anomaly
+                if (/registrar|transcript|coe|graduation/i.test(`${title} ${desc}`) && staffDept !== 'registrar') {
+                  // Cross-department mismatch (e.g. Jefelah in Registrar anomaly)
+                  affected = 'Registrar';
+                } else if (/finance|tuition|balance|payment/i.test(`${title} ${desc}`) && staffDept !== 'finance') {
+                  affected = 'Finance';
+                } else {
+                  affected = matchedStaff.name;
+                }
+              } else {
+                // Unknown/hallucinated area - detect office from title & description
+                const combined = `${title} ${desc}`.toLowerCase();
+                if (/registrar|transcript|tor|coe|clearance|graduation|diploma/i.test(combined)) affected = 'Registrar';
+                else if (/finance|tuition|balance|payment|receipt/i.test(combined)) affected = 'Finance';
+                else if (/library|book|borrow/i.test(combined)) affected = 'Library';
+                else if (/guidance|counsel|moral/i.test(combined)) affected = 'Guidance';
+                else affected = 'Registrar';
+              }
+            }
+
+            // Sanitize cross-department staff mentions in description and title
+            if (/registrar/i.test(`${affected} ${title} ${desc}`)) {
+              desc = desc.replace(/\bjefelah(\s+p\.?)?(\s+amistoso)?\b/gi, 'Registrar staff');
+              title = title.replace(/\bjefelah(\s+p\.?)?(\s+amistoso)?\b/gi, 'Registrar');
+            }
+
+            return {
+              ...a,
+              title: stripEmojis(title),
+              description: stripEmojis(desc),
+              affectedArea: affected,
+              recommendation: stripEmojis(a.recommendation || '')
+            };
+          })
+          .slice(0, 3);
 
         return {
           anomalies: cleanedAnomalies,
@@ -386,8 +452,8 @@ Format as JSON:
     const detectRecDept = (rec) => {
       if (!rec) return null;
       const text = `${rec.title || ''} ${rec.description || ''}`.toLowerCase();
-      if (/registrar|transcript|tor|coe|enrollment|clearance|diploma|academic record/i.test(text)) return 'Registrar';
-      if (/finance|tuition|balance|payment|receipt|cashier|assessment|fee/i.test(text)) return 'Finance';
+      if (/registrar|transcript|tor|coe|enrollment|clearance|diploma|academic record|graduation|records/i.test(text)) return 'Registrar';
+      if (/finance|tuition|balance|payment|receipt|cashier|assessment|fee|billing/i.test(text)) return 'Finance';
       if (/library|book|borrow|circulation/i.test(text)) return 'Library';
       if (/guidance|counseling|good moral|conduct/i.test(text)) return 'Guidance';
       return null;
@@ -396,7 +462,7 @@ Format as JSON:
     const sanitizeRecs = (items) => {
       if (!Array.isArray(items)) return [];
 
-      const hallucinatedPattern = /it support|helpdesk|keyword routing|triage software|tier 1|tier 2|technical support/i;
+      const hallucinatedPattern = /it support|helpdesk|keyword routing|triage software|tier 1|tier 2|technical support|portal downtime|server|database|network|admissions|human resources|\bhr\b/i;
       const invalidStaffPattern = /^(all departments?|it support.*|helpdesk.*|department.*|staff.*|n\/a|none|unknown)$/i;
 
       return items
@@ -410,8 +476,20 @@ Format as JSON:
         })
         .slice(0, 3)
         .map(r => {
-          const recDept = detectRecDept(r);
+          let recDept = detectRecDept(r);
           const rawStaff = Array.isArray(r.affectedStaff) ? r.affectedStaff : [];
+
+          // If department not detected from text, inspect staff
+          if (!recDept) {
+            for (const s of rawStaff) {
+              const sClean = stripEmojis(s || '').trim().toLowerCase();
+              if (realStaffMap[sClean]) {
+                recDept = realStaffMap[sClean];
+                break;
+              }
+            }
+            if (!recDept) recDept = 'Registrar';
+          }
           
           const cleanedStaff = [];
           rawStaff.forEach(s => {
@@ -424,7 +502,7 @@ Format as JSON:
             if (validDepartments.some(d => d.toLowerCase() === cleanLower || `${d.toLowerCase()} office` === cleanLower)) {
               const formattedDept = cleanLower.replace(/\s+(office|department)$/i, '').trim();
               const capDept = formattedDept.charAt(0).toUpperCase() + formattedDept.slice(1);
-              if (!recDept || recDept.toLowerCase() === capDept.toLowerCase()) {
+              if (recDept.toLowerCase() === capDept.toLowerCase()) {
                 if (!cleanedStaff.includes(capDept)) cleanedStaff.push(capDept);
               }
               return;
@@ -438,7 +516,7 @@ Format as JSON:
             }
 
             // Cross-department check: staff MUST belong to the recommendation's department
-            if (recDept && staffDept.toLowerCase() !== recDept.toLowerCase()) {
+            if (staffDept.toLowerCase() !== recDept.toLowerCase()) {
               console.warn(`[Anti-Hallucination] Discarded cross-department staff ${clean} (${staffDept}) from ${recDept} recommendation`);
               return;
             }
@@ -453,8 +531,30 @@ Format as JSON:
             cleanedStaff.push(recDept);
           }
 
-          // Clean description of any cross-department staff mentions
+          // If recommendation type is reassign, but department only has 1 or fewer staff:
+          let recType = r.type;
+          let recTitle = stripEmojis(r.title || '');
+          if (recType === 'reassign' && staffByDept[recDept] && staffByDept[recDept].length <= 1) {
+            recType = 'process_improvement';
+            recTitle = recTitle.replace(/reassign(ing)?/gi, 'Optimize');
+          }
+
+          // Clean title of any cross-department staff mentions and corporate IT terms
+          recTitle = recTitle.replace(/it support|helpdesk|technical support|it desk/gi, 'Office');
+          recTitle = recTitle.replace(/keyword routing( triage)?/gi, 'request processing');
+          if (recDept) {
+            Object.entries(realStaffMap).forEach(([staffLower, dept]) => {
+              if (dept && dept.toLowerCase() !== recDept.toLowerCase()) {
+                const staffRegex = new RegExp(`\\b${staffLower}\\b`, 'gi');
+                recTitle = recTitle.replace(staffRegex, `${recDept} Operations`);
+              }
+            });
+          }
+
+          // Clean description of any cross-department staff mentions and corporate IT terms
           let sanitizedDescription = stripEmojis(r.description || '');
+          sanitizedDescription = sanitizedDescription.replace(/it support|helpdesk|technical support|it department|it team/gi, 'administrative office');
+          sanitizedDescription = sanitizedDescription.replace(/keyword routing( triage)?/gi, 'request processing');
           if (recDept) {
             Object.entries(realStaffMap).forEach(([staffLower, dept]) => {
               if (dept && dept.toLowerCase() !== recDept.toLowerCase()) {
@@ -464,13 +564,30 @@ Format as JSON:
             });
           }
 
+          // Clean steps of any cross-department staff mentions
+          const sanitizedSteps = Array.isArray(r.steps) ? r.steps.map(step => {
+            let stepClean = stripEmojis(step || '');
+            stepClean = stepClean.replace(/it support|helpdesk|technical support/gi, 'office operations');
+            stepClean = stepClean.replace(/keyword routing/gi, 'request sorting');
+            if (recDept) {
+              Object.entries(realStaffMap).forEach(([staffLower, dept]) => {
+                if (dept && dept.toLowerCase() !== recDept.toLowerCase()) {
+                  const staffRegex = new RegExp(`\\b${staffLower}\\b`, 'gi');
+                  stepClean = stepClean.replace(staffRegex, `${recDept} staff`);
+                }
+              });
+            }
+            return stepClean;
+          }) : [];
+
           return {
             ...r,
-            title: stripEmojis(r.title || ''),
+            type: recType,
+            title: recTitle,
             description: sanitizedDescription,
             expectedImpact: stripEmojis(r.expectedImpact || ''),
             affectedStaff: cleanedStaff,
-            steps: Array.isArray(r.steps) ? r.steps.map(s => stripEmojis(s || '')) : []
+            steps: sanitizedSteps
           };
         });
     };

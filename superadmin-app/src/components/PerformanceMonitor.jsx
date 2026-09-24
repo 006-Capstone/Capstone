@@ -139,10 +139,10 @@ const PerformanceMonitor = () => {
     const text = `${item.title || ''} ${item.description || ''} ${item.reason || ''}`.toLowerCase();
 
     const deptKeywords = {
-      Registrar: ['registrar', 'transcript', 'tor', 'certificate of enrollment', 'coe', 'form 137', 'form 138', 'diploma', 'academic record', 'graduation', 'curriculum', 'enrollment clearance', 'grade'],
-      Finance: ['finance', 'tuition', 'balance', 'fee', 'payment', 'receipt', 'assessment', 'cashier', 'accounting', 'promissory', 'billing'],
-      Library: ['library', 'book', 'librarian', 'borrow', 'circulation', 'catalog', 'overdue book', 'book clearance'],
-      Guidance: ['guidance', 'counseling', 'counselor', 'good moral', 'conduct', 'moral certificate', 'behavior']
+      Registrar: ['registrar', 'transcript', 'tor', 'certificate of enrollment', 'coe', 'form 137', 'form 138', 'diploma', 'academic record', 'graduation', 'curriculum', 'enrollment clearance', 'grade', 'student records', 'credentials', 'honorable dismissal', 'completion form', 'document request', 'records', 'dorothy', 'gerolaga', 'backlog', 'overdue tickets', 'turnaround time', 'sla breach'],
+      Finance: ['finance', 'tuition', 'balance', 'fee', 'payment', 'receipt', 'assessment', 'cashier', 'accounting', 'promissory', 'billing', 'financial', 'ledger', 'refund', 'statement of account', 'soa'],
+      Library: ['library', 'book', 'librarian', 'borrow', 'circulation', 'catalog', 'overdue book', 'book clearance', 'accession', 'library card', 'ban s'],
+      Guidance: ['guidance', 'counseling', 'counselor', 'good moral', 'conduct', 'moral certificate', 'behavior', 'student affairs']
     };
 
     for (const [dept, keywords] of Object.entries(deptKeywords)) {
@@ -151,11 +151,24 @@ const PerformanceMonitor = () => {
       }
     }
 
-    return null;
+    // If still null, check if any staff in affectedStaff is from a department
+    if (Array.isArray(item.affectedStaff) && item.affectedStaff.length > 0) {
+      for (const sName of item.affectedStaff) {
+        const sLower = (sName || '').toLowerCase().trim();
+        const matched = allStaffData.find(s => (s.name || '').toLowerCase().trim() === sLower);
+        if (matched && matched.department) {
+          const deptClean = matched.department.charAt(0).toUpperCase() + matched.department.slice(1).toLowerCase();
+          return deptClean;
+        }
+      }
+    }
+
+    return 'Registrar'; // default to primary school service department
   };
 
-  const getCleanedStaffList = (staffList, itemContext = null) => {
+  const getCleanedStaffList = (staffList, itemContext = null, staffDataSource = null) => {
     if (!Array.isArray(staffList)) return [];
+    const activeStaff = (staffDataSource && staffDataSource.length > 0) ? staffDataSource : allStaffData;
     const invalidPattern = /^(all departments?|it support.*|helpdesk.*|technical support.*|staff.*|n\/a|none|unknown|various)$/i;
     const validDepts = ['finance', 'guidance', 'library', 'registrar'];
 
@@ -179,7 +192,7 @@ const PerformanceMonitor = () => {
       }
 
       // Check against real registered staff
-      const matchedStaff = allStaffData.find(staff => {
+      const matchedStaff = activeStaff.find(staff => {
         const staffName = (staff.name || '').trim().toLowerCase();
         return staffName === sLower ||
                (staffName.length > 3 && (sLower.includes(staffName) || staffName.includes(sLower)));
@@ -215,21 +228,51 @@ const PerformanceMonitor = () => {
     return cleaned;
   };
 
-  const cleanDescriptionText = (text, itemContext = null) => {
-    if (!text || typeof text !== 'string') return text;
+  const cleanTitleText = (title, itemContext = null, staffDataSource = null) => {
+    if (!title || typeof title !== 'string') return title;
+    const activeStaff = (staffDataSource && staffDataSource.length > 0) ? staffDataSource : allStaffData;
     const targetDept = itemContext ? detectItemDepartment(itemContext) : null;
-    if (!targetDept || allStaffData.length === 0) return text;
+
+    let cleaned = title;
+    cleaned = cleaned.replace(/it support|helpdesk|technical support|it desk/gi, 'Office');
+    cleaned = cleaned.replace(/keyword routing( triage)?/gi, 'request processing');
+
+    if (targetDept && activeStaff.length > 0) {
+      activeStaff.forEach(staff => {
+        const staffDept = (staff.department || staff.office || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+        if (staffDept && staffDept !== targetDept.toLowerCase()) {
+          const nameRegex = new RegExp(`\\b${staff.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'gi');
+          if (nameRegex.test(cleaned)) {
+            cleaned = cleaned.replace(nameRegex, `${targetDept} Operations`);
+          }
+        }
+      });
+    }
+
+    return cleaned;
+  };
+
+  const cleanDescriptionText = (text, itemContext = null, staffDataSource = null) => {
+    if (!text || typeof text !== 'string') return text;
+    const activeStaff = (staffDataSource && staffDataSource.length > 0) ? staffDataSource : allStaffData;
+    const targetDept = itemContext ? detectItemDepartment(itemContext) : null;
 
     let cleaned = text;
-    allStaffData.forEach(staff => {
-      const staffDept = (staff.department || staff.office || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
-      if (staffDept && staffDept !== targetDept.toLowerCase()) {
-        const nameRegex = new RegExp(`\\b${staff.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'gi');
-        if (nameRegex.test(cleaned)) {
-          cleaned = cleaned.replace(nameRegex, `${targetDept} staff`);
+    cleaned = cleaned.replace(/it support|helpdesk|technical support|it department|it team/gi, 'office operations');
+    cleaned = cleaned.replace(/keyword routing( triage)?/gi, 'request processing');
+    cleaned = cleaned.replace(/tier 1|tier 2/gi, 'staff');
+
+    if (targetDept && activeStaff.length > 0) {
+      activeStaff.forEach(staff => {
+        const staffDept = (staff.department || staff.office || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+        if (staffDept && staffDept !== targetDept.toLowerCase()) {
+          const nameRegex = new RegExp(`\\b${staff.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'gi');
+          if (nameRegex.test(cleaned)) {
+            cleaned = cleaned.replace(nameRegex, `${targetDept} staff`);
+          }
         }
-      }
-    });
+      });
+    }
 
     return cleaned;
   };
@@ -266,9 +309,19 @@ const PerformanceMonitor = () => {
 
     if (lines.length === 0) return [];
 
+    const sanitizeLine = (text) => {
+      let t = text;
+      t = t.replace(/it support|helpdesk|technical support|it team|it department/gi, 'office operations');
+      t = t.replace(/keyword routing( triage)?/gi, 'request processing');
+      if (/registrar/i.test(t) && /jefelah/i.test(t)) {
+        t = t.replace(/\bjefelah(\s+p\.?)?(\s+amistoso)?\b/gi, 'Registrar staff');
+      }
+      return t;
+    };
+
     const items = [];
     lines.forEach(line => {
-      const cleanLine = line.replace(/^[-•*]\s*/, '').trim();
+      const cleanLine = sanitizeLine(line.replace(/^[-•*]\s*/, '').trim());
       if (/^status[:\-]/i.test(cleanLine)) {
         items.push({ type: 'status', label: 'Status', text: cleanLine.replace(/^status[:\-]\s*/i, '').trim() });
       } else if (/^(bottleneck|risk|warning|watch)[:\-]/i.test(cleanLine)) {
@@ -505,7 +558,7 @@ const PerformanceMonitor = () => {
       setLastUpdated(new Date());
       
       // Load performance tasks
-      loadPerformanceTasks();
+      loadPerformanceTasks(enrichedStaffData);
     } catch (error) {
       console.error('Error loading performance data:', error);
     } finally {
@@ -513,22 +566,27 @@ const PerformanceMonitor = () => {
     }
   };
 
-  const loadPerformanceTasks = async () => {
+  const loadPerformanceTasks = async (staffDataSource = null) => {
     try {
+      const activeStaff = (staffDataSource && staffDataSource.length > 0) ? staffDataSource : allStaffData;
       const tasksSnapshot = await getDocs(
         query(collection(db, 'performance_tasks'), orderBy('createdAt', 'desc'))
       );
       const tasks = tasksSnapshot.docs.map(docSnap => {
         const data = docSnap.data();
-        const cleanedStaff = getCleanedStaffList(data.affectedStaff, data);
-        const cleanedDesc = cleanDescriptionText(data.description, data);
+        const cleanedStaff = getCleanedStaffList(data.affectedStaff, data, activeStaff);
+        const cleanedTitle = cleanTitleText(data.title, data, activeStaff);
+        const cleanedDesc = cleanDescriptionText(data.description, data, activeStaff);
 
         // If stored task had hallucinated staff or cross-department references, persist the cleaned version
         if (
           Array.isArray(data.affectedStaff) &&
-          (JSON.stringify(cleanedStaff) !== JSON.stringify(data.affectedStaff) || cleanedDesc !== data.description)
+          (JSON.stringify(cleanedStaff) !== JSON.stringify(data.affectedStaff) || 
+           cleanedDesc !== data.description ||
+           cleanedTitle !== data.title)
         ) {
           updateDoc(doc(db, 'performance_tasks', docSnap.id), {
+            title: cleanedTitle,
             affectedStaff: cleanedStaff,
             description: cleanedDesc,
             updatedAt: serverTimestamp()
@@ -540,6 +598,7 @@ const PerformanceMonitor = () => {
         return {
           id: docSnap.id,
           ...data,
+          title: cleanedTitle,
           affectedStaff: cleanedStaff,
           description: cleanedDesc
         };
@@ -833,21 +892,27 @@ const PerformanceMonitor = () => {
       const steps = recommendation.steps?.join('\n• ') || 'No specific steps provided';
       const confirmed = await confirm({
         title: 'Apply Recommendation',
-        message: `Apply this recommendation?\n\n${recommendation.title}\n\nImplementation Steps:\n• ${steps}\n\nThis will create a task record in Performance Improvement Tasks for follow-up.`,
+        message: `Apply this recommendation?\n\n${cleanTitleText(recommendation.title, recommendation)}\n\nImplementation Steps:\n• ${steps}\n\nThis will create a task record in Performance Improvement Tasks for follow-up.`,
         confirmText: 'Apply Recommendation',
         variant: 'success'
       });
       
       if (confirmed) {
         try {
+          const recDept = detectItemDepartment(recommendation) || 'Registrar';
+          const cleanedStaff = getCleanedStaffList(recommendation.affectedStaff, recommendation);
+          const cleanedTitle = cleanTitleText(recommendation.title, recommendation);
+          const cleanedDesc = cleanDescriptionText(recommendation.description, recommendation);
+
           const docRef = await addDoc(collection(db, 'performance_tasks'), {
             type: recommendation.type,
-            title: recommendation.title,
-            description: cleanDescriptionText(recommendation.description, recommendation),
-            affectedStaff: getCleanedStaffList(recommendation.affectedStaff, recommendation),
-            steps: recommendation.steps,
-            expectedImpact: recommendation.expectedImpact,
-            priority: recommendation.priority,
+            department: recDept,
+            title: cleanedTitle,
+            description: cleanedDesc,
+            affectedStaff: cleanedStaff,
+            steps: recommendation.steps || [],
+            expectedImpact: recommendation.expectedImpact || '',
+            priority: recommendation.priority || 'medium',
             status: 'pending',
             createdAt: serverTimestamp(),
             createdBy: 'superadmin'
@@ -1438,18 +1503,31 @@ const PerformanceMonitor = () => {
                         </span>
                         <span className="anomaly-type">{anomaly.type?.replace(/_/g, ' ')}</span>
                       </div>
-                      <h5>{anomaly.title}</h5>
-                      <p className="anomaly-description">{anomaly.description}</p>
+                      <h5>{cleanTitleText(anomaly.title, anomaly)}</h5>
+                      <p className="anomaly-description">{cleanDescriptionText(anomaly.description, anomaly)}</p>
                       <div className="anomaly-footer compact-footer">
                         <div className="anomaly-chip area-chip">
                           <FaBuilding className="chip-icon" />
                           <span className="chip-label">Affected:</span>
-                          <span className="chip-val">{anomaly.affectedArea}</span>
+                          <span className="chip-val">
+                            {(() => {
+                              const raw = (anomaly.affectedArea || '').trim();
+                              const dept = detectItemDepartment(anomaly) || 'Registrar';
+                              const matchedStaff = allStaffData.find(s => s.name?.toLowerCase() === raw.toLowerCase());
+                              if (matchedStaff) {
+                                const sDept = (matchedStaff.department || '').toLowerCase();
+                                if (sDept !== dept.toLowerCase()) return dept;
+                                return matchedStaff.name;
+                              }
+                              const isDept = ['Finance', 'Guidance', 'Library', 'Registrar'].find(d => d.toLowerCase() === raw.toLowerCase());
+                              return isDept || dept;
+                            })()}
+                          </span>
                         </div>
                         <div className="anomaly-chip action-chip">
                           <FaArrowRight className="chip-icon" />
                           <span className="chip-label">Action:</span>
-                          <span className="chip-val">{anomaly.recommendation}</span>
+                          <span className="chip-val">{cleanDescriptionText(anomaly.recommendation, anomaly)}</span>
                         </div>
                       </div>
                     </div>
@@ -1498,7 +1576,7 @@ const PerformanceMonitor = () => {
                             </span>
                           )}
                         </div>
-                        <h5>{rec.title}</h5>
+                        <h5>{cleanTitleText(rec.title, rec)}</h5>
                         <p className="smart-rec-description">{cleanDescriptionText(rec.description, rec)}</p>
                         
                         {/* Compact Metadata Row */}
@@ -1543,7 +1621,7 @@ const PerformanceMonitor = () => {
                               {rec.steps.map((step, i) => (
                                 <li key={i} className="rec-step-item">
                                   <span className="step-num">{i + 1}</span>
-                                  <span className="step-text">{step}</span>
+                                  <span className="step-text">{cleanDescriptionText(step, rec)}</span>
                                 </li>
                               ))}
                             </ol>
@@ -1672,7 +1750,7 @@ const PerformanceMonitor = () => {
                   </div>
 
                   <div className="task-card-body">
-                    <h4 className="task-title">{task.title}</h4>
+                    <h4 className="task-title">{cleanTitleText(task.title, task)}</h4>
                     <p className="task-description">{cleanDescriptionText(task.description, task)}</p>
                     
                     {/* Compact Inline Metadata Row (Staff + Impact) */}
@@ -1717,7 +1795,7 @@ const PerformanceMonitor = () => {
                           {task.steps.map((step, i) => (
                             <li key={i} className="task-step-item">
                               <span className="step-number">{i + 1}</span>
-                              <span className="step-text">{step}</span>
+                              <span className="step-text">{cleanDescriptionText(step, task)}</span>
                             </li>
                           ))}
                         </ol>
