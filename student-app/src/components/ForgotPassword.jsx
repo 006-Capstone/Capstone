@@ -418,8 +418,8 @@ const ForgotPassword = ({ onClose }) => {
         {/* Step 3: Enter New Password */}
         {step === 3 && (
           resetComplete ? (
-            <div className="reset-success-box" style={{ textAlign: 'center', padding: '16px 0' }}>
-              <p style={{ marginBottom: '24px', color: 'var(--color-text, #374151)', fontSize: '14.5px', lineHeight: '1.5' }}>
+            <div className="reset-success-box">
+              <p>
                 Your password has been changed successfully. You can now log in with your new password.
               </p>
               <button
