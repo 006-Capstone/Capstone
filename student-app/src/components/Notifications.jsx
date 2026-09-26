@@ -335,7 +335,7 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest, onNavigate }) 
                       <span className="notif-request-chip notif-announcement-chip">Bulletin</span>
                     )}
                     {(notif.type === 'new_deadline' || notif.type === 'important_deadline') && (
-                      <span className="notif-request-chip notif-deadline-chip">Deadline</span>
+                      <span className="notif-request-chip notif-deadline-chip">Important Date</span>
                     )}
                   </div>
                   <div className="notification-message">{notif.message}</div>

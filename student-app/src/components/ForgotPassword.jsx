@@ -54,6 +54,26 @@ const ForgotPassword = ({ onClose }) => {
     return () => clearInterval(interval);
   }, [timerActive, timeRemaining]);
 
+  // Lock background page scroll while modal is active so no scrollbar appears outside the modal
+  React.useEffect(() => {
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const studentContainer = document.querySelector('.login-container-student');
+    const adminPage = document.querySelector('.login-page');
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    if (studentContainer) studentContainer.classList.add('modal-open');
+    if (adminPage) adminPage.classList.add('modal-open');
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      if (studentContainer) studentContainer.classList.remove('modal-open');
+      if (adminPage) adminPage.classList.remove('modal-open');
+    };
+  }, []);
+
   const handleSendCode = async (e) => {
     e.preventDefault();
     setError('');

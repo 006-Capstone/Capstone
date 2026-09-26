@@ -12,7 +12,7 @@ const OFFICES = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
 const ITEMS_PER_PAGE = 5;
 
 // Featured (semestral) announcement shown in the green hero card
-const DEFAULT_HERO_TITLE = 'Announcements & Deadlines';
+const DEFAULT_HERO_TITLE = 'Announcements & Important Dates';
 const DEFAULT_HERO_BODY = 'Keep students informed with the latest updates and important dates.';
 
 // Firestore caps documents at 1 MiB, so photos are compressed client-side to
@@ -824,13 +824,13 @@ const BulletinBoard = ({ department, onViewRequest }) => {
         <div className="deadlines-section">
           <div className="deadlines-header">
             <FaCalendarAlt className="deadlines-header-icon" />
-            <h3>Important Deadlines</h3>
+            <h3>Important Dates</h3>
           </div>
 
           <div className="deadlines-list">
             {importantDates.length === 0 ? (
               <div className="empty-state-small">
-                <p>No upcoming deadlines</p>
+                <p>No upcoming important dates</p>
               </div>
             ) : (
               importantDates.map((deadline) => (
@@ -848,8 +848,8 @@ const BulletinBoard = ({ department, onViewRequest }) => {
                       type="button"
                       className="edit-deadline-btn"
                       onClick={() => handleEditImportantDate(deadline)}
-                      aria-label={`Edit deadline: ${deadline.title}`}
-                      title="Edit deadline"
+                      aria-label={`Edit date: ${deadline.title}`}
+                      title="Edit date"
                     >
                       <FaEdit />
                     </button>
@@ -857,8 +857,8 @@ const BulletinBoard = ({ department, onViewRequest }) => {
                       type="button"
                       className="delete-deadline-btn"
                       onClick={() => handleDeleteImportantDate(deadline.id)}
-                      aria-label={`Delete deadline: ${deadline.title}`}
-                      title="Delete deadline"
+                      aria-label={`Delete date: ${deadline.title}`}
+                      title="Delete date"
                     >
                       <FaTrash />
                     </button>

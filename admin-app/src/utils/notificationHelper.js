@@ -362,8 +362,8 @@ export const notifyStudentsNewDeadline = async (department, title, month, day, d
         studentUid,
         'student',
         'important_deadline',
-        `Important Deadline: ${title}`,
-        `"${title}" (${officeDisplay}) is due on ${dueDateDisplay}. Check the Bulletin Board for details.`,
+        `Important Date: ${title}`,
+        `"${title}" (${officeDisplay}) is scheduled for ${dueDateDisplay}. Check the Bulletin Board for details.`,
         { 
           deadlineId, 
           title,

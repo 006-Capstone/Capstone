@@ -10,7 +10,7 @@ import '../styles/BulletinBoard.css';
 const DEFAULT_HERO = {
   office: '',
   title: 'Welcome to the Bulletin Board',
-  body: 'Stay updated with the latest announcements and important deadlines'
+  body: 'Stay updated with the latest announcements and important dates'
 };
 
 const ITEMS_PER_PAGE = 5;
@@ -170,7 +170,7 @@ function BulletinBoard() {
       <div className="page-header">
         <div className="page-title-group">
           <h1 className="page-title">Bulletin Board</h1>
-          <p className="page-subtitle">Campus announcements, office updates, and important academic deadlines</p>
+          <p className="page-subtitle">Campus announcements, office updates, and important academic dates</p>
         </div>
       </div>
 
@@ -266,12 +266,12 @@ function BulletinBoard() {
         <div className="deadlines-section">
           <div className="deadlines-header">
             <FaCalendarAlt className="deadlines-header-icon" />
-            <h3>Important Deadlines</h3>
+            <h3>Important Dates</h3>
           </div>
           
           {deadlines.length === 0 ? (
             <div className="empty-state-small">
-              <p>No upcoming deadlines</p>
+              <p>No upcoming important dates</p>
             </div>
           ) : (
             deadlines.map((deadline) => (
