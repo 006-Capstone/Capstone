@@ -79,36 +79,69 @@ module.exports = async function handler(req, res) {
       password: newPassword
     });
 
-    // Clear QR code data from Firestore (students collection) if student
+    // Clear QR code data from Firestore and update password change timestamps
     if (db) {
+      const now = FieldValue ? FieldValue.serverTimestamp() : new Date().toISOString();
       try {
         const studentsRef = db.collection('students');
-        const studentQuery = await studentsRef.where('uid', '==', userRecord.uid).get();
+        let studentQuery = await studentsRef.where('uid', '==', userRecord.uid).get();
+        if (studentQuery.empty && targetEmail) {
+          studentQuery = await studentsRef.where('email', '==', targetEmail).get();
+        }
+        if (studentQuery.empty && effectiveId) {
+          studentQuery = await studentsRef.where('studentId', '==', effectiveId).get();
+        }
+        if (studentQuery.empty && effectiveId) {
+          studentQuery = await studentsRef.where('id', '==', effectiveId).get();
+        }
         
         if (!studentQuery.empty) {
           const studentDoc = studentQuery.docs[0];
           await studentDoc.ref.update({
             qrCodeData: '',
             qrCodeGeneratedAt: null,
-            lastPasswordUpdate: FieldValue ? FieldValue.serverTimestamp() : new Date().toISOString()
+            lastPasswordUpdate: now,
+            passwordChangedAt: now,
+            passwordLastChanged: now
           });
-          console.log(`[Success] Cleared QR code data for student UID: ${userRecord.uid}`);
+          console.log(`[Success] Updated password change timestamp for student: ${userRecord.uid}`);
         }
       } catch (qrError) {
-        console.error('[Warning] Failed to clear QR code data:', qrError);
+        console.error('[Warning] Failed to update student password timestamp:', qrError);
       }
 
-      // Also update lastPasswordUpdate in staff collection if applicable
+      // Also update staff collection if applicable
       try {
         const staffRef = db.collection('staff');
-        const staffQuery = await staffRef.where('email', '==', targetEmail).get();
+        let staffQuery = await staffRef.where('email', '==', targetEmail).get();
+        if (staffQuery.empty && userRecord.uid) {
+          staffQuery = await staffRef.where('uid', '==', userRecord.uid).get();
+        }
         if (!staffQuery.empty) {
           await staffQuery.docs[0].ref.update({
-            lastPasswordUpdate: FieldValue ? FieldValue.serverTimestamp() : new Date().toISOString()
+            lastPasswordUpdate: now,
+            passwordChangedAt: now,
+            passwordLastChanged: now
           });
+          console.log(`[Success] Updated password change timestamp for staff: ${targetEmail}`);
         }
       } catch (staffErr) {
         console.error('[Warning] Failed to update staff document:', staffErr);
+      }
+
+      // Record security audit log in activityLogs collection
+      try {
+        await db.collection('activityLogs').add({
+          userId: userRecord.uid,
+          userEmail: targetEmail,
+          action: 'Account password changed & verified',
+          category: 'security',
+          details: 'User successfully changed and confirmed new personal password credentials via Reset Password verification code',
+          status: 'Secured',
+          timestamp: now
+        });
+      } catch (logErr) {
+        console.warn('[ActivityLog] Could not write to activityLogs collection:', logErr);
       }
     }
 

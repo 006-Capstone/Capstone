@@ -890,6 +890,50 @@ app.post('/api/reset-password', async (req, res) => {
     // Clear the verification code
     verificationCodes.delete(email);
 
+    // Update Firestore if available
+    try {
+      const db = admin.firestore();
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const normEmail = email.toLowerCase().trim();
+      
+      const studentsRef = db.collection('students');
+      let studentQuery = await studentsRef.where('uid', '==', userRecord.uid).get();
+      if (studentQuery.empty) {
+        studentQuery = await studentsRef.where('email', '==', normEmail).get();
+      }
+      if (!studentQuery.empty) {
+        await studentQuery.docs[0].ref.update({
+          qrCodeData: '',
+          qrCodeGeneratedAt: null,
+          lastPasswordUpdate: now,
+          passwordChangedAt: now,
+          passwordLastChanged: now
+        });
+      }
+
+      const staffRef = db.collection('staff');
+      let staffQuery = await staffRef.where('email', '==', normEmail).get();
+      if (!staffQuery.empty) {
+        await staffQuery.docs[0].ref.update({
+          lastPasswordUpdate: now,
+          passwordChangedAt: now,
+          passwordLastChanged: now
+        });
+      }
+
+      await db.collection('activityLogs').add({
+        userId: userRecord.uid,
+        userEmail: normEmail,
+        action: 'Account password changed & verified',
+        category: 'security',
+        details: 'User successfully changed password credentials via Reset Password verification code',
+        status: 'Secured',
+        timestamp: now
+      });
+    } catch (fsErr) {
+      console.warn('[Warning] Could not update Firestore for password reset:', fsErr);
+    }
+
     console.log('[Success] Password reset successfully for:', email);
     res.json({
       success: true,

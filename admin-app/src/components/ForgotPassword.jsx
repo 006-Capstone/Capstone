@@ -104,10 +104,7 @@ const ForgotPassword = ({ onClose }) => {
         throw new Error(data.error || 'Failed to send verification code');
       }
 
-      // Mask email for privacy (show first 2 chars and domain)
-      const maskedEmail = staff.email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
-      
-      setSuccess(`Verification code sent to ${maskedEmail}`);
+      setSuccess(`Verification code sent to ${staff.email}`);
       setTimeout(() => {
         setSuccess('');
         setStep(2); // Move to verification step
@@ -170,14 +167,31 @@ const ForgotPassword = ({ onClose }) => {
     }
   };
 
+  const validatePassword = (password) => {
+    if (!password || password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter (A-Z)';
+    }
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter (a-z)';
+    }
+    if (!/[0-9]/.test(password)) {
+      return 'Password must contain at least one number (0-9)';
+    }
+    return null;
+  };
+
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      if (!newPassword || newPassword.length < 6) {
-        setError('Password must be at least 6 characters');
+      const passwordError = validatePassword(newPassword);
+      if (passwordError) {
+        setError(passwordError);
         setLoading(false);
         return;
       }
@@ -246,8 +260,7 @@ const ForgotPassword = ({ onClose }) => {
         throw new Error(data.error || 'Failed to resend code');
       }
 
-      const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
-      setSuccess(`New code sent to ${maskedEmail}`);
+      setSuccess(`New code sent to ${email}`);
       setTimeRemaining(120);
       setTimerActive(true);
 
@@ -360,8 +373,16 @@ const ForgotPassword = ({ onClose }) => {
         {/* Step 2: Enter Verification Code */}
         {step === 2 && (
           <form onSubmit={handleVerifyCode} className="reset-form">
+            <div className="email-sent-notice">
+              <FaEnvelope className="email-sent-notice-icon" />
+              <div className="email-sent-notice-content">
+                <span className="email-sent-notice-label">Code sent to Gmail:</span>
+                <strong className="email-sent-notice-address">{email}</strong>
+              </div>
+            </div>
+
             <p className="form-instruction">
-              Check your email for the 6-digit verification code and enter it below.
+              Check your Gmail inbox or spam folder for the 6-digit verification code and enter it below.
             </p>
 
             {/* Timer Display */}
@@ -440,7 +461,7 @@ const ForgotPassword = ({ onClose }) => {
                       setError('');
                     }}
                     placeholder="Enter new password"
-                    minLength={6}
+                    minLength={8}
                     required
                     autoFocus
                   />
@@ -453,7 +474,6 @@ const ForgotPassword = ({ onClose }) => {
                     {showNewPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
-                <small>Minimum 6 characters</small>
               </div>
 
               <div className="form-group">
@@ -468,7 +488,7 @@ const ForgotPassword = ({ onClose }) => {
                       setError('');
                     }}
                     placeholder="Confirm new password"
-                    minLength={6}
+                    minLength={8}
                     required
                   />
                   <button
@@ -480,6 +500,24 @@ const ForgotPassword = ({ onClose }) => {
                     {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
+              </div>
+
+              <div className="password-requirements">
+                <p className="requirements-title">Password Requirements:</p>
+                <ul className="requirements-list">
+                  <li className={newPassword.length >= 8 ? 'valid' : ''}>
+                    At least 8 characters long
+                  </li>
+                  <li className={/[A-Z]/.test(newPassword) ? 'valid' : ''}>
+                    Contains uppercase letter (A-Z)
+                  </li>
+                  <li className={/[a-z]/.test(newPassword) ? 'valid' : ''}>
+                    Contains lowercase letter (a-z)
+                  </li>
+                  <li className={/[0-9]/.test(newPassword) ? 'valid' : ''}>
+                    Contains number (0-9)
+                  </li>
+                </ul>
               </div>
 
               <button type="submit" className="submit-btn" disabled={loading}>

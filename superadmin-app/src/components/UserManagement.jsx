@@ -37,7 +37,7 @@ import {
   FaLock
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
+import { collection, addDoc, getDocs, getDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import NotificationBell from './NotificationBell';
@@ -1254,20 +1254,27 @@ const UserManagement = () => {
       // 1. Fetch activity logs from Firestore collection if present
       try {
         const logsRef = collection(db, 'activityLogs');
-        const logsQuery = query(
-          logsRef,
-          where('userId', '==', user.uid || user.firestoreId)
-        );
-        const logsSnapshot = await getDocs(logsQuery);
-        logsSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          rawCompiledLogs.push({
-            id: doc.id,
-            action: data.action || 'System activity recorded',
-            category: data.category || 'general',
-            details: data.details || data.description || '',
-            status: data.status || 'Success',
-            timestamp: data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date())
+        const queries = [];
+        if (user.uid) queries.push(query(logsRef, where('userId', '==', user.uid)));
+        if (user.firestoreId && user.firestoreId !== user.uid) queries.push(query(logsRef, where('userId', '==', user.firestoreId)));
+        if (user.email) queries.push(query(logsRef, where('userEmail', '==', user.email)));
+
+        const snapshots = await Promise.all(queries.map(q => getDocs(q).catch(() => ({ docs: [] }))));
+        const seenDocIds = new Set();
+        snapshots.forEach(snap => {
+          snap.docs?.forEach(docSnap => {
+            if (!seenDocIds.has(docSnap.id)) {
+              seenDocIds.add(docSnap.id);
+              const data = docSnap.data();
+              rawCompiledLogs.push({
+                id: docSnap.id,
+                action: data.action || 'System activity recorded',
+                category: data.category || 'general',
+                details: data.details || data.description || '',
+                status: data.status || 'Success',
+                timestamp: data.timestamp?.toDate?.() || (data.timestamp ? new Date(data.timestamp) : new Date())
+              });
+            }
           });
         });
       } catch (logErr) {
@@ -1462,8 +1469,10 @@ const UserManagement = () => {
       }
 
       // 7. Password Changes & Credential Lifecycle Events
-      if (user.passwordChangedAt) {
-        const pwdChangeDate = user.passwordChangedAt?.toDate?.() || new Date(user.passwordChangedAt);
+      // Check all possible password change timestamp fields across student and staff collections
+      const pwdChangedRaw = user.passwordChangedAt || user.lastPasswordUpdate || user.passwordLastChanged || user.passwordUpdatedAt || user.lastPasswordChange;
+      if (pwdChangedRaw) {
+        const pwdChangeDate = pwdChangedRaw?.toDate?.() || new Date(pwdChangedRaw);
         if (!isNaN(pwdChangeDate.getTime())) {
           rawCompiledLogs.push({
             id: `user-pwd-change-${user.id || user.uid || 'entry'}`,
@@ -1474,16 +1483,25 @@ const UserManagement = () => {
             timestamp: pwdChangeDate
           });
         }
-      } else if (user.mustChangePassword === false && userCreated) {
-        const pwdInitDate = user.updatedAt?.toDate?.() || (user.updatedAt ? new Date(user.updatedAt) : new Date(userCreated.getTime() + 60000));
-        rawCompiledLogs.push({
-          id: `user-pwd-verified-${user.id || user.uid || 'entry'}`,
-          action: `Account password changed & verified`,
-          category: 'security',
-          details: `Initial temporary default password changed to verified personal credentials`,
-          status: 'Secured',
-          timestamp: pwdInitDate
-        });
+      }
+
+      if (user.mustChangePassword === false && userCreated) {
+        const pwdInitDate = user.initialPasswordChangedAt?.toDate?.() || 
+          (user.updatedAt && (!pwdChangedRaw || Math.abs(new Date(user.updatedAt) - new Date(userCreated)) < 120000)
+            ? (user.updatedAt?.toDate?.() || new Date(user.updatedAt))
+            : new Date(userCreated.getTime() + 60000));
+        
+        // Prevent duplicate if pwdChangedRaw is close to pwdInitDate
+        if (!pwdChangedRaw || Math.abs(pwdInitDate - (pwdChangedRaw?.toDate?.() || new Date(pwdChangedRaw))) > 5000) {
+          rawCompiledLogs.push({
+            id: `user-pwd-verified-${user.id || user.uid || 'entry'}`,
+            action: `Initial password verified`,
+            category: 'security',
+            details: `Initial temporary default password changed to verified personal credentials`,
+            status: 'Secured',
+            timestamp: pwdInitDate
+          });
+        }
       }
 
       if (user.mustChangePassword === true) {
@@ -1497,8 +1515,9 @@ const UserManagement = () => {
         });
       }
 
-      if (user.passwordResetAt) {
-        const resetDate = user.passwordResetAt?.toDate?.() || new Date(user.passwordResetAt);
+      const pwdResetRaw = user.passwordResetAt || user.lastPasswordResetAt;
+      if (pwdResetRaw) {
+        const resetDate = pwdResetRaw?.toDate?.() || new Date(pwdResetRaw);
         if (!isNaN(resetDate.getTime())) {
           rawCompiledLogs.push({
             id: `user-pwd-reset-${user.id || user.uid || 'entry'}`,
@@ -1511,8 +1530,20 @@ const UserManagement = () => {
         }
       }
 
+      // Deduplicate logs by unique action + rounded timestamp (within 2 seconds)
+      const uniqueLogs = [];
+      const seenLogKeys = new Set();
+      for (const log of rawCompiledLogs) {
+        const timeKey = Math.floor((log.timestamp instanceof Date ? log.timestamp.getTime() : new Date(log.timestamp).getTime()) / 2000);
+        const logKey = `${log.action}-${timeKey}`;
+        if (!seenLogKeys.has(logKey)) {
+          seenLogKeys.add(logKey);
+          uniqueLogs.push(log);
+        }
+      }
+
       // Sort chronological descending (latest first)
-      const sortedLogs = rawCompiledLogs.sort((a, b) => b.timestamp - a.timestamp);
+      const sortedLogs = uniqueLogs.sort((a, b) => b.timestamp - a.timestamp);
       setUserActivityLogs(sortedLogs);
     } catch (error) {
       console.error('[Error] Failed to load activity logs:', error);
@@ -1533,6 +1564,33 @@ const UserManagement = () => {
     setActivitySearchTerm('');
     setActivityCategoryFilter('all');
     setShowFullAuditModal(false);
+  };
+
+  // Refresh active user profile & re-evaluate audit trail logs
+  const refreshUserProfile = async (targetUser = selectedUserProfile) => {
+    if (!targetUser) return;
+    try {
+      const isStudent = targetUser.userType === 'student' || targetUser.accountType === 'student' || targetUser.studentId;
+      const collectionName = isStudent ? 'students' : 'staff';
+      const docId = targetUser.firestoreId || targetUser.id;
+      if (docId) {
+        const userDocSnap = await getDoc(doc(db, collectionName, docId));
+        if (userDocSnap.exists()) {
+          const freshData = {
+            firestoreId: userDocSnap.id,
+            ...userDocSnap.data(),
+            userType: targetUser.userType || (isStudent ? 'student' : 'staff')
+          };
+          setSelectedUserProfile(freshData);
+          await handleOpenUserProfile(freshData, freshData.userType);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[UserManagement] Could not re-fetch user document:', err);
+    }
+    // Fallback: re-run with current object
+    handleOpenUserProfile(targetUser, targetUser.userType);
   };
 
   const formatActivityTimestamp = (ts) => {
@@ -2236,14 +2294,14 @@ const UserManagement = () => {
                   <div className="stat-value text-lg">
                     {selectedUserProfile.mustChangePassword === true
                       ? 'Pending Change'
-                      : (selectedUserProfile.passwordChangedAt || selectedUserProfile.mustChangePassword === false)
+                      : (selectedUserProfile.passwordChangedAt || selectedUserProfile.lastPasswordUpdate || selectedUserProfile.passwordLastChanged || selectedUserProfile.mustChangePassword === false)
                       ? 'Changed & Secured'
                       : 'Active Credentials'}
                   </div>
                   <p className="stat-period">
                     {selectedUserProfile.mustChangePassword === true
                       ? 'Temporary default password'
-                      : selectedUserProfile.passwordChangedAt
+                      : (selectedUserProfile.passwordChangedAt || selectedUserProfile.lastPasswordUpdate || selectedUserProfile.passwordLastChanged)
                       ? 'User updated password'
                       : selectedUserProfile.mustChangePassword === false
                       ? 'Verified credentials set'
@@ -2636,10 +2694,11 @@ const UserManagement = () => {
               setShowChangePasswordModal(false);
               setUserToChangePassword(null);
             }}
-            onPasswordChanged={() => {
+            onPasswordChanged={async () => {
               setShowChangePasswordModal(false);
               setUserToChangePassword(null);
-              showToast('Password updated successfully!');
+              showToast('Password reset email dispatched successfully!');
+              await refreshUserProfile();
             }}
           />
         )}
@@ -4294,22 +4353,6 @@ const UserManagement = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Change Password Modal */}
-      {showChangePasswordModal && userToChangePassword && (
-        <ChangePasswordModal
-          user={userToChangePassword}
-          onClose={() => {
-            setShowChangePasswordModal(false);
-            setUserToChangePassword(null);
-          }}
-          onPasswordChanged={() => {
-            setShowChangePasswordModal(false);
-            setUserToChangePassword(null);
-            handleCloseUserProfile();
-          }}
-        />
       )}
     </div>
   );

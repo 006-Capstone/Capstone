@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaLock, FaTimes, FaShieldAlt, FaEnvelope } from 'react-icons/fa';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import '../styles/ChangePasswordModal.css';
 
@@ -23,13 +23,32 @@ const ChangePasswordModal = ({ user, onClose, onPasswordChanged }) => {
 
       // Record password reset dispatch in Firestore so it's captured in audit history
       try {
-        const targetCollection = (user.userType === 'student' || user.accountType === 'student' || (!user.office && user.id)) ? 'students' : 'staff';
+        const isStudent = user.userType === 'student' || user.accountType === 'student' || user.studentId || (!user.office && user.id && user.id.length <= 6);
+        const targetCollection = isStudent ? 'students' : 'staff';
         const docId = user.firestoreId || user.id;
+        const adminEmail = auth?.currentUser?.email || 'Super Admin';
+
         if (docId) {
           await updateDoc(doc(db, targetCollection, docId), {
             passwordResetAt: serverTimestamp(),
-            passwordResetBy: auth?.currentUser?.email || 'Super Admin'
+            lastPasswordResetAt: serverTimestamp(),
+            passwordResetBy: adminEmail
           });
+        }
+
+        // Also add an audit log to activityLogs collection
+        try {
+          await addDoc(collection(db, 'activityLogs'), {
+            userId: user.uid || user.firestoreId || docId,
+            userEmail: user.email,
+            action: 'Password reset email dispatched',
+            category: 'security',
+            details: `Password reset recovery link generated and dispatched to ${user.email} by ${adminEmail}`,
+            status: 'Dispatched',
+            timestamp: serverTimestamp()
+          });
+        } catch (actErr) {
+          console.warn('[ActivityLog] Could not write to activityLogs collection:', actErr);
         }
       } catch (docErr) {
         console.warn('Could not record passwordResetAt on user document:', docErr);

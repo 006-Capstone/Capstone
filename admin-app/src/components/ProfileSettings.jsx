@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
@@ -371,14 +371,36 @@ function ProfileSettings({ onClose }) {
     }
   };
 
+  const validatePassword = (password) => {
+    if (!password || password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter (A-Z)';
+    }
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter (a-z)';
+    }
+    if (!/[0-9]/.test(password)) {
+      return 'Password must contain at least one number (0-9)';
+    }
+    return null;
+  };
+
   const handleChangePassword = async () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.warning('New passwords do not match');
+    if (!passwordForm.currentPassword) {
+      toast.warning('Please enter your current password');
       return;
     }
 
-    if (passwordForm.newPassword.length < 6) {
-      toast.warning('Password must be at least 6 characters');
+    const passwordError = validatePassword(passwordForm.newPassword);
+    if (passwordError) {
+      toast.warning(passwordError);
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.warning('New passwords do not match');
       return;
     }
 
@@ -396,10 +418,28 @@ function ProfileSettings({ onClose }) {
 
       const staffData = JSON.parse(localStorage.getItem('staffData'));
       const docRef = doc(db, 'staff', staffData.firestoreDocId);
+      const nowIso = new Date().toISOString();
       await updateDoc(docRef, {
-        lastPasswordUpdate: new Date().toISOString(),
+        lastPasswordUpdate: nowIso,
+        passwordChangedAt: nowIso,
+        passwordLastChanged: nowIso,
         qrCodeData: ''
       });
+
+      // Record in activityLogs for Super Admin audit trail
+      try {
+        await addDoc(collection(db, 'activityLogs'), {
+          userId: user.uid,
+          userEmail: user.email,
+          action: 'Account password changed & verified',
+          category: 'security',
+          details: 'Staff member successfully changed password credentials in Profile Settings',
+          status: 'Secured',
+          timestamp: new Date()
+        });
+      } catch (actErr) {
+        console.warn('[ActivityLog] Could not write to activityLogs:', actErr);
+      }
 
       alertModal({
         title: 'Security Notice: New QR Required',
@@ -784,7 +824,7 @@ function ProfileSettings({ onClose }) {
                     type={showPasswords.new ? 'text' : 'password'}
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                    placeholder="Enter new password (min. 6 chars)"
+                    placeholder="Enter new password"
                   />
                   <button
                     type="button"
@@ -813,6 +853,24 @@ function ProfileSettings({ onClose }) {
                     {showPasswords.confirm ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
+              </div>
+
+              <div className="password-requirements">
+                <p className="requirements-title">Password Requirements:</p>
+                <ul className="requirements-list">
+                  <li className={passwordForm.newPassword?.length >= 8 ? 'valid' : ''}>
+                    At least 8 characters long
+                  </li>
+                  <li className={/[A-Z]/.test(passwordForm.newPassword || '') ? 'valid' : ''}>
+                    Contains uppercase letter (A-Z)
+                  </li>
+                  <li className={/[a-z]/.test(passwordForm.newPassword || '') ? 'valid' : ''}>
+                    Contains lowercase letter (a-z)
+                  </li>
+                  <li className={/[0-9]/.test(passwordForm.newPassword || '') ? 'valid' : ''}>
+                    Contains number (0-9)
+                  </li>
+                </ul>
               </div>
 
               <div className="password-modal-actions">
