@@ -11,6 +11,7 @@ import {
   FaDownload
 } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
+import { Skeleton } from './common/Skeleton';
 import '../styles/GuestRequestStatus.css';
 
 const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
@@ -140,11 +141,51 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
 
   if (loading) {
     return (
-      <div className="guest-status-page">
-        <div className="guest-status-message-card">
-          <div className="guest-spinner" aria-hidden="true"></div>
-          <h3 className="guest-status-message-title">Checking request status...</h3>
-          <p className="guest-status-message-text">Retrieving live tracking details from school office servers.</p>
+      <div className="guest-status-page" aria-label="Loading request status..." role="status">
+        <div className="guest-status-heading">
+          <div className="guest-status-pill-wrap" style={{ display: 'flex', justifyContent: 'center' }}>
+            <Skeleton variant="pill" width="130px" height="28px" />
+          </div>
+          <Skeleton variant="text" width="220px" height="28px" style={{ margin: '8px auto' }} />
+          <Skeleton variant="text" width="340px" height="14px" style={{ margin: '0 auto' }} />
+        </div>
+
+        <div className="guest-hero-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Skeleton variant="pill" width="140px" height="24px" />
+              <Skeleton variant="text" width="260px" height="24px" />
+              <Skeleton variant="text" width="160px" height="18px" />
+            </div>
+            <Skeleton variant="rounded" width="130px" height="42px" />
+          </div>
+          <Skeleton variant="rounded" width="100%" height="60px" />
+        </div>
+
+        <div className="guest-results-grid">
+          <div className="guest-result-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <Skeleton variant="text" width="160px" height="20px" />
+            <Skeleton variant="rounded" width="100%" height="32px" />
+            <Skeleton variant="rounded" width="100%" height="32px" />
+            <Skeleton variant="rounded" width="100%" height="32px" />
+          </div>
+          <div className="guest-result-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <Skeleton variant="text" width="160px" height="20px" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <Skeleton variant="circular" width={28} height={28} />
+                <Skeleton variant="text" width="70%" height="16px" />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <Skeleton variant="circular" width={28} height={28} />
+                <Skeleton variant="text" width="55%" height="16px" />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <Skeleton variant="circular" width={28} height={28} />
+                <Skeleton variant="text" width="80%" height="16px" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

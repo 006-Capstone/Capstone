@@ -8,7 +8,7 @@ import SuperAdminDashboard from './components/SuperAdminDashboard';
 import EditRequestForm from './components/EditRequestForm';
 import Analytics from './components/Analytics';
 import UserManagement from './components/UserManagement';
-import LoadingSpinner from './components/LoadingSpinner';
+import { AppLayoutSkeleton } from './components/common/Skeleton';
 import './App.css';
 
 function App() {
@@ -94,7 +94,7 @@ function App() {
   }, []);
 
   if (authChecking) {
-    return <LoadingSpinner message="Checking superadmin session..." fullScreen={true} />;
+    return <AppLayoutSkeleton />;
   }
 
   if (!isLoggedIn) {

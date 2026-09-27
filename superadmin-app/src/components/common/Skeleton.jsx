@@ -378,4 +378,49 @@ export const DataTableSkeleton = ({
   );
 };
 
+/**
+ * App Layout Skeleton
+ * Replaces full-screen spinner during session/auth verification
+ */
+export const AppLayoutSkeleton = () => {
+  return (
+    <div className="superadmin-app" aria-label="Loading application..." role="status" style={{ minHeight: '100vh', background: 'var(--color-bg, #F8FAFC)' }}>
+      <aside className="superadmin-sidebar" style={{ width: '260px', background: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-divider, #e2e8f0)', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Skeleton variant="rounded" width={40} height={40} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <Skeleton variant="text" width="110px" height="16px" />
+            <Skeleton variant="text" width="75px" height="12px" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+          <Skeleton variant="rounded" width="100%" height={42} />
+          <Skeleton variant="rounded" width="100%" height={42} />
+          <Skeleton variant="rounded" width="100%" height={42} />
+          <Skeleton variant="rounded" width="100%" height={42} />
+        </div>
+        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '16px', borderTop: '1px solid var(--color-divider, #e2e8f0)' }}>
+          <Skeleton variant="circular" width={36} height={36} />
+          <Skeleton variant="text" width="100px" height="14px" />
+        </div>
+      </aside>
+      <main className="superadmin-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="superadmin-page" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <Skeleton variant="text" width="240px" height="28px" />
+              <Skeleton variant="text" width="340px" height="14px" />
+            </div>
+            <Skeleton variant="rounded" width="120px" height="38px" />
+          </div>
+          <OverviewCardsSkeleton count={4} />
+          <div style={{ marginTop: '24px' }}>
+            <DataTableSkeleton rows={6} columns={6} />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
 export default Skeleton;

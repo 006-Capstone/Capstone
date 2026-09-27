@@ -7,7 +7,6 @@ import { notifyStaffNewRequest } from '../utils/notificationHelper';
 import { validateContent } from '../utils/contentModeration';
 import GuestSubmitted from './GuestSubmitted';
 import GuestRequestStatus from './GuestRequestStatus';
-import LoadingSpinner from './LoadingSpinner';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/GuestLogin.css';
 
@@ -940,6 +939,7 @@ const GuestLogin = () => {
                   onClick={handleSubmitRequest} 
                   disabled={!canSubmit || submitting}
                 >
+                  {submitting && <span className="btn-spinner" />}
                   {submitting ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
@@ -947,8 +947,6 @@ const GuestLogin = () => {
           </>
         )}
       </main>
-      
-      {submitting && <LoadingSpinner message="Submitting your request to school offices..." fullScreen={true} />}
     </div>
   );
 };
