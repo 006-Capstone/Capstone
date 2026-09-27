@@ -190,7 +190,7 @@ const EfficiencyWarningModal = ({
                 checked={dontShowAgainSession} 
                 onChange={(e) => setDontShowAgainSession(e.target.checked)} 
               />
-              <span>Don't show this popup again for the rest of today's session (dashboard warning banner will remain active)</span>
+              <span>Don't show this popup again for the rest of today's session (dashboard warning pill will remain active)</span>
             </label>
           </div>
         </div>

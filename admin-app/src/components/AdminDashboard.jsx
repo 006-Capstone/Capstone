@@ -485,6 +485,27 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           </p>
         </div>
         <div className="header-right">
+          {efficiencyMetrics.isWarning && (
+            <button
+              type="button"
+              className="eff-warning-pill"
+              onClick={() => setShowEfficiencyWarningModal(true)}
+              title="Critical Performance Warning: Efficiency Score Dropped. Click to review action plan."
+              aria-label={`Critical Performance Warning: Efficiency Score Dropped to ${efficiencyMetrics.score}%. Click to review action plan.`}
+            >
+              <span className="eff-pill-pulse-ring" aria-hidden="true">
+                <span className="eff-pill-dot" />
+              </span>
+              <FaExclamationTriangle className="eff-pill-icon" aria-hidden="true" />
+              <span className="eff-pill-text">
+                <span className="eff-pill-text-full">Critical Performance Warning: Efficiency Score Dropped</span>
+                <span className="eff-pill-text-medium">Performance Warning: Efficiency Dropped</span>
+                <span className="eff-pill-text-short">Efficiency Alert</span>
+              </span>
+              <span className="eff-pill-score">{efficiencyMetrics.score}%</span>
+            </button>
+          )}
+
           <button
             type="button"
             className="notification-bell"
@@ -637,42 +658,6 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           </div>
         )}
       </div>
-
-      {/* Superadmin Connected Efficiency Score Warning Banner (<= 60%) */}
-      {efficiencyMetrics.isWarning && (
-        <div className="dashboard-efficiency-warning-banner">
-          <div className="eff-banner-left">
-            <div className="eff-banner-icon-box">
-              <FaExclamationTriangle />
-            </div>
-            <div className="eff-banner-text-group">
-              <h3 className="eff-banner-title">
-                Critical Performance Warning: Efficiency Score Dropped
-                <span className="eff-banner-score-tag">{efficiencyMetrics.score}%</span>
-              </h3>
-              <p className="eff-banner-desc">
-                Superadmin Department Health Monitor has detected your efficiency rating at <strong>{efficiencyMetrics.score}%</strong> (Threshold: &gt;60%). You have <strong>{efficiencyMetrics.overdueCount} overdue ticket(s)</strong> impacting department health.
-              </p>
-            </div>
-          </div>
-          <div className="eff-banner-actions">
-            <button
-              type="button"
-              className="eff-banner-btn-secondary"
-              onClick={() => onNavigate('my-performance')}
-            >
-              My Performance
-            </button>
-            <button
-              type="button"
-              className="eff-banner-btn-primary"
-              onClick={() => setShowEfficiencyWarningModal(true)}
-            >
-              Review Action Plan
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Nearing Estimated Completion Date Alert Banner */}
       {nearingRequests.length > 0 && (
