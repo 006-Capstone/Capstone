@@ -708,94 +708,6 @@ const PerformanceMonitor = () => {
     loadAIInsights();
   };
 
-  const handleApplyRecommendation = async (recommendation) => {
-    if (!recommendation || !recommendation.type) {
-      toast.warning('This recommendation cannot be applied automatically.');
-      return;
-    }
-
-    // Handle reassign recommendations
-    if (recommendation.type === 'reassign') {
-      // Try to find the staff member
-      let fromStaff = null;
-      
-      // Try from affectedStaff array
-      if (recommendation.affectedStaff && recommendation.affectedStaff.length > 0) {
-        fromStaff = allStaffData.find(s => 
-          recommendation.affectedStaff.some(name => 
-            s.name.toLowerCase().includes(name.toLowerCase()) ||
-            name.toLowerCase().includes(s.name.toLowerCase())
-          )
-        );
-      }
-      
-      // Try from title/description text
-      if (!fromStaff) {
-        const searchText = `${recommendation.title || ''} ${recommendation.description || ''}`.toLowerCase();
-        fromStaff = allStaffData.find(s => searchText.includes(s.name.toLowerCase()));
-      }
-      
-      // Fallback to highest risk staff
-      if (!fromStaff && staffBottlenecks.length > 0) {
-        fromStaff = staffBottlenecks[0];
-      }
-      
-      if (fromStaff) {
-        setSelectedStaff(fromStaff);
-        setReassignModalOpen(true);
-      } else {
-        toast.warning('Could not identify staff member. Please reassign tickets manually from the Staff Bottlenecks section.');
-      }
-      return;
-    }
-    
-    // Handle training/process improvement recommendations
-    if (recommendation.type === 'training' || recommendation.type === 'process_improvement') {
-      const steps = recommendation.steps?.join('\n• ') || 'No specific steps provided';
-      await alertModal({
-        title: cleanTitleText(recommendation.title, recommendation),
-        message: `${cleanDescriptionText(recommendation.description, recommendation)}\n\nImplementation Steps:\n• ${steps}\n\nExpected Impact: ${recommendation.expectedImpact || 'Optimized operational throughput'}`
-      });
-      return;
-    }
-    
-    // Handle hire recommendations
-    if (recommendation.type === 'hire') {
-      const department = recommendation.affectedStaff?.[0] || 
-                        recommendation.description?.match(/\b(finance|guidance|library|registrar)\b/i)?.[1] || 
-                        'Unknown';
-      
-      const confirmed = await confirm({
-        title: 'Staffing Request',
-        message: `This recommendation suggests hiring additional staff.\n\n${recommendation.title}\n\n${recommendation.expectedImpact || ''}\n\nWould you like to create a staffing request?`,
-        confirmText: 'Create Request',
-        variant: 'success'
-      });
-      
-      if (confirmed) {
-        try {
-          await addDoc(collection(db, 'staffing_requests'), {
-            department: department,
-            reason: recommendation.description,
-            expectedImpact: recommendation.expectedImpact,
-            priority: recommendation.priority,
-            status: 'pending_review',
-            requestedAt: serverTimestamp(),
-            requestedBy: 'superadmin_performance_system'
-          });
-          toast.success('Staffing request has been created and submitted for review.');
-        } catch (error) {
-          console.error('Error creating staffing request:', error);
-          toast.error('Failed to create staffing request.');
-        }
-      }
-      return;
-    }
-    
-    // Unknown type
-    toast.warning('This recommendation type is not yet supported for automatic application.');
-  };
-
   const handleGenerateNTE = async (staff) => {
     // Only allow NTE generation for Stage 3 and 4
     if (!staff.warningStage || staff.warningStage.stage < 3) {
@@ -1430,8 +1342,8 @@ const PerformanceMonitor = () => {
                           </div>
                         )}
                         
-                        <div className="rec-card-footer">
-                          {rec.steps && rec.steps.length > 0 && (
+                        {rec.steps && rec.steps.length > 0 && (
+                          <div className="rec-card-footer">
                             <button 
                               type="button" 
                               className="rec-toggle-steps-btn" 
@@ -1441,14 +1353,8 @@ const PerformanceMonitor = () => {
                               <span>{isExpanded ? 'Hide Steps' : 'View Steps'}</span>
                               <FaChevronDown className={`toggle-chevron ${isExpanded ? 'rotated' : ''}`} />
                             </button>
-                          )}
-                          <button 
-                            className="rec-apply-btn"
-                            onClick={() => handleApplyRecommendation(rec)}
-                          >
-                            Apply Recommendation
-                          </button>
-                        </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
