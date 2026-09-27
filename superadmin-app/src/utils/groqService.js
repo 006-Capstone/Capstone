@@ -3,45 +3,35 @@
  * Provides AI-powered insights, anomaly detection, and smart recommendations
  */
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_API_KEY = process.env.REACT_APP_GROQ_API_KEY;
-const MODEL = 'llama-3.1-8b-instant'; // Active default Groq model
+const INSIGHTS_API_URL = '/api/insights';
 
 /**
- * Make a request to Groq API with error handling and retry logic
+ * Make a request to the serverless insights API with error handling and retry logic
  * @param {array} messages - Chat messages for the API
  * @param {number} maxRetries - Maximum number of retry attempts
  * @returns {Promise<string>} - AI response text
  */
 const callGroqAPI = async (messages, maxRetries = 2) => {
-  if (!GROQ_API_KEY) {
-    throw new Error('Groq API key not configured');
-  }
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch(GROQ_API_URL, {
+      const response = await fetch(INSIGHTS_API_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: MODEL,
           messages: messages,
-          temperature: 0.7,
-          max_tokens: 1000,
-          top_p: 0.9
+          type: 'analytics'
         })
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'API request failed');
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `API request failed with status ${response.status}`);
       }
 
       const data = await response.json();
-      return data.choices[0]?.message?.content || 'No response generated';
+      return data.content || (typeof data === 'string' ? data : JSON.stringify(data));
     } catch (error) {
       console.error(`Groq API attempt ${attempt + 1} failed:`, error);
       
