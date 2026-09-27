@@ -17,26 +17,47 @@
   margin: 0;
 }
 
-.analytics-actions {
+/* ---- Top Header Section Layout ---- */
+.analytics-top-header {
   display: flex;
-  gap: var(--space-3);
-  align-items: center;
+  justify-content: space-between;
+  align-items: flex-start;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  width: 100%;
+  box-sizing: border-box;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
-/* Right side of the page header: actions row + pinned notification bell.
-   The bell lives OUTSIDE the wrapping actions row so it stays put in the
-   top-right corner and never moves when the filter is used or the row wraps. */
-.page-header-right {
+.analytics-top-header .page-header-title-group {
+  flex: 0 1 auto;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Date filter controls: wraps independently without dropping action controls below */
+.analytics-filter-wrapper {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+}
+
+/* Action button group: Export CSV + Notification bell pinned to upper-right corner */
+.analytics-pinned-actions {
+  display: inline-flex;
+  align-items: center;
   gap: var(--space-3);
+  margin-left: auto;
   flex-shrink: 0;
 }
 
 .export-button {
-  /* inherits .btn-primary */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
 }
 
 .export-icon {
@@ -1343,16 +1364,65 @@
   }
 }
 
-@media (max-width: 767px) {
-  /* .page-header stacking is handled in shared.css for all pages */
-  .page-header-right {
-    width: 100%;
-    justify-content: space-between;
+@media (min-width: 1024px) {
+  .analytics-top-header {
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
-  .analytics-actions {
-    flex: 1;
+  .analytics-filter-wrapper {
+    margin-left: auto;
+    margin-right: var(--space-3);
+  }
+
+  .analytics-pinned-actions {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 1023px) {
+  .analytics-top-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3) var(--space-4);
+  }
+
+  .analytics-top-header .page-header-title-group {
+    flex: 1 1 auto;
+    min-width: 180px;
+  }
+
+  .analytics-pinned-actions {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .analytics-filter-wrapper {
+    width: 100%;
+    margin-top: 4px;
+    display: flex;
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .analytics-top-header {
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .analytics-title {
+    font-size: 22px;
+  }
+
+  .analytics-pinned-actions {
+    gap: var(--space-2);
+  }
+
+  .analytics-pinned-actions .export-button {
+    padding: 7px 12px;
+    font-size: 12.5px;
   }
 }
 

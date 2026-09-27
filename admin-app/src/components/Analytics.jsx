@@ -362,18 +362,10 @@ const Analytics = ({ department, onViewRequest }) => {
         <div className="analytics-header-left">
           <h1 className="analytics-title">Analytics</h1>
           <p className="analytics-subtitle">
-Understand your office's performance at a glance
+            Understand your office's performance at a glance
           </p>
         </div>
-        <div className="analytics-header-actions">
-          <button className="export-pdf-btn" onClick={handlePrint}>
-            <FaPrint />
-            Print
-          </button>
-          <button className="export-pdf-btn" onClick={exportToCSV}>
-            <FaDownload />
-            Export CSV
-          </button>
+        <div className="analytics-filter-wrapper">
           <DateRangeFilterDropdown
             filter={dateFilter}
             onFilterChange={setDateFilter}
@@ -383,6 +375,16 @@ Understand your office's performance at a glance
             appliedFilter={appliedFilter}
             idPrefix="analytics"
           />
+        </div>
+        <div className="analytics-pinned-actions">
+          <button className="export-pdf-btn" onClick={handlePrint}>
+            <FaPrint />
+            Print
+          </button>
+          <button className="export-pdf-btn" onClick={exportToCSV}>
+            <FaDownload />
+            Export CSV
+          </button>
           <button
             type="button"
             className="notification-bell"
