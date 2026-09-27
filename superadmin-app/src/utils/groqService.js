@@ -5,7 +5,7 @@
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_API_KEY = process.env.REACT_APP_GROQ_API_KEY;
-const MODEL = 'openai/gpt-oss-120B'; // Current GPT-OSS model - January 2025
+const MODEL = 'llama-3.1-8b-instant'; // Active default Groq model
 
 /**
  * Make a request to Groq API with error handling and retry logic

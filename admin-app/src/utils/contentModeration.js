@@ -89,7 +89,7 @@ Respond ONLY with a valid JSON object (no markdown, no extra text):
           content: prompt
         }
       ],
-      model: 'llama3-8b-8192', // Fast and reliable model for simple moderation
+      model: 'llama-3.1-8b-instant', // Active default Groq model
       temperature: 0.1,
       max_tokens: 512
     });

@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       messages: [
         {
           role: 'system',
-          content: 'You are an AI content moderator for a school ticketing portal. Determine if the description is appropriate, polite, and relevant to the student ticket subject. Return JSON: {"approved": boolean, "reason": string}'
+          content: 'You are an AI content moderator for a school ticketing portal. Check if the description is appropriate, polite, and relevant to the ticket subject. Respond ONLY with valid JSON: {"approved": true, "reason": "Appropriate"} or {"approved": false, "reason": "Explanation"}'
         },
         {
           role: 'user',
