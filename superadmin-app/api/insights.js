@@ -26,8 +26,7 @@ export default async function handler(req, res) {
   // Ordered fallback models
   const candidateModels = [
     'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant',
-    'llama-3.1-70b-versatile'
+    'llama-3.1-8b-instant'
   ];
 
   let lastError = null;
@@ -70,10 +69,9 @@ export default async function handler(req, res) {
         }
       }
     } catch (err) {
-      console.warn(`Groq model ${model} failed:`, err?.message);
+      console.warn(`Groq model ${model} failed:`, err?.message || err);
       lastError = err;
-      if (err?.status === 404) continue;
-      break;
+      continue;
     }
   }
 
