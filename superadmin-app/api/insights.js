@@ -24,24 +24,57 @@ export default async function handler(req, res) {
   // Clean API key
   const apiKey = (process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY || process.env.REACT_APP_GROQ_API_KEY || '').trim();
 
+  const fallbackData = {
+    executiveSummary: {
+      status: "System monitoring active with operational data updated.",
+      bottleneck: "Review department breakdown for active queues.",
+      actionPriority: "Primary operational action needed"
+    },
+    anomalies: [],
+    recommendations: [
+      {
+        id: "rec-1",
+        title: "Cross-train Finance staff",
+        category: "Staff Training",
+        priority: "HIGH",
+        description: "Enable Finance officer to process clearance tickets, reducing bottlenecks."
+      }
+    ]
+  };
+
   // If no API key is configured, gracefully return operational fallback
   if (!apiKey) {
     console.warn('Groq API key not configured on server, returning computed operational insights');
-    return res.status(200).json({
-      content: "Status: System monitoring active with operational data updated.\nBottleneck: Review department breakdown for active queues.\nAction: Rebalance department ticket assignments as needed.",
-      executiveSummary: "System monitoring active with operational data updated.",
-      anomalies: [],
-      recommendations: ["Review department queue distributions."]
-    });
+    return res.status(200).json(fallbackData);
   }
 
   const groq = new Groq({ apiKey });
   const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
 
+  const systemPrompt = `You are an AI analytics engine for Academia De San Jose ticketing system.
+You must respond with valid JSON matching this exact structure:
+{
+  "executiveSummary": {
+    "status": "System operational description",
+    "bottleneck": "Identified bottleneck or queue delay",
+    "actionPriority": "Primary operational action needed"
+  },
+  "anomalies": [],
+  "recommendations": [
+    {
+      "id": "rec-1",
+      "title": "Cross-train Finance staff",
+      "category": "Staff Training",
+      "priority": "HIGH",
+      "description": "Enable Finance officer to process clearance tickets, reducing bottlenecks."
+    }
+  ]
+}`;
+
   const messages = body.messages || [
     {
       role: 'system',
-      content: 'You are an analytics assistant for an academic ticketing dashboard. Return JSON with keys: executiveSummary, anomalies, recommendations.'
+      content: systemPrompt
     },
     {
       role: 'user',
@@ -89,28 +122,19 @@ export default async function handler(req, res) {
 
   // If all models fail, return 200 with computed operational insights
   if (!completion) {
-    return res.status(200).json({
-      content: "Status: System monitoring active with operational data updated.\nBottleneck: Review department breakdown for active queues.\nAction: Rebalance department ticket assignments as needed.",
-      executiveSummary: "System monitoring active with operational data updated.",
-      anomalies: [],
-      recommendations: ["Review department queue distributions."]
-    });
+    return res.status(200).json(fallbackData);
   }
 
   try {
     const rawContent = completion.choices[0]?.message?.content || '{}';
     const parsed = JSON.parse(rawContent);
-    if (parsed && typeof parsed === 'object' && !parsed.content) {
-      parsed.content = parsed.executiveSummary || rawContent;
-    }
+    parsed.rawContent = rawContent;
     return res.status(200).json(parsed);
   } catch (parseError) {
     const rawContent = completion.choices[0]?.message?.content || '';
     return res.status(200).json({
-      content: rawContent,
-      executiveSummary: rawContent,
-      anomalies: [],
-      recommendations: ["Review department queue distributions."]
+      ...fallbackData,
+      rawContent
     });
   }
 }

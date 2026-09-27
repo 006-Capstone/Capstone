@@ -33,7 +33,16 @@ export const fetchInsights = async (metrics, type = 'performance') => {
     throw new Error(errorData.error || `Failed to fetch insights (HTTP ${response.status})`);
   }
 
-  return response.json();
+  const result = await response.json();
+  const recs = result.recommendations || result.data?.recommendations || result.actionTasks || [];
+  if (!recs || recs.length === 0) {
+    console.warn("Using fallback recommendations structure");
+  }
+
+  return {
+    ...result,
+    recommendations: recs
+  };
 };
 
 export {

@@ -816,11 +816,15 @@ const PerformanceMonitor = () => {
       };
 
       const smartRecs = await generateSmartRecommendations(workloadData);
+      const recs = (smartRecs && (smartRecs.recommendations || smartRecs.data?.recommendations || smartRecs.actionTasks)) || (Array.isArray(smartRecs) ? smartRecs : []);
+      if (!recs || recs.length === 0) {
+        console.warn("Using fallback recommendations structure");
+      }
 
       setAiInsights({
         executiveSummary: summary,
         anomalies: anomaliesResult.anomalies || [],
-        smartRecommendations: smartRecs || [],
+        smartRecommendations: recs || [],
         loading: false,
         error: null,
         overallRisk: anomaliesResult.overallRisk || 'low'
