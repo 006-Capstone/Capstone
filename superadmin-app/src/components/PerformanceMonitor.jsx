@@ -5,8 +5,6 @@ import {
   query, 
   where, 
   addDoc, 
-  updateDoc, 
-  deleteDoc, 
   doc, 
   serverTimestamp, 
   orderBy 
@@ -70,7 +68,6 @@ const PerformanceMonitor = () => {
   const [staffBottlenecks, setStaffBottlenecks] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [performanceTasks, setPerformanceTasks] = useState([]);
   
   // Modal states
   const [nudgeModalOpen, setNudgeModalOpen] = useState(false);
@@ -87,7 +84,6 @@ const PerformanceMonitor = () => {
     error: null
   });
   const [expandedRecSteps, setExpandedRecSteps] = useState({});
-  const [expandedTaskSteps, setExpandedTaskSteps] = useState({});
   const [expandedDeptStaff, setExpandedDeptStaff] = useState({});
 
   const toggleDeptStaff = (office) => {
@@ -102,31 +98,6 @@ const PerformanceMonitor = () => {
       ...prev,
       [index]: !prev[index]
     }));
-  };
-
-  const toggleTaskSteps = (taskId) => {
-    setExpandedTaskSteps(prev => ({
-      ...prev,
-      [taskId]: !prev[taskId]
-    }));
-  };
-
-  const findMatchingTask = (rec) => {
-    if (!rec || !rec.title) return null;
-    return performanceTasks.find(t => 
-      t.title?.trim().toLowerCase() === rec.title?.trim().toLowerCase()
-    );
-  };
-
-  const scrollToTask = (taskId) => {
-    const el = document.getElementById(`task-card-${taskId}`) || document.getElementById('performance-tasks-section');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('task-card-highlight');
-      setTimeout(() => {
-        el.classList.remove('task-card-highlight');
-      }, 2500);
-    }
   };
 
   const detectItemDepartment = (item) => {
@@ -557,116 +528,10 @@ const PerformanceMonitor = () => {
       setAllStaffData(enrichedStaffData);
       setLastUpdated(new Date());
       
-      // Load performance tasks
-      loadPerformanceTasks(enrichedStaffData);
     } catch (error) {
       console.error('Error loading performance data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadPerformanceTasks = async (staffDataSource = null) => {
-    try {
-      const activeStaff = (staffDataSource && staffDataSource.length > 0) ? staffDataSource : allStaffData;
-      const tasksSnapshot = await getDocs(
-        query(collection(db, 'performance_tasks'), orderBy('createdAt', 'desc'))
-      );
-      const tasks = tasksSnapshot.docs.map(docSnap => {
-        const data = docSnap.data();
-        const cleanedStaff = getCleanedStaffList(data.affectedStaff, data, activeStaff);
-        const cleanedTitle = cleanTitleText(data.title, data, activeStaff);
-        const cleanedDesc = cleanDescriptionText(data.description, data, activeStaff);
-
-        // If stored task had hallucinated staff or cross-department references, persist the cleaned version
-        if (
-          Array.isArray(data.affectedStaff) &&
-          (JSON.stringify(cleanedStaff) !== JSON.stringify(data.affectedStaff) || 
-           cleanedDesc !== data.description ||
-           cleanedTitle !== data.title)
-        ) {
-          updateDoc(doc(db, 'performance_tasks', docSnap.id), {
-            title: cleanedTitle,
-            affectedStaff: cleanedStaff,
-            description: cleanedDesc,
-            updatedAt: serverTimestamp()
-          }).catch(err => {
-            console.warn('[Anti-Hallucination] Could not update stored task in DB:', err);
-          });
-        }
-
-        return {
-          id: docSnap.id,
-          ...data,
-          title: cleanedTitle,
-          affectedStaff: cleanedStaff,
-          description: cleanedDesc
-        };
-      });
-      setPerformanceTasks(tasks);
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-    }
-  };
-
-  const handleUpdateTaskStatus = async (taskId, newStatus) => {
-    try {
-      await updateDoc(doc(db, 'performance_tasks', taskId), {
-        status: newStatus,
-        updatedAt: serverTimestamp()
-      });
-      setPerformanceTasks(prev =>
-        prev.map(t => (t.id === taskId ? { ...t, status: newStatus } : t))
-      );
-    } catch (error) {
-      console.error('Error updating task status:', error);
-      toast.error('Failed to update task status.');
-    }
-  };
-
-  const handleDeleteTask = async (taskId) => {
-    const confirmed = await confirm({
-      title: 'Dismiss Task',
-      message: 'Are you sure you want to dismiss this improvement task?',
-      confirmText: 'Dismiss',
-      variant: 'danger'
-    });
-
-    if (!confirmed) {
-      return;
-    }
-    try {
-      await deleteDoc(doc(db, 'performance_tasks', taskId));
-      setPerformanceTasks(prev => prev.filter(t => t.id !== taskId));
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      toast.error('Failed to dismiss task.');
-    }
-  };
-
-  const getTaskTypeIcon = (type) => {
-    switch (type) {
-      case 'training':
-        return <FaGraduationCap className="task-badge-icon" />;
-      case 'process_improvement':
-        return <FaCogs className="task-badge-icon" />;
-      case 'hire':
-        return <FaUsers className="task-badge-icon" />;
-      default:
-        return <FaClipboardList className="task-badge-icon" />;
-    }
-  };
-
-  const getTaskTypeLabel = (type) => {
-    switch (type) {
-      case 'training':
-        return 'Staff Training';
-      case 'process_improvement':
-        return 'Process Improvement';
-      case 'hire':
-        return 'Capacity & Staffing';
-      default:
-        return type ? type.replace(/_/g, ' ') : 'Operational Task';
     }
   };
 
@@ -886,51 +751,11 @@ const PerformanceMonitor = () => {
     
     // Handle training/process improvement recommendations
     if (recommendation.type === 'training' || recommendation.type === 'process_improvement') {
-      const existing = findMatchingTask(recommendation);
-      if (existing) {
-        toast.info('This recommendation is already tracked in Performance Improvement Tasks.');
-        scrollToTask(existing.id);
-        return;
-      }
-
       const steps = recommendation.steps?.join('\n• ') || 'No specific steps provided';
-      const confirmed = await confirm({
-        title: 'Apply Recommendation',
-        message: `Apply this recommendation?\n\n${cleanTitleText(recommendation.title, recommendation)}\n\nImplementation Steps:\n• ${steps}\n\nThis will create a task record in Performance Improvement Tasks for follow-up.`,
-        confirmText: 'Apply Recommendation',
-        variant: 'success'
+      await alertModal({
+        title: cleanTitleText(recommendation.title, recommendation),
+        message: `${cleanDescriptionText(recommendation.description, recommendation)}\n\nImplementation Steps:\n• ${steps}\n\nExpected Impact: ${recommendation.expectedImpact || 'Optimized operational throughput'}`
       });
-      
-      if (confirmed) {
-        try {
-          const recDept = detectItemDepartment(recommendation) || 'Registrar';
-          const cleanedStaff = getCleanedStaffList(recommendation.affectedStaff, recommendation);
-          const cleanedTitle = cleanTitleText(recommendation.title, recommendation);
-          const cleanedDesc = cleanDescriptionText(recommendation.description, recommendation);
-
-          const docRef = await addDoc(collection(db, 'performance_tasks'), {
-            type: recommendation.type,
-            department: recDept,
-            title: cleanedTitle,
-            description: cleanedDesc,
-            affectedStaff: cleanedStaff,
-            steps: recommendation.steps || [],
-            expectedImpact: recommendation.expectedImpact || '',
-            priority: recommendation.priority || 'medium',
-            status: 'pending',
-            createdAt: serverTimestamp(),
-            createdBy: 'superadmin'
-          });
-          loadPerformanceTasks();
-          toast.success('Recommendation converted into an active improvement task.');
-          setTimeout(() => {
-            scrollToTask(docRef.id);
-          }, 350);
-        } catch (error) {
-          console.error('Error creating task:', error);
-          toast.error('Failed to create task record.');
-        }
-      }
       return;
     }
     
@@ -1378,21 +1203,6 @@ const PerformanceMonitor = () => {
             </h3>
           </div>
           <div className="section-actions ai-header-actions">
-            {performanceTasks.length > 0 && (
-              <button 
-                type="button"
-                className="btn-jump-tasks"
-                onClick={() => {
-                  const el = document.getElementById('performance-tasks-section');
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-                title="Jump to Performance Improvement Tasks"
-              >
-                <FaClipboardList className="btn-icon" />
-                <span>{performanceTasks.length} {performanceTasks.length === 1 ? 'Action Task' : 'Action Tasks'}</span>
-                <FaArrowRight className="jump-arrow" />
-              </button>
-            )}
             {aiInsights.executiveSummary && (
               <button 
                 className="btn-ai-refresh" 
@@ -1557,9 +1367,8 @@ const PerformanceMonitor = () => {
                 <div className="smart-recs-list">
                   {aiInsights.smartRecommendations.map((rec, index) => {
                     const isExpanded = !!expandedRecSteps[index];
-                    const matchingTask = findMatchingTask(rec);
                     return (
-                      <div key={index} className={`smart-rec-card priority-${rec.priority} ${matchingTask ? 'has-active-task' : ''}`}>
+                      <div key={index} className={`smart-rec-card priority-${rec.priority}`}>
                         <div className="smart-rec-header">
                           <div className="smart-rec-header-badges">
                             <span className={`priority-badge ${rec.priority}`}>
@@ -1568,17 +1377,6 @@ const PerformanceMonitor = () => {
                             </span>
                             <span className="rec-type">{rec.type?.replace(/_/g, ' ')}</span>
                           </div>
-                          {matchingTask && (
-                            <span className={`rec-task-status-pill status-${matchingTask.status}`}>
-                              {matchingTask.status === 'completed' && <FaCheckCircle className="status-pill-icon" />}
-                              {matchingTask.status === 'in_progress' && <FaClock className="status-pill-icon" />}
-                              {matchingTask.status === 'pending' && <FaClipboardList className="status-pill-icon" />}
-                              <span>
-                                {matchingTask.status === 'completed' ? 'Task Completed' : 
-                                 matchingTask.status === 'in_progress' ? 'Task In Progress' : 'Task Active'}
-                              </span>
-                            </span>
-                          )}
                         </div>
                         <h5>{cleanTitleText(rec.title, rec)}</h5>
                         <p className="smart-rec-description">{cleanDescriptionText(rec.description, rec)}</p>
@@ -1644,25 +1442,12 @@ const PerformanceMonitor = () => {
                               <FaChevronDown className={`toggle-chevron ${isExpanded ? 'rotated' : ''}`} />
                             </button>
                           )}
-                          {matchingTask ? (
-                            <button 
-                              type="button"
-                              className="rec-view-task-btn"
-                              onClick={() => scrollToTask(matchingTask.id)}
-                              title="Scroll to tracked task"
-                            >
-                              <FaClipboardList className="btn-icon" />
-                              <span>View Tracked Task</span>
-                              <FaArrowRight className="arrow-icon" />
-                            </button>
-                          ) : (
-                            <button 
-                              className="rec-apply-btn"
-                              onClick={() => handleApplyRecommendation(rec)}
-                            >
-                              Apply Recommendation
-                            </button>
-                          )}
+                          <button 
+                            className="rec-apply-btn"
+                            onClick={() => handleApplyRecommendation(rec)}
+                          >
+                            Apply Recommendation
+                          </button>
                         </div>
                       </div>
                     );
@@ -1678,189 +1463,6 @@ const PerformanceMonitor = () => {
               </div>
             )}
           </>
-        )}
-      </div>
-
-      {/* Connected Action Board: Performance Improvement Tasks */}
-      <div id="performance-tasks-section" className="performance-tasks-section">
-        <div className="section-header performance-tasks-header">
-          <div className="tasks-header-left">
-            <h3>
-              <span className="tasks-header-icon-wrapper">
-                <FaClipboardList />
-              </span>
-              Performance Improvement Tasks
-            </h3>
-            <p className="tasks-subtitle">Operational action tracking connected directly to AI Strategic Recommendations</p>
-          </div>
-          <div className="tasks-header-right">
-            <span className="task-count-pill">
-              <FaClipboardCheck className="count-icon" />
-              {performanceTasks.length} {performanceTasks.length === 1 ? 'Tracked Action' : 'Tracked Actions'}
-            </span>
-          </div>
-        </div>
-
-        {performanceTasks.length === 0 ? (
-          <div className="tasks-empty-state">
-            <div className="tasks-empty-icon-wrapper">
-              <FaClipboardList />
-            </div>
-            <h5>No Active Improvement Tasks</h5>
-            <p>
-              Click <strong>"Apply Recommendation"</strong> on any AI Strategic Recommendation above to convert it into a tracked operational task.
-            </p>
-          </div>
-        ) : (
-          <div className="tasks-grid">
-            {performanceTasks.map(task => {
-              const isCompleted = task.status === 'completed';
-              const isInProgress = task.status === 'in_progress';
-              const priorityClass = task.priority || 'medium';
-              const isExpanded = !!expandedTaskSteps[task.id];
-
-              return (
-                <div 
-                  key={task.id} 
-                  id={`task-card-${task.id}`}
-                  className={`task-card priority-${priorityClass} task-status-${task.status}`}
-                >
-                  <div className="task-card-header">
-                    <div className="task-card-badges">
-                      <span className={`task-type-badge ${task.type}`}>
-                        {getTaskTypeIcon(task.type)}
-                        <span>{getTaskTypeLabel(task.type)}</span>
-                      </span>
-                      <span className={`task-priority-badge priority-${priorityClass}`}>
-                        <span className="priority-dot"></span>
-                        {(task.priority || 'Normal').toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="task-card-controls">
-                      <span className={`task-status-badge ${task.status}`}>
-                        {isCompleted && <FaCheckCircle className="status-badge-icon" />}
-                        {isInProgress && <FaClock className="status-badge-icon" />}
-                        {task.status?.replace(/_/g, ' ')}
-                      </span>
-                      <button 
-                        className="task-delete-btn"
-                        onClick={() => handleDeleteTask(task.id)}
-                        title="Dismiss task"
-                        aria-label="Dismiss task"
-                      >
-                        <FaTrashAlt />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="task-card-body">
-                    <h4 className="task-title">{cleanTitleText(task.title, task)}</h4>
-                    <p className="task-description">{cleanDescriptionText(task.description, task)}</p>
-                    
-                    {/* Compact Inline Metadata Row (Staff + Impact) */}
-                    {(() => {
-                      const validStaff = getCleanedStaffList(task.affectedStaff, task);
-                      if (validStaff.length === 0 && !task.expectedImpact) return null;
-                      const hasDeptOnly = validStaff.some(s => ['Finance', 'Guidance', 'Library', 'Registrar'].includes(s));
-                      return (
-                        <div className="task-compact-meta-row">
-                          {validStaff.length > 0 && (
-                            <div className="task-staff-inline">
-                              <span className="task-meta-inline-label">
-                                {hasDeptOnly ? (
-                                  <><FaBuilding className="meta-icon" /> Target:</>
-                                ) : (
-                                  <><FaUsers className="meta-icon" /> Staff:</>
-                                )}
-                              </span>
-                              <div className="staff-tags-container compact">
-                                {validStaff.map((staffName, idx) => renderTargetChip(staffName, idx))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {task.expectedImpact && (
-                            <span className="task-impact-pill">
-                              <FaChartLine className="impact-pill-icon" />
-                              <span className="impact-pill-text">{task.expectedImpact}</span>
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Collapsible Steps Checklist */}
-                    {task.steps && task.steps.length > 0 && isExpanded && (
-                      <div className="task-steps-box collapsible-open">
-                        <div className="task-meta-label">
-                          <FaClipboardCheck className="meta-icon" /> Implementation Steps
-                        </div>
-                        <ol className="task-steps-timeline">
-                          {task.steps.map((step, i) => (
-                            <li key={i} className="task-step-item">
-                              <span className="step-number">{i + 1}</span>
-                              <span className="step-text">{cleanDescriptionText(step, task)}</span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="task-card-footer">
-                    <div className="task-footer-left">
-                      {task.steps && task.steps.length > 0 && (
-                        <button 
-                          type="button" 
-                          className="task-toggle-steps-btn" 
-                          onClick={() => toggleTaskSteps(task.id)}
-                          aria-expanded={isExpanded}
-                        >
-                          <FaClipboardList className="toggle-icon" />
-                          <span>{isExpanded ? 'Hide Steps' : `View Steps (${task.steps.length})`}</span>
-                          <FaChevronDown className={`toggle-chevron ${isExpanded ? 'rotated' : ''}`} />
-                        </button>
-                      )}
-                      <div className="task-date-info">
-                        <FaClock className="date-icon" />
-                        <span>
-                          Created {task.createdAt?.toDate ? task.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="task-footer-actions">
-                      {task.status === 'pending' && (
-                        <button 
-                          className="btn-task-action start-btn"
-                          onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
-                        >
-                          <span>Start Task</span>
-                          <FaChevronRight className="btn-icon" />
-                        </button>
-                      )}
-                      {task.status === 'in_progress' && (
-                        <button 
-                          className="btn-task-action complete-btn"
-                          onClick={() => handleUpdateTaskStatus(task.id, 'completed')}
-                        >
-                          <FaCheck className="btn-icon" />
-                          <span>Mark Completed</span>
-                        </button>
-                      )}
-                      {task.status === 'completed' && (
-                        <button 
-                          className="btn-task-action reopen-btn"
-                          onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}
-                        >
-                          <span>Reopen</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         )}
       </div>
 
