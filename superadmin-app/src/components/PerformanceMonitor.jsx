@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   collection, 
   getDocs, 
@@ -35,7 +35,8 @@ import {
   FaChevronDown,
   FaArrowRight,
   FaBolt,
-  FaBuilding
+  FaBuilding,
+  FaHeartbeat
 } from 'react-icons/fa';
 import {
   calculateStaffRiskScore,
@@ -85,6 +86,27 @@ const PerformanceMonitor = () => {
   });
   const [expandedRecSteps, setExpandedRecSteps] = useState({});
   const [expandedDeptStaff, setExpandedDeptStaff] = useState({});
+  const [sendingWarningStaffId, setSendingWarningStaffId] = useState(null);
+  const [sentWarningStaffIds, setSentWarningStaffIds] = useState(new Set());
+
+  // Department Health overview metrics summary
+  const deptHealthSummary = useMemo(() => {
+    const total = departmentData.length;
+    const healthy = departmentData.filter(d => d.status === 'healthy').length;
+    const moderate = departmentData.filter(d => d.status === 'moderate').length;
+    const atRiskOrCritical = departmentData.filter(d => d.status === 'at-risk' || d.status === 'critical').length;
+    
+    let staffNeedingWarning = 0;
+    departmentData.forEach(dept => {
+      (dept.staffList || []).forEach(staff => {
+        if ((staff.efficiency?.score ?? 100) <= 60) {
+          staffNeedingWarning++;
+        }
+      });
+    });
+
+    return { total, healthy, moderate, atRiskOrCritical, staffNeedingWarning };
+  }, [departmentData]);
 
   const toggleDeptStaff = (office) => {
     setExpandedDeptStaff(prev => ({
@@ -536,14 +558,15 @@ const PerformanceMonitor = () => {
   };
 
   const sendStaffEfficiencyWarning = async (staff, score) => {
+    const staffId = staff.uid || staff.id;
+    if (!staffId) {
+      toast.error('Unable to send warning: staff ID missing.');
+      return;
+    }
+
     try {
+      setSendingWarningStaffId(staffId);
       const staffName = staff.name || staff.fullName || 'Staff Member';
-      const staffId = staff.uid || staff.id;
-      
-      if (!staffId) {
-        toast.error('Unable to send warning: staff ID missing.');
-        return;
-      }
 
       await addDoc(collection(db, 'notifications'), {
         recipientId: staffId,
@@ -576,10 +599,13 @@ const PerformanceMonitor = () => {
         timestamp: serverTimestamp()
       });
 
-      toast.success(`Efficiency warning sent to ${staffName}!`);
+      setSentWarningStaffIds(prev => new Set([...prev, staffId]));
+      toast.success(`Official Efficiency Warning sent to ${staffName}!`);
     } catch (err) {
       console.error('Error sending efficiency warning:', err);
       toast.error('Failed to send warning: ' + err.message);
+    } finally {
+      setSendingWarningStaffId(null);
     }
   };
 
@@ -796,239 +822,341 @@ const PerformanceMonitor = () => {
         </div>
       </div>
 
-      {/* Department Health Cards */}
-      <div className="section-header">
-        <h3>Department Health Monitor</h3>
-        <p>Real-time operational status across all offices</p>
-      </div>
-      
-      <div className="department-grid">
-        {departmentData.map(dept => {
-          const deptKey = (dept.office || '').toLowerCase();
-          const getOfficeIcon = () => {
-            switch (deptKey) {
-              case 'finance': return <FaDollarSign />;
-              case 'library': return <FaBook />;
-              case 'registrar': return <FaClipboardList />;
-              case 'guidance': return <FaUserFriends />;
-              default: return <FaUsers />;
-            }
-          };
+      {/* Department Health Monitor Section */}
+      <section className="dept-health-monitor-section" aria-label="Department Health Monitor">
+        <div className="dept-health-section-header">
+          <div className="dept-health-header-left">
+            <div className="dept-health-badge-row">
+              <span className="dept-health-oversight-badge">
+                <FaHeartbeat className="pulse-icon" /> Operational Health &amp; Efficiency Oversight
+              </span>
+              {deptHealthSummary.staffNeedingWarning > 0 && (
+                <span className="global-warning-badge">
+                  <FaExclamationTriangle /> {deptHealthSummary.staffNeedingWarning} Staff Below Standard (&le;60%) &bull; Action Required
+                </span>
+              )}
+            </div>
+            <h3>Department Health Monitor</h3>
+            <p className="dept-health-subtitle">
+              Live cross-office SLA compliance, workload distribution, and staff efficiency scoring with direct warning dispatch.
+            </p>
+          </div>
 
-          const insightText = dept.overdueTickets > 0
-            ? `${dept.overdueTickets} ticket${dept.overdueTickets > 1 ? 's' : ''} past resolution deadline`
-            : dept.atRiskTickets > 0
-              ? `${dept.atRiskTickets} ticket${dept.atRiskTickets > 1 ? 's' : ''} nearing deadline (<24h)`
-              : dept.activeTickets === 0
-                ? 'Queue clear • Zero backlog'
-                : 'Optimal pace • 100% on-time resolution';
+          <div className="dept-health-summary-chips">
+            <div className="health-chip total">
+              <span className="chip-count">{deptHealthSummary.total}</span>
+              <span className="chip-label">Offices</span>
+            </div>
+            <div className="health-chip healthy">
+              <span className="chip-count">{deptHealthSummary.healthy}</span>
+              <span className="chip-label">Optimal</span>
+            </div>
+            <div className="health-chip moderate">
+              <span className="chip-count">{deptHealthSummary.moderate}</span>
+              <span className="chip-label">Moderate</span>
+            </div>
+            {deptHealthSummary.atRiskOrCritical > 0 && (
+              <div className="health-chip at-risk">
+                <span className="chip-count">{deptHealthSummary.atRiskOrCritical}</span>
+                <span className="chip-label">At Risk</span>
+              </div>
+            )}
+            {deptHealthSummary.staffNeedingWarning > 0 && (
+              <div className="health-chip action-required">
+                <span className="chip-count">{deptHealthSummary.staffNeedingWarning}</span>
+                <span className="chip-label">Warnings Needed</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="department-grid">
+          {departmentData.map(dept => {
+            const deptKey = (dept.office || '').toLowerCase();
+            const getOfficeIcon = () => {
+              switch (deptKey) {
+                case 'finance': return <FaDollarSign />;
+                case 'library': return <FaBook />;
+                case 'registrar': return <FaClipboardList />;
+                case 'guidance': return <FaUserFriends />;
+                default: return <FaUsers />;
+              }
+            };
 
-          const isStaffExpanded = Boolean(expandedDeptStaff[dept.office]);
+            const insightText = dept.overdueTickets > 0
+              ? `${dept.overdueTickets} ticket${dept.overdueTickets > 1 ? 's' : ''} past resolution deadline`
+              : dept.atRiskTickets > 0
+                ? `${dept.atRiskTickets} ticket${dept.atRiskTickets > 1 ? 's' : ''} nearing deadline (<24h)`
+                : dept.activeTickets === 0
+                  ? 'Queue clear • Zero backlog'
+                  : 'Optimal pace • 100% on-time resolution';
 
-          return (
-            <div key={dept.office} className={`dept-card dept-${dept.status} ${isStaffExpanded ? 'expanded' : ''}`}>
-              {/* Card Header: Avatar Icon, Name, Staff Count & Status Badges */}
-              <div className="dept-card-header">
-                <div className="dept-title-group">
-                  <div className={`dept-avatar-icon ${deptKey}`}>
-                    {getOfficeIcon()}
+            const isStaffExpanded = Boolean(expandedDeptStaff[dept.office]);
+            const lowScoreStaffList = (dept.staffList || []).filter(s => (s.efficiency?.score ?? 100) <= 60);
+            const hasLowScoreStaff = lowScoreStaffList.length > 0;
+
+            return (
+              <div 
+                key={dept.office} 
+                className={`dept-card dept-${dept.status} ${isStaffExpanded ? 'expanded' : ''} ${hasLowScoreStaff ? 'has-critical-staff' : ''}`}
+              >
+                {/* Card Header: Avatar Icon, Name, Staff Count & Status Badges */}
+                <div className="dept-card-header">
+                  <div className="dept-title-group">
+                    <div className={`dept-avatar-icon ${deptKey}`}>
+                      {getOfficeIcon()}
+                    </div>
+                    <div className="dept-title-meta">
+                      <h4 className="dept-name">{dept.office}</h4>
+                      <span className="dept-staff-count">
+                        <FaUsers className="mini-icon" /> {dept.staffCount} staff member{dept.staffCount !== 1 ? 's' : ''}
+                      </span>
+                    </div>
                   </div>
-                  <div className="dept-title-meta">
-                    <h4 className="dept-name">{dept.office}</h4>
-                    <span className="dept-staff-count">
-                      <FaUsers className="mini-icon" /> {dept.staffCount} staff member{dept.staffCount !== 1 ? 's' : ''}
+
+                  <div className="dept-header-badges">
+                    <div className="dept-efficiency-score-pill" title={`Average Staff Efficiency Score for ${dept.office}: ${dept.avgEfficiencyScore}%`}>
+                      <span className="eff-pill-label">Avg Efficiency</span>
+                      <span className="eff-pill-score">{dept.avgEfficiencyScore}%</span>
+                    </div>
+                    <div className={`dept-health-pill ${dept.status}`}>
+                      <span className="health-pill-dot" />
+                      <span>{dept.status.replace('-', ' ')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Resolution Health Bar, On-Time Rate & Capacity Load */}
+                <div className="dept-sla-section">
+                  <div className="sla-labels-row">
+                    <span className="sla-title">On-Time Resolution Rate</span>
+                    <span className={`sla-percentage ${dept.status}`}>{dept.onTimePercentage}%</span>
+                  </div>
+                  <div className="sla-progress-track">
+                    <div 
+                      className={`sla-progress-bar ${dept.status}`} 
+                      style={{ width: `${Math.max(5, dept.onTimePercentage)}%` }} 
+                    />
+                  </div>
+                  <div className="dept-capacity-row">
+                    <span className="capacity-label">Workload Load:</span>
+                    <span className={`capacity-val ${dept.capacityUtilization > 85 ? 'heavy' : dept.capacityUtilization > 50 ? 'moderate' : 'optimal'}`}>
+                      {dept.capacityUtilization}% capacity ({dept.capacityUtilization > 85 ? 'High Load' : dept.capacityUtilization > 50 ? 'Moderate' : 'Optimal'})
                     </span>
                   </div>
                 </div>
 
-                <div className="dept-header-badges">
-                  <div className="dept-efficiency-score-pill" title={`Average Staff Efficiency Score for ${dept.office}: ${dept.avgEfficiencyScore}%`}>
-                    <span className="eff-pill-label">Efficiency</span>
-                    <span className="eff-pill-score">{dept.avgEfficiencyScore}%</span>
+                {/* Comprehensive 6-Metric Grid */}
+                <div className="dept-metrics-grid comprehensive">
+                  <div className="dept-metric-cell">
+                    <span className="metric-val">{dept.totalTickets ?? (dept.activeTickets + (dept.resolvedTickets || 0))}</span>
+                    <span className="metric-lbl">Total Volume</span>
                   </div>
-                  <div className={`dept-health-pill ${dept.status}`}>
-                    <span className="health-pill-dot" />
-                    <span>{dept.status.replace('-', ' ')}</span>
+                  <div className="dept-metric-cell">
+                    <span className="metric-val">{dept.activeTickets}</span>
+                    <span className="metric-lbl">Active</span>
+                  </div>
+                  <div className="dept-metric-cell success-cell">
+                    <span className="metric-val">{dept.resolvedTickets ?? 0}</span>
+                    <span className="metric-lbl">Resolved</span>
+                  </div>
+                  <div className={`dept-metric-cell ${dept.atRiskTickets > 0 ? 'warning-cell' : ''}`}>
+                    <span className="metric-val">{dept.atRiskTickets}</span>
+                    <span className="metric-lbl">At Risk</span>
+                  </div>
+                  <div className={`dept-metric-cell ${dept.overdueTickets > 0 ? 'critical-cell' : ''}`}>
+                    <span className="metric-val">{dept.overdueTickets}</span>
+                    <span className="metric-lbl">Overdue</span>
+                  </div>
+                  <div className="dept-metric-cell info-cell">
+                    <span className="metric-val">{dept.avgTurnaround || 'N/A'}</span>
+                    <span className="metric-lbl">Avg Turnaround</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Resolution Health Bar, On-Time Rate & Capacity Load */}
-              <div className="dept-sla-section">
-                <div className="sla-labels-row">
-                  <span className="sla-title">On-Time Resolution Rate</span>
-                  <span className={`sla-percentage ${dept.status}`}>{dept.onTimePercentage}%</span>
+                {/* Contextual Operational Footer */}
+                <div className={`dept-card-footer ${dept.status}`}>
+                  {dept.status === 'healthy' ? (
+                    <FaCheckCircle className="footer-status-icon healthy" />
+                  ) : (
+                    <FaExclamationTriangle className="footer-status-icon alert" />
+                  )}
+                  <span className="footer-insight-text">{insightText}</span>
                 </div>
-                <div className="sla-progress-track">
-                  <div 
-                    className={`sla-progress-bar ${dept.status}`} 
-                    style={{ width: `${Math.max(5, dept.onTimePercentage)}%` }} 
-                  />
-                </div>
-                <div className="dept-capacity-row">
-                  <span className="capacity-label">Workload Load:</span>
-                  <span className={`capacity-val ${dept.capacityUtilization > 85 ? 'heavy' : dept.capacityUtilization > 50 ? 'moderate' : 'optimal'}`}>
-                    {dept.capacityUtilization}% capacity ({dept.capacityUtilization > 85 ? 'High Load' : dept.capacityUtilization > 50 ? 'Moderate' : 'Optimal'})
-                  </span>
-                </div>
-              </div>
 
-              {/* Comprehensive 6-Metric Grid */}
-              <div className="dept-metrics-grid comprehensive">
-                <div className="dept-metric-cell">
-                  <span className="metric-val">{dept.totalTickets ?? (dept.activeTickets + (dept.resolvedTickets || 0))}</span>
-                  <span className="metric-lbl">Total Volume</span>
-                </div>
-                <div className="dept-metric-cell">
-                  <span className="metric-val">{dept.activeTickets}</span>
-                  <span className="metric-lbl">Active</span>
-                </div>
-                <div className="dept-metric-cell success-cell">
-                  <span className="metric-val">{dept.resolvedTickets ?? 0}</span>
-                  <span className="metric-lbl">Resolved</span>
-                </div>
-                <div className={`dept-metric-cell ${dept.atRiskTickets > 0 ? 'warning-cell' : ''}`}>
-                  <span className="metric-val">{dept.atRiskTickets}</span>
-                  <span className="metric-lbl">At Risk</span>
-                </div>
-                <div className={`dept-metric-cell ${dept.overdueTickets > 0 ? 'critical-cell' : ''}`}>
-                  <span className="metric-val">{dept.overdueTickets}</span>
-                  <span className="metric-lbl">Overdue</span>
-                </div>
-                <div className="dept-metric-cell info-cell">
-                  <span className="metric-val">{dept.avgTurnaround || 'N/A'}</span>
-                  <span className="metric-lbl">Avg Turnaround</span>
-                </div>
-              </div>
-
-              {/* Contextual Operational Footer */}
-              <div className={`dept-card-footer ${dept.status}`}>
-                {dept.status === 'healthy' ? (
-                  <FaCheckCircle className="footer-status-icon healthy" />
-                ) : (
-                  <FaExclamationTriangle className="footer-status-icon alert" />
+                {/* Prominent Critical Staff Callout Banner (if any staff is <= 60%) */}
+                {hasLowScoreStaff && (
+                  <div className="dept-critical-staff-alert">
+                    <div className="critical-alert-info">
+                      <FaExclamationTriangle className="critical-alert-icon" />
+                      <div className="critical-alert-text">
+                        <strong>Action Needed:</strong> {lowScoreStaffList.length} staff member{lowScoreStaffList.length > 1 ? 's' : ''} dropped to &le;60% efficiency.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-alert-expand-warning"
+                      onClick={() => {
+                        if (!isStaffExpanded) {
+                          toggleDeptStaff(dept.office);
+                        }
+                      }}
+                    >
+                      <FaBolt />
+                      <span>{isStaffExpanded ? 'Review Staff Below' : 'Send Warning Now'}</span>
+                    </button>
+                  </div>
                 )}
-                <span className="footer-insight-text">{insightText}</span>
-              </div>
 
-              {/* Staff Efficiency Score Accordion Toggle & Drawer */}
-              <div className="dept-staff-section">
-                <button
-                  type="button"
-                  className={`dept-staff-toggle-btn ${isStaffExpanded ? 'expanded' : ''}`}
-                  onClick={() => toggleDeptStaff(dept.office)}
-                  aria-expanded={isStaffExpanded}
-                  title="Click arrow to view the Efficiency Score of each staff in this department"
-                >
-                  <div className="staff-toggle-left">
-                    <FaChartLine className="staff-toggle-icon" />
-                    <span className="staff-toggle-title">Staff Efficiency Breakdown</span>
-                    <span className="staff-toggle-pill">{dept.staffList?.length || 0} Staff</span>
-                  </div>
-                  <div className="staff-toggle-right">
-                    <span className="staff-toggle-action-text">{isStaffExpanded ? 'Hide Staff' : 'View Scores'}</span>
-                    <FaChevronDown className={`staff-toggle-arrow ${isStaffExpanded ? 'rotate-open' : ''}`} />
-                  </div>
-                </button>
+                {/* Staff Efficiency Score Accordion Toggle & Drawer */}
+                <div className="dept-staff-section">
+                  <button
+                    type="button"
+                    className={`dept-staff-toggle-btn ${isStaffExpanded ? 'expanded' : ''} ${hasLowScoreStaff ? 'has-warning-attention' : ''}`}
+                    onClick={() => toggleDeptStaff(dept.office)}
+                    aria-expanded={isStaffExpanded}
+                    title="Click arrow to view the Efficiency Score of each staff in this department"
+                  >
+                    <div className="staff-toggle-left">
+                      <FaChartLine className="staff-toggle-icon" />
+                      <span className="staff-toggle-title">Staff Efficiency Breakdown</span>
+                      <span className="staff-toggle-pill">{dept.staffList?.length || 0} Staff</span>
+                      {hasLowScoreStaff && (
+                        <span className="staff-toggle-urgent-tag">
+                          <FaExclamationTriangle /> {lowScoreStaffList.length} Warning Needed
+                        </span>
+                      )}
+                    </div>
+                    <div className="staff-toggle-right">
+                      <span className="staff-toggle-action-text">{isStaffExpanded ? 'Hide Staff' : 'View Scores'}</span>
+                      <FaChevronDown className={`staff-toggle-arrow ${isStaffExpanded ? 'rotate-open' : ''}`} />
+                    </div>
+                  </button>
 
-                {/* Collapsible Staff Efficiency Score List */}
-                {isStaffExpanded && (
-                  <div className="dept-staff-drawer">
-                    {dept.staffList && dept.staffList.length > 0 ? (
-                      <div className="dept-staff-list">
-                        {dept.staffList.map((staff, sIdx) => {
-                          const eff = staff.efficiency || {};
-                          const initials = (staff.name || staff.fullName || 'Staff')
-                            .split(' ')
-                            .filter(Boolean)
-                            .map(n => n[0])
-                            .slice(0, 2)
-                            .join('')
-                            .toUpperCase();
-                          return (
-                            <div key={staff.id || staff.uid || sIdx} className={`dept-staff-card ${eff.score <= 60 ? 'score-dropped-warning' : ''}`}>
-                              <div className="staff-card-main-row">
-                                <div className="staff-info-col">
-                                  <div className={`staff-avatar-initials tier-${eff.tier || 'good'}`}>
-                                    {initials}
+                  {/* Collapsible Staff Efficiency Score List */}
+                  {isStaffExpanded && (
+                    <div className="dept-staff-drawer">
+                      {dept.staffList && dept.staffList.length > 0 ? (
+                        <div className="dept-staff-list">
+                          {dept.staffList.map((staff, sIdx) => {
+                            const eff = staff.efficiency || {};
+                            const initials = (staff.name || staff.fullName || 'Staff')
+                              .split(' ')
+                              .filter(Boolean)
+                              .map(n => n[0])
+                              .slice(0, 2)
+                              .join('')
+                              .toUpperCase();
+                            const staffId = staff.id || staff.uid || sIdx;
+                            const isSending = sendingWarningStaffId === staffId;
+                            const isSent = sentWarningStaffIds.has(staffId);
+                            const isLowScore = (eff.score ?? 100) <= 60;
+
+                            return (
+                              <div key={staffId} className={`dept-staff-card ${isLowScore ? 'score-dropped-warning' : ''}`}>
+                                <div className="staff-card-main-row">
+                                  <div className="staff-info-col">
+                                    <div className={`staff-avatar-initials tier-${eff.tier || 'good'}`}>
+                                      {initials}
+                                    </div>
+                                    <div className="staff-meta-col">
+                                      <span className="staff-full-name">{staff.name || staff.fullName}</span>
+                                      <span className="staff-sub-text">{staff.email || staff.role || 'Staff Member'}</span>
+                                      {isLowScore && (
+                                        <span className="staff-drop-alert-tag">
+                                          <FaExclamationTriangle /> Dropped to {eff.score}% (Critical Standard)
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="staff-meta-col">
-                                    <span className="staff-full-name">{staff.name || staff.fullName}</span>
-                                    <span className="staff-sub-text">{staff.email || staff.role || 'Staff Member'}</span>
-                                    {eff.score <= 60 && (
-                                      <span className="staff-drop-alert-tag">
-                                        <FaExclamationTriangle /> Dropped to {eff.score}% (Critical)
-                                      </span>
+
+                                  <div className="staff-score-col">
+                                    <div className={`staff-efficiency-pill tier-${eff.tier || 'good'}`}>
+                                      <span className="eff-score-number">{eff.score ?? 100}%</span>
+                                      <span className="eff-tier-badge">{eff.tierLabel || 'Good Standing'}</span>
+                                    </div>
+                                    {isLowScore && (
+                                      <button
+                                        type="button"
+                                        className={`btn-send-eff-warning ${isSent ? 'is-sent' : ''} ${isSending ? 'is-sending' : ''}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (isSending) return;
+                                          sendStaffEfficiencyWarning(staff, eff.score);
+                                        }}
+                                        disabled={isSending}
+                                        title={
+                                          isSent 
+                                            ? `Efficiency warning has already been sent to ${staff.name || staff.fullName}`
+                                            : `Send official warning notice to ${staff.name || staff.fullName}`
+                                        }
+                                      >
+                                        {isSending ? (
+                                          <>
+                                            <span className="eff-warning-spinner" />
+                                            <span>Sending Alert...</span>
+                                          </>
+                                        ) : isSent ? (
+                                          <>
+                                            <FaCheck className="eff-warning-check-icon" />
+                                            <span>Warning Sent</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <FaExclamationTriangle className="eff-warning-pulse-icon" />
+                                            <span>Send Warning</span>
+                                          </>
+                                        )}
+                                      </button>
                                     )}
                                   </div>
                                 </div>
 
-                                <div className="staff-score-col">
-                                  <div className={`staff-efficiency-pill tier-${eff.tier || 'good'}`}>
-                                    <span className="eff-score-number">{eff.score ?? 100}%</span>
-                                    <span className="eff-tier-badge">{eff.tierLabel || 'Good Standing'}</span>
+                                {/* Visual Efficiency Progress Track */}
+                                <div className="staff-eff-track">
+                                  <div 
+                                    className={`staff-eff-fill tier-${eff.tier || 'good'}`} 
+                                    style={{ width: `${Math.max(5, eff.score ?? 100)}%` }} 
+                                  />
+                                </div>
+
+                                {/* Staff Micro Metrics */}
+                                <div className="staff-micro-stats">
+                                  <div className="micro-stat-item">
+                                    <span className="micro-stat-val">{eff.activeCount ?? 0}</span>
+                                    <span className="micro-stat-lbl">Active</span>
                                   </div>
-                                  {eff.score <= 60 && (
-                                    <button
-                                      type="button"
-                                      className="btn-send-eff-warning"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        sendStaffEfficiencyWarning(staff, eff.score);
-                                      }}
-                                      title={`Send efficiency score warning alert to ${staff.name || staff.fullName}`}
-                                    >
-                                      <FaExclamationTriangle />
-                                      <span>Send Warning</span>
-                                    </button>
-                                  )}
+                                  <div className={`micro-stat-item ${eff.overdueCount > 0 ? 'overdue-alert' : ''}`}>
+                                    <span className="micro-stat-val">{eff.overdueCount ?? 0}</span>
+                                    <span className="micro-stat-lbl">Overdue</span>
+                                  </div>
+                                  <div className="micro-stat-item">
+                                    <span className="micro-stat-val">{eff.resolvedCount ?? 0}</span>
+                                    <span className="micro-stat-lbl">Resolved</span>
+                                  </div>
+                                  <div className="micro-stat-item">
+                                    <span className="micro-stat-val">{eff.onTimeRate ?? 100}%</span>
+                                    <span className="micro-stat-lbl">On-Time</span>
+                                  </div>
                                 </div>
                               </div>
-
-                              {/* Visual Efficiency Progress Track */}
-                              <div className="staff-eff-track">
-                                <div 
-                                  className={`staff-eff-fill tier-${eff.tier || 'good'}`} 
-                                  style={{ width: `${Math.max(5, eff.score ?? 100)}%` }} 
-                                />
-                              </div>
-
-                              {/* Staff Micro Metrics */}
-                              <div className="staff-micro-stats">
-                                <div className="micro-stat-item">
-                                  <span className="micro-stat-val">{eff.activeCount ?? 0}</span>
-                                  <span className="micro-stat-lbl">Active</span>
-                                </div>
-                                <div className={`micro-stat-item ${eff.overdueCount > 0 ? 'overdue-alert' : ''}`}>
-                                  <span className="micro-stat-val">{eff.overdueCount ?? 0}</span>
-                                  <span className="micro-stat-lbl">Overdue</span>
-                                </div>
-                                <div className="micro-stat-item">
-                                  <span className="micro-stat-val">{eff.resolvedCount ?? 0}</span>
-                                  <span className="micro-stat-lbl">Resolved</span>
-                                </div>
-                                <div className="micro-stat-item">
-                                  <span className="micro-stat-val">{eff.onTimeRate ?? 100}%</span>
-                                  <span className="micro-stat-lbl">On-Time</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="dept-staff-empty">
-                        <FaUsers className="empty-staff-icon" />
-                        <p>No staff members currently assigned to {dept.office} Office.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="dept-staff-empty">
+                          <FaUsers className="empty-staff-icon" />
+                          <p>No staff members currently assigned to {dept.office} Office.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Staff Bottleneck Radar */}
       {staffBottlenecks.length > 0 && (
