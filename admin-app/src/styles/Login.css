@@ -369,27 +369,6 @@ body {
   }
 }
 
-.support-section {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.support-text {
-  font-size: 13px;
-  color: #6b7280;
-  margin: 0;
-}
-
-.support-link {
-  color: #2e7d32;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.support-link:hover {
-  text-decoration: underline;
-}
-
 .secure-badge {
   display: flex;
   align-items: center;
@@ -455,10 +434,6 @@ body {
   }
 
   .alt-login-btn-admin {
-    margin-bottom: 12px;
-  }
-
-  .support-section {
     margin-bottom: 12px;
   }
 }

@@ -589,12 +589,6 @@ const Login = ({ onLogin, onForgotPassword }) => {
               Login with QR code
             </button>
             
-            <div className="support-section">
-              <p className="support-text">
-                Need Assistance? <a href="#" className="support-link">Contact IT Support</a>
-              </p>
-            </div>
-            
             <div className="secure-badge">
               <FaShieldAlt className="secure-icon" />
               <p className="secure-text">Encrypted Secure Connection</p>
