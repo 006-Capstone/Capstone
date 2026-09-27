@@ -2,8 +2,9 @@
 import Groq from 'groq-sdk';
 
 const apiKey = 
+  (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_GROQ_API_KEY || process.env.REACT_APP_GROQ_KEY)) ||
   (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_GROQ_API_KEY || import.meta.env.REACT_APP_GROQ_API_KEY)) ||
-  (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_GROQ_API_KEY || process.env.GROQ_API_KEY));
+  (typeof process !== 'undefined' && process.env && process.env.GROQ_API_KEY);
 
 // Initialize Groq AI client when apiKey is present
 let groq = null;
@@ -20,16 +21,19 @@ if (apiKey) {
 
 const getGroqClient = () => {
   if (groq) return groq;
-  const currentKey = 
-    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_GROQ_API_KEY || import.meta.env.REACT_APP_GROQ_API_KEY)) ||
-    (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_GROQ_API_KEY || process.env.GROQ_API_KEY));
 
-  if (!currentKey) {
-    throw new Error('Groq API key is missing or not configured');
+  const apiKey = 
+    (typeof process !== 'undefined' && process.env && (process.env.REACT_APP_GROQ_API_KEY || process.env.REACT_APP_GROQ_KEY)) ||
+    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_GROQ_API_KEY || import.meta.env.REACT_APP_GROQ_API_KEY)) ||
+    (typeof process !== 'undefined' && process.env && process.env.GROQ_API_KEY);
+
+  if (!apiKey) {
+    console.error("Groq key missing. Ensure REACT_APP_GROQ_API_KEY is defined.");
+    throw new Error("Groq API key is missing or not configured");
   }
 
   groq = new Groq({
-    apiKey: currentKey,
+    apiKey,
     dangerouslyAllowBrowser: true
   });
   return groq;
