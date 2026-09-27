@@ -388,7 +388,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     if (ticketData) {
       if (
         ticketData.isNewStudentInquiry || 
-        ticketData.isGuest || 
         ticketData.isAdmissionsInquiry || 
         ticketData.category === 'Admissions / Login Support' || 
         ticketData.targetRole === 'superadmin' ||
@@ -1863,15 +1862,19 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               )}
             </div>
 
-            <h4 className="student-name-heading">{ticket.studentName || 'Ricky Liam'}</h4>
-            <p className="student-level-tag">JUNIOR HIGH SCHOOL</p>
+            <h4 className="student-name-heading">{ticket.studentName || (ticket.isGuest ? 'Guest User' : 'Student')}</h4>
+            <p className="student-level-tag">{ticket.isGuest ? 'GUEST INQUIRER' : 'JUNIOR HIGH SCHOOL'}</p>
 
             <div className="student-details-list">
-              <div className="student-detail-item">{ticket.studentId || '05-2324-12345'}</div>
-              <div className="student-detail-item">
-                {ticket.studentGradeLevel || 'Grade 10'} - {ticket.studentSection || 'St. Valerius'}
-              </div>
-              <div className="student-detail-item">{maskEmail(ticket.studentEmail) || 'rl.*****am@gmail.com'}</div>
+              <div className="student-detail-item">{ticket.isGuest ? 'Guest' : (ticket.studentId || 'N/A')}</div>
+              {(ticket.grade || ticket.studentGradeLevel || ticket.section || ticket.studentSection) && (
+                <div className="student-detail-item">
+                  {ticket.grade || ticket.studentGradeLevel || 'Grade N/A'} - {ticket.section || ticket.studentSection || 'Section N/A'}
+                </div>
+              )}
+              {ticket.studentEmail && (
+                <div className="student-detail-item">{maskEmail(ticket.studentEmail)}</div>
+              )}
             </div>
 
             {ticket.studentEmail && isOwner ? (
