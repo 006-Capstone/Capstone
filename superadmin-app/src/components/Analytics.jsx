@@ -713,10 +713,8 @@ const Analytics = () => {
     <div className="superadmin-page analytics-container">
       <div className="analytics-top-header">
         <div className="analytics-header-left">
-          <div className="page-header-title-group">
-            <h1 className="analytics-title">Analytics</h1>
-            <p className="page-subtitle">Track request volume, satisfaction, and department performance</p>
-          </div>
+          <h1 className="analytics-title">Analytics</h1>
+          <p className="page-subtitle">Track request volume, satisfaction, and department performance</p>
           <div className="analytics-filter-wrapper">
             <DateRangeFilterDropdown
               filter={dateFilter}
@@ -729,7 +727,7 @@ const Analytics = () => {
             />
           </div>
         </div>
-        <div className="analytics-pinned-actions">
+        <div className="analytics-header-right">
           <button className="btn-primary export-button" onClick={exportToCSV}>
             <FaDownload className="export-icon" aria-hidden="true" />
             <span>Export CSV</span>

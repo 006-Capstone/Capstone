@@ -17,7 +17,7 @@
   margin: 0;
 }
 
-/* ---- Top Header Section Layout ---- */
+/* ---- Main Page Header Two-Column Flex Container ---- */
 .analytics-top-header {
   display: flex;
   justify-content: space-between;
@@ -28,36 +28,48 @@
   margin-bottom: var(--space-6);
 }
 
+/* Left Column: Title, Subtitle, and Date Filters stacked vertically */
 .analytics-header-left {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-4);
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.analytics-top-header .page-header-title-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.analytics-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  margin: 0;
 }
 
-/* Date filter controls: positioned below title and description, left-aligned */
-.analytics-filter-wrapper {
+.analytics-header-left .page-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin: 4px 0 0 0;
+}
+
+/* Date filter buttons: left aligned below subtitle text with small top margin */
+.analytics-header-left .analytics-filter-wrapper {
+  margin-top: var(--space-3);
   display: flex;
   align-items: center;
   justify-content: flex-start;
 }
 
-/* Dedicated container pinned to top-right corner: Export CSV + Notification bell */
-.analytics-pinned-actions {
-  display: inline-flex;
+/* Right Column: Only Export CSV button and Notification bell as horizontal flex row, pinned to top-right */
+.analytics-header-right {
+  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: var(--space-3);
+  align-self: flex-start;
   margin-left: auto;
   flex-shrink: 0;
-  align-self: flex-start;
 }
 
 .export-button {
@@ -1376,19 +1388,15 @@
     gap: var(--space-3);
   }
 
-  .analytics-header-left {
-    gap: var(--space-3);
-  }
-
   .analytics-title {
     font-size: 22px;
   }
 
-  .analytics-pinned-actions {
+  .analytics-header-right {
     gap: var(--space-2);
   }
 
-  .analytics-pinned-actions .export-button {
+  .analytics-header-right .export-button {
     padding: 7px 12px;
     font-size: 12.5px;
   }

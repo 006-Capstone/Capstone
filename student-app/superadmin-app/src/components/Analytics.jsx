@@ -193,15 +193,20 @@ const Analytics = () => {
   return (
     <div className="analytics-container">
       <div className="analytics-header">
-        <h1 className="analytics-title">Analytics</h1>
-        <div className="analytics-actions">
+        <div className="analytics-header-left">
+          <h1 className="analytics-title">Analytics</h1>
+          <p className="analytics-subtitle">Track request volume, satisfaction, and department performance</p>
+          <div className="analytics-filter-wrapper">
+            <button className="filter-by-button" onClick={fetchAnalyticsData}>
+              Filter by
+              <FaFilter className="filter-icon" />
+            </button>
+          </div>
+        </div>
+        <div className="analytics-header-right">
           <button className="export-button" onClick={exportToCSV}>
             <FaDownload className="export-icon" />
             Export CSV
-          </button>
-          <button className="filter-by-button" onClick={fetchAnalyticsData}>
-            Filter by
-            <FaFilter className="filter-icon" />
           </button>
           <div className="form-notification">
             <FaBell className="notification-icon" />
