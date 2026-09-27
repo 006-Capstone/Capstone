@@ -23,6 +23,8 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { OverviewCardsSkeleton, AnalyticsChartSkeleton } from './common/Skeleton';
 import Notifications from './Notifications';
+import { useOfficeTickets } from '../hooks/useOfficeTickets';
+import { calculateEfficiencyMetrics, getStaffTickets } from '../utils/efficiencyHelper';
 import '../styles/MyPerformance.css';
 
 /* ---------------------------------------------------------------------------
@@ -169,8 +171,6 @@ const HOARDING_IN_PROGRESS_THRESHOLD = 10;
 const HOARDING_DAILY_LIMIT = 5;
 
 const MyPerformance = ({ userData }) => {
-  const [loading, setLoading] = useState(true);
-  const [tickets, setTickets] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -246,7 +246,10 @@ const MyPerformance = ({ userData }) => {
 
   const staffName = (staffData.name || staffData.fullName || '').trim();
   const staffUid = staffData.uid || '';
-  const staffOffice = staffData.office || '';
+  const staffOffice = staffData.office || staffData.department || '';
+
+  // Single source of truth for tickets — identical to AdminDashboard
+  const { tickets, loading, refresh } = useOfficeTickets(staffOffice);
 
   // Real-time unread notifications listener
   useEffect(() => {
@@ -266,91 +269,11 @@ const MyPerformance = ({ userData }) => {
     return () => unsubscribe();
   }, [staffUid]);
 
-  // Real-time listener for requests in this staff member's office
-  useEffect(() => {
-    setLoading(true);
-
-    const requestsRef = collection(db, 'requests');
-    const q = staffOffice 
-      ? query(requestsRef, where('office', '==', staffOffice))
-      : query(requestsRef);
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const list = snapshot.docs.map(docSnap => {
-          const data = docSnap.data();
-          return {
-            firestoreId: docSnap.id,
-            id: data.requestId || docSnap.id,
-            subject: data.subject || data.title || 'Untitled Request',
-            title: data.subject || data.title || 'Untitled Request',
-            student: data.studentName || data.student || 'Student',
-            studentName: data.studentName || data.student || 'Student',
-            studentId: data.studentId || '',
-            isGuest: Boolean(data.isGuest),
-            status: data.status || 'Pending',
-            office: data.office || staffOffice,
-            assignedTo: data.assignedTo || null,
-            assignedToStaff: data.assignedToStaff || null,
-            claimedBy: data.claimedBy || null,
-            resolvedBy: data.resolvedBy || null,
-            claimedAt: data.claimedAt || null,
-            resolvedAt: data.resolvedAt || null,
-            createdAt: data.createdAt || null,
-            updatedAt: data.updatedAt || null,
-            etc: data.etc || data.estimatedCompletion || data.eta || null,
-            resolutionNote: data.resolutionNote || '',
-            ...data
-          };
-        });
-
-        // Newest first
-        list.sort((a, b) => {
-          const tA = parseDate(a.createdAt)?.getTime() || 0;
-          const tB = parseDate(b.createdAt)?.getTime() || 0;
-          return tB - tA;
-        });
-
-        setTickets(list);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('[MyPerformance] Error loading requests:', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [staffOffice]);
-
-  // Filter requests handled by or assigned to this staff member
+  // Filter requests handled by or assigned to this staff member using unified helper
   const myAllTickets = useMemo(() => {
-    if (!staffName && !staffUid) return [];
-
-    const normalizedName = staffName.toLowerCase();
-
-    return tickets.filter(t => {
-      const assigned = String(t.assignedTo || '').trim().toLowerCase();
-      const claimed = String(t.claimedBy || '').trim().toLowerCase();
-      const resolved = String(t.resolvedBy || '').trim().toLowerCase();
-      const assignedStaff = String(t.assignedToStaff || '').trim().toLowerCase();
-
-      return (
-        (normalizedName && (
-          assigned === normalizedName ||
-          claimed === normalizedName ||
-          resolved === normalizedName ||
-          assignedStaff === normalizedName
-        )) ||
-        (staffUid && (
-          t.assignedToStaff === staffUid ||
-          t.assignedTo === staffUid ||
-          t.claimedBy === staffUid
-        ))
-      );
-    });
+    return getStaffTickets(tickets, staffName, staffUid);
   }, [tickets, staffName, staffUid]);
+
 
   // Filter by selected time period
   const myFilteredTickets = useMemo(() => {
@@ -376,30 +299,30 @@ const MyPerformance = ({ userData }) => {
     });
   }, [myAllTickets, timeRange]);
 
-  // Compute detailed metrics for the staff member
+  // Compute detailed metrics for the staff member using unified calculation
   const metrics = useMemo(() => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-    // 1. Overall Active in progress right now
-    const currentActiveTickets = myAllTickets.filter(t => t.status === 'In Process');
-    const activeCount = currentActiveTickets.length;
+    // Unified Efficiency Metrics (Synchronized with Superadmin Health Monitor & Dashboard Alert Modal)
+    const effMetrics = calculateEfficiencyMetrics(myAllTickets);
 
-    // 2. Overdue active requests (past deadline and not due today)
-    const overdueActiveTickets = currentActiveTickets.filter(t => {
-      const deadline = getEtcDeadline(t.etc);
-      if (!deadline) return false;
-      const isDueToday = 
-        deadline.getFullYear() === now.getFullYear() &&
-        deadline.getMonth() === now.getMonth() &&
-        deadline.getDate() === now.getDate();
-      return !isDueToday && deadline < now;
-    });
-    const overdueCount = overdueActiveTickets.length;
+    const activeCount = effMetrics.activeCount;
+    const overdueCount = effMetrics.overdueCount;
+    const onTimeRate = effMetrics.onTimeRate;
+    const performanceScore = effMetrics.score;
 
-    // 3. Due today active requests
+    // Active in progress tickets
+    const currentActiveTickets = effMetrics.activeCount > 0
+      ? myAllTickets.filter(t => {
+          const s = (t.status || '').toLowerCase();
+          return s !== 'resolved' && s !== 'cancelled' && s !== 'rejected';
+        })
+      : [];
+
+    // Due today active requests
     const dueTodayActiveTickets = currentActiveTickets.filter(t => {
-      const deadline = getEtcDeadline(t.etc);
+      const deadline = getEtcDeadline(t.etc || t.estimatedCompletion);
       if (!deadline) return false;
       return (
         deadline.getFullYear() === now.getFullYear() &&
@@ -409,32 +332,21 @@ const MyPerformance = ({ userData }) => {
     });
     const dueTodayCount = dueTodayActiveTickets.length;
 
-    // 4. Resolved tickets in the selected filtered period
-    const resolvedInPeriod = myFilteredTickets.filter(t => t.status === 'Resolved');
+    // Resolved tickets in the selected filtered period
+    const resolvedInPeriod = myFilteredTickets.filter(t => (t.status || '').toLowerCase() === 'resolved');
     const resolvedCount = resolvedInPeriod.length;
 
-    // 5. Total resolved all-time
-    const allTimeResolvedTickets = myAllTickets.filter(t => t.status === 'Resolved');
+    // Total resolved all-time
+    const allTimeResolvedTickets = myAllTickets.filter(t => (t.status || '').toLowerCase() === 'resolved');
     const allTimeResolved = allTimeResolvedTickets.length;
 
-    // 6. On-Time calculations (for resolved requests in period)
-    let onTimeCount = 0;
+    // Average Turnaround time
     let turnAroundTotalMs = 0;
     let turnAroundValidCount = 0;
 
     resolvedInPeriod.forEach(t => {
       const resolvedDate = parseDate(t.resolvedAt) || parseDate(t.updatedAt);
-      const deadline = getEtcDeadline(t.etc);
       const claimedDate = parseDate(t.claimedAt) || parseDate(t.createdAt);
-
-      if (resolvedDate && deadline) {
-        if (resolvedDate <= deadline) {
-          onTimeCount += 1;
-        }
-      } else {
-        // If no ETC was stipulated, resolution counts toward positive SLA
-        onTimeCount += 1;
-      }
 
       if (resolvedDate && claimedDate) {
         const diff = resolvedDate.getTime() - claimedDate.getTime();
@@ -445,26 +357,6 @@ const MyPerformance = ({ userData }) => {
       }
     });
 
-    // All-time on-time rate fallback when current filter window has no resolved tickets
-    let allTimeOnTimeCount = 0;
-    allTimeResolvedTickets.forEach(t => {
-      const resolvedDate = parseDate(t.resolvedAt) || parseDate(t.updatedAt);
-      const deadline = getEtcDeadline(t.etc);
-      if (resolvedDate && deadline) {
-        if (resolvedDate <= deadline) allTimeOnTimeCount += 1;
-      } else {
-        allTimeOnTimeCount += 1;
-      }
-    });
-    const allTimeOnTimeRate = allTimeResolved > 0
-      ? Math.round((allTimeOnTimeCount / allTimeResolved) * 100)
-      : 100;
-
-    const onTimeRate = resolvedCount > 0
-      ? Math.round((onTimeCount / resolvedCount) * 100)
-      : (allTimeResolved > 0 ? allTimeOnTimeRate : 100);
-
-    // Average Turnaround time
     let avgTurnaroundHours = 0;
     let avgTurnaroundDisplay = 'N/A';
     if (turnAroundValidCount > 0) {
@@ -477,9 +369,9 @@ const MyPerformance = ({ userData }) => {
       }
     }
 
-    // 7. Today's claims (for anti-hoarding rule)
+    // Today's claims (for anti-hoarding rule)
     const acceptedTodayCount = myAllTickets.filter(t => {
-      const claimed = parseDate(t.claimedAt) || (t.status === 'In Process' ? parseDate(t.updatedAt || t.createdAt) : null);
+      const claimed = parseDate(t.claimedAt) || ((t.status || '').toLowerCase().includes('process') ? parseDate(t.updatedAt || t.createdAt) : null);
       if (!claimed) return false;
       return claimed.getTime() >= startOfToday;
     }).length;
@@ -487,31 +379,7 @@ const MyPerformance = ({ userData }) => {
     const isRestrictedByHoarding = activeCount >= HOARDING_IN_PROGRESS_THRESHOLD;
     const isAtClaimLimit = isRestrictedByHoarding && acceptedTodayCount >= HOARDING_DAILY_LIMIT;
 
-    // 8. Overall Performance Efficiency Score (0 to 100)
-    // SLA On-Time compliance: up to 50 pts
-    const slaScore = Math.round((onTimeRate / 100) * 50);
-
-    // Queue & Overdue Health: up to 30 pts
-    let queueScore = 30;
-    if (activeCount > 0 && overdueCount > 0) {
-      const overdueRatio = overdueCount / activeCount;
-      const penalty = Math.min(30, Math.round(overdueRatio * 20) + (overdueCount * 4));
-      queueScore = Math.max(0, 30 - penalty);
-    }
-
-    // Workload & Anti-Hoarding: up to 20 pts
-    let workloadScore = 20;
-    if (isRestrictedByHoarding) workloadScore -= 10;
-    if (isAtClaimLimit) workloadScore -= 10;
-    workloadScore = Math.max(0, workloadScore);
-
-    // Resolution Productivity bonus: up to +10 pts
-    const effectiveResolved = resolvedCount > 0 ? resolvedCount : allTimeResolved;
-    const volumeBonus = Math.min(10, effectiveResolved * 2);
-
-    const performanceScore = Math.max(0, Math.min(100, slaScore + queueScore + workloadScore + volumeBonus));
-
-    // Standing Tier
+    // Standing Tier (Aligned with Unified Health Standards)
     let standing = {
       level: 'good',
       label: 'Good Standing',
@@ -519,25 +387,25 @@ const MyPerformance = ({ userData }) => {
       description: 'Your queue is healthy, service delivery is on schedule, and requests are handled promptly.'
     };
 
-    if (overdueCount > 0 || isAtClaimLimit) {
+    if (overdueCount > 0 || isAtClaimLimit || performanceScore <= 60) {
       standing = {
         level: 'critical',
-        label: 'Attention Required',
+        label: performanceScore <= 60 ? 'Critical Attention' : 'Attention Required',
         icon: FaExclamationTriangle,
         description: overdueCount > 0
-          ? `${overdueCount} active request${overdueCount === 1 ? ' is' : 's are'} overdue past estimated completion date. Prioritize processing overdue tickets.`
-          : `Daily claim limit reached (${acceptedTodayCount}/${HOARDING_DAILY_LIMIT} claims today) under the Anti-Hoarding policy. Resolve in-progress requests before accepting more.`
+          ? `${overdueCount} active request${overdueCount === 1 ? ' is' : 's are'} overdue past estimated completion date or SLA limit (72 hrs). Prioritize processing overdue tickets.`
+          : isAtClaimLimit
+          ? `Daily claim limit reached (${acceptedTodayCount}/${HOARDING_DAILY_LIMIT} claims today) under the Anti-Hoarding policy. Resolve in-progress requests before accepting more.`
+          : 'Your efficiency score has dropped to 60% or lower, indicating service bottleneck risk visible to Superadmin oversight.'
       };
-    } else if (isRestrictedByHoarding || performanceScore < 70) {
+    } else if (isRestrictedByHoarding || performanceScore < 75) {
       standing = {
         level: 'advisory',
-        label: performanceScore < 60 ? 'Needs Focus' : 'Advisory Notice',
-        icon: performanceScore < 60 ? FaExclamationTriangle : FaClock,
+        label: 'Needs Focus',
+        icon: FaClock,
         description: isRestrictedByHoarding
           ? `Workload threshold reached with ${activeCount} active requests in progress. Daily limit of ${HOARDING_DAILY_LIMIT} claims applies.`
-          : performanceScore < 60
-          ? 'Performance index requires focus. Resolve pending requests to improve turnaround time and efficiency score.'
-          : 'Service turnaround is nearing threshold. Continue processing your active queue.'
+          : 'Service turnaround is nearing threshold. Continue processing your active queue to improve turnaround time and efficiency score.'
       };
     } else if (performanceScore >= 90) {
       standing = {
@@ -562,7 +430,15 @@ const MyPerformance = ({ userData }) => {
       isRestrictedByHoarding,
       isAtClaimLimit,
       performanceScore,
-      standing
+      standing,
+      slaScore: effMetrics.slaScore,
+      queueScore: effMetrics.queueScore,
+      workloadScore: effMetrics.workloadScore,
+      volumeBonus: effMetrics.volumeBonus,
+      tier: effMetrics.tier,
+      tierLabel: effMetrics.tierLabel,
+      tierColor: effMetrics.tierColor,
+      isWarning: effMetrics.isWarning
     };
   }, [myAllTickets, myFilteredTickets]);
 
@@ -605,14 +481,24 @@ const MyPerformance = ({ userData }) => {
 
     // Tab filtering
     if (tableTab === 'in_progress') {
-      list = list.filter(t => t.status === 'In Process');
+      list = list.filter(t => {
+        const s = (t.status || '').toLowerCase();
+        return s !== 'resolved' && s !== 'cancelled' && s !== 'rejected';
+      });
     } else if (tableTab === 'resolved') {
-      list = list.filter(t => t.status === 'Resolved');
+      list = list.filter(t => (t.status || '').toLowerCase() === 'resolved');
     } else if (tableTab === 'overdue') {
       list = list.filter(t => {
-        if (t.status !== 'In Process') return false;
-        const deadline = getEtcDeadline(t.etc);
-        if (!deadline) return false;
+        const s = (t.status || '').toLowerCase();
+        if (s === 'resolved' || s === 'cancelled' || s === 'rejected') return false;
+        const deadline = getEtcDeadline(t.etc || t.estimatedCompletion);
+        if (!deadline) {
+          const created = parseDate(t.createdAt);
+          if (created) {
+            return (now.getTime() - created.getTime()) > (72 * 60 * 60 * 1000);
+          }
+          return false;
+        }
         const isDueToday = 
           deadline.getFullYear() === now.getFullYear() &&
           deadline.getMonth() === now.getMonth() &&
@@ -663,10 +549,11 @@ const MyPerformance = ({ userData }) => {
   // Helper for SLA performance compliance label
   const getTicketSlaTag = (ticket) => {
     const now = new Date();
-    const deadline = getEtcDeadline(ticket.etc);
-    const resolvedDate = parseDate(ticket.resolvedAt) || (ticket.status === 'Resolved' ? parseDate(ticket.updatedAt) : null);
+    const deadline = getEtcDeadline(ticket.etc || ticket.estimatedCompletion);
+    const resolvedDate = parseDate(ticket.resolvedAt) || ((ticket.status || '').toLowerCase() === 'resolved' ? parseDate(ticket.updatedAt) : null);
+    const s = (ticket.status || '').toLowerCase();
 
-    if (ticket.status === 'Resolved') {
+    if (s === 'resolved') {
       if (deadline && resolvedDate) {
         if (resolvedDate <= deadline) {
           return { label: 'On-Time', className: 'sla-ontime' };
@@ -676,8 +563,12 @@ const MyPerformance = ({ userData }) => {
       return { label: 'Completed', className: 'sla-ontime' };
     }
 
-    if (ticket.status === 'In Process') {
+    if (s !== 'cancelled' && s !== 'rejected') {
       if (!deadline) {
+        const created = parseDate(ticket.createdAt);
+        if (created && (now.getTime() - created.getTime()) > (72 * 60 * 60 * 1000)) {
+          return { label: 'Overdue (>72h)', className: 'sla-overdue' };
+        }
         return { label: 'No ETC Set', className: 'sla-pending' };
       }
       const isDueToday = 
