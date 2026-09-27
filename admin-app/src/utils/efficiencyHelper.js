@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, doc, setDoc, deleteDoc, serverTimestamp, limit } from 'firebase/firestore';
 
 /**
  * Efficiency Score & Performance Helper for Admin App
@@ -172,13 +172,22 @@ export const calculateEfficiencyMetrics = (staffTickets = []) => {
   };
 };
 
+// Concurrency lock to prevent parallel double-creation across rapid re-renders
+const inFlightNotificationUids = new Set();
+
 /**
  * Ensure an Efficiency Warning notification is registered in Firestore
  * when a staff member's score drops to 60% or lower.
- * Prevents spamming duplicates with a 24-hour cooldown or existing unread alert.
+ * Prevents duplicates with concurrency locks, cleanup of existing duplicates,
+ * and deterministic document identification.
  */
 export const ensureEfficiencyWarningNotification = async (staffData, efficiencyMetrics) => {
   if (!staffData?.uid || !efficiencyMetrics?.isWarning) return;
+
+  if (inFlightNotificationUids.has(staffData.uid)) {
+    return;
+  }
+  inFlightNotificationUids.add(staffData.uid);
 
   try {
     const notificationsRef = collection(db, 'notifications');
@@ -187,7 +196,7 @@ export const ensureEfficiencyWarningNotification = async (staffData, efficiencyM
       where('recipientId', '==', staffData.uid),
       where('recipientType', '==', 'staff'),
       where('type', '==', 'efficiency_score_warning'),
-      limit(5)
+      limit(10)
     );
 
     const snapshot = await getDocs(q);
@@ -195,16 +204,34 @@ export const ensureEfficiencyWarningNotification = async (staffData, efficiencyM
     const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24-hour cooldown
 
     let hasRecentNotification = false;
+    const duplicateDocsToDelete = [];
+
     snapshot.forEach(docSnap => {
       const data = docSnap.data();
-      if (!data.isRead) {
-        hasRecentNotification = true;
-      }
+      const isUnread = !data.isRead;
       const createdDate = parseDate(data.createdAt || data.timestamp);
-      if (createdDate && (now - createdDate.getTime()) < COOLDOWN_MS) {
-        hasRecentNotification = true;
+      const isWithinCooldown = createdDate && (now - createdDate.getTime()) < COOLDOWN_MS;
+
+      if (isUnread || isWithinCooldown) {
+        if (!hasRecentNotification) {
+          hasRecentNotification = true;
+        } else {
+          // Extra duplicate found in Firestore from a previous concurrent call — queue for deletion
+          duplicateDocsToDelete.push(docSnap.ref);
+        }
       }
     });
+
+    // Clean up existing duplicates from previous occurrences
+    if (duplicateDocsToDelete.length > 0) {
+      for (const docRef of duplicateDocsToDelete) {
+        try {
+          await deleteDoc(docRef);
+        } catch (e) {
+          console.warn('[efficiencyHelper] Could not delete duplicate notification doc:', e);
+        }
+      }
+    }
 
     if (hasRecentNotification) {
       return;
@@ -212,8 +239,11 @@ export const ensureEfficiencyWarningNotification = async (staffData, efficiencyM
 
     const score = efficiencyMetrics.score;
     const overdueCount = efficiencyMetrics.overdueCount || 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const deterministicDocId = `eff_warning_${staffData.uid}_${todayStr}`;
+    const targetDocRef = doc(db, 'notifications', deterministicDocId);
 
-    await addDoc(notificationsRef, {
+    await setDoc(targetDocRef, {
       recipientId: staffData.uid,
       recipientType: 'staff',
       userId: staffData.uid,
@@ -237,9 +267,11 @@ export const ensureEfficiencyWarningNotification = async (staffData, efficiencyM
         score: score,
         office: staffData.office || staffData.department || ''
       }
-    });
+    }, { merge: true });
   } catch (err) {
     console.error('[Error] ensureEfficiencyWarningNotification failed:', err);
+  } finally {
+    inFlightNotificationUids.delete(staffData.uid);
   }
 };
 

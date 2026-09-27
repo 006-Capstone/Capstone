@@ -127,24 +127,40 @@ const Notifications = ({ isOpen, onClose, onViewRequest, onOpenEfficiencyWarning
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const notifs = [];
-      let unread = 0;
-
+      const rawNotifs = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        notifs.push({
+        rawNotifs.push({
           id: doc.id,
           ...data,
           createdAt: data.createdAt?.toDate()
         });
-        if (!data.isRead) unread++;
       });
 
-      notifs.sort((a, b) => {
+      rawNotifs.sort((a, b) => {
         const timeA = a.createdAt?.getTime() || 0;
         const timeB = b.createdAt?.getTime() || 0;
         return timeB - timeA;
       });
+
+      // Deduplicate notifications (e.g. redundant efficiency warnings)
+      const notifs = [];
+      let unread = 0;
+      const seenEffKeys = new Set();
+
+      rawNotifs.forEach((notif) => {
+        if (notif.type === 'efficiency_score_warning') {
+          const key = `eff_${notif.isRead ? 'read' : 'unread'}`;
+          if (seenEffKeys.has(key)) {
+            return;
+          }
+          seenEffKeys.add(key);
+        }
+
+        notifs.push(notif);
+        if (!notif.isRead) unread++;
+      });
+
       const limitedNotifs = notifs.slice(0, 25);
 
       setNotifications(limitedNotifs);

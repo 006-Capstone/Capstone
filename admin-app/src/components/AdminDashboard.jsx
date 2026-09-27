@@ -54,6 +54,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   // Efficiency Score Warning Modal states (<= 60%)
   const [showEfficiencyWarningModal, setShowEfficiencyWarningModal] = useState(false);
   const hasAutoOpenedEfficiencyModal = useRef(false);
+  const hasEnsuredWarningNotification = useRef(false);
 
   useEffect(() => {
     // Get staff data from localStorage
@@ -82,7 +83,18 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
     let isFirst = true;
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
+      let unread = 0;
+      const seenEff = new Set();
+      querySnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        if (!data.isRead) {
+          if (data.type === 'efficiency_score_warning') {
+            if (seenEff.has('eff_warning')) return;
+            seenEff.add('eff_warning');
+          }
+          unread++;
+        }
+      });
       setUnreadCount(unread);
       if (!isFirst) {
         // Automatically refresh tickets feed if a new notification arrives
@@ -251,7 +263,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     if (loading) return;
 
     if (efficiencyMetrics.isWarning) {
-      if (staffData?.uid) {
+      if (staffData?.uid && !hasEnsuredWarningNotification.current) {
+        hasEnsuredWarningNotification.current = true;
         ensureEfficiencyWarningNotification(staffData, efficiencyMetrics);
       }
 
