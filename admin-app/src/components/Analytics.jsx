@@ -364,19 +364,17 @@ const Analytics = ({ department, onViewRequest }) => {
           <p className="analytics-subtitle">
             Understand your office's performance at a glance
           </p>
-          <div className="analytics-filter-wrapper">
-            <DateRangeFilterDropdown
-              filter={dateFilter}
-              onFilterChange={setDateFilter}
-              isActive={isFilterActive}
-              onApply={applyDateFilter}
-              onClear={clearDateFilter}
-              appliedFilter={appliedFilter}
-              idPrefix="analytics"
-            />
-          </div>
         </div>
         <div className="analytics-header-right">
+          <DateRangeFilterDropdown
+            filter={dateFilter}
+            onFilterChange={setDateFilter}
+            isActive={isFilterActive}
+            onApply={applyDateFilter}
+            onClear={clearDateFilter}
+            appliedFilter={appliedFilter}
+            idPrefix="analytics"
+          />
           <button className="export-pdf-btn" onClick={handlePrint}>
             <FaPrint />
             Print
