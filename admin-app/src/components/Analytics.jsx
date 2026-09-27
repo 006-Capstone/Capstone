@@ -360,21 +360,23 @@ const Analytics = ({ department, onViewRequest }) => {
     <div className="analytics-container">
       <div className="analytics-header">
         <div className="analytics-header-left">
-          <h1 className="analytics-title">Analytics</h1>
-          <p className="analytics-subtitle">
-            Understand your office's performance at a glance
-          </p>
-        </div>
-        <div className="analytics-filter-wrapper">
-          <DateRangeFilterDropdown
-            filter={dateFilter}
-            onFilterChange={setDateFilter}
-            isActive={isFilterActive}
-            onApply={applyDateFilter}
-            onClear={clearDateFilter}
-            appliedFilter={appliedFilter}
-            idPrefix="analytics"
-          />
+          <div className="analytics-title-group">
+            <h1 className="analytics-title">Analytics</h1>
+            <p className="analytics-subtitle">
+              Understand your office's performance at a glance
+            </p>
+          </div>
+          <div className="analytics-filter-wrapper">
+            <DateRangeFilterDropdown
+              filter={dateFilter}
+              onFilterChange={setDateFilter}
+              isActive={isFilterActive}
+              onApply={applyDateFilter}
+              onClear={clearDateFilter}
+              appliedFilter={appliedFilter}
+              idPrefix="analytics"
+            />
+          </div>
         </div>
         <div className="analytics-pinned-actions">
           <button className="export-pdf-btn" onClick={handlePrint}>

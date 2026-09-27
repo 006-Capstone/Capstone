@@ -17,19 +17,25 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  flex-wrap: wrap;
   width: 100%;
   box-sizing: border-box;
-  gap: var(--space-3) var(--space-4);
+  gap: var(--space-4);
   margin-bottom: 0;
 }
 
 .analytics-header-left {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.analytics-title-group {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
-  flex: 0 1 auto;
-  min-width: 220px;
 }
 
 .analytics-title {
@@ -48,20 +54,21 @@
   line-height: 1.4;
 }
 
-/* Date filter controls: wrap independently without affecting pinned actions */
+/* Date filter controls: positioned below title and description, left-aligned */
 .analytics-filter-wrapper {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  justify-content: flex-start;
 }
 
-/* Pinned upper-right actions: Print, Export CSV + Notification bell */
+/* Dedicated container pinned to top-right corner: Print, Export CSV + Notification bell */
 .analytics-pinned-actions {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
   margin-left: auto;
   flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .export-pdf-btn {
@@ -1144,53 +1151,14 @@
   }
 }
 
-@media (min-width: 1024px) {
-  .analytics-header {
-    flex-wrap: nowrap;
-    align-items: center;
-  }
-
-  .analytics-filter-wrapper {
-    margin-left: auto;
-    margin-right: var(--space-3);
-  }
-
-  .analytics-pinned-actions {
-    margin-left: 0;
-  }
-}
-
-@media (max-width: 1023px) {
-  .analytics-header {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--space-3) var(--space-4);
-  }
-
-  .analytics-header-left {
-    flex: 1 1 auto;
-    min-width: 180px;
-  }
-
-  .analytics-pinned-actions {
-    margin-left: auto;
-    flex-shrink: 0;
-  }
-
-  .analytics-filter-wrapper {
-    width: 100%;
-    margin-top: 4px;
-    display: flex;
-    justify-content: flex-start;
-  }
-}
-
 /* Mobile — header actions wrap; filter panel gets full-width room */
 @media (max-width: 640px) {
   .analytics-header {
-    gap: var(--space-2) var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .analytics-header-left {
+    gap: var(--space-3);
   }
 
   .analytics-pinned-actions {
