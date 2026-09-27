@@ -665,10 +665,12 @@ const MyPerformance = ({ userData }) => {
     return (
       <div className="my-performance-container">
         <header className="performance-header">
-          <div className="header-left">
+          <div className="performance-header-row-1">
             <div className="title-row">
               <h1 className="performance-title">My Performance</h1>
             </div>
+          </div>
+          <div className="performance-header-row-2">
             <p className="performance-subtitle">
               Track your personal request handling productivity, turnaround time, and institutional compliance standards
             </p>
@@ -686,16 +688,45 @@ const MyPerformance = ({ userData }) => {
     <div className="my-performance-container">
       {/* Top Header */}
       <header className="performance-header">
-        <div className="header-left">
+        {/* Row 1: Title on left, Action buttons on far right (never wraps) */}
+        <div className="performance-header-row-1">
           <div className="title-row">
             <h1 className="performance-title">My Performance</h1>
           </div>
+
+          <div className="performance-header-actions">
+            {/* Export CSV Button */}
+            <button className="export-pdf-btn" onClick={exportToCSV}>
+              <FaDownload />
+              Export CSV
+            </button>
+
+            {/* Notification Bell */}
+            <button
+              type="button"
+              className="notification-bell"
+              onClick={() => setShowNotifications(true)}
+              title="Notifications"
+              aria-label="Notifications"
+              aria-haspopup="true"
+              aria-expanded={showNotifications}
+            >
+              <FaBell className="bell-icon" aria-hidden="true" />
+              {unreadCount > 0 && (
+                <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Subtitle description on left, Date filter buttons on right */}
+        <div className="performance-header-row-2">
           <p className="performance-subtitle">
             Track your personal request handling productivity, turnaround time, and institutional compliance standards
           </p>
-        </div>
 
-        <div className="header-right">
           {/* Time Range Selector */}
           <div className="time-filter-pill-group" role="group" aria-label="Performance Time Range">
             <button
@@ -734,30 +765,6 @@ const MyPerformance = ({ userData }) => {
               Today
             </button>
           </div>
-
-          {/* Export CSV Button */}
-          <button className="export-pdf-btn" onClick={exportToCSV}>
-            <FaDownload />
-            Export CSV
-          </button>
-
-          {/* Notification Bell */}
-          <button
-            type="button"
-            className="notification-bell"
-            onClick={() => setShowNotifications(true)}
-            title="Notifications"
-            aria-label="Notifications"
-            aria-haspopup="true"
-            aria-expanded={showNotifications}
-          >
-            <FaBell className="bell-icon" aria-hidden="true" />
-            {unreadCount > 0 && (
-              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
         </div>
       </header>
 
