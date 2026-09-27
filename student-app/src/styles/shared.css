@@ -89,9 +89,13 @@
 }
 
 /* ---- Modern Data Table ---- */
-.table-container {
+.table-container,
+.table-scroll,
+.table-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-md);
+  width: 100%;
 }
 
 .data-table {

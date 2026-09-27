@@ -231,6 +231,14 @@
 }
 
 /* ---- Standard Data Tables ---- */
+.table-wrapper,
+.table-scroll,
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
 .admin-table-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border-soft);

@@ -216,45 +216,47 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
               <p>You haven't submitted any requests yet. Click the button above to create your first academic request.</p>
             </div>
           ) : (
-            <table className="data-table">
-              <caption className="sr-only">Your recent requests</caption>
-              <thead>
-                <tr>
-                  <th scope="col">REQUEST ID</th>
-                  <th scope="col">OFFICE</th>
-                  <th scope="col">SUBJECT</th>
-                  <th scope="col">DATE SUBMITTED</th>
-                  <th scope="col">STATUS</th>
-                  <th scope="col">
-                    <span className="sr-only">Details</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((req, index) => (
-                  <tr key={req.firestoreId || index} onClick={() => onViewDetails?.(req)}>
-                    <td>#{req.id}</td>
-                    <td>{req.office}</td>
-                    <td>{req.subject}</td>
-                    <td>{req.date}</td>
-                    <td><StatusBadge status={req.status} /></td>
-                    <td className="row-action">
-                      <button
-                        type="button"
-                        className="row-action-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewDetails?.(req);
-                        }}
-                        aria-label={`View details for request ${req.id || req.subject || index + 1}`}
-                      >
-                        <MdKeyboardArrowRight aria-hidden="true" />
-                      </button>
-                    </td>
+            <div className="table-scroll">
+              <table className="data-table">
+                <caption className="sr-only">Your recent requests</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">REQUEST ID</th>
+                    <th scope="col">OFFICE</th>
+                    <th scope="col">SUBJECT</th>
+                    <th scope="col">DATE SUBMITTED</th>
+                    <th scope="col">STATUS</th>
+                    <th scope="col">
+                      <span className="sr-only">Details</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {requests.map((req, index) => (
+                    <tr key={req.firestoreId || index} onClick={() => onViewDetails?.(req)}>
+                      <td>#{req.id}</td>
+                      <td>{req.office}</td>
+                      <td>{req.subject}</td>
+                      <td>{req.date}</td>
+                      <td><StatusBadge status={req.status} /></td>
+                      <td className="row-action">
+                        <button
+                          type="button"
+                          className="row-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetails?.(req);
+                          }}
+                          aria-label={`View details for request ${req.id || req.subject || index + 1}`}
+                        >
+                          <MdKeyboardArrowRight aria-hidden="true" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </section>

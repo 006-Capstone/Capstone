@@ -384,8 +384,8 @@ export const DataTableSkeleton = ({
  */
 export const AppLayoutSkeleton = () => {
   return (
-    <div className="superadmin-app" aria-label="Loading application..." role="status" style={{ minHeight: '100vh', background: 'var(--color-bg, #F8FAFC)' }}>
-      <aside className="superadmin-sidebar" style={{ width: '260px', background: 'var(--color-surface, #ffffff)', borderRight: '1px solid var(--color-divider, #e2e8f0)', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
+    <div className="skeleton-app-layout" aria-label="Loading application..." role="status">
+      <aside className="skeleton-app-sidebar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Skeleton variant="rounded" width={40} height={40} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -404,12 +404,17 @@ export const AppLayoutSkeleton = () => {
           <Skeleton variant="text" width="100px" height="14px" />
         </div>
       </aside>
-      <main className="superadmin-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div className="superadmin-page" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+      <main className="skeleton-app-main">
+        {/* Mobile topbar placeholder on small screens */}
+        <div className="skeleton-app-mobile-topbar">
+          <Skeleton variant="rounded" width={36} height={36} />
+          <Skeleton variant="circular" width={38} height={38} />
+        </div>
+        <div className="skeleton-app-page">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <Skeleton variant="text" width="240px" height="28px" />
-              <Skeleton variant="text" width="340px" height="14px" />
+              <Skeleton variant="text" width="220px" height="28px" />
+              <Skeleton variant="text" width="300px" height="14px" />
             </div>
             <Skeleton variant="rounded" width="120px" height="38px" />
           </div>

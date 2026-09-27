@@ -436,6 +436,20 @@
   }
 }
 
+@media (max-width: 639px) {
+  .notifications-panel {
+    position: fixed;
+    top: calc(var(--header-height, 60px) + 8px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 80px);
+    border-radius: 12px;
+    z-index: 10005;
+  }
+}
+
 /* Announcement notification type */
 .type-announcement {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);

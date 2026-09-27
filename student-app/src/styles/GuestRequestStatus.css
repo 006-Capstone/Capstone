@@ -532,6 +532,68 @@
   }
 }
 
+@media (max-width: 640px) {
+  .guest-hero-card,
+  .guest-result-card {
+    padding: 20px 16px;
+  }
+
+  .guest-hero-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .guest-handler-pill {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .guest-status-bottom-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .guest-outline-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .guest-detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .guest-detail-value {
+    text-align: left;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .guest-hero-card,
+  .guest-result-card {
+    padding: 16px 14px;
+  }
+
+  .guest-request-subject {
+    font-size: 17px;
+  }
+
+  .section-title-guest {
+    font-size: 20px;
+  }
+
+  .section-subtitle-guest {
+    font-size: 13px;
+  }
+
+  .guest-status-message-card {
+    padding: 36px 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .guest-status-pill.is-in-process .guest-status-dot,
   .guest-spinner {

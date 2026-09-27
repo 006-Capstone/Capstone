@@ -540,3 +540,64 @@
     background: #edf1ee;
   }
 }
+
+/* App Layout Skeleton */
+.skeleton-app-layout {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: var(--color-bg, #f8fafc);
+  width: 100%;
+}
+
+.skeleton-app-sidebar {
+  width: 245px;
+  background-color: var(--color-surface, #ffffff);
+  border-right: 1px solid var(--color-border-soft, #e5eae4);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.skeleton-app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+
+.skeleton-app-mobile-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background-color: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-divider, #edf0ec);
+}
+
+.skeleton-app-page {
+  flex: 1;
+  padding: 28px 32px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1023px) {
+  .skeleton-app-sidebar {
+    display: none;
+  }
+  .skeleton-app-mobile-topbar {
+    display: flex;
+  }
+  .skeleton-app-page {
+    padding: 16px;
+  }
+}

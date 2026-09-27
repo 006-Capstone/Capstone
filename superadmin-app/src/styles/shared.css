@@ -167,8 +167,12 @@
 }
 
 /* ---- Data table ---- */
-.table-container {
+.table-container,
+.table-wrapper,
+.table-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
 }
 
 .data-table {

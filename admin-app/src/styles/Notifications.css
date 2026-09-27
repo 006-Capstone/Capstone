@@ -438,9 +438,15 @@
 
 @media (max-width: 768px) {
   .notifications-panel {
-    max-height: calc(100vh - 90px);
-    max-height: calc(100dvh - 90px);
+    position: fixed;
+    top: 64px;
+    left: 12px;
+    right: 12px;
     width: auto;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 80px);
+    border-radius: 12px;
+    z-index: 10005;
   }
 
   .notification-item {
