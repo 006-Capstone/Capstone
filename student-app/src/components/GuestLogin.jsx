@@ -271,19 +271,26 @@ const GuestLogin = () => {
     else if (status === 'Returned' || status === 'For Follow Up') statusClass = 'is-follow-up';
 
     let estimatedCompletion = 'To be determined';
-    if (docData.etc) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(docData.etc)) {
-        const [y, m, d] = docData.etc.split('-').map(Number);
-        estimatedCompletion = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      } else {
-        estimatedCompletion = docData.etc;
-      }
-    } else if (docData.createdAt) {
-      const createdDate = toDate(docData.createdAt);
-      if (createdDate) {
-        const est = new Date(createdDate);
-        est.setDate(est.getDate() + 2);
-        estimatedCompletion = formatShortDate(est);
+    const isClaimed = Boolean(handler && status !== 'Pending');
+
+    if (isClaimed) {
+      if (docData.etc) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(docData.etc)) {
+          const [y, m, d] = docData.etc.split('-').map(Number);
+          estimatedCompletion = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } else {
+          estimatedCompletion = docData.etc;
+        }
+      } else if (docData.estimatedCompletion) {
+        const d = docData.estimatedCompletion?.toDate ? docData.estimatedCompletion.toDate() : new Date(docData.estimatedCompletion);
+        if (!isNaN(d.getTime())) {
+          estimatedCompletion = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+      } else if (docData.targetCompletionDate) {
+        const d = docData.targetCompletionDate?.toDate ? docData.targetCompletionDate.toDate() : new Date(docData.targetCompletionDate);
+        if (!isNaN(d.getTime())) {
+          estimatedCompletion = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
       }
     }
 
@@ -505,7 +512,7 @@ const GuestLogin = () => {
         subject: subject.trim(),
         description: description.trim(),
         dateCreated: formatShortDate(created),
-        estimatedCompletion: formatShortDate(addDays(created, 2))
+        estimatedCompletion: 'To be determined'
       };
 
       setSubmissionData(submissionInfo);

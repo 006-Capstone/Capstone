@@ -422,6 +422,15 @@
   border-radius: 6px;
   font-weight: 700;
   font-size: 12px;
+  display: inline-block;
+}
+
+.est-completion-pill.is-tbd {
+  color: #854d0e;
+  background: #fef9c3;
+  border-color: #fde047;
+  font-style: italic;
+  font-weight: 600;
 }
 
 /* Staff reply list */

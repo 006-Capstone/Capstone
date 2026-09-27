@@ -145,6 +145,25 @@
   word-break: break-word;
 }
 
+.est-completion-pill {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.est-completion-pill.is-tbd {
+  color: #854d0e;
+  background: #fef9c3;
+  border-color: #fde047;
+  font-style: italic;
+  font-weight: 600;
+}
+
 /* ---- Result actions ---- */
 .guest-result-actions {
   display: flex;

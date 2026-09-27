@@ -86,7 +86,7 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
     doc.setFont('helvetica', 'bold');
     doc.text('Estimated Completion:', 20, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(data.estimatedCompletion, 70, y);
+    doc.text(data.estimatedCompletion || 'To be determined', 70, y);
     
     y += 8;
     doc.setFont('helvetica', 'bold');
@@ -305,7 +305,9 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
           </div>
           <div className="guest-detail-row">
             <span className="guest-detail-label">Estimated Completion</span>
-            <span className="guest-detail-value est-completion-pill">{data.estimatedCompletion}</span>
+            <span className={`guest-detail-value est-completion-pill ${(!data.estimatedCompletion || data.estimatedCompletion === 'To be determined') ? 'is-tbd' : ''}`}>
+              {data.estimatedCompletion || 'To be determined'}
+            </span>
           </div>
         </div>
 

@@ -233,18 +233,29 @@ function RequestDetails({ requestData, onNavigate }) {
     return codes[office] || 'N/A';
   };
 
-  const getEstimatedCompletion = (createdDate, etc) => {
-    if (etc) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(etc)) {
-        const [y, m, d] = etc.split('-').map(Number);
+  const getEstimatedCompletion = (createdDate, etc, reqObj) => {
+    const target = reqObj || request;
+    const isClaimed = Boolean(
+      (target?.claimedBy || target?.assignedTo || target?.assignedToStaff) &&
+      target?.status !== 'Pending'
+    );
+    if (!isClaimed) return 'To be determined';
+
+    const etcVal = etc || target?.etc;
+    if (etcVal) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(etcVal)) {
+        const [y, m, d] = etcVal.split('-').map(Number);
         return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       }
-      return etc;
+      return etcVal;
     }
-    if (!createdDate) return 'N/A';
-    const date = new Date(createdDate);
-    date.setDate(date.getDate() + 2);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (target?.estimatedCompletion) {
+      const d = target.estimatedCompletion?.toDate ? target.estimatedCompletion.toDate() : new Date(target.estimatedCompletion);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+    }
+    return 'To be determined';
   };
 
   const renderTimeline = () => {
