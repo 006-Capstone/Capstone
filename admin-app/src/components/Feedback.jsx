@@ -133,6 +133,8 @@ const Feedback = ({ department, onViewRequest }) => {
           createdAt: data.createdAt,
           studentEmail: data.studentEmail,
           followUp: data.followUp || false,
+          flaggedForProfanity: data.flaggedForProfanity || false,
+          hasProfanity: data.hasProfanity || false,
           replies: data.replies || [] // Include replies array
         };
       });
@@ -389,7 +391,14 @@ const Feedback = ({ department, onViewRequest }) => {
                     <div className="user-info-feedback">
                       <FaUserCircle className="user-avatar-feedback" />
                       <div className="user-details-feedback">
-                        <h4 className="user-name-feedback">{feedback.name}</h4>
+                        <div className="user-name-row-feedback">
+                          <h4 className="user-name-feedback">{feedback.name}</h4>
+                          {feedback.flaggedForProfanity && (
+                            <span className="feedback-flagged-pill" title="Inappropriate terms were filtered with asterisks">
+                              Filtered Language
+                            </span>
+                          )}
+                        </div>
                         <p className="feedback-date">{feedback.date}</p>
                       </div>
                     </div>
@@ -455,7 +464,14 @@ const Feedback = ({ department, onViewRequest }) => {
               <div className="user-info-feedback">
                 <FaUserCircle className="user-avatar-feedback" />
                 <div className="user-details-feedback">
-                  <h4 className="user-name-feedback" id="reply-modal-title">{expandedFeedback.name}</h4>
+                  <div className="user-name-row-feedback">
+                    <h4 className="user-name-feedback" id="reply-modal-title">{expandedFeedback.name}</h4>
+                    {expandedFeedback.flaggedForProfanity && (
+                      <span className="feedback-flagged-pill" title="Inappropriate terms were filtered with asterisks">
+                        Filtered Language
+                      </span>
+                    )}
+                  </div>
                   <p className="feedback-date">{expandedFeedback.date}</p>
                 </div>
               </div>

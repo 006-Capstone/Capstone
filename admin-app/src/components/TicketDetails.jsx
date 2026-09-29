@@ -1989,7 +1989,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             </p>
 
             <div className="modal-field-group">
-              <label className="modal-label">Resolution Note (Optional):</label>
+              <label className="modal-label">Resolution Note:</label>
               <textarea
                 className="modal-input-area"
                 placeholder="Example: Documents processed and ready for pickup..."

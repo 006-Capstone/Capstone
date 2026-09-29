@@ -275,6 +275,15 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
             <p className="inquiry-text">"{data.description}"</p>
           </div>
         )}
+
+        {data.resolutionNote && (
+          <div className="guest-resolution-box">
+            <span className="resolution-label">
+              <FaCheckCircle className="resolution-icon-inline" /> Staff Resolution Note:
+            </span>
+            <p className="resolution-text">"{data.resolutionNote}"</p>
+          </div>
+        )}
       </div>
 
       <div className="guest-results-grid">

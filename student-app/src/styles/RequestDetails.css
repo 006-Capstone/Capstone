@@ -158,6 +158,89 @@
   white-space: nowrap;
 }
 
+/* ---- Resolution Details Card (Resolved Requests) ---- */
+.resolution-note-card {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-left: 4.5px solid #16a34a;
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.resolution-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.resolution-note-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.resolution-check-icon {
+  font-size: 26px;
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
+.resolution-title {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #14532d;
+  margin: 0 0 2px 0;
+}
+
+.resolution-meta {
+  font-size: 12px;
+  color: #15803d;
+  font-weight: 500;
+}
+
+.resolution-status-badge {
+  background-color: #dcfce7;
+  color: #166534;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid #86efac;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.resolution-note-content {
+  background: #ffffff;
+  border: 1px solid #dcfce7;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.resolution-note-heading {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #15803d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.resolution-note-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1f2937;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ---- Green "Tell Us How We Did!" feedback banner (Figma, resolved only) ---- */
 .feedback-banner {
   display: flex;

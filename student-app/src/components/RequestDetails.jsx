@@ -527,6 +527,39 @@ function RequestDetails({ requestData, onNavigate }) {
               </div>
             )}
 
+            {/* Resolution Note Banner (Shown when Request is Resolved) */}
+            {request.status?.toLowerCase() === 'resolved' && (request.resolutionNote || request.resolvedBy) && (
+              <div className="resolution-note-card">
+                <div className="resolution-note-header">
+                  <div className="resolution-note-title-group">
+                    <MdCheckCircle className="resolution-check-icon" />
+                    <div>
+                      <h4 className="resolution-title">Resolution Details</h4>
+                      <span className="resolution-meta">
+                        {request.resolvedBy ? `Resolved by ${request.resolvedBy}` : 'Resolved by Office Staff'}
+                        {request.resolvedAt && (
+                          <> &bull; {request.resolvedAt?.toDate ? request.resolvedAt.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''}</>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="resolution-status-badge">Resolved</span>
+                </div>
+                {request.resolutionNote ? (
+                  <div className="resolution-note-content">
+                    <span className="resolution-note-heading">Staff Note:</span>
+                    <p className="resolution-note-text">{request.resolutionNote}</p>
+                  </div>
+                ) : (
+                  <div className="resolution-note-content">
+                    <p className="resolution-note-text" style={{ fontStyle: 'italic', color: '#6b7280' }}>
+                      This request has been marked as resolved by office staff.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="original-submission">
               <div className="submission-header">
                 <div className="submission-title-group">

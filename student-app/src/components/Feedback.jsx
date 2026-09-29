@@ -5,6 +5,7 @@ import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getD
 import { db } from '../firebase';
 import { Skeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
+import { checkProfanity, censorProfanity } from '../utils/profanityFilter';
 import '../styles/Feedback.css';
 
 // Default office structure - will be populated with real data from Firebase
@@ -16,7 +17,7 @@ const DEFAULT_OFFICES = [
 ];
 
 function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }) {
-  const { toast, alertModal } = useNotification();
+  const { toast, alertModal, confirm } = useNotification();
   const [selectedOffice, setSelectedOffice] = useState(initialOffice || (selectedRequest?.officeId) || null);
   const [responseTime, setResponseTime] = useState(0);
   const [responseTimeHover, setResponseTimeHover] = useState(0);
@@ -31,6 +32,7 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
   // Frontend-only gating: Submit Feedback stays disabled until both required
   // star ratings are given (Additional Comments and Follow-up are optional).
   const isFormValid = responseTime > 0 && helpfulness > 0;
+  const liveProfanity = checkProfanity(comments).hasProfanity;
 
   // Update selectedOffice when prop changes or when selectedRequest changes
   useEffect(() => {
@@ -176,25 +178,62 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
       return;
     }
 
+    const trimmedComments = comments.trim();
+    let finalComments = trimmedComments;
+    let hasProfanity = false;
+    let flaggedForProfanity = false;
+    let profanityWords = [];
+
+    // Check for profanity if comments were provided
+    if (trimmedComments) {
+      const checkResult = checkProfanity(trimmedComments);
+      if (checkResult.hasProfanity) {
+        hasProfanity = true;
+        flaggedForProfanity = true;
+        profanityWords = checkResult.words;
+
+        // 1. Warning prompt modal when student submits with profanity (not hardblocking)
+        const proceed = await confirm({
+          title: 'Inappropriate Language Detected',
+          message: 'Your comments contain words flagged as inappropriate. If submitted, offensive terms will be automatically masked with asterisks (***) and recorded for school review. Would you like to proceed or edit your comment?',
+          confirmText: 'Proceed with Censoring',
+          cancelText: 'Edit Comment',
+          variant: 'warning'
+        });
+
+        if (!proceed) {
+          return; // Student chose to edit their comment
+        }
+
+        // 2. Auto-censor profane words with asterisks
+        finalComments = censorProfanity(trimmedComments);
+      }
+    }
+
     setSubmitting(true);
 
     try {
-      const studentData = JSON.parse(localStorage.getItem('studentData'));
+      const studentData = JSON.parse(localStorage.getItem('studentData')) || {};
       
       // Calculate overall rating (average of the two ratings)
       const overallRating = ((responseTime + helpfulness) / 2).toFixed(1);
 
+      // 3. Flag in Firestore document
       const feedbackData = {
         officeId: selectedOffice,
         officeName: offices.find(o => o.id === selectedOffice)?.name || '',
-        studentId: studentData.studentId || studentData.id,
-        studentUid: studentData.uid,
-        studentName: studentData.name || `${studentData.firstName} ${studentData.lastName}`.trim(),
-        studentEmail: studentData.email,
+        studentId: studentData.studentId || studentData.id || 'N/A',
+        studentUid: studentData.uid || '',
+        studentName: studentData.name || `${studentData.firstName || ''} ${studentData.lastName || ''}`.trim() || 'Student',
+        studentEmail: studentData.email || '',
         responseTime,
         helpfulness,
         overallRating: parseFloat(overallRating),
-        comments: comments.trim(),
+        comments: finalComments,
+        originalComments: hasProfanity ? trimmedComments : finalComments,
+        hasProfanity,
+        flaggedForProfanity,
+        profanityWordsDetected: profanityWords,
         followUp,
         createdAt: serverTimestamp()
       };
@@ -499,11 +538,17 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
             <h4>Additional Comments</h4>
           </div>
           <textarea
-            className="figma-textarea"
+            className={`figma-textarea ${liveProfanity ? 'has-profanity-warning' : ''}`}
             value={comments}
             maxLength={500}
             onChange={(e) => setComments(e.target.value)}
+            placeholder="Share any feedback or suggestions for this office..."
           />
+          {liveProfanity && (
+            <p className="profanity-inline-warning">
+              ⚠️ Inappropriate language detected. Words will be masked (***) and flagged upon submission.
+            </p>
+          )}
         </div>
 
         <div className="follow-up-card">
