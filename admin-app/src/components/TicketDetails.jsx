@@ -750,6 +750,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       return;
     }
 
+    if (!resolveNote.trim()) {
+      showToast('Please enter a resolution note before resolving.', 'warning');
+      return;
+    }
+
     try {
       setResolving(true);
       const oldStatus = ticket.status;
@@ -760,19 +765,16 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         status: 'Resolved',
         resolvedAt: serverTimestamp(),
         resolvedBy: staffData.name,
-        updatedAt: serverTimestamp()
-      };
-
-      if (resolveNote.trim()) {
-        updateData.resolutionNote = resolveNote.trim();
-        updateData.followUps = arrayUnion({
+        updatedAt: serverTimestamp(),
+        resolutionNote: resolveNote.trim(),
+        followUps: arrayUnion({
           message: `Request marked as Resolved by ${staffData.name}.\nResolution Note: ${resolveNote.trim()}`,
           sentBy: 'staff',
           sentByName: staffData.name,
           staffOffice: department || ticket.office,
           sentAt: new Date().toISOString()
-        });
-      }
+        })
+      };
       
       await updateDoc(docRef, updateData);
       
@@ -1989,13 +1991,16 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             </p>
 
             <div className="modal-field-group">
-              <label className="modal-label">Resolution Note:</label>
+              <label className="modal-label">
+                Resolution Note <span className="required-marker">*</span>
+              </label>
               <textarea
                 className="modal-input-area"
-                placeholder="Example: Documents processed and ready for pickup..."
+                placeholder="Explain how the request was resolved (required)..."
                 value={resolveNote}
                 onChange={(e) => setResolveNote(e.target.value)}
                 rows={4}
+                required
               />
             </div>
 
@@ -2012,7 +2017,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 type="button"
                 className="btn-modal-submit btn-submit-green" 
                 onClick={confirmResolveTicket}
-                disabled={resolving}
+                disabled={resolving || !resolveNote.trim()}
               >
                 {resolving ? 'Resolving...' : 'Confirm Resolve'}
               </button>
