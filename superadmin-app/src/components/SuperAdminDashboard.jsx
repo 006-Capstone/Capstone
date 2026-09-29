@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FaInbox,
   FaClock,
@@ -158,7 +158,6 @@ const SuperAdminDashboard = ({ onNavigate }) => {
           id: doc.id,
           ...doc.data()
         }));
-        allRequestsRef.current = allRequests;
 
         const totalRequests = allRequests.length;
         const pendingCount = allRequests.filter(req =>
