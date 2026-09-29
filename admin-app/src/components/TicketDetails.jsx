@@ -1942,6 +1942,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   {ticket.grade || ticket.studentGradeLevel || 'Grade N/A'} - {ticket.section || ticket.studentSection || 'Section N/A'}
                 </div>
               )}
+              {ticket.parentGuardianName && (
+                <div className="student-detail-item">Guardian: {ticket.parentGuardianName}</div>
+              )}
               {ticket.studentEmail && (
                 <div className="student-detail-item">{maskEmail(ticket.studentEmail)}</div>
               )}

@@ -58,6 +58,22 @@ const GuestSubmitted = ({ data, onHome, onTrack }) => {
     doc.setFont('helvetica', 'normal');
     doc.text(data.subject || 'N/A', 70, y);
     
+    if (data.studentName) {
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Student Name:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.studentName, 70, y);
+    }
+
+    if (data.parentGuardianName) {
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Parent/Guardian:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.parentGuardianName, 70, y);
+    }
+    
     y += 8;
     doc.setFont('helvetica', 'bold');
     doc.text('Date Created:', 20, y);
@@ -138,6 +154,18 @@ const GuestSubmitted = ({ data, onHome, onTrack }) => {
           <span className="guest-detail-label">Subject</span>
           <span className="guest-detail-value">{data.subject}</span>
         </div>
+        {data.studentName && (
+          <div className="guest-detail-row">
+            <span className="guest-detail-label">Student Name</span>
+            <span className="guest-detail-value">{data.studentName}</span>
+          </div>
+        )}
+        {data.parentGuardianName && (
+          <div className="guest-detail-row">
+            <span className="guest-detail-label">Parent / Guardian</span>
+            <span className="guest-detail-value">{data.parentGuardianName}</span>
+          </div>
+        )}
         <div className="guest-detail-row">
           <span className="guest-detail-label">Date Submitted</span>
           <span className="guest-detail-value">{data.dateCreated}</span>

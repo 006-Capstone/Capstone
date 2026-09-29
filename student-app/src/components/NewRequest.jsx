@@ -537,7 +537,7 @@ function NewRequest({ onNavigate }) {
                   disabled={!selectedOffice}
                   className="subject-select"
                 >
-                  <option value="">
+                  <option value="" disabled hidden style={{ display: 'none' }}>
                     {selectedOffice ? 'Select a subject from the list' : 'Please select an office first'}
                   </option>
                   {selectedOffice && offices.find(o => o.id === selectedOffice)?.subjects?.map((subj, index) => (

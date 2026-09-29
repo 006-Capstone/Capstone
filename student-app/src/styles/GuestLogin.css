@@ -150,6 +150,13 @@
   border-bottom-color: #105E06;
 }
 
+.guest-nav-right-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 /* ---- Centered Content Column ---- */
 .guest-content {
   max-width: 960px;
@@ -218,6 +225,16 @@
 
 .form-group-guest {
   margin-bottom: 18px;
+}
+
+.form-group-guest.full-width {
+  grid-column: 1 / -1;
+}
+
+.parent-name-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
 }
 
 .form-label-guest {
@@ -578,7 +595,8 @@
 
 @media (max-width: 820px) {
   .field-grid,
-  .office-grid {
+  .office-grid,
+  .parent-name-grid {
     grid-template-columns: 1fr;
   }
 
@@ -706,4 +724,202 @@
   50% {
     opacity: 0.5;
   }
+}
+
+/* ---- Guest Options Choice Screen ---- */
+.guest-options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+}
+
+.guest-options-hero {
+  text-align: center;
+  padding: 16px 20px 8px;
+}
+
+.guest-options-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  background: #E1E7DF;
+  border: 1px solid #8CB986;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #105E06;
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
+}
+
+.guest-options-title {
+  font-size: clamp(24px, 3.5vw, 32px);
+  font-weight: 800;
+  color: #105E06;
+  margin: 0 0 10px 0;
+  letter-spacing: -0.02em;
+}
+
+.guest-options-subtitle {
+  font-size: clamp(14px, 1.8vw, 16px);
+  color: #555555;
+  margin: 0 auto;
+  max-width: 620px;
+  line-height: 1.6;
+}
+
+.guest-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.guest-option-card {
+  background: #ffffff;
+  border: 1.5px solid #E3E1E1;
+  border-radius: 16px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.guest-option-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.guest-option-card:hover {
+  transform: translateY(-4px);
+  border-color: #105E06;
+  box-shadow: 0 12px 28px rgba(16, 94, 6, 0.12);
+}
+
+.guest-option-card:hover::before {
+  background: #105E06;
+}
+
+.guest-option-card:focus-visible {
+  outline: none;
+  border-color: #105E06;
+  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.2);
+}
+
+.guest-option-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  transition: transform 0.2s ease;
+}
+
+.guest-option-card:hover .guest-option-icon-wrapper {
+  transform: scale(1.06);
+}
+
+.guest-option-icon-wrapper.track-icon-bg {
+  background: #E8F5E9;
+  color: #1b5e20;
+}
+
+.guest-option-icon-wrapper.submit-icon-bg {
+  background: #E1E7DF;
+  color: #105E06;
+}
+
+.guest-option-icon {
+  font-size: 28px;
+}
+
+.guest-option-content {
+  flex: 1 1 auto;
+  margin-bottom: 24px;
+}
+
+.guest-option-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1b1b1b;
+  margin: 0 0 10px 0;
+  transition: color 0.15s ease;
+}
+
+.guest-option-card:hover .guest-option-name {
+  color: #105E06;
+}
+
+.guest-option-desc {
+  font-size: 14px;
+  color: #666666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.guest-option-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #105E06;
+  transition: gap 0.2s ease;
+}
+
+.guest-option-card:hover .guest-option-action {
+  gap: 12px;
+}
+
+.guest-option-arrow {
+  font-size: 13px;
+  transition: transform 0.2s ease;
+}
+
+.guest-option-card:hover .guest-option-arrow {
+  transform: translateX(3px);
+}
+
+.guest-section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn-back-to-options {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-back-to-options:hover {
+  background: #ffffff;
+  border-color: #105E06;
+  color: #105E06;
 }

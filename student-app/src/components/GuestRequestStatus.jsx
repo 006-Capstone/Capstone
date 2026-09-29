@@ -299,6 +299,12 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
               <span className="guest-detail-value">{data.grade} - {data.section}</span>
             </div>
           )}
+          {data.parentGuardianName && (
+            <div className="guest-detail-row">
+              <span className="guest-detail-label">Parent / Guardian</span>
+              <span className="guest-detail-value">{data.parentGuardianName}</span>
+            </div>
+          )}
           <div className="guest-detail-row">
             <span className="guest-detail-label">Date Submitted</span>
             <span className="guest-detail-value">{data.dateCreated}</span>

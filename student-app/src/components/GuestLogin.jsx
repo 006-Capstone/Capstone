@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignInAlt } from 'react-icons/fa';
-import { MdHome, MdTrackChanges, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
+import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignInAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { MdHome, MdTrackChanges, MdCheckCircle, MdWarning, MdError, MdPostAdd } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
@@ -134,11 +134,13 @@ const fileToBase64 = (file) => {
 
 const GuestLogin = () => {
   const { toast, confirm } = useNotification();
-  const [view, setView] = useState('home'); // 'home' | 'status' | 'submitted'
+  const [view, setView] = useState('options'); // 'options' | 'check' | 'new' | 'status' | 'submitted'
   const [requestId, setRequestId] = useState('');
   const [officeCode, setOfficeCode] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [parentFirstName, setParentFirstName] = useState('');
+  const [parentLastName, setParentLastName] = useState('');
   const [grade, setGrade] = useState('');
   const [section, setSection] = useState('');
   const [selectedOffice, setSelectedOffice] = useState('finance');
@@ -349,6 +351,7 @@ const GuestLogin = () => {
       subject: docData.subject || 'Student Inquiry',
       description: docData.description || '',
       studentName: docData.studentName || 'Guest Student',
+      parentGuardianName: docData.parentGuardianName || '',
       grade: docData.grade || '',
       section: docData.section || '',
       handler: handler || '',
@@ -411,10 +414,10 @@ const GuestLogin = () => {
       trackRequest(requestId, officeCode);
       return;
     }
-    setView('status');
+    setView('check');
   };
 
-  const goHome = () => setView('home');
+  const goHome = () => setView('options');
 
   const handleSubmitRequest = async () => {
     if (!canSubmit || submitting) return;
@@ -474,9 +477,13 @@ const GuestLogin = () => {
         });
       }
 
+      const fullParentGuardianName = `${parentFirstName.trim()} ${parentLastName.trim()}`.trim();
       const newRequestDoc = {
         requestId: generatedRequestId,
         studentName: `${firstName.trim()} ${lastName.trim()}`,
+        parentGuardianName: fullParentGuardianName,
+        parentFirstName: parentFirstName.trim(),
+        parentLastName: parentLastName.trim(),
         studentUid: `guest_${Date.now()}`,
         grade: grade.trim(),
         section: section.trim(),
@@ -511,6 +518,8 @@ const GuestLogin = () => {
         officeName,
         subject: subject.trim(),
         description: description.trim(),
+        studentName: `${firstName.trim()} ${lastName.trim()}`,
+        parentGuardianName: fullParentGuardianName,
         dateCreated: formatShortDate(created),
         estimatedCompletion: 'To be determined'
       };
@@ -528,6 +537,8 @@ const GuestLogin = () => {
   const resetGuestForm = () => {
     setFirstName('');
     setLastName('');
+    setParentFirstName('');
+    setParentLastName('');
     setGrade('');
     setSection('');
     setSelectedOffice('finance');
@@ -535,13 +546,15 @@ const GuestLogin = () => {
     setDescription('');
     setAttachmentFile(null);
     setAuthFile(null);
-    setView('home');
+    setView('options');
   };
 
   const canBrowse = requestId.trim() !== '';
   const canSubmit =
     firstName.trim() !== '' &&
     lastName.trim() !== '' &&
+    parentFirstName.trim() !== '' &&
+    parentLastName.trim() !== '' &&
     grade.trim() !== '' &&
     section.trim() !== '' &&
     !!selectedOffice &&
@@ -587,18 +600,27 @@ const GuestLogin = () => {
       </header>
 
       <main className="guest-content">
-        {view !== 'home' && (
+        {view !== 'options' && (
           <nav className="guest-top-nav" aria-label="Guest navigation">
             <button type="button" className="guest-nav-link" onClick={goHome}>
-              <MdHome /> Guest Home
+              <FaArrowLeft style={{ fontSize: '13px' }} /> Back to Options
             </button>
-            <button
-              type="button"
-              className={`guest-nav-link ${view === 'status' ? 'active' : ''}`}
-              onClick={openStatus}
-            >
-              <MdTrackChanges /> Track Request Status
-            </button>
+            <div className="guest-nav-right-links">
+              <button
+                type="button"
+                className={`guest-nav-link ${view === 'check' || view === 'status' ? 'active' : ''}`}
+                onClick={() => setView('check')}
+              >
+                <MdTrackChanges /> Check Request Status
+              </button>
+              <button
+                type="button"
+                className={`guest-nav-link ${view === 'new' || view === 'submitted' ? 'active' : ''}`}
+                onClick={() => setView('new')}
+              >
+                <MdPostAdd /> Submit New Request
+              </button>
+            </div>
           </nav>
         )}
 
@@ -616,68 +638,79 @@ const GuestLogin = () => {
             onHome={resetGuestForm} 
             onTrack={() => trackRequest(submissionData.rawRequestId, submissionData.officeCode)}
           />
-        ) : (
-          <>
-            {/* Section 1: Track existing request */}
-            <section className="guest-section">
-              <h2 className="section-title-guest">Check Request Status</h2>
-              <p className="section-subtitle-guest">Track the live progress of an existing request using your Request ID.</p>
-
-              <div className="form-group-guest">
-                <label className="form-label-guest" htmlFor="guestRequestId">Enter Request ID <span className="required-star">*</span></label>
-                <input
-                  id="guestRequestId"
-                  type="text"
-                  className="form-input-guest"
-                  value={requestId}
-                  onChange={(e) => setRequestId(e.target.value)}
-                  placeholder="e.g. #FIN-100-010-001 or FIN-100-010-001"
-                />
+        ) : view === 'check' ? (
+          <section className="guest-section">
+            <div className="guest-section-header-row">
+              <div>
+                <h2 className="section-title-guest">Check Request Status</h2>
+                <p className="section-subtitle-guest">Track the live progress of an existing request using your Request ID.</p>
               </div>
+              <button type="button" className="btn-back-to-options" onClick={goHome}>
+                <FaArrowLeft /> Back to Options
+              </button>
+            </div>
 
-              <div className="form-group-guest">
-                <label className="form-label-guest" htmlFor="guestOfficeCode">Office Code <span className="optional-guest">(Optional)</span></label>
-                <select
-                  id="guestOfficeCode"
-                  className="form-select-guest"
-                  value={officeCode}
-                  onChange={(e) => setOfficeCode(e.target.value)}
-                >
-                  <option value="">Select office code (optional)</option>
-                  {guestOffices.map((office) => (
-                    <option key={office.id} value={office.code}>
-                      {office.code} - {office.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="form-group-guest">
+              <label className="form-label-guest" htmlFor="guestRequestId">Enter Request ID <span className="required-star">*</span></label>
+              <input
+                id="guestRequestId"
+                type="text"
+                className="form-input-guest"
+                value={requestId}
+                onChange={(e) => setRequestId(e.target.value)}
+                placeholder="e.g. #FIN-100-010-001 or FIN-100-010-001"
+              />
+            </div>
 
-              <div className="form-actions-guest">
-                <button 
-                  type="button" 
-                  className="cancel-btn-guest" 
-                  onClick={() => { setRequestId(''); setOfficeCode(''); }}
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  className="confirm-btn-guest"
-                  onClick={handleBrowseConfirm}
-                  disabled={!canBrowse || trackingLoading}
-                >
-                  {trackingLoading ? 'Checking...' : 'Check Status'}
-                </button>
-              </div>
-            </section>
+            <div className="form-group-guest">
+              <label className="form-label-guest" htmlFor="guestOfficeCode">Office Code <span className="optional-guest">(Optional)</span></label>
+              <select
+                id="guestOfficeCode"
+                className="form-select-guest"
+                value={officeCode}
+                onChange={(e) => setOfficeCode(e.target.value)}
+              >
+                <option value="" disabled hidden style={{ display: 'none' }}>Select office code (optional)</option>
+                {guestOffices.map((office) => (
+                  <option key={office.id} value={office.code}>
+                    {office.code} - {office.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {/* Section 2: Submit New Guest Request */}
-            <section className="guest-section">
-              <h2 className="section-title-guest">Submit New Request</h2>
-              <p className="section-subtitle-guest">Submit an inquiry or document request directly to any school department.</p>
+            <div className="form-actions-guest">
+              <button 
+                type="button" 
+                className="cancel-btn-guest" 
+                onClick={goHome}
+              >
+                Back to Options
+              </button>
+              <button 
+                type="button" 
+                className="cancel-btn-guest" 
+                onClick={() => { setRequestId(''); setOfficeCode(''); }}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="confirm-btn-guest"
+                onClick={handleBrowseConfirm}
+                disabled={!canBrowse || trackingLoading}
+              >
+                {trackingLoading ? 'Checking...' : 'Check Status'}
+              </button>
+            </div>
+          </section>
+        ) : view === 'new' ? (
+          <section className="guest-section">
+            <h2 className="section-title-guest">Submit New Request</h2>
+            <p className="section-subtitle-guest">Submit an inquiry or document request directly to any school department.</p>
 
               <div className="form-section-guest">
-                <h3 className="guest-subheading">1. Personal Information</h3>
+                <h3 className="guest-subheading">1. Student Information</h3>
                 <div className="field-grid">
                   <div className="form-group-guest">
                     <label className="form-label-guest" htmlFor="guestFirstName">First Name <span className="required-star">*</span></label>
@@ -687,7 +720,6 @@ const GuestLogin = () => {
                       className="form-input-guest"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Enter first name"
                     />
                   </div>
                   <div className="form-group-guest">
@@ -698,34 +730,65 @@ const GuestLogin = () => {
                       className="form-input-guest"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Enter last name"
                     />
                   </div>
                   <div className="form-group-guest">
                     <label className="form-label-guest" htmlFor="guestGrade">Grade Level <span className="required-star">*</span></label>
-                    <input
+                    <select
                       id="guestGrade"
-                      type="text"
-                      className="form-input-guest"
+                      className="form-select-guest"
                       value={grade}
                       onChange={(e) => setGrade(e.target.value)}
-                      placeholder="e.g. Grade 11"
-                    />
+                      required
+                    >
+                      <option value="" disabled hidden style={{ display: 'none' }}>Select grade level</option>
+                      <option value="Grade 7">Grade 7</option>
+                      <option value="Grade 8">Grade 8</option>
+                      <option value="Grade 9">Grade 9</option>
+                      <option value="Grade 10">Grade 10</option>
+                      <option value="Grade 11">Grade 11</option>
+                      <option value="Grade 12">Grade 12</option>
+                    </select>
                   </div>
                   <div className="form-group-guest">
                     <label className="form-label-guest" htmlFor="guestSection">Section <span className="required-star">*</span></label>
                     <select
                       id="guestSection"
-                      className="form-input-guest"
+                      className="form-select-guest"
                       value={section}
                       onChange={(e) => setSection(e.target.value)}
                       required
                     >
-                      <option value="">Select section</option>
+                      <option value="" disabled hidden style={{ display: 'none' }}>Select section</option>
                       <option value="A">A</option>
                       <option value="B">B</option>
                       <option value="C">C</option>
                     </select>
+                  </div>
+                  <div className="form-group-guest full-width">
+                    <label className="form-label-guest">
+                      Parent or Guardian Name <span className="required-star">*</span>
+                    </label>
+                    <div className="parent-name-grid">
+                      <input
+                        id="guestParentFirstName"
+                        type="text"
+                        className="form-input-guest"
+                        value={parentFirstName}
+                        onChange={(e) => setParentFirstName(e.target.value)}
+                        placeholder="Enter First Name"
+                        aria-label="Parent or Guardian First Name"
+                      />
+                      <input
+                        id="guestParentLastName"
+                        type="text"
+                        className="form-input-guest"
+                        value={parentLastName}
+                        onChange={(e) => setParentLastName(e.target.value)}
+                        placeholder="Enter Last name"
+                        aria-label="Parent or Guardian Last Name"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -770,7 +833,7 @@ const GuestLogin = () => {
                     onChange={(e) => setSubject(e.target.value)}
                     disabled={!selectedOffice}
                   >
-                    <option value="">
+                    <option value="" disabled hidden style={{ display: 'none' }}>
                       {selectedOffice ? 'Select a subject...' : 'Please select an office first'}
                     </option>
                     {selectedOffice && guestOffices.find(o => o.id === selectedOffice)?.subjects.map((subj, index) => (
@@ -951,7 +1014,72 @@ const GuestLogin = () => {
                 </button>
               </div>
             </section>
-          </>
+        ) : (
+          <div className="guest-options-container">
+            <div className="guest-options-hero">
+              <span className="guest-options-badge">Guest Portal</span>
+              <h2 className="guest-options-title">How can we assist you today?</h2>
+              <p className="guest-options-subtitle">
+                Please select an option below to check the status of your existing ticket or submit a new inquiry to school offices.
+              </p>
+            </div>
+
+            <div className="guest-options-grid">
+              <div 
+                className="guest-option-card"
+                onClick={() => setView('check')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setView('check');
+                  }
+                }}
+              >
+                <div className="guest-option-icon-wrapper track-icon-bg">
+                  <MdTrackChanges className="guest-option-icon" />
+                </div>
+                <div className="guest-option-content">
+                  <h3 className="guest-option-name">Check Request Status</h3>
+                  <p className="guest-option-desc">
+                    Already submitted a request? Enter your Request ID to track live updates, responsible offices, and staff actions.
+                  </p>
+                </div>
+                <div className="guest-option-action">
+                  <span>Track Status</span>
+                  <FaArrowRight className="guest-option-arrow" />
+                </div>
+              </div>
+
+              <div 
+                className="guest-option-card"
+                onClick={() => setView('new')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setView('new');
+                  }
+                }}
+              >
+                <div className="guest-option-icon-wrapper submit-icon-bg">
+                  <MdPostAdd className="guest-option-icon" />
+                </div>
+                <div className="guest-option-content">
+                  <h3 className="guest-option-name">Submit New Request</h3>
+                  <p className="guest-option-desc">
+                    Send a new request or inquiry directly to Finance, Library, Registrar, or Guidance Office.
+                  </p>
+                </div>
+                <div className="guest-option-action">
+                  <span>Create Request</span>
+                  <FaArrowRight className="guest-option-arrow" />
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>
