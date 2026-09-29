@@ -480,12 +480,9 @@ function RequestDetails({ requestData, onNavigate }) {
                 <p className="request-id">#{request.requestId}</p>
               </div>
               <div className="request-actions">
-                {(request.claimedBy || request.assignedTo) && (
+                {request.office && (
                   <div className="request-assigned">
-                    <span className="assigned-office">{request.office || 'Office'} Department</span>
-                    <span className="assigned-staff">
-                      <FaUserCircle /> {request.claimedBy || request.assignedTo}
-                    </span>
+                    <span className="assigned-office">{request.office} Department</span>
                   </div>
                 )}
                 <StatusBadge status={request.status} />
@@ -543,7 +540,6 @@ function RequestDetails({ requestData, onNavigate }) {
                       </span>
                     </div>
                   </div>
-                  <span className="resolution-status-badge">Resolved</span>
                 </div>
                 {request.resolutionNote ? (
                   <div className="resolution-note-content">
