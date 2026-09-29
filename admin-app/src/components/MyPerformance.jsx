@@ -5,11 +5,9 @@ import {
   FaExclamationTriangle, 
   FaCheckCircle, 
   FaTrophy, 
-  FaSearch, 
   FaTimes, 
   FaCalendarAlt, 
   FaChartLine, 
-  FaInbox, 
   FaShieldAlt, 
   FaUserCircle, 
   FaArrowUp, 
@@ -177,9 +175,6 @@ const MyPerformance = ({ userData }) => {
   // Time-range filter: 'all', 'month', '30days', '7days', 'today'
   const [timeRange, setTimeRange] = useState('all');
 
-  // Performance request table states
-  const [tableTab, setTableTab] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [hoveredBarIndex, setHoveredBarIndex] = useState(null);
 
   // Graded Tiers Popover states
@@ -474,76 +469,8 @@ const MyPerformance = ({ userData }) => {
     return { days, maxCount };
   }, [myAllTickets]);
 
-  // Request list for the performance log table
-  const tableTickets = useMemo(() => {
-    let list = [...myFilteredTickets];
-    const now = new Date();
-
-    // Tab filtering
-    if (tableTab === 'in_progress') {
-      list = list.filter(t => {
-        const s = (t.status || '').toLowerCase();
-        return s !== 'resolved' && s !== 'cancelled' && s !== 'rejected';
-      });
-    } else if (tableTab === 'resolved') {
-      list = list.filter(t => (t.status || '').toLowerCase() === 'resolved');
-    } else if (tableTab === 'overdue') {
-      list = list.filter(t => {
-        const s = (t.status || '').toLowerCase();
-        if (s === 'resolved' || s === 'cancelled' || s === 'rejected') return false;
-        const deadline = getEtcDeadline(t.etc || t.estimatedCompletion);
-        if (!deadline) {
-          const created = parseDate(t.createdAt);
-          if (created) {
-            return (now.getTime() - created.getTime()) > (72 * 60 * 60 * 1000);
-          }
-          return false;
-        }
-        const isDueToday = 
-          deadline.getFullYear() === now.getFullYear() &&
-          deadline.getMonth() === now.getMonth() &&
-          deadline.getDate() === now.getDate();
-        return !isDueToday && deadline < now;
-      });
-    }
-
-    // Search query filtering
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter(t => 
-        (t.id && String(t.id).toLowerCase().includes(q)) ||
-        (t.subject && String(t.subject).toLowerCase().includes(q)) ||
-        (t.student && String(t.student).toLowerCase().includes(q)) ||
-        (t.studentId && String(t.studentId).toLowerCase().includes(q))
-      );
-    }
-
-    return list;
-  }, [myFilteredTickets, tableTab, searchQuery]);
-
-  const handleTabChange = (tab) => {
-    setTableTab(tab);
-  };
-
   const handleTimeRangeChange = (range) => {
     setTimeRange(range);
-  };
-
-  // Helper for status badge rendering
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case 'In Process':
-        return 'status-inprocess';
-      case 'Resolved':
-        return 'status-resolved';
-      case 'Pending':
-        return 'status-pending';
-      case 'Rejected':
-      case 'Cancelled':
-        return 'status-cancelled';
-      default:
-        return 'status-pending';
-    }
   };
 
   // Helper for SLA performance compliance label
@@ -618,7 +545,7 @@ const MyPerformance = ({ userData }) => {
     csv += 'REQUEST DETAILS\n';
     csv += 'Request ID,Subject,Student Name,Student ID,Is Guest,Status,Office,Assigned To,Estimated Completion,SLA Compliance,Claimed At,Resolved At,Created At,Resolution Note\n';
     
-    tableTickets.forEach(t => {
+    myFilteredTickets.forEach(t => {
       const createdAt = parseDate(t.createdAt);
       const claimedAt = parseDate(t.claimedAt);
       const resolvedAt = parseDate(t.resolvedAt);
@@ -1217,182 +1144,6 @@ const MyPerformance = ({ userData }) => {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Handled Requests Performance Log Table */}
-      <section className="tickets-section">
-        <div className="tickets-toolbar">
-          <div className="toolbar-left-group">
-            <div className="tickets-tabs" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tableTab === 'all'}
-                className={`tab ${tableTab === 'all' ? 'active' : ''}`}
-                onClick={() => handleTabChange('all')}
-              >
-                <span>All Handled</span>
-                <span className="tab-count">{myFilteredTickets.length}</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tableTab === 'in_progress'}
-                className={`tab ${tableTab === 'in_progress' ? 'active' : ''}`}
-                onClick={() => handleTabChange('in_progress')}
-              >
-                <span>In Process</span>
-                <span className="tab-count">
-                  {myFilteredTickets.filter(t => t.status === 'In Process').length}
-                </span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tableTab === 'resolved'}
-                className={`tab ${tableTab === 'resolved' ? 'active' : ''}`}
-                onClick={() => handleTabChange('resolved')}
-              >
-                <span>Resolved</span>
-                <span className="tab-count">
-                  {myFilteredTickets.filter(t => t.status === 'Resolved').length}
-                </span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tableTab === 'overdue'}
-                className={`tab ${tableTab === 'overdue' ? 'active' : ''}`}
-                onClick={() => handleTabChange('overdue')}
-              >
-                <span>Overdue</span>
-                <span className="tab-count">{metrics.overdueCount}</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="toolbar-right-group">
-            <div className="table-search-box">
-              <FaSearch className="table-search-icon" aria-hidden="true" />
-              <input
-                type="text"
-                className="table-search-input"
-                placeholder="Search by Request ID, subject, or student..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Search handled requests"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  className="table-search-clear"
-                  onClick={() => setSearchQuery('')}
-                  aria-label="Clear search"
-                  title="Clear search"
-                >
-                  <FaTimes aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {tableTickets.length === 0 ? (
-          <div className="admin-empty-state">
-            <div className="admin-empty-icon">
-              <FaInbox />
-            </div>
-            <h3 className="admin-empty-title">No Requests Found</h3>
-            <p className="admin-empty-desc">
-              {searchQuery
-                ? `No requests match "${searchQuery}" in this filter.`
-                : 'There are currently no requests matching the selected category.'}
-            </p>
-            {searchQuery && (
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ marginTop: '12px' }}
-                onClick={() => setSearchQuery('')}
-              >
-                Clear Search Filter
-              </button>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="an-recent-table-wrap">
-              <table className="an-recent-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '28%' }}>Request</th>
-                    <th style={{ width: '22%' }}>Student</th>
-                    <th style={{ width: '15%' }}>Status</th>
-                    <th style={{ width: '18%' }}>Estimated Date (ETC)</th>
-                    <th style={{ width: '17%' }}>SLA Compliance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableTickets.map((ticket, idx) => {
-                    const ticketIdDisplay = ticket.id
-                      ? String(ticket.id).startsWith('#')
-                        ? ticket.id
-                        : `#${ticket.id}`
-                      : '#N/A';
-                    const formattedDate = formatDate(ticket.createdAt);
-                    const formattedEtc = formatDate(ticket.etc);
-                    const formattedResolved = formatDate(ticket.resolvedAt);
-                    const isGuest = Boolean(ticket.isGuest);
-                    const studentName = ticket.student || ticket.studentName || (isGuest ? 'Guest User' : 'Student');
-                    const studentId = ticket.studentId || ticket.studentID || ticket.idNumber;
-                    const sla = getTicketSlaTag(ticket);
-
-                    return (
-                      <tr key={ticket.firestoreId || ticket.id || idx}>
-                        <td>
-                          <div className="an-recent-title">{ticket.title}</div>
-                          <span className="an-recent-id">{ticketIdDisplay}</span>
-                        </td>
-
-                        <td>
-                          <div className="an-recent-student">{studentName}</div>
-                          <span className="an-recent-id">
-                            {isGuest ? 'Guest Inquirer' : (studentId ? `ID: ${studentId}` : 'Student')}
-                          </span>
-                        </td>
-
-                        <td>
-                          <span className={`an-status-badge an-status-badge--${String(ticket.status || '').toLowerCase().replace(/\s+/g, '')}`}>
-                            {ticket.status}
-                          </span>
-                        </td>
-
-                        <td>
-                          <div style={{ fontWeight: 500, color: '#374151' }}>
-                            {ticket.status === 'Resolved' && formattedResolved !== 'N/A'
-                              ? `Resolved: ${formattedResolved}`
-                              : formattedEtc}
-                          </div>
-                          {ticket.claimedAt && (
-                            <span className="an-recent-id">
-                              Claimed: {formatDate(ticket.claimedAt)}
-                            </span>
-                          )}
-                        </td>
-
-                        <td>
-                          <span className={`sla-compliance-pill ${sla.className}`}>
-                            {sla.label}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
       </section>
 
       {/* Advisory Information Footer */}

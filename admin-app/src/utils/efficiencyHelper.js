@@ -4,7 +4,7 @@ import { collection, query, where, getDocs, addDoc, doc, setDoc, deleteDoc, serv
 /**
  * Efficiency Score & Performance Helper for Admin App
  * Evaluates staff performance in real-time and determines warning thresholds (<= 60%).
- * Synchronized with Superadmin Department Health Monitor.
+ * Synchronized with Superadmin Performance & Behavioral Monitor.
  */
 
 export const parseDate = (val) => {
@@ -249,12 +249,12 @@ export const ensureEfficiencyWarningNotification = async (staffData, efficiencyM
       userId: staffData.uid,
       userType: 'staff',
       type: 'efficiency_score_warning',
-      title: `🚨 Performance Alert: Efficiency Score Dropped to ${score}%`,
-      message: `Department Health Monitor Alert: Your Efficiency Score has dropped to ${score}%, falling below the required standard of 60%. ${
+      title: `🚨 Performance Monitor Notice: Monthly Standing Review (${score}%)`,
+      message: `Superadmin Performance & Behavioral Monitor Notice: Your monthly clearance rate has dropped to ${score}%, placing your standing under review. ${
         overdueCount > 0 
           ? `You currently have ${overdueCount} overdue active request(s). ` 
           : ''
-      }Please process pending requests immediately to restore department health.`,
+      }Please process pending requests immediately to restore department health and good standing.`,
       priority: 'high',
       isRead: false,
       read: false,
@@ -262,7 +262,7 @@ export const ensureEfficiencyWarningNotification = async (staffData, efficiencyM
       createdAt: serverTimestamp(),
       timestamp: serverTimestamp(),
       metadata: {
-        source: 'department_health_monitor',
+        source: 'performance_monitor',
         staffName: staffData.name || '',
         score: score,
         office: staffData.office || staffData.department || ''

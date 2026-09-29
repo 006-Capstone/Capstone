@@ -503,17 +503,17 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
               type="button"
               className="eff-warning-pill"
               onClick={() => setShowEfficiencyWarningModal(true)}
-              title="Critical Performance Warning: Efficiency Score Dropped. Click to review action plan."
-              aria-label={`Critical Performance Warning: Efficiency Score Dropped to ${efficiencyMetrics.score}%. Click to review action plan.`}
+              title="Performance Standing Alert: Monthly Clearance Review. Click to review action plan."
+              aria-label={`Performance Standing Alert: Clearance Score at ${efficiencyMetrics.score}%. Click to review standing.`}
             >
               <span className="eff-pill-pulse-ring" aria-hidden="true">
                 <span className="eff-pill-dot" />
               </span>
               <FaExclamationTriangle className="eff-pill-icon" aria-hidden="true" />
               <span className="eff-pill-text">
-                <span className="eff-pill-text-full">Critical Performance Warning: Efficiency Score Dropped</span>
-                <span className="eff-pill-text-medium">Performance Warning: Efficiency Dropped</span>
-                <span className="eff-pill-text-short">Efficiency Alert</span>
+                <span className="eff-pill-text-full">Performance Standing Alert: Review Required</span>
+                <span className="eff-pill-text-medium">Performance Standing Notice</span>
+                <span className="eff-pill-text-short">Standing Alert</span>
               </span>
               <span className="eff-pill-score">{efficiencyMetrics.score}%</span>
             </button>
