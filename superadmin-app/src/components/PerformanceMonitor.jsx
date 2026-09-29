@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
@@ -18,65 +18,133 @@ import {
   FaRedo,
   FaArrowRight,
   FaClock,
-  FaCheckDouble
+  FaCheckDouble,
+  FaDollarSign,
+  FaGraduationCap,
+  FaBook,
+  FaUserFriends,
+  FaChevronDown,
+  FaCheck
 } from 'react-icons/fa';
 import { calculateStaffMonthlyBehavior } from '../utils/performanceAnalytics';
 import { analyzeMonthlyStaffBehaviorWithAI } from '../utils/groqService';
 import { OverviewCardsSkeleton, DataTableSkeleton } from './common/Skeleton';
 import '../styles/PerformanceMonitor.css';
 
-const MONTH_OPTIONS_COUNT = 6;
-
-const getMonthOptions = () => {
-  const options = [];
-  const now = new Date();
-  for (let i = 0; i < MONTH_OPTIONS_COUNT; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    options.push({
-      label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-      date: d,
-      key: `${d.getFullYear()}-${d.getMonth()}`
-    });
-  }
-  return options;
-};
-
-const PerformanceMonitor = () => {
-  const monthOptions = useMemo(() => getMonthOptions(), []);
-  const [selectedMonthKey, setSelectedMonthKey] = useState(monthOptions[0]?.key || '');
-  const [selectedDept, setSelectedDept] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) => {
+  const [selectedDept, setSelectedDept] = useState(initialDept || 'all');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   
   const [loading, setLoading] = useState(true);
   const [allRequests, setAllRequests] = useState([]);
   const [allStaff, setAllStaff] = useState([]);
   const [allFeedbacks, setAllFeedbacks] = useState([]);
+  const [selectedMonthKey, setSelectedMonthKey] = useState('');
+  const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
+  const monthDropdownRef = useRef(null);
+  const autoOpenedTargetRef = useRef('');
   
   // Selected staff diagnostic modal state
   const [activeStaffDiagnostic, setActiveStaffDiagnostic] = useState(null);
   const [analyzingStaffId, setAnalyzingStaffId] = useState(null);
   const [aiCache, setAiCache] = useState({});
 
-  // Get active selected Date object
+  // Dynamic month options incorporating both rolling calendar and actual request dates
+  const monthOptions = useMemo(() => {
+    const map = new Map();
+    const now = new Date();
+
+    // 1. Seed past 6 months
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      map.set(key, {
+        label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        date: d,
+        key,
+        count: 0
+      });
+    }
+
+    // 2. Scan allRequests for existing activity and count tickets per month
+    allRequests.forEach(r => {
+      const cDate = r.createdAt?.toDate ? r.createdAt.toDate() : (r.createdAt ? new Date(r.createdAt) : null);
+      if (cDate && !isNaN(cDate.getTime())) {
+        const d = new Date(cDate.getFullYear(), cDate.getMonth(), 1);
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            date: d,
+            key,
+            count: 0
+          });
+        }
+        map.get(key).count += 1;
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [allRequests]);
+
+  // Auto-select latest month that actually contains requests if current month has zero
+  useEffect(() => {
+    if (!monthOptions.length) return;
+    if (!selectedMonthKey) {
+      const bestMonth = monthOptions.find(m => m.count > 0) || monthOptions[0];
+      setSelectedMonthKey(bestMonth.key);
+    }
+  }, [monthOptions, selectedMonthKey]);
+
+  // Active selected Date object
   const currentMonthDate = useMemo(() => {
     const matched = monthOptions.find(o => o.key === selectedMonthKey);
     return matched ? matched.date : new Date();
   }, [selectedMonthKey, monthOptions]);
+
+  const selectedMonthOption = useMemo(() => {
+    return monthOptions.find(o => o.key === selectedMonthKey) || monthOptions[0] || null;
+  }, [selectedMonthKey, monthOptions]);
+
+  // Close month dropdown on outside click or escape
+  useEffect(() => {
+    if (!monthDropdownOpen) return;
+    const handleClickOutside = (e) => {
+      if (monthDropdownRef.current && !monthDropdownRef.current.contains(e.target)) {
+        setMonthDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setMonthDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [monthDropdownOpen]);
 
   // Initial Fetch of raw collections
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
-      const [requestsSnap, staffSnap, feedbackSnap] = await Promise.all([
+      const [requestsSnap, staffSnap, feedbackSnap] = await Promise.allSettled([
         getDocs(collection(db, 'requests')),
-        getDocs(query(collection(db, 'users'), where('role', '==', 'staff'))),
+        getDocs(collection(db, 'staff')),
         getDocs(collection(db, 'feedback'))
       ]);
 
-      const requests = requestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const staffList = staffSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const feedbacks = feedbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const requests = requestsSnap.status === 'fulfilled'
+        ? requestsSnap.value.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        : [];
+      const staffList = staffSnap.status === 'fulfilled'
+        ? staffSnap.value.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        : [];
+      const feedbacks = feedbackSnap.status === 'fulfilled'
+        ? feedbackSnap.value.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        : [];
 
       setAllRequests(requests);
       setAllStaff(staffList);
@@ -125,6 +193,78 @@ const PerformanceMonitor = () => {
       return true;
     });
   }, [staffMonthlyProfiles, selectedDept, searchQuery]);
+
+  // Primary departments in Academia De San Jose
+  const DEPARTMENTS = useMemo(() => [
+    { id: 'Finance', label: 'Finance Office', icon: FaDollarSign, short: 'Finance' },
+    { id: 'Registrar', label: 'Registrar Office', icon: FaGraduationCap, short: 'Registrar' },
+    { id: 'Library', label: 'Library Office', icon: FaBook, short: 'Library' },
+    { id: 'Guidance', label: 'Guidance Office', icon: FaUserFriends, short: 'Guidance' }
+  ], []);
+
+  // Department counts for quick tabs
+  const departmentCounts = useMemo(() => {
+    const counts = { all: staffMonthlyProfiles.length };
+    DEPARTMENTS.forEach(d => {
+      counts[d.id] = staffMonthlyProfiles.filter(p => {
+        const pDept = (p.staff.department || '').toLowerCase();
+        return pDept === d.id.toLowerCase() || pDept.includes(d.short.toLowerCase());
+      }).length;
+    });
+    return counts;
+  }, [staffMonthlyProfiles, DEPARTMENTS]);
+
+  // Group filtered profiles into department sections
+  const departmentSections = useMemo(() => {
+    const list = [];
+
+    DEPARTMENTS.forEach(dept => {
+      if (selectedDept !== 'all' && selectedDept.toLowerCase() !== dept.id.toLowerCase()) {
+        return;
+      }
+
+      const staffInDept = filteredProfiles.filter(p => {
+        const pDept = (p.staff.department || '').toLowerCase();
+        return pDept === dept.id.toLowerCase() || pDept.includes(dept.short.toLowerCase());
+      });
+
+      const totalAssigned = staffInDept.reduce((sum, s) => sum + s.totals.totalAssigned, 0);
+      const totalResolved = staffInDept.reduce((sum, s) => sum + s.totals.totalResolved, 0);
+      const avgClearance = totalAssigned > 0 ? Math.round((totalResolved / totalAssigned) * 100) : 100;
+      const warningCount = staffInDept.filter(s => s.warningEvaluation.status !== 'good').length;
+
+      list.push({
+        ...dept,
+        staffList: staffInDept,
+        totalAssigned,
+        totalResolved,
+        avgClearance,
+        warningCount
+      });
+    });
+
+    // Handle any staff belonging to non-standard department names
+    const otherStaff = filteredProfiles.filter(p => {
+      const pDept = (p.staff.department || '').toLowerCase();
+      return !DEPARTMENTS.some(d => pDept === d.id.toLowerCase() || pDept.includes(d.short.toLowerCase()));
+    });
+
+    if (otherStaff.length > 0 && (selectedDept === 'all' || selectedDept.toLowerCase() === 'other')) {
+      list.push({
+        id: 'Other',
+        label: 'General / Other Staff',
+        icon: FaBuilding,
+        short: 'Other',
+        staffList: otherStaff,
+        totalAssigned: otherStaff.reduce((sum, s) => sum + s.totals.totalAssigned, 0),
+        totalResolved: otherStaff.reduce((sum, s) => sum + s.totals.totalResolved, 0),
+        avgClearance: 100,
+        warningCount: otherStaff.filter(s => s.warningEvaluation.status !== 'good').length
+      });
+    }
+
+    return list;
+  }, [filteredProfiles, selectedDept, DEPARTMENTS]);
 
   // Aggregate monthly overview numbers
   const summaryStats = useMemo(() => {
@@ -194,6 +334,39 @@ const PerformanceMonitor = () => {
     window.print();
   };
 
+  // Synchronize department when passed from Overview & Reports
+  useEffect(() => {
+    if (initialDept) {
+      setSelectedDept(initialDept);
+    }
+  }, [initialDept]);
+
+  // Synchronize search query when passed from Overview & Reports
+  useEffect(() => {
+    if (initialSearchQuery !== undefined) {
+      setSearchQuery(initialSearchQuery);
+      autoOpenedTargetRef.current = '';
+    }
+  }, [initialSearchQuery]);
+
+  // Auto-open diagnostic modal if directed from Overview & Reports staff card
+  useEffect(() => {
+    if (!initialSearchQuery || loading || !staffMonthlyProfiles.length) return;
+    if (autoOpenedTargetRef.current === initialSearchQuery) return;
+
+    const query = initialSearchQuery.trim().toLowerCase();
+    const matchedProfile = staffMonthlyProfiles.find(p => 
+      p.staff.name.toLowerCase() === query || 
+      p.staff.name.toLowerCase().includes(query) ||
+      p.staff.id.toLowerCase() === query
+    );
+
+    if (matchedProfile) {
+      autoOpenedTargetRef.current = initialSearchQuery;
+      handleInspectStaff(matchedProfile);
+    }
+  }, [initialSearchQuery, staffMonthlyProfiles, loading]);
+
   if (loading) {
     return (
       <div className="performance-monitor-container">
@@ -217,34 +390,61 @@ const PerformanceMonitor = () => {
         </div>
 
         <div className="pm-controls-cluster">
-          <div className="pm-control-item">
-            <FaCalendarAlt className="pm-control-icon" />
-            <select
-              className="pm-select"
-              value={selectedMonthKey}
-              onChange={(e) => setSelectedMonthKey(e.target.value)}
-              aria-label="Select Observation Month"
+          {/* Custom Theme Month Picker Dropdown */}
+          <div className="pm-month-picker-wrap" ref={monthDropdownRef}>
+            <button
+              type="button"
+              className={`pm-month-picker-trigger ${monthDropdownOpen ? 'active' : ''}`}
+              onClick={() => setMonthDropdownOpen(prev => !prev)}
+              aria-haspopup="true"
+              aria-expanded={monthDropdownOpen}
+              title="Select observation month"
             >
-              {monthOptions.map(opt => (
-                <option key={opt.key} value={opt.key}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
+              <FaCalendarAlt className="pm-month-picker-icon" aria-hidden="true" />
+              <span className="pm-month-picker-label">
+                {selectedMonthOption ? selectedMonthOption.label : 'Select Month'}
+              </span>
+              {selectedMonthOption && (
+                <span className="pm-month-picker-badge">
+                  {selectedMonthOption.count} {selectedMonthOption.count === 1 ? 'ticket' : 'tickets'}
+                </span>
+              )}
+              <FaChevronDown className={`pm-month-picker-chevron ${monthDropdownOpen ? 'open' : ''}`} aria-hidden="true" />
+            </button>
 
-          <div className="pm-control-item">
-            <FaBuilding className="pm-control-icon" />
-            <select
-              className="pm-select"
-              value={selectedDept}
-              onChange={(e) => setSelectedDept(e.target.value)}
-              aria-label="Filter Department"
-            >
-              <option value="all">All Departments</option>
-              <option value="Finance">Finance</option>
-              <option value="Registrar">Registrar</option>
-              <option value="Library">Library</option>
-              <option value="Guidance">Guidance</option>
-            </select>
+            {monthDropdownOpen && (
+              <div className="pm-month-picker-menu" role="menu">
+                <div className="pm-month-picker-menu-header">
+                  <span className="pm-menu-header-title">Observation Month</span>
+                  <span className="pm-menu-header-hint">4-week evaluation cycle</span>
+                </div>
+                <div className="pm-month-picker-menu-list">
+                  {monthOptions.map(opt => {
+                    const isSelected = opt.key === selectedMonthKey;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        className={`pm-month-option-item ${isSelected ? 'selected' : ''}`}
+                        onClick={() => {
+                          setSelectedMonthKey(opt.key);
+                          setMonthDropdownOpen(false);
+                        }}
+                        role="menuitem"
+                      >
+                        <div className="pm-option-info">
+                          <span className="pm-option-month-name">{opt.label}</span>
+                          <span className={`pm-option-count-pill ${opt.count > 0 ? 'has-data' : 'zero'}`}>
+                            {opt.count} {opt.count === 1 ? 'ticket' : 'tickets'}
+                          </span>
+                        </div>
+                        {isSelected && <FaCheck className="pm-option-check" aria-hidden="true" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <button
@@ -252,8 +452,10 @@ const PerformanceMonitor = () => {
             className="pm-refresh-btn"
             onClick={loadData}
             title="Refresh latest ticket data"
+            aria-label="Refresh latest ticket data"
           >
-            <FaRedo />
+            <FaRedo className="pm-refresh-icon" />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
@@ -299,24 +501,52 @@ const PerformanceMonitor = () => {
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="pm-search-bar-row">
+      {/* Search Bar on Left & Department Filter Tabs on Right */}
+      <div className="pm-filter-toolbar">
         <div className="pm-search-input-wrap">
-          <FaSearch className="pm-search-icon" />
+          <FaSearch className="pm-search-icon" aria-hidden="true" />
           <input
-            type="text"
+            type="search"
             className="pm-search-input"
             placeholder="Search staff by name or department..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search staff"
           />
         </div>
-        <div className="pm-results-count">
-          Showing <strong>{filteredProfiles.length}</strong> staff profile{filteredProfiles.length === 1 ? '' : 's'}
+
+        <div className="pm-dept-tabs-bar">
+          <button
+            type="button"
+            className={`pm-dept-tab ${selectedDept === 'all' ? 'active' : ''}`}
+            onClick={() => setSelectedDept('all')}
+          >
+            <FaBuilding className="pm-tab-icon" />
+            <span>All Departments</span>
+            <span className="pm-tab-count">{departmentCounts.all || 0}</span>
+          </button>
+          {DEPARTMENTS.map(d => (
+            <button
+              key={d.id}
+              type="button"
+              className={`pm-dept-tab ${selectedDept.toLowerCase() === d.id.toLowerCase() ? 'active' : ''}`}
+              onClick={() => setSelectedDept(d.id)}
+            >
+              <d.icon className="pm-tab-icon" />
+              <span>{d.short}</span>
+              <span className="pm-tab-count">{departmentCounts[d.id] || 0}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Staff Roster Cards */}
+      {searchQuery && (
+        <div className="pm-search-feedback">
+          Found <strong>{filteredProfiles.length}</strong> staff profile{filteredProfiles.length === 1 ? '' : 's'} matching "{searchQuery}"
+        </div>
+      )}
+
+      {/* Department-Grouped Staff Sections */}
       {filteredProfiles.length === 0 ? (
         <div className="pm-empty-state">
           <FaUserTie className="pm-empty-icon" />
@@ -324,116 +554,160 @@ const PerformanceMonitor = () => {
           <p>No staff matched the selected department or search filter for this month.</p>
         </div>
       ) : (
-        <div className="pm-staff-roster-grid">
-          {filteredProfiles.map(profile => {
-            const statusKey = profile.warningEvaluation.status;
+        <div className="pm-dept-sections-wrap">
+          {departmentSections.map(dept => {
+            const hasStaff = dept.staffList.length > 0;
+            if (!hasStaff && selectedDept === 'all') return null;
+
             return (
-              <div key={profile.staff.id} className={`pm-staff-card status-${statusKey}`}>
-                {/* Staff Card Header */}
-                <div className="pm-card-top">
-                  <div className="pm-staff-ident">
-                    <div className="pm-avatar-circle">
-                      {profile.staff.name.charAt(0).toUpperCase()}
+              <div key={dept.id} className="pm-dept-block">
+                {/* Department Block Header */}
+                <div className="pm-dept-block-header">
+                  <div className="pm-dept-block-title-group">
+                    <div className="pm-dept-block-icon-wrap">
+                      <dept.icon />
                     </div>
                     <div>
-                      <h4 className="pm-staff-name">{profile.staff.name}</h4>
-                      <div className="pm-staff-meta">
-                        <span className="pm-dept-chip">{profile.staff.department}</span>
-                        <span className="pm-role-chip">{profile.staff.role}</span>
+                      <h3 className="pm-dept-block-title">{dept.label}</h3>
+                      <div className="pm-dept-block-meta">
+                        <span className="pm-meta-pill ticket-count">
+                          {dept.totalAssigned} Assigned &bull; {dept.totalResolved} Resolved ({dept.avgClearance}%)
+                        </span>
+                        {dept.warningCount > 0 ? (
+                          <span className="pm-meta-pill warning-alert">
+                            <FaExclamationTriangle /> {dept.warningCount} under Warning Review
+                          </span>
+                        ) : (
+                          <span className="pm-meta-pill good-alert">
+                            <FaCheckCircle /> All in Good Standing
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-
-                  <div className={`pm-status-badge ${statusKey}`}>
-                    {statusKey === 'good' && <FaCheckCircle />}
-                    {statusKey === 'warning_1_nte' && <FaInfoCircle />}
-                    {statusKey === 'warning_2_verbal' && <FaExclamationTriangle />}
-                    {statusKey === 'warning_3_suspension' && <FaShieldAlt />}
-                    {statusKey === 'warning_4_termination' && <FaTimes />}
-                    <span>{profile.warningEvaluation.shortLabel || profile.warningEvaluation.statusLabel}</span>
-                  </div>
                 </div>
 
-                {/* Archetype Tag */}
-                <div className="pm-archetype-row">
-                  <span className={`pm-archetype-pill ${profile.archetype.tag}`}>
-                    <FaBrain className="pm-pill-icon" />
-                    {profile.archetype.title}
-                  </span>
-                  <span className="pm-archetype-desc">{profile.archetype.description}</span>
-                </div>
-
-                {/* Monthly Volume Stats Row */}
-                <div className="pm-metrics-summary-strip">
-                  <div className="pm-metric-box">
-                    <span className="pm-box-label">Assigned</span>
-                    <span className="pm-box-value">{profile.totals.totalAssigned}</span>
+                {/* 2-4 Staff Grid inside this Department */}
+                {!hasStaff ? (
+                  <div className="pm-dept-no-staff">
+                    No active staff registered under {dept.label}.
                   </div>
-                  <div className="pm-metric-box">
-                    <span className="pm-box-label">Resolved</span>
-                    <span className="pm-box-value">{profile.totals.totalResolved}</span>
-                  </div>
-                  <div className="pm-metric-box">
-                    <span className="pm-box-label">Clearance</span>
-                    <span className="pm-box-value">{profile.totals.overallClearanceRate}%</span>
-                  </div>
-                  <div className="pm-metric-box">
-                    <span className="pm-box-label">Rollover to Next Mo.</span>
-                    <span className={`pm-box-value ${profile.totals.netRolloverNextMonth > 5 ? 'alert' : ''}`}>
-                      {profile.totals.netRolloverNextMonth}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 4-Week Progress Timeline */}
-                <div className="pm-weekly-timeline-wrap">
-                  <div className="pm-timeline-header">
-                    <span>4-Week Behavioral Progression</span>
-                    <span className="pm-timeline-caption">Intake vs. Clearance Rate</span>
-                  </div>
-                  <div className="pm-timeline-stepper">
-                    {profile.weeklyBreakdown.map((week, idx) => {
-                      let barColorClass = 'good';
-                      if (week.clearanceRate < 50) barColorClass = 'critical';
-                      else if (week.clearanceRate < 75) barColorClass = 'warning';
-
+                ) : (
+                  <div className={`pm-staff-roster-grid count-${Math.min(4, Math.max(2, dept.staffList.length))}`}>
+                    {dept.staffList.map(profile => {
+                      const statusKey = profile.warningEvaluation.status;
                       return (
-                        <div key={week.weekNum} className="pm-week-step">
-                          <div className="pm-step-label">W{week.weekNum}</div>
-                          <div className={`pm-step-bar ${barColorClass}`} title={`${week.label}: ${week.resolved}/${week.assigned} resolved (${week.clearanceRate}%)`}>
-                            <div className="pm-bar-fill" style={{ width: `${Math.min(100, week.clearanceRate)}%` }}></div>
+                        <div key={profile.staff.id} className={`pm-staff-card status-${statusKey}`}>
+                          {/* Staff Card Header */}
+                          <div className="pm-card-top">
+                            <div className="pm-staff-ident">
+                              <div className="pm-avatar-circle">
+                                {profile.staff.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <h4 className="pm-staff-name">{profile.staff.name}</h4>
+                                <div className="pm-staff-meta">
+                                  <span className="pm-dept-chip">{profile.staff.department}</span>
+                                  <span className="pm-role-chip">{profile.staff.role}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className={`pm-status-badge ${statusKey}`}>
+                              {statusKey === 'good' && <FaCheckCircle />}
+                              {statusKey === 'warning_1_nte' && <FaInfoCircle />}
+                              {statusKey === 'warning_2_verbal' && <FaExclamationTriangle />}
+                              {statusKey === 'warning_3_suspension' && <FaShieldAlt />}
+                              {statusKey === 'warning_4_termination' && <FaTimes />}
+                              <span>{profile.warningEvaluation.shortLabel || profile.warningEvaluation.statusLabel}</span>
+                            </div>
                           </div>
-                          <div className="pm-step-subtext">
-                            {week.clearanceRate}%
+
+                          {/* Archetype Tag */}
+                          <div className="pm-archetype-row">
+                            <span className={`pm-archetype-pill ${profile.archetype.tag}`}>
+                              <FaBrain className="pm-pill-icon" />
+                              {profile.archetype.title}
+                            </span>
+                            <span className="pm-archetype-desc">{profile.archetype.description}</span>
                           </div>
-                          <div className="pm-step-counts">
-                            {week.resolved}/{week.assigned}
+
+                          {/* Monthly Volume Stats Row */}
+                          <div className="pm-metrics-summary-strip">
+                            <div className="pm-metric-box">
+                              <span className="pm-box-label">Assigned</span>
+                              <span className="pm-box-value">{profile.totals.totalAssigned}</span>
+                            </div>
+                            <div className="pm-metric-box">
+                              <span className="pm-box-label">Resolved</span>
+                              <span className="pm-box-value">{profile.totals.totalResolved}</span>
+                            </div>
+                            <div className="pm-metric-box">
+                              <span className="pm-box-label">Clearance</span>
+                              <span className="pm-box-value">{profile.totals.overallClearanceRate}%</span>
+                            </div>
+                            <div className="pm-metric-box">
+                              <span className="pm-box-label">Rollover</span>
+                              <span className={`pm-box-value ${profile.totals.netRolloverNextMonth > 5 ? 'alert' : ''}`}>
+                                {profile.totals.netRolloverNextMonth}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 4-Week Progress Timeline */}
+                          <div className="pm-weekly-timeline-wrap">
+                            <div className="pm-timeline-header">
+                              <span>4-Week Behavioral Progression</span>
+                              <span className="pm-timeline-caption">Intake vs. Clearance Rate</span>
+                            </div>
+                            <div className="pm-timeline-stepper">
+                              {profile.weeklyBreakdown.map((week) => {
+                                let barColorClass = 'good';
+                                if (week.clearanceRate < 50) barColorClass = 'critical';
+                                else if (week.clearanceRate < 75) barColorClass = 'warning';
+
+                                return (
+                                  <div key={week.weekNum} className="pm-week-step">
+                                    <div className="pm-step-label">W{week.weekNum}</div>
+                                    <div className={`pm-step-bar ${barColorClass}`} title={`${week.label}: ${week.resolved}/${week.assigned} resolved (${week.clearanceRate}%)`}>
+                                      <div className="pm-bar-fill" style={{ width: `${Math.min(100, week.clearanceRate)}%` }}></div>
+                                    </div>
+                                    <div className="pm-step-subtext">
+                                      {week.clearanceRate}%
+                                    </div>
+                                    <div className="pm-step-counts">
+                                      {week.resolved}/{week.assigned}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Next Month Forecast Sneak Peek */}
+                          <div className="pm-forecast-snippet">
+                            <FaChartLine className="pm-forecast-icon" />
+                            <span className="pm-forecast-text">
+                              <strong>Next-Month Forecast:</strong> {profile.nextMonthPrediction.predictedBottleneck}
+                            </span>
+                          </div>
+
+                          {/* Card Action Button */}
+                          <div className="pm-card-actions">
+                            <button
+                              type="button"
+                              className="pm-inspect-btn"
+                              onClick={() => handleInspectStaff(profile)}
+                            >
+                              <span>View AI Monthly Diagnostic</span>
+                              <FaArrowRight />
+                            </button>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-
-                {/* Next Month Forecast Sneak Peek */}
-                <div className="pm-forecast-snippet">
-                  <FaChartLine className="pm-forecast-icon" />
-                  <span className="pm-forecast-text">
-                    <strong>Next-Month Forecast:</strong> {profile.nextMonthPrediction.predictedBottleneck}
-                  </span>
-                </div>
-
-                {/* Card Action Button */}
-                <div className="pm-card-actions">
-                  <button
-                    type="button"
-                    className="pm-inspect-btn"
-                    onClick={() => handleInspectStaff(profile)}
-                  >
-                    <span>View AI Monthly Diagnostic</span>
-                    <FaArrowRight />
-                  </button>
-                </div>
+                )}
               </div>
             );
           })}
@@ -450,6 +724,32 @@ const PerformanceMonitor = () => {
             aria-labelledby="diagnostic-modal-title"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Formal Institutional Print Letterhead (Rendered on multi-page print) */}
+            <div className="pm-print-letterhead" aria-hidden="true">
+              <div className="pm-print-school-meta">
+                <span className="pm-print-school-name">ACADEMIA DE SAN JOSE</span>
+                <span className="pm-print-system-tag">Superadmin Command Center &bull; Staff Behavioral & Performance Diagnostic</span>
+              </div>
+              <div className="pm-print-doc-meta">
+                <div className="pm-print-meta-item">
+                  <span className="pm-print-meta-k">Evaluation Subject:</span>
+                  <span className="pm-print-meta-v">{activeStaffDiagnostic.staff.name} ({activeStaffDiagnostic.staff.department} Office)</span>
+                </div>
+                <div className="pm-print-meta-item">
+                  <span className="pm-print-meta-k">Observation Cycle:</span>
+                  <span className="pm-print-meta-v">{activeStaffDiagnostic.month.name}</span>
+                </div>
+                <div className="pm-print-meta-item">
+                  <span className="pm-print-meta-k">Standing Status:</span>
+                  <span className="pm-print-meta-v">{activeStaffDiagnostic.warningEvaluation.statusLabel}</span>
+                </div>
+                <div className="pm-print-meta-item">
+                  <span className="pm-print-meta-k">Document Generated:</span>
+                  <span className="pm-print-meta-v">{new Date().toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Modal Header */}
             <div className="pm-modal-header">
               <div className="pm-modal-title-area">
@@ -599,6 +899,25 @@ const PerformanceMonitor = () => {
                     <strong>Evidence & Pattern Basis:</strong> {activeStaffDiagnostic.warningEvaluation.reasoning}
                   </p>
                 </div>
+              </div>
+
+              {/* Formal Print Sign-off & Acknowledgment Section (Rendered on multi-page print) */}
+              <div className="pm-print-signoff" aria-hidden="true">
+                <div className="pm-print-signoff-grid">
+                  <div className="pm-print-sign-box">
+                    <div className="pm-print-sign-line" />
+                    <span className="pm-print-sign-title">Super Administrator / Evaluator</span>
+                    <span className="pm-print-sign-caption">Signature over Printed Name &bull; Date</span>
+                  </div>
+                  <div className="pm-print-sign-box">
+                    <div className="pm-print-sign-line" />
+                    <span className="pm-print-sign-title">{activeStaffDiagnostic.staff.name}</span>
+                    <span className="pm-print-sign-caption">Staff Member Acknowledgment &bull; Date</span>
+                  </div>
+                </div>
+                <p className="pm-print-confidential-notice">
+                  CONFIDENTIAL &bull; Institutional Records of Academia De San Jose &bull; Generated from Firebase Realtime Audit Trajectory
+                </p>
               </div>
             </div>
 

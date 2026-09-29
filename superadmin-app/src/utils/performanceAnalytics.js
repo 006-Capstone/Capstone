@@ -729,13 +729,31 @@ export const calculateStaffMonthlyBehavior = (
   // Match requests belonging to this staff member
   const staffNameLower = (staff.name || staff.fullName || '').trim().toLowerCase();
   const staffUid = staff.uid || staff.id || '';
+  const cleanStaffName = staffNameLower.replace(/\b[a-z]\.\s*/g, '').trim();
 
   const staffRequests = allRequests.filter(r => {
     const assigned = (r.assignedTo || '').trim().toLowerCase();
     const claimed = (r.claimedBy || '').trim().toLowerCase();
     const assignedStaff = (r.assignedToStaff || '').trim().toLowerCase();
-    const matchesName = Boolean(staffNameLower && (assigned === staffNameLower || claimed === staffNameLower || assignedStaff === staffNameLower));
-    const matchesUid = Boolean(staffUid && (r.assignedToStaff === staffUid || r.claimedByUid === staffUid));
+    const cleanAssigned = assigned.replace(/\b[a-z]\.\s*/g, '').trim();
+    const cleanClaimed = claimed.replace(/\b[a-z]\.\s*/g, '').trim();
+
+    const matchesName = Boolean(staffNameLower && (
+      assigned === staffNameLower ||
+      claimed === staffNameLower ||
+      assignedStaff === staffNameLower ||
+      (cleanAssigned && cleanStaffName && (cleanAssigned === cleanStaffName || cleanStaffName.includes(cleanAssigned) || cleanAssigned.includes(cleanStaffName))) ||
+      (cleanClaimed && cleanStaffName && (cleanClaimed === cleanStaffName || cleanStaffName.includes(cleanClaimed) || cleanClaimed.includes(cleanStaffName))) ||
+      (assigned && (staffNameLower.includes(assigned) || assigned.includes(staffNameLower))) ||
+      (claimed && (staffNameLower.includes(claimed) || claimed.includes(staffNameLower)))
+    ));
+
+    const matchesUid = Boolean(staffUid && (
+      r.assignedToStaff === staffUid ||
+      r.claimedByUid === staffUid ||
+      r.staffId === staffUid
+    ));
+
     return matchesName || matchesUid;
   });
 
@@ -956,7 +974,7 @@ export const calculateStaffMonthlyBehavior = (
     staff: {
       id: staff.id || staff.uid,
       name: staff.name || staff.fullName || 'Staff Member',
-      department: staff.department || staff.office || 'General',
+      department: staff.office || staff.department || staff.officeId || 'General',
       email: staff.email || '',
       role: staff.role || 'staff'
     },

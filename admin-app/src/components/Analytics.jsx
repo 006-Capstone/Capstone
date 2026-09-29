@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  FaBell, FaDownload, FaCalendarAlt, FaPrint
+  FaBell, FaDownload, FaCalendarAlt, FaPrint, FaChartLine
 } from 'react-icons/fa';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -98,7 +98,7 @@ const donutSegmentPath = (startAngle, endAngle) => {
   ].join(' ');
 };
 
-const Analytics = ({ department, onViewRequest }) => {
+const Analytics = ({ department, onViewRequest, onNavigate }) => {
   const { toast } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -692,7 +692,20 @@ const Analytics = ({ department, onViewRequest }) => {
               <h3 className="an-chart-title">Staff Activity</h3>
               <p className="an-chart-subtitle">Resolved requests per staff member</p>
             </div>
-            <span className="an-card-header-badge">{staffActivity.length} Staff</span>
+            <div className="an-chart-header-actions">
+              <span className="an-card-header-badge">{staffActivity.length} Staff</span>
+              {onNavigate && (
+                <button
+                  type="button"
+                  className="an-perf-jump-btn"
+                  onClick={() => onNavigate('my-performance')}
+                  title="View your AI Performance Scorecard & Health Standings"
+                >
+                  <FaChartLine />
+                  <span>My Performance →</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {staffActivity.length === 0 ? (
@@ -705,7 +718,20 @@ const Analytics = ({ department, onViewRequest }) => {
                 const isMidRate = staff.percentage >= 50 && staff.percentage < 80;
 
                 return (
-                  <div key={index} className="an-staff-row">
+                  <div
+                    key={index}
+                    className={`an-staff-row ${onNavigate ? 'an-staff-row--clickable' : ''}`}
+                    onClick={() => onNavigate && onNavigate('my-performance')}
+                    title={onNavigate ? "View performance dashboard" : undefined}
+                    role={onNavigate ? "button" : undefined}
+                    tabIndex={onNavigate ? 0 : undefined}
+                    onKeyDown={(e) => {
+                      if (onNavigate && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        onNavigate('my-performance');
+                      }
+                    }}
+                  >
                     <div className="an-staff-info">
                       <div className={`an-staff-avatar-initials an-staff-avatar-initials--${index % 4}`}>
                         {initials}

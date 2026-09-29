@@ -16,13 +16,14 @@ import {
   FaChevronRight,
   FaChartLine,
   FaExclamationTriangle,
-  FaExternalLinkAlt
+  FaExternalLinkAlt,
+  FaBrain,
+  FaUserTie
 } from 'react-icons/fa';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { OverviewCardsSkeleton, AnalyticsChartSkeleton } from './common/Skeleton';
 import NotificationBell from './NotificationBell';
-import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import Toast from './Toast';
 import PerformanceMonitor from './PerformanceMonitor';
 import StudentFeedbackModal from './StudentFeedbackModal';
@@ -141,6 +142,8 @@ const Analytics = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [modalInitialOffice, setModalInitialOffice] = useState('all');
   const [allFeedbacks, setAllFeedbacks] = useState([]);
+  const [pmTargetDept, setPmTargetDept] = useState('all');
+  const [pmTargetStaff, setPmTargetStaff] = useState('');
 
   const handleOpenSatisfactionModal = (officeId = satisfactionOffice) => {
     setModalInitialOffice(officeId || 'all');
@@ -715,17 +718,6 @@ const Analytics = () => {
         <div className="analytics-header-left">
           <h1 className="analytics-title">Analytics</h1>
           <p className="page-subtitle">Track request volume, satisfaction, and department performance</p>
-          <div className="analytics-filter-wrapper">
-            <DateRangeFilterDropdown
-              filter={dateFilter}
-              onFilterChange={setDateFilter}
-              isActive={isFilterActive}
-              onApply={applyDateFilter}
-              onClear={clearDateFilter}
-              appliedFilter={appliedFilter}
-              idPrefix="analytics"
-            />
-          </div>
         </div>
         <div className="analytics-header-right">
           <button className="btn-primary export-button" onClick={exportToCSV}>
@@ -868,7 +860,7 @@ const Analytics = () => {
                 aria-haspopup="true"
                 aria-expanded={officeFilterOpen}
               >
-                <span>{satisfactionOffice === 'all' ? 'Filter by' : selectedOfficeName}</span>
+                <span>{selectedOfficeName}</span>
                 <FaChevronDown aria-hidden="true" />
               </button>
 
@@ -1166,13 +1158,28 @@ const Analytics = () => {
                             <div className="staff-breakdown-header">
                               <span className="staff-breakdown-title">
                                 <FaUsers style={{ marginRight: '6px' }} />
-                                Staff Caseload & Performance — {dept.department}
+                                Staff Caseload &amp; Performance — {dept.department}
                               </span>
-                              {dept.unassignedCount > 0 && (
-                                <span className="unassigned-pill">
-                                  {dept.unassignedCount} unassigned ticket{dept.unassignedCount !== 1 ? 's' : ''}
-                                </span>
-                              )}
+                              <div className="staff-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {dept.unassignedCount > 0 && (
+                                  <span className="unassigned-pill">
+                                    {dept.unassignedCount} unassigned ticket{dept.unassignedCount !== 1 ? 's' : ''}
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  className="dept-pm-jump-link"
+                                  onClick={() => {
+                                    setPmTargetDept(dept.department);
+                                    setPmTargetStaff('');
+                                    setActiveTab('performance');
+                                  }}
+                                  title={`Monitor all ${dept.department} staff in Performance Monitor`}
+                                >
+                                  <FaChartLine style={{ marginRight: '5px' }} />
+                                  <span>Monitor {dept.department} Staff →</span>
+                                </button>
+                              </div>
                             </div>
 
                             {dept.staffWorkload && dept.staffWorkload.length > 0 ? (
@@ -1222,6 +1229,21 @@ const Analytics = () => {
                                           />
                                         </div>
                                       </div>
+
+                                      {/* Connect to Performance Monitor */}
+                                      <button
+                                        type="button"
+                                        className="staff-pm-inspect-btn"
+                                        onClick={() => {
+                                          setPmTargetDept(dept.department);
+                                          setPmTargetStaff(staff.name);
+                                          setActiveTab('performance');
+                                        }}
+                                        title={`Inspect 4-week behavioral evaluation for ${staff.name}`}
+                                      >
+                                        <FaBrain style={{ marginRight: '6px' }} />
+                                        <span>Behavioral Diagnostic →</span>
+                                      </button>
                                     </div>
                                   );
                                 })}
@@ -1245,7 +1267,10 @@ const Analytics = () => {
       </div>
       ) : (
         /* Performance Monitor Tab */
-        <PerformanceMonitor />
+        <PerformanceMonitor
+          initialDept={pmTargetDept}
+          initialSearchQuery={pmTargetStaff}
+        />
       )}
 
       {toast && (

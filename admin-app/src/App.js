@@ -213,6 +213,7 @@ function App() {
             <Analytics 
               department={selectedDepartment} 
               onViewRequest={handleViewTicket} 
+              onNavigate={handleNavigate}
             />
           )}
           {activePage === 'my-performance' && (

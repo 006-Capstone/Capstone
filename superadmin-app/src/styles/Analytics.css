@@ -1525,3 +1525,52 @@
     background-color: var(--sage-50, #f4f8f3);
   }
 }
+
+/* ---- Jump to Performance Monitor Links in Department Breakdown ---- */
+.dept-pm-jump-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sage-50, #f4f8f3);
+  color: var(--green-900, #0d4a05);
+  border: 1px solid var(--sage-200, #d4dfd2);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s ease);
+  margin-left: auto;
+}
+
+.dept-pm-jump-link:hover {
+  background: var(--color-primary, #105e06);
+  color: #ffffff;
+  border-color: var(--color-primary, #105e06);
+  box-shadow: 0 2px 6px rgba(16, 94, 6, 0.2);
+}
+
+.staff-pm-inspect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  background: var(--sage-50, #f4f8f3);
+  color: var(--green-900, #0d4a05);
+  border: 1px solid var(--sage-200, #d4dfd2);
+  border-radius: var(--radius-sm, 6px);
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.staff-pm-inspect-btn:hover {
+  background: var(--color-primary, #105e06);
+  color: #ffffff;
+  border-color: var(--color-primary, #105e06);
+  box-shadow: 0 2px 6px rgba(16, 94, 6, 0.2);
+}
