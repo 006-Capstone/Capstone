@@ -749,7 +749,7 @@ const MyPerformance = ({ userData }) => {
                 }
               }}
             >
-              <span className="metric-micro-label">MONTHLY CLEARANCE RATE</span>
+              <span className="metric-micro-label">CLEARANCE RATE</span>
               <FaInfoCircle className="tier-info-icon" aria-hidden="true" />
             </div>
 

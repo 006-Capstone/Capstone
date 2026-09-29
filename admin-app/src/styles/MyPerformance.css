@@ -654,20 +654,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
 }
 
 /* Interactive Gauge Title & Trigger */
 .gauge-title-interactive {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   cursor: pointer;
   border-radius: var(--radius-xs);
-  padding: 3px 6px;
-  margin: -3px -6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
   transition: all var(--transition-fast);
   user-select: none;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .gauge-title-interactive:hover,
@@ -697,7 +702,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  padding: 3px 10px;
+  padding: 3px 9px;
   border-radius: var(--radius-pill, 9999px);
   display: inline-flex;
   align-items: center;
@@ -706,6 +711,8 @@
   white-space: nowrap;
   box-sizing: border-box;
   transition: all var(--transition-fast);
+  max-width: 100%;
+  flex-shrink: 0;
 }
 
 .score-grade-badge .grade-badge-dot,
@@ -1762,6 +1769,48 @@
 
   .metrics-cards-grid {
     gap: 10px;
+  }
+
+  .perf-card {
+    padding: 13px 15px;
+  }
+
+  .score-grade-badge {
+    font-size: 10px;
+    padding: 2.5px 7px;
+    gap: 4px;
+  }
+
+  .score-grade-badge .grade-badge-dot,
+  .score-grade-badge:not(:has(.grade-badge-dot))::before {
+    width: 5px;
+    height: 5px;
+  }
+
+  .metric-micro-label {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .gauge-header {
+    gap: 4px;
+  }
+
+  .gauge-body {
+    gap: 10px;
+  }
+
+  .gauge-ring-wrap {
+    width: 56px;
+    height: 56px;
+  }
+
+  .gauge-number {
+    font-size: 14px;
+  }
+
+  .gauge-status-sub {
+    font-size: 10.5px;
   }
 }
 
