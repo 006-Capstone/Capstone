@@ -117,8 +117,8 @@ const QUARTER_FILTER_CONFIG = {
   }
 };
 
-const Analytics = () => {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'performance'
+const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
+  const [activeTab, setActiveTab] = useState(initialTab); // 'overview' or 'performance'
   const [loading, setLoading] = useState(true);
   const [totalRequests, setTotalRequests] = useState(0);
   const [avgResolution, setAvgResolution] = useState('0hrs');
@@ -142,8 +142,14 @@ const Analytics = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [modalInitialOffice, setModalInitialOffice] = useState('all');
   const [allFeedbacks, setAllFeedbacks] = useState([]);
-  const [pmTargetDept, setPmTargetDept] = useState('all');
+  const [pmTargetDept, setPmTargetDept] = useState(initialDept || 'all');
   const [pmTargetStaff, setPmTargetStaff] = useState('');
+
+  // Synchronize when parent navigates with new tab or department
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+    if (initialDept) setPmTargetDept(initialDept);
+  }, [initialTab, initialDept]);
 
   const handleOpenSatisfactionModal = (officeId = satisfactionOffice) => {
     setModalInitialOffice(officeId || 'all');

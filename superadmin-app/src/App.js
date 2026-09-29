@@ -53,8 +53,12 @@ function App() {
     localStorage.removeItem('superadminData');
   };
 
-  const handleNavigate = (page) => {
+  const [navParams, setNavParams] = useState(null);
+
+  const handleNavigate = (page, params = null) => {
     setActivePage(page);
+    setNavParams(params);
+    localStorage.setItem('superadminActivePage', page);
     setIsSidebarOpen(false); // Close the mobile drawer after navigating
   };
 
@@ -126,7 +130,12 @@ function App() {
         </div>
         {activePage === 'dashboard' && <SuperAdminDashboard onNavigate={handleNavigate} />}
         {activePage === 'edit-request' && <EditRequestForm />}
-        {activePage === 'analytics' && <Analytics />}
+        {activePage === 'analytics' && (
+          <Analytics
+            initialTab={navParams?.tab || 'overview'}
+            initialDept={navParams?.dept || 'all'}
+          />
+        )}
         {activePage === 'user-management' && <UserManagement />}
       </div>
     </div>

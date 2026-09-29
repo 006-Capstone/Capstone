@@ -4,9 +4,10 @@ import {
   FaClock,
   FaBan,
   FaUsers,
-  FaCalendarAlt,
   FaCheckCircle,
   FaExclamationCircle,
+  FaExclamationTriangle,
+  FaChevronRight,
   FaStar,
   FaUserPlus,
   FaUserTie,
@@ -18,14 +19,12 @@ import {
 } from 'react-icons/fa';
 import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { calculateTicketOverdue } from '../utils/performanceAnalytics';
 import { OverviewCardsSkeleton, WorkflowPulseSkeleton, AnalyticsChartSkeleton, Skeleton } from './common/Skeleton';
 import NotificationBell from './NotificationBell';
 import RequestDetailsModal from './RequestDetailsModal';
-import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import Toast from './Toast';
 import '../styles/SuperAdminDashboard.css';
-
-const EMPTY_FILTER = { from: '', to: '' };
 
 const SuperAdminDashboard = ({ onNavigate }) => {
   const [stats, setStats] = useState({
@@ -48,86 +47,81 @@ const SuperAdminDashboard = ({ onNavigate }) => {
   });
 
   const [departmentData, setDepartmentData] = useState([
-    { label: 'FIN', value: 0, max: 50, percentage: 0, name: 'Finance Office' },
-    { label: 'REG', value: 0, max: 50, percentage: 0, name: "Registrar's Office" },
-    { label: 'LIB', value: 0, max: 50, percentage: 0, name: 'Library' },
-    { label: 'GUI', value: 0, max: 50, percentage: 0, name: 'Guidance & Counseling' }
+    { label: 'FIN', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: 'Finance Office', officeKey: 'Finance', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' },
+    { label: 'REG', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: "Registrar's Office", officeKey: 'Registrar', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' },
+    { label: 'LIB', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: 'Library', officeKey: 'Library', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' },
+    { label: 'GUI', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: 'Guidance & Counseling', officeKey: 'Guidance', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' }
   ]);
 
   const [recentRequests, setRecentRequests] = useState([]);
   const [selectedRecentRequest, setSelectedRecentRequest] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
-  const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
-  const [filteredTotal, setFilteredTotal] = useState(0);
   const [toast, setToast] = useState(null);
 
-  // Keep all fetched requests in a ref so filters can be applied without refetching
-  const allRequestsRef = useRef([]);
+  const computeDepartmentData = (requests) => {
+    const allReqs = requests || [];
+    const financeRequests = allReqs.filter(req => req.office === 'Finance');
+    const registrarRequests = allReqs.filter(req => req.office === 'Registrar');
+    const libraryRequests = allReqs.filter(req => req.office === 'Library');
+    const guidanceRequests = allReqs.filter(req => req.office === 'Guidance');
 
-  const getRequestDate = (req) => {
-    if (!req.createdAt) return null;
-    const date = req.createdAt?.toDate ? req.createdAt.toDate() : new Date(req.createdAt);
-    return date instanceof Date && !isNaN(date.getTime()) ? date : null;
-  };
+    const totalRequests = allReqs.length;
+    const maxCount = Math.max(1, financeRequests.length, registrarRequests.length, libraryRequests.length, guidanceRequests.length);
 
-  const filterRequestsByDate = (requests, filter) => {
-    if (!filter.from && !filter.to) return requests;
+    const buildDeptStats = (label, name, officeKey, deptReqs) => {
+      const count = deptReqs.length;
+      const resolved = deptReqs.filter(r => (r.status || '').toLowerCase() === 'resolved').length;
+      const pending = deptReqs.filter(r => (r.status || '').toLowerCase() === 'pending').length;
+      const inProcess = deptReqs.filter(r => ['in process', 'in-process'].includes((r.status || '').toLowerCase())).length;
+      const active = pending + inProcess;
+      const overdue = deptReqs.filter(r => {
+        const status = (r.status || '').toLowerCase();
+        if (status === 'resolved' || ['cancelled', 'rejected'].includes(status)) return false;
+        const { isOverdue } = calculateTicketOverdue(r);
+        return isOverdue;
+      }).length;
 
-    return requests.filter(req => {
-      const created = getRequestDate(req);
-      if (!created) return false;
+      const clearanceRate = count > 0 ? Math.round((resolved / count) * 100) : 100;
+      const campusSharePct = totalRequests > 0 ? Math.round((count / totalRequests) * 100) : 0;
 
-      const from = filter.from ? new Date(`${filter.from}T00:00:00`) : null;
-      const to = filter.to ? new Date(`${filter.to}T23:59:59.999`) : null;
-
-      if (from && created < from) return false;
-      if (to && created > to) return false;
-      return true;
-    });
-  };
-
-  const computeDepartmentData = (requests, filter) => {
-    const filteredRequests = filterRequestsByDate(requests, filter);
-
-    const financeCount = filteredRequests.filter(req => req.office === 'Finance').length;
-    const registrarCount = filteredRequests.filter(req => req.office === 'Registrar').length;
-    const libraryCount = filteredRequests.filter(req => req.office === 'Library').length;
-    const guidanceCount = filteredRequests.filter(req => req.office === 'Guidance').length;
-
-    const totalFiltered = filteredRequests.length;
-    const maxCount = Math.max(50, financeCount, registrarCount, libraryCount, guidanceCount);
-
-    setFilteredTotal(totalFiltered);
-    setDepartmentData([
-      {
-        label: 'FIN',
-        value: financeCount,
-        max: maxCount,
-        percentage: maxCount > 0 ? Math.round((financeCount / maxCount) * 100) : 0,
-        name: 'Finance Office'
-      },
-      {
-        label: 'REG',
-        value: registrarCount,
-        max: maxCount,
-        percentage: maxCount > 0 ? Math.round((registrarCount / maxCount) * 100) : 0,
-        name: "Registrar's Office"
-      },
-      {
-        label: 'LIB',
-        value: libraryCount,
-        max: maxCount,
-        percentage: maxCount > 0 ? Math.round((libraryCount / maxCount) * 100) : 0,
-        name: 'Library'
-      },
-      {
-        label: 'GUI',
-        value: guidanceCount,
-        max: maxCount,
-        percentage: maxCount > 0 ? Math.round((guidanceCount / maxCount) * 100) : 0,
-        name: 'Guidance & Counseling'
+      let statusTier = 'good';
+      let statusLabel = `${clearanceRate}% Clearance`;
+      if (count === 0) {
+        statusTier = 'neutral';
+        statusLabel = 'No Activity';
+      } else if (overdue > 0) {
+        statusTier = 'critical';
+        statusLabel = `${overdue} Overdue`;
+      } else if (clearanceRate < 60) {
+        statusTier = 'warning';
+        statusLabel = `${clearanceRate}% Clearance`;
+      } else if (clearanceRate < 80) {
+        statusTier = 'advisory';
+        statusLabel = `${clearanceRate}% Clearance`;
       }
+
+      return {
+        label,
+        name,
+        officeKey,
+        value: count,
+        max: maxCount,
+        percentage: campusSharePct,
+        campusSharePct,
+        resolvedCount: resolved,
+        activeCount: active,
+        overdueCount: overdue,
+        clearanceRate,
+        statusTier,
+        statusLabel
+      };
+    };
+
+    setDepartmentData([
+      buildDeptStats('FIN', 'Finance Office', 'Finance', financeRequests),
+      buildDeptStats('REG', "Registrar's Office", 'Registrar', registrarRequests),
+      buildDeptStats('LIB', 'Library', 'Library', libraryRequests),
+      buildDeptStats('GUI', 'Guidance & Counseling', 'Guidance', guidanceRequests)
     ]);
   };
 
@@ -224,7 +218,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
         }).slice(0, 5);
 
         setRecentRequests(sortedRecent);
-        computeDepartmentData(allRequests, appliedFilter);
+        computeDepartmentData(allRequests);
         checkDone();
       }, (error) => {
         console.error('[Dashboard] Error listening to requests:', error);
@@ -339,29 +333,6 @@ const SuperAdminDashboard = ({ onNavigate }) => {
     };
   }, []);
 
-  const applyDateFilter = () => {
-    if (dateFilter.from && dateFilter.to && dateFilter.from > dateFilter.to) {
-      setToast({ type: 'error', message: 'The "From" date cannot be later than the "To" date.' });
-      return false;
-    }
-    setAppliedFilter(dateFilter);
-    computeDepartmentData(allRequestsRef.current, dateFilter);
-    return true;
-  };
-
-  const clearDateFilter = () => {
-    setDateFilter(EMPTY_FILTER);
-    setAppliedFilter(EMPTY_FILTER);
-    computeDepartmentData(allRequestsRef.current, EMPTY_FILTER);
-  };
-
-  const formatFilterDate = (dateStr) => {
-    if (!dateStr) return '';
-    const [year, month, day] = dateStr.split('-');
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
   const formatRecentDate = (timestamp) => {
     if (!timestamp) return 'Recently';
     const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -418,8 +389,6 @@ const SuperAdminDashboard = ({ onNavigate }) => {
       </span>
     );
   };
-
-  const isFilterActive = Boolean(appliedFilter.from || appliedFilter.to);
 
   // Calculate percentages for workflow pulse strip
   const totalVolume = stats.totalRequests || 1;
@@ -574,71 +543,78 @@ const SuperAdminDashboard = ({ onNavigate }) => {
 
           {/* Middle Row: Department Volume & Quick Admin Actions */}
           <div className="dashboard-two-column-grid">
-            {/* Left: Department Distribution Chart */}
+            {/* Left: Department Distribution & Health Chart */}
             <div className="chart-section">
               <div className="chart-header">
                 <div>
-                  <h2 className="chart-title">Requests Received Per Department</h2>
-                  <p className="chart-subtitle">Volume distribution across institutional offices</p>
+                  <h2 className="chart-title">Requests Received & Department Health</h2>
+                  <p className="chart-subtitle">Workload share, live clearance & queue health · Click to inspect</p>
                 </div>
-                <DateRangeFilterDropdown
-                  filter={dateFilter}
-                  onFilterChange={setDateFilter}
-                  isActive={isFilterActive}
-                  onApply={applyDateFilter}
-                  onClear={clearDateFilter}
-                  appliedFilter={appliedFilter}
-                  idPrefix="dashboard"
-                />
               </div>
-
-              {isFilterActive && (
-                <div className="filter-summary">
-                  <FaCalendarAlt className="filter-summary-icon" aria-hidden="true" />
-                  <span>
-                    Showing <strong>{filteredTotal.toLocaleString()}</strong> request{filteredTotal === 1 ? '' : 's'}
-                    {appliedFilter.from && <> from <strong>{formatFilterDate(appliedFilter.from)}</strong></>}
-                    {appliedFilter.from && appliedFilter.to && <> to </>}
-                    {appliedFilter.to && <><strong>{formatFilterDate(appliedFilter.to)}</strong></>}
-                  </span>
-                </div>
-              )}
 
               <div className="chart-content">
                 {departmentData.map((dept, index) => (
-                  <div key={index} className="department-bar" title={`${dept.name}: ${dept.value} requests (${dept.percentage}%)`}>
+                  <div
+                    key={index}
+                    className="department-bar department-bar-interactive"
+                    onClick={() => onNavigate?.('analytics', { tab: 'performance', dept: dept.officeKey })}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onNavigate?.('analytics', { tab: 'performance', dept: dept.officeKey });
+                      }
+                    }}
+                    title={`Click to inspect ${dept.name} in Performance Monitor`}
+                  >
                     <div className="department-info">
                       <div className="dept-name-wrap">
                         <span className="dept-tag">{dept.label}</span>
-                        <span className="dept-fullname">{dept.name}</span>
+                        <div className="dept-title-column">
+                          <span className="dept-fullname">{dept.name}</span>
+                          <span className="dept-sub-breakdown">
+                            {dept.resolvedCount} Resolved · {dept.activeCount} Active
+                            {dept.overdueCount > 0 ? (
+                              <span className="dept-overdue-tag">
+                                <FaExclamationTriangle aria-hidden="true" /> {dept.overdueCount} Overdue
+                              </span>
+                            ) : null}
+                          </span>
+                        </div>
                       </div>
                       <div className="dept-meta">
-                        <span className="dept-count"><strong>{dept.value}</strong> requests</span>
-                        <span className="dept-pct-pill">{dept.percentage}%</span>
+                        <div className="dept-count-group">
+                          <span className="dept-count"><strong>{dept.value}</strong> requests</span>
+                          <span className="dept-pct-pill" title={`${dept.campusSharePct}% of total campus requests`}>
+                            {dept.campusSharePct}% share
+                          </span>
+                        </div>
+                        <span className={`dept-health-pill ${dept.statusTier}`}>
+                          {dept.statusLabel}
+                        </span>
+                        <FaChevronRight className="dept-nav-chevron" aria-hidden="true" />
                       </div>
                     </div>
                     <div className="bar-container">
                       <div
                         className="bar-fill"
-                        style={{ width: `${(dept.value / dept.max) * 100}%` }}
+                        style={{ width: `${dept.max > 0 ? (dept.value / dept.max) * 100 : 0}%` }}
                       />
                     </div>
                   </div>
                 ))}
 
                 <div className="x-axis">
-                  {((departmentData[0]?.max || 50) === 50
-                    ? [0, 10, 20, 30, 40, 50]
-                    : [
-                        0,
-                        Math.round((departmentData[0]?.max || 50) * 0.25),
-                        Math.round((departmentData[0]?.max || 50) * 0.5),
-                        Math.round((departmentData[0]?.max || 50) * 0.75),
-                        departmentData[0]?.max || 50
-                      ]
-                  ).map((tick, idx) => (
-                    <span key={idx} className="x-axis-label">{tick}</span>
-                  ))}
+                  <span className="x-axis-caption">
+                    Relative volume scale (highest office = 100% bar width)
+                  </span>
+                  <span
+                    className="x-axis-link-hint"
+                    onClick={() => onNavigate?.('analytics', { tab: 'performance' })}
+                  >
+                    Open Performance Monitor &rarr;
+                  </span>
                 </div>
               </div>
             </div>

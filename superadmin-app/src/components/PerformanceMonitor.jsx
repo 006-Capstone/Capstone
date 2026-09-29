@@ -36,6 +36,19 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   
   const [loading, setLoading] = useState(true);
+
+  // Sync when parent provides new initialDept or searchQuery
+  useEffect(() => {
+    if (initialDept) {
+      setSelectedDept(initialDept);
+    }
+  }, [initialDept]);
+
+  useEffect(() => {
+    if (initialSearchQuery !== undefined) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
   const [allRequests, setAllRequests] = useState([]);
   const [allStaff, setAllStaff] = useState([]);
   const [allFeedbacks, setAllFeedbacks] = useState([]);

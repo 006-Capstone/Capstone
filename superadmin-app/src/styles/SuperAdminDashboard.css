@@ -366,6 +366,106 @@
   padding: 4px 0;
 }
 
+.department-bar-interactive {
+  cursor: pointer;
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px 10px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.department-bar-interactive:hover,
+.department-bar-interactive:focus-visible {
+  background-color: var(--sage-50, #f4f8f3);
+  border-color: var(--sage-200, #dce3da);
+  transform: translateX(2px);
+  outline: none;
+}
+
+.dept-title-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dept-sub-breakdown {
+  font-size: 11.5px;
+  color: var(--color-text-muted, #717d73);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dept-overdue-tag {
+  color: #dc2626;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background-color: #fee2e2;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.dept-count-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dept-health-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill, 9999px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.dept-health-pill.good {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.dept-health-pill.advisory {
+  background-color: #fefce8;
+  color: #854d0e;
+  border: 1px solid #fde047;
+}
+
+.dept-health-pill.warning {
+  background-color: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+.dept-health-pill.critical {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.dept-health-pill.neutral {
+  background-color: var(--gray-100, #eaede8);
+  color: var(--gray-600, #4b5563);
+  border: 1px solid var(--gray-200, #e5e7eb);
+}
+
+.dept-nav-chevron {
+  font-size: 11px;
+  color: var(--gray-400, #94a096);
+  transition: transform 0.18s ease, color 0.18s ease;
+  margin-left: 2px;
+}
+
+.department-bar-interactive:hover .dept-nav-chevron {
+  color: var(--color-primary, #1b5e20);
+  transform: translateX(3px);
+}
+
 .department-info {
   display: flex;
   align-items: center;
@@ -443,10 +543,28 @@
 
 .x-axis {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   margin-top: 14px;
   padding-top: 10px;
   border-top: 1px dashed var(--color-border-soft, #e5eae4);
+}
+
+.x-axis-caption {
+  font-size: 11px;
+  color: var(--color-text-muted, #717d73);
+}
+
+.x-axis-link-hint {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-primary, #1b5e20);
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.x-axis-link-hint:hover {
+  text-decoration: underline;
 }
 
 .x-axis-label {
@@ -978,5 +1096,16 @@
   .quick-actions-card,
   .recent-activity-card {
     padding: 16px;
+  }
+
+  .department-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .dept-meta {
+    width: 100%;
+    justify-content: space-between;
   }
 }
