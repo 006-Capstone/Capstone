@@ -1831,7 +1831,31 @@
 /* ==========================================================================
    RESPONSIVE BEHAVIOR
    ========================================================================== */
-@media (max-width: 1080px) {
+/* Standard 14"–16" Monitor Scaling */
+@media (max-width: 1600px) {
+  .ticket-details-grid {
+    grid-template-columns: 1fr 310px;
+    gap: 18px;
+  }
+
+  .figma-card {
+    padding: 20px 22px;
+  }
+}
+
+@media (max-width: 1366px) {
+  .ticket-details-grid {
+    grid-template-columns: 1fr 290px;
+    gap: 16px;
+  }
+
+  .figma-card {
+    padding: 16px 18px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 1023px) {
   .ticket-details-grid {
     grid-template-columns: 1fr;
   }

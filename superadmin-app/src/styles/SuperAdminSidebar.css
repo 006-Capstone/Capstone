@@ -4,7 +4,7 @@
    ========================================================================== */
 
 .superadmin-sidebar {
-  width: 245px;
+  width: var(--sidebar-width, 230px);
   background-color: var(--color-surface, #ffffff);
   padding: 0;
   display: flex;

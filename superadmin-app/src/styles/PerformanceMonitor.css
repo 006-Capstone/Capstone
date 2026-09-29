@@ -1724,6 +1724,58 @@
   }
 }
 
+/* 14" to 16" Standard Monitor Layout (1200px - 1600px) */
+@media (max-width: 1600px) {
+  .pm-header-bar {
+    padding: 16px 20px;
+    margin-bottom: 14px;
+  }
+
+  .pm-title {
+    font-size: 19px;
+  }
+
+  .pm-subtitle {
+    font-size: 12.5px;
+  }
+
+  .pm-stats-grid {
+    gap: 10px;
+  }
+
+  .pm-stat-card {
+    padding: 10px 14px;
+  }
+
+  .pm-stat-value {
+    font-size: 20px;
+  }
+
+  .pm-stat-label {
+    font-size: 10px;
+  }
+
+  .pm-stat-desc {
+    font-size: 11px;
+  }
+
+  .pm-diagnostic-modal-content {
+    max-height: min(88vh, 660px);
+  }
+}
+
+/* 14" to 16" Laptop Screen Height Budget (Usable height ~680px - 800px) */
+@media (max-height: 800px) {
+  .pm-diagnostic-modal-content {
+    max-height: min(90vh, 600px);
+  }
+
+  .pm-diagnostic-body {
+    max-height: calc(88vh - 120px);
+    overflow-y: auto;
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .pm-header-bar {

@@ -646,6 +646,36 @@
    RESPONSIVE (shared across all Super Admin pages)
    ========================================================================== */
 
+/* 14" to 16" Standard Monitor Layout (1200px - 1600px desktop viewports) */
+@media (max-width: 1600px) {
+  .page-header {
+    margin-bottom: var(--space-4);
+  }
+
+  .data-table thead th {
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+
+  .data-table tbody td {
+    padding: 11px 14px;
+    font-size: 13px;
+  }
+
+  .card-pad {
+    padding: var(--space-4) var(--space-5);
+  }
+}
+
+/* 14" to 16" Laptop Viewport Height Optimization */
+@media (max-height: 850px) {
+  .modal-content,
+  .dialog-content,
+  .feedback-modal-container {
+    max-height: min(88vh, 650px) !important;
+  }
+}
+
 @media (max-width: 767px) {
   /* Stack the page title above the header actions so buttons + the
      notification bell wrap cleanly instead of overflowing the viewport */

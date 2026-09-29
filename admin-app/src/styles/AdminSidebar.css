@@ -3,7 +3,7 @@
    ========================================================================== */
 
 .admin-sidebar {
-  width: 230px;
+  width: var(--sidebar-width, 230px);
   background-color: #ffffff;
   padding: 20px 0 16px;
   display: flex;

@@ -1741,10 +1741,32 @@
 }
 
 /* ==========================================================================
-   7. RESPONSIVE BREAKPOINTS
+   7. RESPONSIVE BREAKPOINTS — 14" TO 16" MONITOR STANDARD
    ========================================================================== */
 
-@media (max-width: 1200px) {
+/* 14" to 16" Standard Monitor Layout (1200px - 1600px) */
+@media (max-width: 1600px) {
+  .performance-charts-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .chart-box {
+    padding: 16px 20px;
+    gap: 12px;
+  }
+
+  .standing-executive-banner {
+    padding: 14px 18px;
+  }
+
+  .metrics-cards-grid {
+    gap: 10px;
+  }
+}
+
+/* Tablet & Smaller Screens (Below 14" Standard Monitor) */
+@media (max-width: 1023px) {
   .performance-charts-grid {
     grid-template-columns: 1fr;
   }

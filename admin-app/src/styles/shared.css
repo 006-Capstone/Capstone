@@ -491,8 +491,40 @@
 }
 
 /* ==========================================================================
-   GLOBAL RESPONSIVE UTILITIES
+   GLOBAL RESPONSIVE UTILITIES — 14" TO 16" MONITOR STANDARD
    ========================================================================== */
+
+/* 14" to 16" Standard Monitor Layout (1200px - 1600px) */
+@media (max-width: 1600px) {
+  .admin-page-header {
+    margin-bottom: var(--space-4);
+  }
+
+  .admin-page-title {
+    font-size: 22px;
+  }
+
+  .admin-data-table th {
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+
+  .admin-data-table td {
+    padding: 11px 14px;
+    font-size: 13px;
+  }
+}
+
+/* 14" to 16" Laptop Screen Height Budget (Usable height ~680px - 800px) */
+@media (max-height: 850px) {
+  .modal-content,
+  .etc-modal,
+  .ticket-details-modal,
+  .efficiency-warning-modal,
+  .nearing-modal-dialog {
+    max-height: min(88vh, 650px) !important;
+  }
+}
 
 @media (max-width: 768px) {
   :root {

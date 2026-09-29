@@ -204,6 +204,28 @@
   --content-padding: var(--space-6) var(--space-8);
 }
 
+/* ==========================================================================
+   14" TO 16" STANDARD MONITOR TOKENS (1200px - 1600px desktop viewports)
+   ========================================================================== */
+@media (max-width: 1600px) {
+  :root {
+    --sidebar-width: 220px;
+    --header-height: 58px;
+    --content-padding: 16px 22px;
+    --font-size-base: 13.5px;
+    --font-size-2xl: 22px;
+    --font-size-3xl: 25px;
+    --font-size-4xl: 30px;
+  }
+}
+
+@media (max-width: 1366px) {
+  :root {
+    --sidebar-width: 215px;
+    --content-padding: 14px 18px;
+  }
+}
+
 :root {
   --red-100: #fee2e2;
   --red-400: #f87171;

@@ -182,6 +182,38 @@
 }
 
 /* ==========================================================================
+   STANDARD 14"–16" MONITOR OPTIMIZATIONS (1280px - 1600px, restricted height)
+   ========================================================================== */
+@media (max-width: 1600px) {
+  :root {
+    --sidebar-width: 240px;
+    --header-height: 62px;
+    --content-padding: 16px 22px;
+    --font-size-base: 13.5px;
+    --font-size-sm: 12.5px;
+    --font-size-2xl: 23px;
+  }
+}
+
+@media (max-width: 1366px) {
+  :root {
+    --sidebar-width: 224px;
+    --header-height: 58px;
+    --content-padding: 14px 18px;
+    --font-size-base: 13px;
+    --font-size-sm: 12px;
+    --font-size-2xl: 22px;
+  }
+}
+
+@media (max-height: 850px) {
+  :root {
+    --header-height: 58px;
+    --content-padding: 14px 18px;
+  }
+}
+
+/* ==========================================================================
    RESET & BASE
    ========================================================================== */
 

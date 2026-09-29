@@ -7,7 +7,7 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 24px 32px 40px;
+  padding: var(--content-padding, 20px 24px);
   box-sizing: border-box;
   flex: 1;
 }
@@ -1054,10 +1054,52 @@
 }
 
 /* ==========================================================================
-   RESPONSIVE DESIGN
+   RESPONSIVE DESIGN — 14" TO 16" MONITOR STANDARD
    ========================================================================== */
 
-@media (max-width: 1200px) {
+/* 14" to 16" Standard Monitor Layout (1200px - 1600px) */
+@media (max-width: 1600px) {
+  .dashboard-executive-header {
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+
+  .stats-cards {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .superadmin-dashboard-container .stat-card {
+    padding: 10px 14px;
+  }
+
+  .stat-value {
+    font-size: 19px;
+  }
+
+  .stat-icon-container {
+    width: 28px;
+    height: 28px;
+  }
+
+  .dashboard-two-column-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .chart-section,
+  .quick-actions-card {
+    padding: 20px 22px;
+  }
+
+  .department-bar-interactive {
+    padding: 6px 8px;
+  }
+}
+
+/* Tablet & Smaller Screens (Below 14" Standard Monitor) */
+@media (max-width: 1023px) {
   .stats-cards {
     grid-template-columns: repeat(2, 1fr);
   }

@@ -29,7 +29,7 @@
   border-radius: 16px;
   width: 100%;
   max-width: 640px;
-  max-height: min(840px, 94vh);
+  max-height: min(840px, 92vh);
   overflow-y: auto;
   position: relative;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05);
@@ -37,6 +37,13 @@
   animation: admissionsSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   scrollbar-width: thin;
   scrollbar-color: #8cb986 #f1f5f2;
+}
+
+@media (max-height: 850px) {
+  .admissions-modal-card {
+    max-height: min(88vh, 640px);
+    padding: 20px 22px;
+  }
 }
 
 @keyframes admissionsSlideUp {

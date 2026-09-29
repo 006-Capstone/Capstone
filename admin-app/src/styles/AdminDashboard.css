@@ -1528,8 +1528,28 @@
 }
 
 /* ==========================================================================
-   RESPONSIVE
+   RESPONSIVE — 14" TO 16" MONITOR STANDARD
    ========================================================================== */
+
+/* 14" to 16" Standard Monitor Layout (1200px - 1600px) */
+@media (max-width: 1600px) {
+  .dashboard-header {
+    gap: var(--space-3);
+  }
+
+  .admin-dashboard-container .stats-cards {
+    grid-template-columns: minmax(220px, 1fr) minmax(300px, 1.85fr);
+    gap: 10px;
+  }
+
+  .admin-dashboard-container .stat-card.stat-total {
+    padding: 10px 14px;
+  }
+
+  .stat-total-number {
+    font-size: 26px;
+  }
+}
 
 @media (max-width: 900px) {
   .admin-dashboard-container .stats-cards {

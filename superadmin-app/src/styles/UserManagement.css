@@ -1014,8 +1014,35 @@ select.form-input-super option:disabled {
 }
 
 /* ==========================================================================
-   RESPONSIVE
+   RESPONSIVE — 14" TO 16" MONITOR STANDARD
    ========================================================================== */
+
+/* 14" to 16" Standard Monitor Layout (1200px - 1600px) */
+@media (max-width: 1600px) {
+  .user-management-title {
+    font-size: 22px;
+  }
+
+  .user-filters-row {
+    margin-bottom: var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .data-table thead th {
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+
+  .data-table tbody td {
+    padding: 11px 14px;
+    font-size: 13px;
+  }
+
+  .modal-content.create-account-modal {
+    max-height: min(88vh, 650px);
+    padding: 20px 24px;
+  }
+}
 
 @media (max-width: 1023px) {
   .students-list-section {
