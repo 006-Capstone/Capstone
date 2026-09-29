@@ -719,9 +719,151 @@ Provide a professional, empathetic assessment focusing on whether they need supp
   }
 };
 
+/**
+ * Analyze staff 4-week monthly performance trajectory using AI.
+ * Emphasizes pattern recognition, volume spike vs. chronic distinction,
+ * next-month predictive forecasting, and Option B warning evaluation.
+ *
+ * @param {object} monthlyData - 4-week monthly breakdown from calculateStaffMonthlyBehavior
+ * @returns {Promise<object>} - AI-enhanced behavioral analysis and prediction
+ */
+export const analyzeMonthlyStaffBehaviorWithAI = async (monthlyData) => {
+  if (!monthlyData) return null;
+
+  const { staff, month, weeklyBreakdown, totals, trajectory, archetype, warningEvaluation, nextMonthPrediction } = monthlyData;
+
+  const weeklySummaryText = weeklyBreakdown.map(w => 
+    `• ${w.label}: Assigned=${w.assigned}, Resolved=${w.resolved}, Rollovers=${w.rollover}, Clearance=${w.clearanceRate}%, AvgResolution=${w.avgResolutionHours}h, PickupLatency=${w.avgPickupLatencyHours}h, UnresolvedEnd=${w.unresolvedAtEnd}`
+  ).join('\n');
+
+  const prompt = `You are an institutional performance and behavioral analyst for Academia de San Jose.
+Evaluate this staff member's 4-week performance pattern across ${month.name}.
+Do NOT recommend immediate operational tasks (e.g., do NOT tell the admin to "reassign tickets" or "nudge staff").
+Focus on understanding their monthly working style, diagnosing multi-week rhythms, predicting next month's risk, and assessing Option B administrative warning standing.
+
+Staff: ${staff.name} (${staff.department} Office)
+Month: ${month.name}
+Total Assigned: ${totals.totalAssigned} | Total Resolved: ${totals.totalResolved} | Overall Clearance: ${totals.overallClearanceRate}% | Net Rollover to Next Month: ${totals.netRolloverNextMonth}
+
+Weekly Breakdown:
+${weeklySummaryText}
+
+Context:
+- Volume Spikes Detected: ${trajectory.hasVolumeSpikes ? 'Yes' : 'No'}
+- Clearance Degrading Across Consecutive Weeks: ${trajectory.isDecliningClearance ? 'Yes' : 'No'}
+- Chronic Rollover Accumulation: ${trajectory.isChronicRollover ? 'Yes' : 'No'}
+
+Warning Tiers Available:
+- "good": Good Standing (healthy clearance, or recovery from volume spikes)
+- "warning_1_nte": 1st Warning: Notice to Explain (NTE) (emerging multi-week latency/delays requiring explanation)
+- "warning_2_verbal": 2nd Warning: Verbal Reprimand (sustained backlog accumulation under standard volume)
+- "warning_3_suspension": 3rd Warning: Notice of Suspension (severe chronic rollover compounding across 4 weeks)
+- "warning_4_termination": 4th Warning: Notice for Termination (critical operational breakdown/abandonment with minimal resolution)
+
+Respond with valid JSON matching this exact structure:
+{
+  "archetype": "Steady Pacer | Front-Loader / Late Fatigue | End-of-Month Backlogger | High-Volume Shock Absorber | Chronic Bottleneck",
+  "archetypeDescription": "1-2 sentence description of their pacing behavior across the 4 weeks",
+  "patternDiagnosis": "Detailed 2-3 sentence analysis of how their work evolved from Week 1 to Week 4, citing specific weekly metrics",
+  "spikeVsChronic": "Objective assessment of whether slowdowns were driven by external volume spikes or chronic delay",
+  "nextMonthPrediction": {
+    "capacityThresholdWeekly": ${nextMonthPrediction.safeWeeklyCapacity},
+    "projectedRisk": "${nextMonthPrediction.projectedRisk}",
+    "predictedBottleneck": "Specific prediction for next month based on 4-week pattern"
+  },
+  "warningEvaluation": {
+    "status": "${warningEvaluation.status}",
+    "statusLabel": "${warningEvaluation.statusLabel}",
+    "shortLabel": "${warningEvaluation.shortLabel}",
+    "reasoning": "Evidence-based justification for this status based on the full 4 weeks"
+  }
+}`;
+
+  const messages = [
+    {
+      role: 'system',
+      content: 'You are an objective institutional performance and behavioral analyst. Return valid JSON only.'
+    },
+    {
+      role: 'user',
+      content: prompt
+    }
+  ];
+
+  try {
+    const rawResponse = await callGroqAPI(messages);
+    if (rawResponse) {
+      const cleaned = rawResponse.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '').trim();
+      const parsed = JSON.parse(cleaned);
+      if (parsed && parsed.patternDiagnosis) {
+        const s = parsed.warningEvaluation?.status || warningEvaluation.status;
+        let statusColor = '#16a34a';
+        let defaultLabel = 'Good Standing';
+        let defaultShortLabel = 'Good Standing';
+
+        if (s === 'warning_4_termination') {
+          statusColor = '#991b1b';
+          defaultLabel = '4th Warning: Notice for Termination';
+          defaultShortLabel = '4th Warning: Termination';
+        } else if (s === 'warning_3_suspension') {
+          statusColor = '#dc2626';
+          defaultLabel = '3rd Warning: Notice of Suspension';
+          defaultShortLabel = '3rd Warning: Suspension';
+        } else if (s === 'warning_2_verbal') {
+          statusColor = '#ea580c';
+          defaultLabel = '2nd Warning: Verbal Reprimand';
+          defaultShortLabel = '2nd Warning: Verbal Reprimand';
+        } else if (s === 'warning_1_nte') {
+          statusColor = '#d97706';
+          defaultLabel = '1st Warning: Notice to Explain (NTE)';
+          defaultShortLabel = '1st Warning: NTE';
+        }
+
+        return {
+          ...monthlyData,
+          archetype: {
+            title: parsed.archetype || archetype.title,
+            tag: archetype.tag,
+            description: parsed.archetypeDescription || archetype.description
+          },
+          aiPatternDiagnosis: parsed.patternDiagnosis,
+          aiSpikeVsChronic: parsed.spikeVsChronic || 'Evaluated across weekly volume shifts.',
+          nextMonthPrediction: {
+            safeWeeklyCapacity: parsed.nextMonthPrediction?.capacityThresholdWeekly ?? nextMonthPrediction.safeWeeklyCapacity,
+            projectedRisk: parsed.nextMonthPrediction?.projectedRisk || nextMonthPrediction.projectedRisk,
+            predictedBottleneck: parsed.nextMonthPrediction?.predictedBottleneck || nextMonthPrediction.predictedBottleneck
+          },
+          warningEvaluation: {
+            status: s,
+            statusLabel: parsed.warningEvaluation?.statusLabel || defaultLabel,
+            shortLabel: parsed.warningEvaluation?.shortLabel || defaultShortLabel,
+            color: statusColor,
+            reasoning: parsed.warningEvaluation?.reasoning || warningEvaluation.reasoning
+          },
+          isAIEnhanced: true
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[AI Behavioral Analysis] Groq API call fell back to deterministic analytical engine:', err?.message);
+  }
+
+  // Graceful deterministic fallback
+  return {
+    ...monthlyData,
+    aiPatternDiagnosis: `${staff.name} completed ${totals.totalResolved} of ${totals.totalAssigned} assigned requests in ${month.name} (${totals.overallClearanceRate}% clearance). Weekly progression shows ${weeklyBreakdown[0].clearanceRate}% clearance in Week 1, shifting to ${weeklyBreakdown[3].clearanceRate}% by Week 4 with an average resolution speed of ${totals.avgMonthlyResolutionHours} hours.`,
+    aiSpikeVsChronic: trajectory.hasVolumeSpikes 
+      ? 'Delays during the month corresponded with temporary high-volume intake surges rather than chronic inactivity.' 
+      : (trajectory.isChronicRollover ? 'Backlog accumulation was chronic across consecutive weeks without external volume surges.' : 'Workload and intake remained balanced without chronic bottlenecking.'),
+    isAIEnhanced: false
+  };
+};
+
 export default {
   generateExecutiveSummary,
   detectAnomalies,
   generateSmartRecommendations,
-  generateStaffInsight
+  generateStaffInsight,
+  analyzeMonthlyStaffBehaviorWithAI
 };
+
