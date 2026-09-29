@@ -63,83 +63,68 @@ const getEtcDeadline = (val) => {
   return d;
 };
 
-// Helper for performance grade tiers and badge classes
-const getGradeInfo = (score) => {
-  if (score >= 90) {
+// Helper for clearance tier info and badge classes matching Superadmin Performance Monitor
+const getClearanceInfo = (rate) => {
+  if (rate >= 90) {
     return {
-      grade: 'Grade A+',
-      label: 'Outstanding',
+      tier: 'Outstanding',
+      label: 'Outstanding Throughput',
       className: 'grade-badge--a-plus'
     };
   }
-  if (score >= 80) {
+  if (rate >= 80) {
     return {
-      grade: 'Grade A',
-      label: 'Commendable',
+      tier: 'Good Standing',
+      label: 'Target Standard',
       className: 'grade-badge--a'
     };
   }
-  if (score >= 70) {
+  if (rate >= 60) {
     return {
-      grade: 'Grade B',
-      label: 'Satisfactory',
-      className: 'grade-badge--b'
-    };
-  }
-  if (score >= 60) {
-    return {
-      grade: 'Grade C',
-      label: 'Acceptable',
+      tier: 'Needs Focus',
+      label: 'Review Advisory',
       className: 'grade-badge--c'
     };
   }
   return {
-    grade: 'Needs Focus',
-    label: 'Needs Attention',
+    tier: 'Warning Review',
+    label: 'Under Warning Review',
     className: 'grade-badge--needs-focus'
   };
 };
 
-export const GRADED_TIERS = [
+export const CLEARANCE_TIERS = [
   {
-    grade: 'Grade A+',
-    scoreRange: '90 – 100',
+    tier: 'Outstanding',
+    range: '90% – 100%',
     minScore: 90,
-    label: 'Outstanding Performance',
+    label: 'Outstanding Throughput',
     badgeClass: 'grade-badge--a-plus',
-    summary: 'Exceptional turnaround speed with prompt SLA adherence, healthy queue balance, and zero overdue tickets.'
+    summary: 'Exceptional clearance rate with minimal backlogs and healthy intake vs. resolution balance.'
   },
   {
-    grade: 'Grade A',
-    scoreRange: '80 – 89',
+    tier: 'Good Standing',
+    range: '80% – 89%',
     minScore: 80,
-    label: 'Commendable Delivery',
+    label: 'Target Institutional Standard',
     badgeClass: 'grade-badge--a',
-    summary: 'Consistently high on-time rate, reliable workload handling, and strong compliance with completion targets.'
+    summary: 'Strong resolution pace maintaining institutional expectations and preventing ticket accumulation.'
   },
   {
-    grade: 'Grade B',
-    scoreRange: '70 – 79',
-    minScore: 70,
-    label: 'Satisfactory Standing',
-    badgeClass: 'grade-badge--b',
-    summary: 'Stable queue processing pace meeting standard institutional requirements, with minor turnaround variances.'
-  },
-  {
-    grade: 'Grade C',
-    scoreRange: '60 – 69',
+    tier: 'Needs Focus',
+    range: '60% – 79%',
     minScore: 60,
-    label: 'Acceptable / Advisory',
+    label: 'Formal Review Advisory',
     badgeClass: 'grade-badge--c',
-    summary: 'Service turnaround is nearing threshold limits. Prompt attention recommended to prevent overdue requests.'
+    summary: 'Workload resolution pace is slowing down. Prompt queue attention is required to avoid monthly rollovers.'
   },
   {
-    grade: 'Needs Focus',
-    scoreRange: 'Below 60',
+    tier: 'Warning Review',
+    range: 'Below 60%',
     minScore: 0,
-    label: 'Needs Priority Attention',
+    label: 'Warning Review / NTE Risk',
     badgeClass: 'grade-badge--needs-focus',
-    summary: 'Performance index requires immediate focus. Prioritize clearing overdue backlog and pending active tickets.'
+    summary: 'Clearance rate is below acceptable threshold. Unresolved bottlenecks trigger progressive administrative review (NTE).'
   }
 ];
 
@@ -411,13 +396,19 @@ const MyPerformance = ({ userData }) => {
       };
     }
 
+    const totalHandled = myFilteredTickets.length;
+    const clearanceRate = totalHandled > 0
+      ? Math.round((resolvedCount / totalHandled) * 100)
+      : 100;
+
     return {
       activeCount,
       overdueCount,
       dueTodayCount,
       resolvedCount,
       allTimeResolved,
-      totalHandled: myFilteredTickets.length,
+      totalHandled,
+      clearanceRate,
       allTimeTotal: myAllTickets.length,
       onTimeRate,
       avgTurnaroundDisplay,
@@ -527,8 +518,8 @@ const MyPerformance = ({ userData }) => {
     
     // Performance Summary Section
     csv += 'PERFORMANCE SUMMARY\n';
-    csv += `Efficiency Score,${metrics.performanceScore}/100\n`;
-    csv += `Performance Grade,${getGradeInfo(metrics.performanceScore).grade}\n`;
+    csv += `Monthly Clearance Rate,${metrics.clearanceRate}%\n`;
+    csv += `Clearance Standing,${getClearanceInfo(metrics.clearanceRate).tier}\n`;
     csv += `Standing,${metrics.standing.label}\n`;
     csv += `Active Requests,${metrics.activeCount}\n`;
     csv += `Overdue Requests,${metrics.overdueCount}\n`;
@@ -734,7 +725,7 @@ const MyPerformance = ({ userData }) => {
 
       {/* High-Level Metric Cards Grid */}
       <section className="metrics-cards-grid">
-        {/* 1. Performance Efficiency Score Card */}
+        {/* 1. Monthly Clearance Rate Card */}
         <div 
           className="perf-card perf-card--gauge"
           ref={tierContainerRef}
@@ -749,8 +740,8 @@ const MyPerformance = ({ userData }) => {
               role="button"
               aria-expanded={showTierPopover || isHoveringTier}
               aria-haspopup="dialog"
-              aria-label="Efficiency Score. Click or hover to view Graded Tiers breakdown."
-              title="Click or hover to view Graded Tiers breakdown"
+              aria-label="Monthly Clearance Rate. Click or hover to view clearance standards."
+              title="Click or hover to view clearance standards"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -758,15 +749,15 @@ const MyPerformance = ({ userData }) => {
                 }
               }}
             >
-              <span className="metric-micro-label">EFFICIENCY SCORE</span>
+              <span className="metric-micro-label">MONTHLY CLEARANCE RATE</span>
               <FaInfoCircle className="tier-info-icon" aria-hidden="true" />
             </div>
 
             {(() => {
-              const grade = getGradeInfo(metrics.performanceScore);
+              const tierInfo = getClearanceInfo(metrics.clearanceRate);
               return (
                 <span 
-                  className={`score-grade-badge ${grade.className} score-grade-badge--interactive`}
+                  className={`score-grade-badge ${tierInfo.className} score-grade-badge--interactive`}
                   onClick={handleToggleTierPopover}
                   onMouseEnter={handleMouseEnterTier}
                   onMouseLeave={handleMouseLeaveTier}
@@ -774,8 +765,8 @@ const MyPerformance = ({ userData }) => {
                   role="button"
                   aria-expanded={showTierPopover || isHoveringTier}
                   aria-haspopup="dialog"
-                  aria-label={`Current Grade: ${grade.grade}. Click or hover to view Graded Tiers.`}
-                  title="Click or hover to view Graded Tiers breakdown"
+                  aria-label={`Current Standing: ${tierInfo.tier}. Click or hover to view clearance standards.`}
+                  title="Click or hover to view clearance standards"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
@@ -784,18 +775,18 @@ const MyPerformance = ({ userData }) => {
                   }}
                 >
                   <span className="grade-badge-dot" aria-hidden="true" />
-                  {grade.grade}
+                  {tierInfo.tier}
                 </span>
               );
             })()}
           </div>
 
-          {/* Graded Tiers Hover/Click Popover */}
+          {/* Clearance Standards Hover/Click Popover */}
           {(showTierPopover || isHoveringTier) && (
             <div 
               className="graded-tiers-popover"
               role="dialog"
-              aria-label="Graded Tiers & Score Breakdown"
+              aria-label="Institutional Clearance Standards"
               onMouseEnter={handleMouseEnterTier}
               onMouseLeave={handleMouseLeaveTier}
             >
@@ -805,8 +796,8 @@ const MyPerformance = ({ userData }) => {
                     <FaTrophy />
                   </span>
                   <div>
-                    <h4 className="tiers-popover-title">Efficiency Score Tiers</h4>
-                    <span className="tiers-popover-subtitle">Grading scale & performance standards</span>
+                    <h4 className="tiers-popover-title">Clearance Standards</h4>
+                    <span className="tiers-popover-subtitle">Superadmin evaluation benchmarks</span>
                   </div>
                 </div>
                 <button
@@ -816,40 +807,40 @@ const MyPerformance = ({ userData }) => {
                     setShowTierPopover(false);
                     setIsHoveringTier(false);
                   }}
-                  aria-label="Close graded tiers guide"
+                  aria-label="Close clearance standards guide"
                 >
                   <FaTimes />
                 </button>
               </div>
 
               <p className="tiers-popover-intro">
-                Your score (0–100) measures SLA promptness, active queue health, anti-hoarding limits, and resolution volume:
+                Your Clearance Rate measures the proportion of assigned requests successfully resolved within the evaluation cycle:
               </p>
 
               <div className="tiers-popover-list">
-                {GRADED_TIERS.map(tier => {
-                  const isCurrent = getGradeInfo(metrics.performanceScore).grade === tier.grade;
+                {CLEARANCE_TIERS.map(tierItem => {
+                  const isCurrent = getClearanceInfo(metrics.clearanceRate).tier === tierItem.tier;
                   return (
                     <div 
-                      key={tier.grade} 
+                      key={tierItem.tier} 
                       className={`tier-popover-item ${isCurrent ? 'tier-current' : ''}`}
                     >
                       <div className="tier-item-top">
                         <div className="tier-item-badge-wrap">
-                          <span className={`score-grade-badge ${tier.badgeClass}`}>
+                          <span className={`score-grade-badge ${tierItem.badgeClass}`}>
                             <span className="grade-badge-dot" aria-hidden="true" />
-                            {tier.grade}
+                            {tierItem.tier}
                           </span>
-                          <span className="tier-range-pill">{tier.scoreRange}</span>
+                          <span className="tier-range-pill">{tierItem.range}</span>
                         </div>
                         <div className="tier-item-label-wrap">
-                          <span className="tier-item-name">{tier.label}</span>
+                          <span className="tier-item-name">{tierItem.label}</span>
                           {isCurrent && (
                             <span className="tier-current-tag">Current Standing</span>
                           )}
                         </div>
                       </div>
-                      <p className="tier-item-desc">{tier.summary}</p>
+                      <p className="tier-item-desc">{tierItem.summary}</p>
                     </div>
                   );
                 })}
@@ -857,13 +848,13 @@ const MyPerformance = ({ userData }) => {
 
               <div className="tiers-popover-footer">
                 <FaInfoCircle className="tiers-footer-icon" />
-                <span>Hover or click anywhere outside to close. Target institutional standard is <strong>Grade A (80+)</strong>.</span>
+                <span>Target institutional standard is <strong>Good Standing (≥80%)</strong>. Clearance below 60% triggers formal warning reviews.</span>
               </div>
             </div>
           )}
           <div className="gauge-body">
             <div className="gauge-ring-wrap">
-              <svg viewBox="0 0 100 100" className="gauge-svg" aria-label={`Score: ${metrics.performanceScore} percent`}>
+              <svg viewBox="0 0 100 100" className="gauge-svg" aria-label={`Clearance Rate: ${metrics.clearanceRate} percent`}>
                 <circle
                   className="gauge-bg-circle"
                   cx="50"
@@ -875,25 +866,25 @@ const MyPerformance = ({ userData }) => {
                   cx="50"
                   cy="50"
                   r="42"
-                  strokeDasharray={`${(metrics.performanceScore / 100) * 263.89} 263.89`}
+                  strokeDasharray={`${(metrics.clearanceRate / 100) * 263.89} 263.89`}
                   style={{
-                    stroke: metrics.performanceScore >= 80 
+                    stroke: metrics.clearanceRate >= 80 
                       ? 'var(--green-700)' 
-                      : metrics.performanceScore >= 60 
+                      : metrics.clearanceRate >= 60 
                       ? 'var(--color-warning)' 
                       : 'var(--color-danger)'
                   }}
                 />
               </svg>
               <div className="gauge-center-text">
-                <span className="gauge-number">{metrics.performanceScore}</span>
-                <span className="gauge-unit">/ 100</span>
+                <span className="gauge-number">{metrics.clearanceRate}%</span>
+                <span className="gauge-unit">Clearance</span>
               </div>
             </div>
             <div className="gauge-text-side">
-              <span className="gauge-status-title">Service Index</span>
+              <span className="gauge-status-title">Monthly Clearance</span>
               <p className="gauge-status-sub">
-                Based on prompt resolution, SLA timeline compliance, and workload balance.
+                {metrics.resolvedCount} of {metrics.totalHandled} assigned requests resolved in this period.
               </p>
             </div>
           </div>
@@ -943,26 +934,7 @@ const MyPerformance = ({ userData }) => {
           </div>
         </div>
 
-        {/* 4. On-Time Resolution Rate */}
-        <div className="perf-card perf-card--ontime">
-          <div className="perf-card-top">
-            <span className="metric-micro-label">ON-TIME SLA RATE</span>
-            <div className="perf-card-icon-wrap target-tint">
-              <FaTrophy className="perf-icon target-color" />
-            </div>
-          </div>
-          <div className="perf-card-middle">
-            <span className="metric-large-number">{metrics.onTimeRate}%</span>
-            <span className="metric-context-chip">Target: 90%</span>
-          </div>
-          <div className="perf-card-bottom">
-            <span className="subtext-muted">
-              {metrics.onTimeRate >= 90 ? '✓ Exceeding standard SLA' : 'Aim to complete before ETC'}
-            </span>
-          </div>
-        </div>
-
-        {/* 5. Average Turnaround Time */}
+        {/* 4. Average Turnaround Time */}
         <div className="perf-card perf-card--turnaround">
           <div className="perf-card-top">
             <span className="metric-micro-label">AVG. TURNAROUND</span>
