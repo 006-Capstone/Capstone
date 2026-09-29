@@ -892,7 +892,7 @@ const GuestLogin = () => {
 
                 <div className="form-group-guest">
                   <label className="form-label-guest" htmlFor="authProofUpload">
-                    Authorization / Identification Proof <span className="required-badge">Required</span>
+                    Authorization / Identification Proof <span className="required-star">*</span>
                   </label>
                   <div
                     className={`upload-box-auth ${authFile ? 'has-file' : ''}`}
@@ -907,6 +907,7 @@ const GuestLogin = () => {
                       }
                     }}
                   >
+                    {!authFile && <span className="required-badge">Required</span>}
                     {authFile ? (
                       <div className="guest-attached-file">
                         <FaFileAlt className="guest-file-icon" />
