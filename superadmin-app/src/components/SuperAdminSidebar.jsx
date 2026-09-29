@@ -53,7 +53,20 @@ const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, on
           <FaTimes aria-hidden="true" />
         </button>
 
-        <div className="sidebar-logo">
+        <div 
+          className="sidebar-logo clickable"
+          onClick={() => handleNavigate('dashboard')}
+          role="button"
+          tabIndex={0}
+          title="Return to Dashboard"
+          aria-label="Academia De San Jose - Return to Dashboard"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleNavigate('dashboard');
+            }
+          }}
+        >
           <div className="sidebar-logo-img-wrap">
             <img src="/school-logo.jpg" alt="Academia De San Jose school logo" />
           </div>

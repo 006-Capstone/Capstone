@@ -81,7 +81,20 @@ const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile, isOpe
         </button>
 
         {/* School crest and institution branding at the top */}
-        <div className="sidebar-logo">
+        <div 
+          className="sidebar-logo clickable"
+          onClick={() => handleItemClick('dashboard')}
+          role="button"
+          tabIndex={0}
+          title="Return to Dashboard"
+          aria-label="Academia De San Jose - Return to Dashboard"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleItemClick('dashboard');
+            }
+          }}
+        >
           <div className="sidebar-logo-crest">
             <img
               src="/school-logo.jpg"

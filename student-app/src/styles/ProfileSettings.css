@@ -312,12 +312,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   padding: 20px 0;
   border-bottom: 1px solid var(--gray-300);
 }
 
 .security-item:last-child {
   border-bottom: none;
+}
+
+.security-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .security-info h4 {
@@ -331,6 +337,7 @@
   margin: 0;
   font-size: 13px;
   color: #777;
+  line-height: 1.4;
 }
 
 .change-password-btn {
@@ -343,6 +350,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .change-password-btn:hover {
@@ -358,6 +366,10 @@
   display: inline-block;
   width: 54px;
   height: 28px;
+  flex-shrink: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .settings-toggle input {
@@ -723,6 +735,32 @@
   .profile-modal {
     width: 95%;
     padding: 16px;
+  }
+
+  .security-item {
+    gap: 12px;
+    padding: 14px 0;
+    align-items: flex-start;
+  }
+
+  .security-info h4 {
+    font-size: 14.5px;
+    margin-bottom: 3px;
+  }
+
+  .security-info p {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .change-password-btn {
+    padding: 8px 14px;
+    font-size: 12.5px;
+    margin-top: 2px;
+  }
+
+  .settings-toggle {
+    margin-top: 2px;
   }
 }
 

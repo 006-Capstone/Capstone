@@ -58,10 +58,16 @@ function Header({ onMenuToggle, isSidebarOpen = false, onViewRequest, onNavigate
           >
             <FaBars aria-hidden="true" />
           </button>
-          {/* Branding — always visible (Figma: brand lives in the header top-left) */}
-          <div className="header-branding">
+          {/* Branding — clickable to return to dashboard */}
+          <button
+            type="button"
+            className="header-branding-btn"
+            onClick={() => onNavigate && onNavigate('dashboard')}
+            title="Return to Dashboard"
+            aria-label="Academia De San Jose - Return to Dashboard"
+          >
             <Brand />
-          </div>
+          </button>
         </div>
 
         <div className="header-right">
