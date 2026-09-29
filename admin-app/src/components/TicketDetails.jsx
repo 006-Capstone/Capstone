@@ -155,6 +155,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignNote, setReassignNote] = useState('');
   const [reassignTargetDate, setReassignTargetDate] = useState(() => isoDateFromOffset(2));
+  const [reassignFiles, setReassignFiles] = useState([]);
+  const [isReassigning, setIsReassigning] = useState(false);
+  const reassignFileInputRef = useRef(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const fileInputRef = useRef(null);
@@ -466,6 +469,22 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   const handleRemoveFile = (index) => {
     setReplyFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleReassignFileSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => file.size <= 5 * 1024 * 1024);
+    
+    if (validFiles.length < files.length) {
+      showToast('Some files exceed 5MB limit and were skipped', 'error');
+    }
+    
+    setReassignFiles(prev => [...prev, ...validFiles]);
+    if (reassignFileInputRef.current) reassignFileInputRef.current.value = '';
+  };
+
+  const handleRemoveReassignFile = (index) => {
+    setReassignFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSendReply = async () => {
@@ -973,12 +992,32 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       return;
     }
 
-    if (!reassignNote.trim() || reassignNote.trim().length < 10) {
-      showToast('Please provide a detailed reason (at least 10 characters)', 'error');
+    if (!reassignNote.trim() || reassignNote.trim().length < 2) {
+      showToast('Please provide a detailed reason (at least 2 characters)', 'error');
       return;
     }
 
     try {
+      setIsReassigning(true);
+
+      const attachments = [];
+      for (let file of reassignFiles) {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        attachments.push({
+          name: file.name,
+          data: base64,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date().toISOString()
+        });
+      }
+
       setShowReassignModal(false);
       const newRequestId = generateRequestId(reassignOffice);
       const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
@@ -989,7 +1028,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       if (currentHandler) {
         currentOfficeHistory[ticket.office] = {
           handledBy: currentHandler,
-          handledAt: new Date().toISOString()
+          handledAt: new Date().toISOString(),
+          reassignmentNote: reassignNote.trim(),
+          ...(attachments.length > 0 ? { attachments } : {})
         };
       }
       
@@ -1013,6 +1054,10 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         urgencyLevel: urgencyLevel,
         updatedAt: serverTimestamp()
       };
+
+      if (attachments.length > 0) {
+        updateData.reassignmentAttachments = attachments;
+      }
       
       if (previousHandler && previousHandler.handledBy) {
         updateData.assignedTo = previousHandler.handledBy;
@@ -1026,7 +1071,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nTarget Completion: ${reassignTargetDate} (${daysCount} ${daysCount === 1 ? 'day' : 'days'})\nReason: ${reassignNote.trim()}`,
             sentBy: 'system',
             sentByName: 'System',
-            sentAt: new Date().toISOString()
+            sentAt: new Date().toISOString(),
+            ...(attachments.length > 0 ? { attachments } : {})
           },
           {
             message: `Request automatically assigned to ${previousHandler.handledBy} (previously handled this request in ${reassignOffice})`,
@@ -1046,7 +1092,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nTarget Completion: ${reassignTargetDate} (${daysCount} ${daysCount === 1 ? 'day' : 'days'})\nReason: ${reassignNote.trim()}`,
           sentBy: 'system',
           sentByName: 'System',
-          sentAt: new Date().toISOString()
+          sentAt: new Date().toISOString(),
+          ...(attachments.length > 0 ? { attachments } : {})
         });
       }
       
@@ -1072,18 +1119,22 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       );
       
       setReassignNote('');
+      setReassignFiles([]);
       setReassignTargetDate(isoDateFromOffset(2));
       showToast(`Request reassigned to ${reassignOffice}!`, 'success');
       onNavigate('my-tickets');
     } catch (error) {
       console.error('Error reassigning ticket:', error);
       showToast('Failed to reassign request: ' + error.message, 'error');
+    } finally {
+      setIsReassigning(false);
     }
   };
 
   const cancelReassign = () => {
     setShowReassignModal(false);
     setReassignNote('');
+    setReassignFiles([]);
     setReassignTargetDate(isoDateFromOffset(2));
   };
 
@@ -1394,6 +1445,25 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   <div className="reroute-note">
                     <span className="reroute-note-label">Note from {ticket.reassignedFrom}:</span>
                     <div className="reroute-note-body">{ticket.reassignmentNote}</div>
+                  </div>
+                )}
+                {ticket.reassignmentAttachments && ticket.reassignmentAttachments.length > 0 && (
+                  <div className="reroute-note" style={{ marginTop: '10px' }}>
+                    <span className="reroute-note-label">Attached Files from {ticket.reassignedFrom}:</span>
+                    <div className="submission-attachments-row" style={{ marginTop: '6px' }}>
+                      {ticket.reassignmentAttachments.map((file, idx) => (
+                        <div 
+                          key={idx} 
+                          className="attachment-chip" 
+                          onClick={() => downloadAttachment(file)}
+                          title={`Download ${file.name}`}
+                        >
+                          <FaFileAlt className="att-chip-icon" />
+                          <span className="att-chip-name">{file.name}</span>
+                          <FaDownload className="att-chip-dl" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2092,23 +2162,75 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               />
               <div className="modal-char-counter">
                 {reassignNote.length}/500 characters
-                {reassignNote.length < 10 && reassignNote.length > 0 && (
-                  <span className="warning-text"> (minimum 10 characters)</span>
+                {reassignNote.length < 2 && reassignNote.length > 0 && (
+                  <span className="warning-text"> (minimum 2 characters)</span>
                 )}
               </div>
             </div>
+
+            <div className="modal-field-group">
+              <label className="modal-label">
+                ATTACH FILES FOR REROUTING <span style={{ fontWeight: 'normal', color: '#64748b', textTransform: 'none' }}>(Optional)</span>
+              </label>
+
+              <input
+                ref={reassignFileInputRef}
+                type="file"
+                multiple
+                onChange={handleReassignFileSelect}
+                style={{ display: 'none' }}
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                disabled={isReassigning}
+              />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="btn-attach-action"
+                  onClick={() => reassignFileInputRef.current?.click()}
+                  style={{ alignSelf: 'flex-start' }}
+                  disabled={isReassigning}
+                >
+                  <FaPaperclip className="attach-action-icon" />
+                  <span>Attach Supporting Files</span>
+                </button>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Supported formats: PDF, DOC, DOCX, images, TXT (Max 5MB each)
+                </span>
+              </div>
+
+              {reassignFiles.length > 0 && (
+                <div className="composer-staged-row" style={{ marginTop: '10px' }}>
+                  {reassignFiles.map((file, index) => (
+                    <div key={index} className="staged-file-badge">
+                      <FaPaperclip className="staged-icon" />
+                      <span className="staged-text" title={file.name}>{file.name}</span>
+                      <button 
+                        type="button" 
+                        className="staged-close-btn" 
+                        onClick={() => handleRemoveReassignFile(index)}
+                        title="Remove file"
+                        disabled={isReassigning}
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             
             <div className="modal-btn-row">
-              <button type="button" className="btn-modal-back" onClick={cancelReassign}>
+              <button type="button" className="btn-modal-back" onClick={cancelReassign} disabled={isReassigning}>
                 Cancel
               </button>
               <button 
                 type="button"
                 className="btn-modal-submit btn-submit-green" 
                 onClick={confirmReassign}
-                disabled={reassignNote.trim().length < 10 || !reassignTargetDate}
+                disabled={reassignNote.trim().length < 2 || !reassignTargetDate || isReassigning}
               >
-                Confirm Reassignment
+                {isReassigning ? 'Reassigning...' : 'Confirm Reassignment'}
               </button>
             </div>
           </div>

@@ -67,7 +67,7 @@ const Login = ({ onLogin }) => {
       }
       
       if (!superadminDoc) {
-        setError('Invalid username or password');
+        setError('Error: You have entered incorrect username or password.');
         setLoading(false);
         return;
       }
@@ -106,7 +106,7 @@ const Login = ({ onLogin }) => {
       console.error('[Error] Login error:', error);
       
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setError('Invalid password. Please try again.');
+        setError('Error: You have entered incorrect username or password.');
       } else if (error.code === 'auth/user-not-found') {
         setError('Superadmin account not found.');
       } else if (error.code === 'auth/too-many-requests') {

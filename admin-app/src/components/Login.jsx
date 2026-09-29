@@ -113,7 +113,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
       console.error('[Error] Login error:', error);
       
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setError('Invalid password. Please try again.');
+        setError('Error: You have entered incorrect username or password.');
       } else if (error.code === 'auth/user-not-found') {
         setError('Staff account not found.');
       } else if (error.code === 'auth/too-many-requests') {
