@@ -1,0 +1,38 @@
+# ---------------------------------------------------------------------------
+# Line endings
+#
+# Store LF in the repository and check out LF on every platform. Without this,
+# Windows' core.autocrlf rewrites working-tree files on checkout, which throws
+# "LF will be replaced by CRLF" warnings and creates phantom diffs where only
+# line endings changed.
+#
+# `eol=lf` (rather than plain `text=auto`) is deliberate: text=auto still lets
+# Git pick CRLF for the Windows working tree, so the warnings would persist.
+# ---------------------------------------------------------------------------
+* text=auto eol=lf
+
+# ---------------------------------------------------------------------------
+# Binary assets - never normalize, never diff
+# ---------------------------------------------------------------------------
+*.jpg   binary
+*.jpeg  binary
+*.png   binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+
+# ---------------------------------------------------------------------------
+# Windows-only scripts must keep CRLF to run in cmd.exe / PowerShell
+# ---------------------------------------------------------------------------
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# ---------------------------------------------------------------------------
+# Shell scripts must stay LF
+# ---------------------------------------------------------------------------
+*.sh text eol=lf
