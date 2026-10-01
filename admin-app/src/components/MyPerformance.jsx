@@ -15,15 +15,21 @@ import {
   FaBolt, 
   FaCheck,
   FaInfoCircle,
-  FaDownload
+  FaDownload,
+  FaBrain,
+  FaAward
 } from 'react-icons/fa';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { OverviewCardsSkeleton, AnalyticsChartSkeleton } from './common/Skeleton';
 import Notifications from './Notifications';
+import EfficiencyWarningModal from './EfficiencyWarningModal';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import { calculateEfficiencyMetrics, getStaffTickets } from '../utils/efficiencyHelper';
+import { calculateStaff4WeekStreak } from '../utils/performanceAnalytics';
+import { analyzeMonthlyStaffBehaviorWithAI } from '../utils/groqService';
 import '../styles/MyPerformance.css';
+import '../styles/EfficiencyWarningModal.css';
 
 /* ---------------------------------------------------------------------------
    Date & Timestamp Normalization Helpers
@@ -153,7 +159,7 @@ const formatTime = (date) => {
 const HOARDING_IN_PROGRESS_THRESHOLD = 10;
 const HOARDING_DAILY_LIMIT = 5;
 
-const MyPerformance = ({ userData }) => {
+const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -161,6 +167,11 @@ const MyPerformance = ({ userData }) => {
   const [timeRange, setTimeRange] = useState('all');
 
   const [hoveredBarIndex, setHoveredBarIndex] = useState(null);
+
+  // Performance Standing & Motivate Modal states
+  const [showMotivateModal, setShowMotivateModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [aiStreakData, setAiStreakData] = useState(null);
 
   // Graded Tiers Popover states
   const [showTierPopover, setShowTierPopover] = useState(false);
@@ -253,6 +264,30 @@ const MyPerformance = ({ userData }) => {
   const myAllTickets = useMemo(() => {
     return getStaffTickets(tickets, staffName, staffUid);
   }, [tickets, staffName, staffUid]);
+
+  // Calculate 4-week consistent performance streak (connected to Superadmin Performance Monitor)
+  const streakData = useMemo(() => {
+    if (!staffData || (!staffData.name && !staffData.uid)) return { hasGoodStreak: false, streakWeeks: 0 };
+    return calculateStaff4WeekStreak(staffData, tickets);
+  }, [staffData, tickets]);
+
+  // Request Superadmin AI Behavioral Analysis for streak commendation
+  useEffect(() => {
+    if (!streakData?.hasGoodStreak || aiStreakData) return;
+    let isCancelled = false;
+
+    analyzeMonthlyStaffBehaviorWithAI(streakData.monthlyBehavior, streakData)
+      .then(enhanced => {
+        if (!isCancelled && enhanced) {
+          setAiStreakData(enhanced);
+        }
+      })
+      .catch(err => {
+        console.warn('[MyPerformance] AI streak analysis fallback:', err);
+      });
+
+    return () => { isCancelled = true; };
+  }, [streakData, aiStreakData]);
 
 
   // Filter by selected time period
@@ -686,42 +721,74 @@ const MyPerformance = ({ userData }) => {
         </div>
       </header>
 
-      {/* Standing & Anti-Hoarding Executive Banner */}
-      <section className={`standing-executive-banner banner-${metrics.standing.level}`}>
-        <div className="banner-left">
-          <div className="banner-icon-box">
-            <metrics.standing.icon className="banner-main-icon" />
-          </div>
-          <div className="banner-info">
-            <div className="banner-heading-row">
-              <h3 className="banner-heading">{metrics.standing.label}</h3>
-              <span className="banner-staff-tag">Staff: <strong>{staffName || 'Staff Member'}</strong></span>
-              {metrics.overdueCount > 0 && (
-                <span className="banner-alert-chip">{metrics.overdueCount} Overdue</span>
-              )}
+      {/* Banners Section (Streak Commendation + Executive Standing) */}
+      <div className="performance-banners-stack">
+        {streakData?.hasGoodStreak && (
+          <section className="performance-streak-banner">
+            <div className="streak-banner-left">
+              <div className="streak-badge-icon">
+                <FaAward />
+              </div>
+              <div>
+                <h4 className="streak-banner-title">
+                  <span>4-Week Consistent Performance Milestone: Keep up the good work!</span>
+                  <span className="eff-banner-score-tag">
+                    {streakData.score}% Clearance
+                  </span>
+                </h4>
+                <p className="streak-banner-desc">
+                  Institutional performance monitoring confirms 4 consecutive weeks of verified queue resolution compliance and zero overdue tickets.
+                </p>
+              </div>
             </div>
-            <p className="banner-subtext">{metrics.standing.description}</p>
-          </div>
-        </div>
-
-        <div className="banner-right">
-          <div className="anti-hoard-strip">
-            <span className="anti-hoard-policy" title="Anti-Hoarding Rule: Staff with 10+ requests in progress are limited to accepting 5 requests per day">
-              <span className="policy-dot" />
-              Anti-Hoarding: 10+ in progress → max 5 claims/day
-            </span>
-            <span
-              className={`staff-load-badge ${metrics.isAtClaimLimit ? 'limit-reached' : metrics.isRestrictedByHoarding ? 'warning' : ''}`}
+            <button 
+              type="button" 
+              className="streak-view-btn" 
+              onClick={() => setShowMotivateModal(true)}
             >
-              {metrics.isRestrictedByHoarding ? (
-                <>Accepted Today: <strong>{metrics.acceptedTodayCount}/{HOARDING_DAILY_LIMIT}</strong></>
-              ) : (
-                <>In Progress: <strong>{metrics.activeCount}/{HOARDING_IN_PROGRESS_THRESHOLD}</strong></>
-              )}
-            </span>
+              <FaAward />
+              <span>Review 4-Week Milestone Audit</span>
+            </button>
+          </section>
+        )}
+
+        {/* Standing & Anti-Hoarding Executive Banner */}
+        <section className={`standing-executive-banner banner-${metrics.standing.level}`}>
+          <div className="banner-left">
+            <div className="banner-icon-box">
+              <metrics.standing.icon className="banner-main-icon" />
+            </div>
+            <div className="banner-info">
+              <div className="banner-heading-row">
+                <h3 className="banner-heading">{metrics.standing.label}</h3>
+                <span className="banner-staff-tag">Staff: <strong>{staffName || 'Staff Member'}</strong></span>
+                {metrics.overdueCount > 0 && (
+                  <span className="banner-alert-chip">{metrics.overdueCount} Overdue</span>
+                )}
+              </div>
+              <p className="banner-subtext">{metrics.standing.description}</p>
+            </div>
           </div>
-        </div>
-      </section>
+
+          <div className="banner-right">
+            <div className="anti-hoard-strip">
+              <span className="anti-hoard-policy" title="Anti-Hoarding Rule: Staff with 10+ requests in progress are limited to accepting 5 requests per day">
+                <span className="policy-dot" />
+                Anti-Hoarding: 10+ in progress → max 5 claims/day
+              </span>
+              <span
+                className={`staff-load-badge ${metrics.isAtClaimLimit ? 'limit-reached' : metrics.isRestrictedByHoarding ? 'warning' : ''}`}
+              >
+                {metrics.isRestrictedByHoarding ? (
+                  <>Accepted Today: <strong>{metrics.acceptedTodayCount}/{HOARDING_DAILY_LIMIT}</strong></>
+                ) : (
+                  <>In Progress: <strong>{metrics.activeCount}/{HOARDING_IN_PROGRESS_THRESHOLD}</strong></>
+                )}
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
 
       {/* High-Level Metric Cards Grid */}
       <section className="metrics-cards-grid">
@@ -859,14 +926,14 @@ const MyPerformance = ({ userData }) => {
                   className="gauge-bg-circle"
                   cx="50"
                   cy="50"
-                  r="42"
+                  r="41"
                 />
                 <circle
                   className="gauge-val-circle"
                   cx="50"
                   cy="50"
-                  r="42"
-                  strokeDasharray={`${(metrics.clearanceRate / 100) * 263.89} 263.89`}
+                  r="41"
+                  strokeDasharray={`${(metrics.clearanceRate / 100) * 257.61} 257.61`}
                   style={{
                     stroke: metrics.clearanceRate >= 80 
                       ? 'var(--green-700)' 
@@ -877,8 +944,10 @@ const MyPerformance = ({ userData }) => {
                 />
               </svg>
               <div className="gauge-center-text">
-                <span className="gauge-number">{metrics.clearanceRate}%</span>
-                <span className="gauge-unit">Clearance</span>
+                <span className="gauge-number">
+                  {metrics.clearanceRate}
+                  <span className="gauge-percent-sign">%</span>
+                </span>
               </div>
             </div>
             <div className="gauge-text-side">
@@ -1135,8 +1204,34 @@ const MyPerformance = ({ userData }) => {
         <Notifications
           isOpen={showNotifications}
           onClose={() => setShowNotifications(false)}
+          onViewRequest={onViewRequest}
+          onNavigate={onNavigate}
+          onOpenEfficiencyWarning={() => setShowWarningModal(true)}
+          onOpenEfficiencyMotivate={() => setShowMotivateModal(true)}
         />
       )}
+
+      {/* Modal: 4-Week Consistent Performance Streak Motivation ("Keep up the good work!") */}
+      <EfficiencyWarningModal
+        isOpen={showMotivateModal}
+        onClose={() => setShowMotivateModal(false)}
+        metrics={{ ...metrics, hasGoodStreak: true, score: streakData?.score ?? metrics.clearanceRate }}
+        department={staffOffice}
+        onNavigate={onNavigate}
+        mode="motivate"
+        streakData={aiStreakData || streakData}
+        monthlyBehavior={streakData?.monthlyBehavior}
+      />
+
+      {/* Modal: Performance Standing Advisory / NTE Warning */}
+      <EfficiencyWarningModal
+        isOpen={showWarningModal}
+        onClose={() => setShowWarningModal(false)}
+        metrics={{ ...metrics, isWarning: true, score: metrics.performanceScore }}
+        department={staffOffice}
+        onNavigate={onNavigate}
+        mode="warning"
+      />
     </div>
   );
 };

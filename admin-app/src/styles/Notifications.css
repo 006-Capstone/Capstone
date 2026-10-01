@@ -309,6 +309,13 @@
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
 }
 
+.notif-type-icon.type-efficiency-motivate {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #6ee7b7;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
 .notification-item.eff-warning-item {
   background-color: #fffaf9;
 }
@@ -336,12 +343,50 @@
   box-shadow: 0 0 0 2px #fee2e2;
 }
 
+.notification-item.eff-motivate-item {
+  background-color: #f7fdf9;
+}
+
+.notification-item.eff-motivate-item:hover {
+  background-color: #ecfdf5;
+}
+
+.notification-item.eff-motivate-item.unread {
+  background-color: #f0fdf4;
+}
+
+.notification-item.eff-motivate-item.unread::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3.5px;
+  background-color: #105e06;
+}
+
+.notification-item.eff-motivate-item .notification-unread-dot {
+  background-color: #105e06;
+  box-shadow: 0 0 0 2px #dcfce7;
+}
+
 .notif-warning-chip {
   font-size: 11px;
   font-weight: 700;
   color: #b91c1c;
   background: #fee2e2;
   border: 1px solid #fca5a5;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.notif-motivate-chip {
+  font-size: 11px;
+  font-weight: 700;
+  color: #105e06;
+  background: #edf9ea;
+  border: 1px solid #c7ecc0;
   padding: 1px 6px;
   border-radius: 4px;
   white-space: nowrap;

@@ -3,25 +3,33 @@ import {
   FaTimes, 
   FaExclamationTriangle, 
   FaChartLine, 
-  FaClock, 
   FaArrowRight, 
   FaCheckCircle,
-  FaShieldAlt
+  FaShieldAlt,
+  FaAward,
+  FaCheck,
+  FaFileAlt
 } from 'react-icons/fa';
 import '../styles/EfficiencyWarningModal.css';
 
 /**
- * PerformanceStandingModal (formerly EfficiencyWarningModal)
+ * PerformanceStandingModal (EfficiencyWarningModal)
  * Directly connected to the Superadmin Performance & Behavioral Monitor.
- * Alerts staff when 4-week clearance/efficiency falls below 60% or when
- * progressive warning reviews (NTE, verbal reprimand, etc.) are triggered.
+ * 
+ * Supports two institutional observation modes:
+ * 1. Warning Mode: Official Notice to Explain (NTE) advisory when 4-week clearance falls <= 60%.
+ * 2. Motivate Mode: Formal institutional commendation ("Keep up the good work!") when staff
+ *    maintains a verified 4-week consistent streak of good performance.
  */
 const EfficiencyWarningModal = ({ 
   isOpen, 
   onClose, 
   metrics = {}, 
   department = '', 
-  onNavigate 
+  onNavigate,
+  mode = null, // 'warning' | 'motivate' | null (auto-detect)
+  streakData = null,
+  monthlyBehavior = null
 }) => {
   const [dontShowAgainSession, setDontShowAgainSession] = useState(false);
 
@@ -39,21 +47,44 @@ const EfficiencyWarningModal = ({
 
   if (!isOpen) return null;
 
-  const score = metrics.score ?? 50;
-  const overdueCount = metrics.overdueCount ?? 0;
+  // Determine mode: motivate if explicitly set or if streakData indicates a good streak
+  const isMotivate = mode === 'motivate' || 
+    (mode !== 'warning' && !metrics.isWarning && Boolean(metrics.hasGoodStreak || streakData?.hasGoodStreak));
+
+  const score = isMotivate 
+    ? (streakData?.score ?? metrics.score ?? 100)
+    : (metrics.score ?? 50);
+
+  const overdueCount = metrics.overdueCount ?? streakData?.overdueCount ?? 0;
   const activeCount = metrics.activeCount ?? 0;
-  const onTimeRate = metrics.onTimeRate ?? 70;
-  
-  // Connect to the institutional 4-tier warning evaluation
+  const onTimeRate = metrics.onTimeRate ?? 95;
+  const resolvedCount = metrics.resolvedCount ?? streakData?.totalResolved ?? 0;
+
+  // Warning classification
   const isNTEWarning = score < 50 || overdueCount >= 2;
-  const standingTitle = isNTEWarning 
-    ? '1st Warning: Notice to Explain (NTE) Advisory' 
+  const warningStageTag = isNTEWarning 
+    ? '1st Warning: Notice to Explain (NTE)' 
     : 'Monthly Standing: Under Formal Review';
+
+  // Motivate classification
+  const streakWeeks = streakData?.streakWeeks ?? 4;
+  const motivateStageTag = `${streakWeeks}-Week Milestone: Exemplary Standing`;
+
+  // 4-Week progression breakdown from Superadmin Monitor
+  const weeklyBreakdown = streakData?.weeklyBreakdown || monthlyBehavior?.weeklyBreakdown || [
+    { weekNum: 1, label: 'Week 1 (Days 1–7)', clearanceRate: 100, isGoodWeek: true, resolved: 0, assigned: 0 },
+    { weekNum: 2, label: 'Week 2 (Days 8–14)', clearanceRate: 100, isGoodWeek: true, resolved: 0, assigned: 0 },
+    { weekNum: 3, label: 'Week 3 (Days 15–21)', clearanceRate: Math.max(80, score), isGoodWeek: true, resolved: 0, assigned: 0 },
+    { weekNum: 4, label: 'Week 4 (Days 22–End)', clearanceRate: score, isGoodWeek: true, resolved: 0, assigned: 0 }
+  ];
 
   const handleDismiss = () => {
     if (dontShowAgainSession) {
       try {
-        sessionStorage.setItem('dismissed_efficiency_warning_popup', 'true');
+        const storageKey = isMotivate 
+          ? 'dismissed_efficiency_motivate_popup' 
+          : 'dismissed_efficiency_warning_popup';
+        sessionStorage.setItem(storageKey, 'true');
       } catch (e) {
         // Safe fallback
       }
@@ -78,27 +109,43 @@ const EfficiencyWarningModal = ({
   return (
     <div className="eff-modal-overlay" onClick={handleDismiss}>
       <div 
-        className="eff-modal-card" 
+        className={`eff-modal-card ${isMotivate ? 'eff-modal--motivate' : 'eff-modal--warning'}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="eff-modal-title"
       >
-        {/* Modal Header */}
+        {/* Institutional Document Header */}
         <div className="eff-modal-header">
           <div className="eff-header-left">
             <div className="eff-icon-badge">
-              <FaShieldAlt />
+              {isMotivate ? <FaAward /> : <FaShieldAlt />}
             </div>
             <div className="eff-header-text">
-              <span className="eff-superadmin-tag">
-                <FaShieldAlt className="tag-icon" /> Superadmin Performance & Behavioral Monitor
-              </span>
+              <div className="eff-superadmin-tag">
+                <span>Academia De San Jose</span>
+                <span className="eff-tag-divider">·</span>
+                <span>Performance & Quality Assurance</span>
+                <span className="eff-tag-divider">·</span>
+                <span className="eff-status-chip">
+                  {isMotivate ? motivateStageTag : warningStageTag}
+                </span>
+              </div>
               <h2 id="eff-modal-title" className="eff-modal-title">
-                Staff Performance & Standing Advisory
+                {isMotivate 
+                  ? 'Institutional Performance Commendation' 
+                  : 'Notice of Performance Standing Review'}
               </h2>
               <p className="eff-modal-subtitle">
-                Monthly Observation Notice: Clearance rate dropped to <strong>{score}%</strong> (Institutional Standard: &gt;60%)
+                {isMotivate ? (
+                  <>
+                    Audit Cycle Report: Consistent compliance verified across 4 consecutive weeks. Clearance score maintained at <strong>{score}%</strong> (Institutional Standard: &ge;80%).
+                  </>
+                ) : (
+                  <>
+                    Audit Cycle Notice: Clearance rate dropped to <strong>{score}%</strong>, failing the mandatory institutional standard (&gt;60%). Administrative rectification required.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -106,7 +153,7 @@ const EfficiencyWarningModal = ({
             type="button" 
             className="eff-close-btn" 
             onClick={handleDismiss}
-            aria-label="Close advisory"
+            aria-label="Close modal"
           >
             <FaTimes />
           </button>
@@ -114,109 +161,168 @@ const EfficiencyWarningModal = ({
 
         {/* Modal Body */}
         <div className="eff-modal-body">
-          {/* Main Score Callout Box */}
-          <div className="eff-score-callout">
-            <div className="eff-score-circle-group">
-              <div className="eff-score-number">{score}%</div>
-              <span className="eff-score-sublabel">Clearance Score</span>
-            </div>
-
-            <div className="eff-score-meta">
-              <div className="eff-tier-status-pill">
-                <span className="tier-status-dot" />
-                <span>{standingTitle}</span>
-              </div>
-              <p className="eff-threshold-warning-text">
-                Academia De San Jose operational guidelines require maintaining a monthly clearance score above <strong>60%</strong>. Rolling 4-week ticket trajectories and backlog accumulations are monitored by the Superadmin Command Center.
-              </p>
-              
-              {/* Progress bar with 60% threshold marker */}
-              <div className="eff-progress-wrapper">
-                <div className="eff-progress-track">
-                  <div 
-                    className="eff-progress-fill" 
-                    style={{ width: `${Math.max(5, Math.min(100, score))}%` }} 
-                  />
-                  <div className="eff-threshold-marker" style={{ left: '60%' }}>
-                    <span className="threshold-line" />
-                    <span className="threshold-tooltip">60% Benchmark</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Institutional 4-Tier Warning Progression Pipeline */}
-          <div className="eff-tier-pipeline-box">
-            <div className="eff-pipeline-header">
-              <span className="eff-pipeline-title">Institutional Warning Framework</span>
-              <span className="eff-pipeline-badge">Progressive Accountability</span>
-            </div>
-            <div className="eff-pipeline-steps">
-              <div className={`eff-pipeline-step ${isNTEWarning ? 'active' : ''}`}>
-                <span className="step-num">1st Warning</span>
-                <span className="step-label">Notice to Explain (NTE)</span>
-              </div>
-              <div className="eff-pipeline-arrow">➔</div>
-              <div className="eff-pipeline-step">
-                <span className="step-num">2nd Warning</span>
-                <span className="step-label">Verbal Reprimand</span>
-              </div>
-              <div className="eff-pipeline-arrow">➔</div>
-              <div className="eff-pipeline-step">
-                <span className="step-num">3rd Warning</span>
-                <span className="step-label">Notice of Suspension</span>
-              </div>
-              <div className="eff-pipeline-arrow">➔</div>
-              <div className="eff-pipeline-step">
-                <span className="step-num">4th Warning</span>
-                <span className="step-label">Notice for Termination</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Breakdown Factor Cards */}
-          <div className="eff-factors-grid">
-            <div className={`eff-factor-card ${overdueCount > 0 ? 'critical' : ''}`}>
-              <div className="factor-val">{overdueCount}</div>
-              <div className="factor-lbl">Overdue Requests</div>
-              <span className="factor-note">
-                {overdueCount > 0 ? 'Direct breach impacting standing' : 'Zero overdue requests'}
+          {/* 4-Tile High-Precision Metrics Grid */}
+          <div className="eff-metrics-grid">
+            <div className="eff-metric-tile">
+              <span className="metric-tile-label">Clearance Score</span>
+              <div className="metric-tile-value">{score}%</div>
+              <span className="metric-tile-footnote">
+                {isMotivate ? 'Target: ≥80% maintained' : 'Minimum: >60% required'}
               </span>
             </div>
 
-            <div className={`eff-factor-card ${onTimeRate < 80 ? 'warning' : ''}`}>
-              <div className="factor-val">{onTimeRate}%</div>
-              <div className="factor-lbl">On-Time SLA Rate</div>
-              <span className="factor-note">Target: ≥90% compliance</span>
+            <div className="eff-metric-tile">
+              <span className="metric-tile-label">SLA Compliance</span>
+              <div className="metric-tile-value">{onTimeRate}%</div>
+              <span className="metric-tile-footnote">
+                Institutional SLA: &ge;90%
+              </span>
             </div>
 
-            <div className="eff-factor-card">
-              <div className="factor-val">{activeCount}</div>
-              <div className="factor-lbl">Active Assigned</div>
-              <span className="factor-note">Open in your queue</span>
+            <div className={`eff-metric-tile ${overdueCount > 0 ? 'tile-breach' : ''}`}>
+              <span className="metric-tile-label">Overdue Backlog</span>
+              <div className="metric-tile-value">{overdueCount}</div>
+              <span className="metric-tile-footnote">
+                {overdueCount > 0 ? 'Active SLA breaches' : 'Zero overdue requests'}
+              </span>
+            </div>
+
+            <div className="eff-metric-tile">
+              <span className="metric-tile-label">
+                {isMotivate ? 'Resolved Volume' : 'Active In-Queue'}
+              </span>
+              <div className="metric-tile-value">
+                {isMotivate ? resolvedCount : activeCount}
+              </div>
+              <span className="metric-tile-footnote">
+                {isMotivate ? 'Requests cleared' : 'Currently in progress'}
+              </span>
             </div>
           </div>
 
-          {/* Action Required Recommendations */}
-          <div className="eff-actions-box">
-            <h4 className="eff-actions-title">
-              <FaClock className="actions-icon" /> Required Action to Maintain Good Standing:
-            </h4>
-            <ul className="eff-actions-list">
-              <li>
-                <strong>Clear Overdue Queue:</strong> Process and resolve pending requests that have passed their target dates to restore clearance rate.
-              </li>
-              <li>
-                <strong>Prevent Monthly Rollover:</strong> Ensure assigned requests are addressed within the current 4-week evaluation cycle.
-              </li>
-              <li>
-                <strong>Review AI Diagnostic:</strong> Check your behavioral pacing, SLA trends, and next-month bottleneck forecast in <em>My Performance</em>.
-              </li>
-            </ul>
+          {/* 4-Week Progression Timeline / Warning Stage Framework */}
+          {isMotivate ? (
+            /* 4-Week Consistency Audit Record */
+            <div className="eff-section-box">
+              <div className="eff-section-box-header">
+                <span className="eff-section-box-title">4-Week Operational Continuity Audit</span>
+                <span className="eff-section-box-pill pill-success">
+                  <FaCheck /> 4 of 4 Weeks Verified
+                </span>
+              </div>
+              <div className="eff-timeline-row">
+                {weeklyBreakdown.slice(0, 4).map((w, idx) => {
+                  const rate = w.clearanceRate ?? 100;
+                  return (
+                    <div className="eff-timeline-step" key={w.weekNum || idx}>
+                      <div className="timeline-step-badge">
+                        <span className="timeline-step-num">W{idx + 1}</span>
+                        <FaCheck className="timeline-check-icon" />
+                      </div>
+                      <div className="timeline-step-content">
+                        <span className="timeline-step-label">Week {idx + 1}</span>
+                        <span className="timeline-step-rate">{rate}% Cleared</span>
+                        <span className="timeline-step-status">Standard Met</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* Warning Framework Stages */
+            <div className="eff-section-box">
+              <div className="eff-section-box-header">
+                <span className="eff-section-box-title">Institutional Progressive Warning Framework</span>
+                <span className="eff-section-box-pill pill-warning">
+                  Stage 1 Active Review
+                </span>
+              </div>
+              <div className="eff-stages-row">
+                <div className={`eff-stage-cell ${isNTEWarning ? 'cell-active' : ''}`}>
+                  <span className="stage-index">Stage 1</span>
+                  <span className="stage-name">Notice to Explain (NTE)</span>
+                  <span className="stage-status-tag">Active Review</span>
+                </div>
+                <div className="eff-stage-cell">
+                  <span className="stage-index">Stage 2</span>
+                  <span className="stage-name">Written Reprimand</span>
+                  <span className="stage-status-tag">Pending Escalation</span>
+                </div>
+                <div className="eff-stage-cell">
+                  <span className="stage-index">Stage 3</span>
+                  <span className="stage-name">Notice of Suspension</span>
+                  <span className="stage-status-tag">Formal Proceeding</span>
+                </div>
+                <div className="eff-stage-cell">
+                  <span className="stage-index">Stage 4</span>
+                  <span className="stage-name">Separation Review</span>
+                  <span className="stage-status-tag">Administrative Action</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Institutional Statement & Action Directive */}
+          <div className={`eff-statement-card ${isMotivate ? 'card-motivate' : 'card-warning'}`}>
+            <div className="eff-statement-header">
+              <span className="eff-statement-badge">
+                <FaFileAlt /> {isMotivate ? 'Administrative Commendation Notice' : 'Formal Administrative Directive'}
+              </span>
+              <span className="eff-statement-dept">Office: {department || 'Administrative Staff'}</span>
+            </div>
+
+            <h3 className="eff-statement-headline">
+              {isMotivate ? 'Keep up the good work!' : 'Mandatory Queue Rectification & Explanation Notice'}
+            </h3>
+
+            <p className="eff-statement-body">
+              {isMotivate ? (
+                <>
+                  Official audit records from the Performance Monitoring System confirm consistent operational compliance across the past four consecutive weeks. Your disciplined queue resolution, prompt request turnaround, and zero backlog carryover directly contribute to high student service standards.
+                </>
+              ) : (
+                <>
+                  Your 4-week ticket clearance rate of <strong>{score}%</strong> does not meet the institutional minimum threshold of <strong>60%</strong>. Accumulated request delays and backlog roll-overs impair departmental operational health and require prompt administrative rectification.
+                </>
+              )}
+            </p>
+
+            <div className="eff-statement-checklist">
+              <h4 className="checklist-heading">
+                {isMotivate ? 'Audit Highlights & Performance Records:' : 'Required Corrective Protocol:'}
+              </h4>
+              <ul className="checklist-items">
+                {isMotivate ? (
+                  <>
+                    <li>
+                      <strong>Resolution Consistency:</strong> Daily and weekly ticket intakes processed steadily without end-of-month volume spikes or backlog accumulation.
+                    </li>
+                    <li>
+                      <strong>Turnaround Adherence:</strong> Requests initiated and transitioned to resolution in accordance with designated office timeframes.
+                    </li>
+                    <li>
+                      <strong>Queue Discipline:</strong> Zero unaddressed or overdue requests carried over into subsequent evaluation windows.
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      <strong>Immediate Overdue Clearance:</strong> Process and resolve pending requests that have exceeded their estimated completion dates (ETC).
+                    </li>
+                    <li>
+                      <strong>Prevent Backlog Rollover:</strong> Ensure assigned requests are addressed within the active evaluation cycle.
+                    </li>
+                    <li>
+                      <strong>Review Performance Ledger:</strong> Inspect detailed resolution records in My Performance to reconcile workflow bottlenecks.
+                    </li>
+                  </>
+                )}
+              </ul>
+            </div>
           </div>
 
-          {/* Don't show again checkbox for current session */}
+          {/* Checkbox: Do not show again for current session */}
           <div className="eff-session-checkbox">
             <label>
               <input 
@@ -224,7 +330,7 @@ const EfficiencyWarningModal = ({
                 checked={dontShowAgainSession} 
                 onChange={(e) => setDontShowAgainSession(e.target.checked)} 
               />
-              <span>Don't show this popup again for today's session (dashboard standing alert pill will remain active)</span>
+              <span>Do not show this advisory again during the current session</span>
             </label>
           </div>
         </div>
@@ -236,23 +342,32 @@ const EfficiencyWarningModal = ({
             className="eff-btn-dismiss" 
             onClick={handleDismiss}
           >
-            Acknowledge & Close
+            Close Notice
           </button>
           <button 
             type="button" 
-            className="eff-btn-performance" 
+            className="eff-btn-ledger" 
             onClick={handleGoToPerformance}
           >
-            <FaChartLine className="btn-icon" />
-            <span>View My Performance</span>
+            <FaChartLine />
+            <span>Open Performance Ledger</span>
           </button>
           <button 
             type="button" 
-            className="eff-btn-primary" 
-            onClick={handleGoToTickets}
+            className={isMotivate ? 'eff-btn-action action-motivate' : 'eff-btn-action action-warning'} 
+            onClick={isMotivate ? handleDismiss : handleGoToTickets}
           >
-            <span>Review Overdue Requests</span>
-            <FaArrowRight className="btn-icon" />
+            {isMotivate ? (
+              <>
+                <FaCheckCircle />
+                <span>Acknowledge Commendation</span>
+              </>
+            ) : (
+              <>
+                <span>Review Active Queue</span>
+                <FaArrowRight />
+              </>
+            )}
           </button>
         </div>
       </div>

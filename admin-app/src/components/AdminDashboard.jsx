@@ -8,7 +8,9 @@ import {
   FaExclamationTriangle,
   FaSearch,
   FaTimes,
-  FaExchangeAlt
+  FaExchangeAlt,
+  FaTrophy,
+  FaAward
 } from 'react-icons/fa';
 import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -17,7 +19,14 @@ import ClaimETCModal from './ClaimETCModal';
 import NearingCompletionModal from './NearingCompletionModal';
 import EfficiencyWarningModal from './EfficiencyWarningModal';
 import { getNearingRequests, getNearingSummary } from '../utils/etcHelper';
-import { getStaffTickets, calculateEfficiencyMetrics, ensureEfficiencyWarningNotification } from '../utils/efficiencyHelper';
+import { 
+  getStaffTickets, 
+  calculateEfficiencyMetrics, 
+  ensureEfficiencyWarningNotification,
+  ensureGoodPerformanceStreakNotification
+} from '../utils/efficiencyHelper';
+import { calculateStaff4WeekStreak } from '../utils/performanceAnalytics';
+import { analyzeMonthlyStaffBehaviorWithAI } from '../utils/groqService';
 import { notifyStudentStatusChange, notifyStudentEtcChange } from '../utils/notificationHelper';
 import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import { OverviewCardsSkeleton, DataTableSkeleton } from './common/Skeleton';
@@ -55,6 +64,12 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const [showEfficiencyWarningModal, setShowEfficiencyWarningModal] = useState(false);
   const hasAutoOpenedEfficiencyModal = useRef(false);
   const hasEnsuredWarningNotification = useRef(false);
+
+  // Motivate Modal states (4-Week Consistent Good Performance Streak)
+  const [showEfficiencyMotivateModal, setShowEfficiencyMotivateModal] = useState(false);
+  const [aiStreakData, setAiStreakData] = useState(null);
+  const hasAutoOpenedMotivateModal = useRef(false);
+  const hasEnsuredMotivateNotification = useRef(false);
 
   useEffect(() => {
     // Get staff data from localStorage
@@ -258,6 +273,30 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return calculateEfficiencyMetrics(staffTickets);
   }, [staffTickets]);
 
+  // Calculate 4-week consistent performance streak (connected to Superadmin Performance Monitor)
+  const streakData = useMemo(() => {
+    if (!staffData || (!staffData.name && !staffData.uid)) return { hasGoodStreak: false, streakWeeks: 0 };
+    return calculateStaff4WeekStreak(staffData, tickets);
+  }, [staffData, tickets]);
+
+  // Request Superadmin AI Behavioral Analysis for streak commendation
+  useEffect(() => {
+    if (!streakData?.hasGoodStreak || aiStreakData) return;
+    let isCancelled = false;
+
+    analyzeMonthlyStaffBehaviorWithAI(streakData.monthlyBehavior, streakData)
+      .then(enhanced => {
+        if (!isCancelled && enhanced) {
+          setAiStreakData(enhanced);
+        }
+      })
+      .catch(err => {
+        console.warn('[AdminDashboard] AI streak analysis fallback:', err);
+      });
+
+    return () => { isCancelled = true; };
+  }, [streakData, aiStreakData]);
+
   // Auto-trigger efficiency warning modal and notification when score drops to 60% or lower
   useEffect(() => {
     if (loading) return;
@@ -283,6 +322,34 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     }
   }, [loading, efficiencyMetrics, staffData]);
 
+  // Auto-trigger motivate modal and notification when maintaining 4-week consistent streak of good performance
+  useEffect(() => {
+    if (loading) return;
+
+    // Critical warning takes precedence
+    if (efficiencyMetrics.isWarning) return;
+
+    if (streakData?.hasGoodStreak) {
+      if (staffData?.uid && !hasEnsuredMotivateNotification.current) {
+        hasEnsuredMotivateNotification.current = true;
+        ensureGoodPerformanceStreakNotification(staffData, streakData);
+      }
+
+      if (!hasAutoOpenedMotivateModal.current) {
+        try {
+          const isDismissed = sessionStorage.getItem('dismissed_efficiency_motivate_popup') === 'true';
+          if (!isDismissed) {
+            setShowEfficiencyMotivateModal(true);
+            hasAutoOpenedMotivateModal.current = true;
+          }
+        } catch (e) {
+          setShowEfficiencyMotivateModal(true);
+          hasAutoOpenedMotivateModal.current = true;
+        }
+      }
+    }
+  }, [loading, efficiencyMetrics.isWarning, streakData, staffData]);
+
   // Listen for open-efficiency-warning custom event (from notification click)
   useEffect(() => {
     const handleOpenEff = () => {
@@ -290,6 +357,15 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     };
     window.addEventListener('open-efficiency-warning', handleOpenEff);
     return () => window.removeEventListener('open-efficiency-warning', handleOpenEff);
+  }, []);
+
+  // Listen for open-efficiency-motivate custom event (from notification click)
+  useEffect(() => {
+    const handleOpenMotivate = () => {
+      setShowEfficiencyMotivateModal(true);
+    };
+    window.addEventListener('open-efficiency-motivate', handleOpenMotivate);
+    return () => window.removeEventListener('open-efficiency-motivate', handleOpenMotivate);
   }, []);
 
   // Auto-trigger modal popup on dashboard load if active requests are nearing/overdue
@@ -516,6 +592,25 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                 <span className="eff-pill-text-short">Standing Alert</span>
               </span>
               <span className="eff-pill-score">{efficiencyMetrics.score}%</span>
+            </button>
+          )}
+
+          {!efficiencyMetrics.isWarning && streakData?.hasGoodStreak && (
+            <button
+              type="button"
+              className="eff-streak-pill"
+              onClick={() => setShowEfficiencyMotivateModal(true)}
+              title="4-Week Performance Streak: Keep up the good work! Click to review institutional commendation."
+              aria-label={`4-Week Consistent Good Performance Streak at ${streakData.score}%. Click to view commendation.`}
+            >
+              <span className="eff-pill-pulse-ring streak-ring" aria-hidden="true" />
+              <FaAward className="eff-pill-icon streak-icon" aria-hidden="true" />
+              <span className="eff-pill-text">
+                <span className="eff-pill-text-full">4-Week Standing: Keep up the good work!</span>
+                <span className="eff-pill-text-medium">4-Week Standing Milestone</span>
+                <span className="eff-pill-text-short">4-Wk Milestone</span>
+              </span>
+              <span className="eff-pill-score">{streakData.score}%</span>
             </button>
           )}
 
@@ -1014,6 +1109,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         onClose={() => setShowNotifications(false)}
         onViewRequest={onViewRequest}
         onOpenEfficiencyWarning={() => setShowEfficiencyWarningModal(true)}
+        onOpenEfficiencyMotivate={() => setShowEfficiencyMotivateModal(true)}
         onNavigate={onNavigate}
       />
 
@@ -1038,13 +1134,26 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         }}
       />
 
-      {/* Modal: Performance Efficiency Score Warning (<= 60%) */}
+      {/* Modal: Performance Efficiency Score Warning (<= 60% / NTE) */}
       <EfficiencyWarningModal
         isOpen={showEfficiencyWarningModal}
         onClose={() => setShowEfficiencyWarningModal(false)}
         metrics={efficiencyMetrics}
         department={effectiveDepartment}
         onNavigate={onNavigate}
+        mode="warning"
+      />
+
+      {/* Modal: 4-Week Consistent Performance Streak Motivation ("Keep up the good work!") */}
+      <EfficiencyWarningModal
+        isOpen={showEfficiencyMotivateModal}
+        onClose={() => setShowEfficiencyMotivateModal(false)}
+        metrics={{ ...efficiencyMetrics, hasGoodStreak: true, score: streakData?.score ?? efficiencyMetrics.score }}
+        department={effectiveDepartment}
+        onNavigate={onNavigate}
+        mode="motivate"
+        streakData={aiStreakData || streakData}
+        monthlyBehavior={streakData?.monthlyBehavior}
       />
     </div>
   );

@@ -11,7 +11,8 @@ import {
   FaExchangeAlt,
   FaClock,
   FaInfoCircle,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaTrophy
 } from 'react-icons/fa';
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -82,6 +83,9 @@ const getNotificationIcon = (notif) => {
       return { icon: <FaExchangeAlt />, className: 'type-rerouted' };
     case 'etc_update':
       return { icon: <FaClock />, className: 'type-etc' };
+    case 'good_performance_streak':
+    case 'efficiency_score_motivate':
+      return { icon: <FaTrophy />, className: 'type-efficiency-motivate' };
     case 'efficiency_score_warning':
     case 'performance_nudge':
     case 'auto_performance_nudge':
@@ -91,7 +95,14 @@ const getNotificationIcon = (notif) => {
   }
 };
 
-const Notifications = ({ isOpen, onClose, onViewRequest, onOpenEfficiencyWarning, onNavigate }) => {
+const Notifications = ({ 
+  isOpen, 
+  onClose, 
+  onViewRequest, 
+  onOpenEfficiencyWarning, 
+  onOpenEfficiencyMotivate,
+  onNavigate 
+}) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -205,6 +216,26 @@ const Notifications = ({ isOpen, onClose, onViewRequest, onOpenEfficiencyWarning
         return;
       }
 
+      const isEffMotivate = 
+        notif.type === 'good_performance_streak' || 
+        notif.type === 'efficiency_score_motivate';
+
+      if (isEffMotivate) {
+        if (onOpenEfficiencyMotivate) {
+          onOpenEfficiencyMotivate(notif);
+          onClose();
+          return;
+        }
+        if (onNavigate) {
+          onNavigate('my-performance');
+          onClose();
+          return;
+        }
+        window.dispatchEvent(new CustomEvent('open-efficiency-motivate', { detail: notif }));
+        onClose();
+        return;
+      }
+
       const request = await fetchRequestByNotification(notif);
       if (request && onViewRequest) {
         onViewRequest(request);
@@ -301,13 +332,16 @@ const Notifications = ({ isOpen, onClose, onViewRequest, onOpenEfficiencyWarning
                 notif.type === 'efficiency_score_warning' || 
                 notif.type === 'performance_nudge' || 
                 notif.type === 'auto_performance_nudge';
+              const isEffMotivate = 
+                notif.type === 'good_performance_streak' || 
+                notif.type === 'efficiency_score_motivate';
 
               return (
                 <div
                   key={notif.id}
                   role="button"
                   tabIndex={0}
-                  className={`notification-item ${!notif.isRead ? 'unread' : ''} ${isEffWarning ? 'eff-warning-item' : ''}`}
+                  className={`notification-item ${!notif.isRead ? 'unread' : ''} ${isEffWarning ? 'eff-warning-item' : ''} ${isEffMotivate ? 'eff-motivate-item' : ''}`}
                   onClick={() => handleNotificationClick(notif)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -318,7 +352,7 @@ const Notifications = ({ isOpen, onClose, onViewRequest, onOpenEfficiencyWarning
                   title={
                     requestId 
                       ? `Open Request #${requestId}` 
-                      : (isEffWarning ? 'View Performance Warning & Details' : undefined)
+                      : (isEffWarning ? 'View Performance Warning & Details' : (isEffMotivate ? 'View Performance Commendation' : undefined))
                   }
                 >
                   <div className={`notif-type-icon ${iconClass}`}>
@@ -334,13 +368,17 @@ const Notifications = ({ isOpen, onClose, onViewRequest, onOpenEfficiencyWarning
                         <span className="notif-warning-chip">
                           {notif.score !== undefined ? `${notif.score}% Score` : 'Alert'}
                         </span>
+                      ) : isEffMotivate ? (
+                        <span className="notif-motivate-chip">
+                          {notif.score !== undefined ? `${notif.score}% Streak` : 'Milestone'}
+                        </span>
                       ) : null}
                     </div>
                     <div className="notification-message">{notif.message}</div>
                     <div className="notification-time">{getTimeAgo(notif.createdAt)}</div>
                   </div>
 
-                  {(requestId || isEffWarning) && (
+                  {(requestId || isEffWarning || isEffMotivate) && (
                     <div className="notification-open-indicator" aria-hidden="true">
                       <FaArrowRight />
                     </div>

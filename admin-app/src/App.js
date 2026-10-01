@@ -219,6 +219,8 @@ function App() {
           {activePage === 'my-performance' && (
             <MyPerformance 
               userData={JSON.parse(localStorage.getItem('staffData') || '{}')}
+              onNavigate={handleNavigate}
+              onViewRequest={handleViewTicket}
             />
           )}
           {activePage === 'bulletin' && (

@@ -249,8 +249,8 @@ export const ensureEfficiencyWarningNotification = async (staffData, efficiencyM
       userId: staffData.uid,
       userType: 'staff',
       type: 'efficiency_score_warning',
-      title: `🚨 Performance Monitor Notice: Monthly Standing Review (${score}%)`,
-      message: `Superadmin Performance & Behavioral Monitor Notice: Your monthly clearance rate has dropped to ${score}%, placing your standing under review. ${
+      title: `Performance Standing Review: Monthly Clearance Alert (${score}%)`,
+      message: `Office Performance Monitor Notice: Your monthly clearance rate has dropped to ${score}%, placing your standing under review. ${
         overdueCount > 0 
           ? `You currently have ${overdueCount} overdue active request(s). ` 
           : ''
@@ -274,4 +274,84 @@ export const ensureEfficiencyWarningNotification = async (staffData, efficiencyM
     inFlightNotificationUids.delete(staffData.uid);
   }
 };
+
+/**
+ * Ensure a Good Performance Streak notification is registered in Firestore
+ * when a staff member maintains a 4-week consistent streak of good performance.
+ * Connected to Superadmin Performance Monitor AI and data.
+ */
+export const ensureGoodPerformanceStreakNotification = async (staffData, streakData) => {
+  if (!staffData?.uid || !streakData?.hasGoodStreak) return;
+
+  const inFlightKey = `streak_${staffData.uid}`;
+  if (inFlightNotificationUids.has(inFlightKey)) {
+    return;
+  }
+  inFlightNotificationUids.add(inFlightKey);
+
+  try {
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(
+      notificationsRef,
+      where('recipientId', '==', staffData.uid),
+      where('recipientType', '==', 'staff'),
+      where('type', '==', 'good_performance_streak'),
+      limit(10)
+    );
+
+    const snapshot = await getDocs(q);
+    const now = Date.now();
+    const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7-day cooldown between weekly streak celebration notices
+
+    let hasRecentNotification = false;
+
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const isUnread = !data.isRead;
+      const createdDate = parseDate(data.createdAt || data.timestamp);
+      const isWithinCooldown = createdDate && (now - createdDate.getTime()) < COOLDOWN_MS;
+
+      if (isUnread || isWithinCooldown) {
+        hasRecentNotification = true;
+      }
+    });
+
+    if (hasRecentNotification) {
+      return;
+    }
+
+    const score = streakData.score ?? 100;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const deterministicDocId = `streak_motivate_${staffData.uid}_${todayStr}`;
+    const targetDocRef = doc(db, 'notifications', deterministicDocId);
+
+    await setDoc(targetDocRef, {
+      recipientId: staffData.uid,
+      recipientType: 'staff',
+      userId: staffData.uid,
+      userType: 'staff',
+      type: 'good_performance_streak',
+      title: `Performance Commendation: 4-Week Good Standing Milestone (${score}%)`,
+      message: `Performance Monitoring System: Keep up the good work! You have maintained a consistent streak of good performance for 4 weeks with a ${score}% clearance score. Your disciplined queue resolution supports prompt service delivery.`,
+      priority: 'normal',
+      isRead: false,
+      read: false,
+      score: score,
+      createdAt: serverTimestamp(),
+      timestamp: serverTimestamp(),
+      metadata: {
+        source: 'performance_monitor',
+        staffName: staffData.name || '',
+        score: score,
+        streakWeeks: streakData.streakWeeks || 4,
+        office: staffData.office || staffData.department || ''
+      }
+    }, { merge: true });
+  } catch (err) {
+    console.error('[Error] ensureGoodPerformanceStreakNotification failed:', err);
+  } finally {
+    inFlightNotificationUids.delete(inFlightKey);
+  }
+};
+
 
