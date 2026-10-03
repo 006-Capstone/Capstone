@@ -1432,7 +1432,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                       key={idx} 
                       className="attachment-chip" 
                       onClick={() => downloadAttachment(file)}
-                      title={`Download ${file.name}`}
+                      title={`View ${file.name}`}
                     >
                       <FaFileAlt className="att-chip-icon" />
                       <span className="att-chip-name">{file.name}</span>
@@ -1509,7 +1509,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                         {followUp.attachments && followUp.attachments.length > 0 && (
                           <div className="submission-attachments-row">
                             {followUp.attachments.map((file, fIdx) => (
-                              <div key={fIdx} className="attachment-chip" onClick={() => downloadAttachment(file)}>
+                              <div key={fIdx} className="attachment-chip" onClick={() => downloadAttachment(file)} title={`View ${file.name}`}>
                                 <FaFileAlt className="att-chip-icon" />
                                 <span className="att-chip-name">{file.name}</span>
                                 <FaDownload className="att-chip-dl" />
