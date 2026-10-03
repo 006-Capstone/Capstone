@@ -37,7 +37,7 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
     
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text('Guest Request Status Report', 105, 28, { align: 'center' });
+    doc.text('Request Receipt', 105, 28, { align: 'center' });
     
     // Divider
     doc.setLineWidth(0.5);
@@ -106,37 +106,14 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
     doc.setFont('helvetica', 'normal');
     doc.text(data.handler || 'Unassigned', 70, y);
     
-    // Description section
-    y += 15;
-    doc.setFont('helvetica', 'bold');
-    doc.text('DESCRIPTION:', 20, y);
-    
-    y += 8;
-    doc.setFont('helvetica', 'normal');
-    const descriptionLines = doc.splitTextToSize(data.description || 'No description provided.', 170);
-    doc.text(descriptionLines, 20, y);
-    
-    // Timeline section
-    y += (descriptionLines.length * 5) + 15;
-    doc.setFont('helvetica', 'bold');
-    doc.text('TIMELINE HISTORY:', 20, y);
-    
-    y += 8;
-    doc.setFont('helvetica', 'normal');
-    
-    if (data.timeline && data.timeline.length > 0) {
-      data.timeline.forEach((t) => {
-        const statusText = `[${t.completed ? 'COMPLETED' : 'PENDING'}] ${t.status}`;
-        const timelineLines = doc.splitTextToSize(`${statusText}: ${t.description || ''} (${t.date || ''})`, 170);
-        doc.text(timelineLines, 20, y);
-        y += (timelineLines.length * 5);
-      });
-    } else {
-      doc.text('No timeline data available.', 20, y);
-    }
+    // Footer/Disclaimer (optional)
+    y += 20;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.text('This is an official receipt issued by Academia de San Jose.', 105, y, { align: 'center' });
     
     // Download PDF
-    doc.save(`status-${(data.rawRequestId || data.requestNumber).replace('#', '')}.pdf`);
+    doc.save(`receipt-${(data.rawRequestId || data.requestNumber).replace('#', '')}.pdf`);
   };
 
   if (loading) {
