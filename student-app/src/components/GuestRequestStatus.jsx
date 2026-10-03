@@ -370,7 +370,7 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
 
       <div className="guest-status-bottom-actions">
         <button type="button" className="guest-outline-btn" onClick={handleDownload}>
-          <FaDownload /> Download Report
+          <FaDownload /> Download Receipt
         </button>
         <button type="button" className="submit-btn-guest" onClick={onHome}>
           Check Another Request
