@@ -175,6 +175,10 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [returnReason, setReturnReason] = useState('');
   const [returning, setReturning] = useState(false);
 
+  // File Preview Modal
+  const [showFilePreview, setShowFilePreview] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
+
   // Month / Day / Year ETC editing state
   const [showEstimatedCompletionModal, setShowEstimatedCompletionModal] = useState(false);
   const [etcMonth, setEtcMonth] = useState('08');
@@ -1141,9 +1145,15 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const downloadAttachment = (attachment) => {
+    setPreviewFile(attachment);
+    setShowFilePreview(true);
+  };
+
+  const handleDownloadFile = () => {
+    if (!previewFile) return;
     const link = document.createElement('a');
-    link.href = attachment.data;
-    link.download = attachment.name;
+    link.href = previewFile.data;
+    link.download = previewFile.name;
     link.click();
   };
 
@@ -2366,6 +2376,74 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 disabled={updatingEtc || !completionReason.trim()}
               >
                 {updatingEtc ? 'Saving...' : 'Save Target Date'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Preview Modal */}
+      {showFilePreview && previewFile && (
+        <div className="figma-modal-overlay" onClick={() => setShowFilePreview(false)}>
+          <div className="figma-modal-window file-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-row">
+              <h3 className="modal-heading">File Preview</h3>
+              <button 
+                type="button" 
+                className="modal-close-icon-btn" 
+                onClick={() => setShowFilePreview(false)}
+                title="Close"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="file-preview-content">
+              <div className="file-info-section">
+                <FaFileAlt className="file-info-icon" />
+                <div className="file-info-text">
+                  <p className="file-name">{previewFile.name}</p>
+                  <p className="file-size">{(previewFile.size / 1024).toFixed(2)} KB</p>
+                </div>
+              </div>
+
+              <div className="file-preview-frame">
+                {previewFile.type?.startsWith('image/') ? (
+                  <img 
+                    src={previewFile.data} 
+                    alt={previewFile.name} 
+                    className="preview-image"
+                  />
+                ) : previewFile.type === 'application/pdf' ? (
+                  <iframe 
+                    src={previewFile.data} 
+                    className="preview-iframe"
+                    title={previewFile.name}
+                  />
+                ) : (
+                  <div className="preview-unsupported">
+                    <FaFileAlt className="unsupported-icon" />
+                    <p>Preview not available for this file type</p>
+                    <p className="file-type-text">{previewFile.type || 'Unknown type'}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-btn-row">
+              <button 
+                type="button"
+                className="btn-modal-back" 
+                onClick={() => setShowFilePreview(false)}
+              >
+                Close
+              </button>
+              <button 
+                type="button"
+                className="btn-modal-submit btn-submit-green" 
+                onClick={handleDownloadFile}
+              >
+                <FaDownload /> Download File
               </button>
             </div>
           </div>
