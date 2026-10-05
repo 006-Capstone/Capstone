@@ -21,6 +21,43 @@ body {
   overflow-x: hidden;
 }
 
+/* ==========================================================================
+   GLOBAL MODAL SCROLL-LOCK: Ensure background never scrolls and no vertical
+   scrollbar appears outside the active modal or popup window.
+   ========================================================================== */
+html:has(.figma-modal-overlay),
+body:has(.figma-modal-overlay),
+html:has(.modal-overlay),
+body:has(.modal-overlay),
+html:has(.etc-modal-overlay),
+body:has(.etc-modal-overlay),
+html:has(.change-password-modal-overlay),
+body:has(.change-password-modal-overlay),
+html:has(.eff-modal-overlay),
+body:has(.eff-modal-overlay),
+html:has(.nearing-modal-overlay),
+body:has(.nearing-modal-overlay),
+html:has(.feedback-reply-overlay),
+body:has(.feedback-reply-overlay),
+html:has(.profile-settings-overlay),
+body:has(.profile-settings-overlay),
+html:has(.forgot-password-overlay),
+body:has(.forgot-password-overlay),
+html:has(.qr-scanner-modal),
+body:has(.qr-scanner-modal),
+html:has(.unified-confirm-overlay),
+body:has(.unified-confirm-overlay),
+html:has(.unified-notification-modal-overlay),
+body:has(.unified-notification-modal-overlay),
+html:has(.notifications-overlay),
+body:has(.notifications-overlay),
+html:has(.file-preview-modal),
+body:has(.file-preview-modal),
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+}
+
 input, button, select, textarea {
   font-family: inherit;
 }

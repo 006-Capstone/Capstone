@@ -447,6 +447,7 @@
   z-index: 1000;
   padding: var(--space-4);
   animation: modal-fade 0.2s ease;
+  overflow: hidden;
 }
 
 @keyframes modal-fade {
@@ -462,8 +463,30 @@
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   box-shadow: var(--shadow-lg);
   animation: modal-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 10px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .modal-content.create-account-modal {
@@ -1293,8 +1316,29 @@ select.form-input-super option:disabled {
   padding: 0;
   max-height: 320px;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-md);
+}
+
+.requests-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.requests-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.requests-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 5px;
+}
+
+.requests-list::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .request-item {
@@ -1892,6 +1936,8 @@ select.form-input-super option:disabled {
 
 /* Modal Fallback / Audit Modal Styles */
 .profile-modal-backdrop {
+  position: fixed;
+  inset: 0;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   background-color: rgba(15, 23, 42, 0.65) !important;
@@ -1900,6 +1946,7 @@ select.form-input-super option:disabled {
   justify-content: center;
   padding: 1.5rem;
   z-index: 9999;
+  overflow: hidden;
 }
 
 .user-profile-modal {
@@ -2937,6 +2984,8 @@ select.form-input-super option:disabled {
    ========================================================================== */
 
 .full-audit-modal-backdrop {
+  position: fixed;
+  inset: 0;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   background-color: rgba(15, 23, 42, 0.75) !important;
@@ -2945,6 +2994,7 @@ select.form-input-super option:disabled {
   justify-content: center;
   padding: 1.5rem;
   z-index: 10001;
+  overflow: hidden;
 }
 
 .full-audit-modal {
@@ -3186,9 +3236,30 @@ select.form-input-super option:disabled {
 .full-audit-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   max-height: calc(88vh - 240px);
   padding: 0;
   background: #ffffff;
+}
+
+.full-audit-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.full-audit-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.full-audit-body::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+}
+
+.full-audit-body::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .full-audit-empty {

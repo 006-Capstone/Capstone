@@ -318,6 +318,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
+  overflow: hidden;
   animation: logout-backdrop-fade 0.15s ease;
 }
 
@@ -333,8 +334,32 @@
   padding: var(--space-7) var(--space-6);
   max-width: 420px;
   width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   text-align: center;
   animation: logout-confirm-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.logout-confirm-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.logout-confirm-modal::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 0;
+}
+
+.logout-confirm-modal::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+}
+
+.logout-confirm-modal::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 @keyframes logout-confirm-pop {

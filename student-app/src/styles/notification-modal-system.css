@@ -9,6 +9,7 @@
   left: 0;
   right: 0;
   bottom: 0;
+  overflow: hidden;
   z-index: 10060;
   display: flex;
   align-items: center;
@@ -36,6 +37,7 @@
   box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.16), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
   width: 100%;
   max-width: 440px;
+  max-height: calc(100vh - 32px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -124,6 +126,26 @@
   margin: 0;
   white-space: pre-line;
   word-break: break-word;
+  max-height: min(55vh, 360px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.notification-modal-message::-webkit-scrollbar {
+  width: 5px;
+}
+
+.notification-modal-message::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.notification-modal-message::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
 }
 
 .notification-modal-close-btn {
@@ -222,6 +244,7 @@
   left: 0;
   right: 0;
   bottom: 0;
+  overflow: hidden;
   z-index: 10050;
   display: flex;
   align-items: center;
@@ -240,6 +263,7 @@
   box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.14), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
   width: 100%;
   max-width: 440px;
+  max-height: calc(100vh - 32px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -311,6 +335,26 @@
   color: var(--gray-700, #3e483f);
   margin: 0;
   white-space: pre-line;
+  max-height: min(55vh, 360px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.confirm-message::-webkit-scrollbar {
+  width: 5px;
+}
+
+.confirm-message::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.confirm-message::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
 }
 
 .confirm-actions {

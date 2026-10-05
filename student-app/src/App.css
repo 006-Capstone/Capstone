@@ -27,3 +27,46 @@
   flex-direction: column;
   overflow: visible;
 }
+
+/* ==========================================================================
+   GLOBAL MODAL SCROLL-LOCK: Ensure background never scrolls and no vertical
+   scrollbar appears outside the active modal or popup window.
+   ========================================================================== */
+html:has(.admissions-modal-overlay),
+body:has(.admissions-modal-overlay),
+html:has(.change-password-modal-overlay),
+body:has(.change-password-modal-overlay),
+html:has(.forgot-password-overlay),
+body:has(.forgot-password-overlay),
+html:has(.qr-scanner-modal),
+body:has(.qr-scanner-modal),
+html:has(.idle-timeout-overlay),
+body:has(.idle-timeout-overlay),
+html:has(.profile-settings-overlay),
+body:has(.profile-settings-overlay),
+html:has(.password-modal-overlay),
+body:has(.password-modal-overlay),
+html:has(.unified-confirm-overlay),
+body:has(.unified-confirm-overlay),
+html:has(.unified-notification-modal-overlay),
+body:has(.unified-notification-modal-overlay),
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+}
+
+.login-container-student:has(.forgot-password-overlay),
+.login-container-student:has(.qr-scanner-modal),
+.login-container-student.modal-open,
+.dashboard:has(.admissions-modal-overlay),
+.dashboard:has(.profile-settings-overlay),
+.dashboard:has(.idle-timeout-overlay),
+.dashboard:has(.unified-confirm-overlay),
+.dashboard:has(.unified-notification-modal-overlay),
+.my-request-container:has(.admissions-modal-overlay),
+.my-request-container:has(.profile-settings-overlay),
+.my-request-container:has(.idle-timeout-overlay),
+.my-request-container:has(.unified-confirm-overlay),
+.my-request-container:has(.unified-notification-modal-overlay) {
+  overflow: hidden !important;
+}

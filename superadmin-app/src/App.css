@@ -21,7 +21,6 @@
   width: 100%;
 }
 
-/* Page container shared by every Super Admin page */
 .superadmin-page {
   flex: 1;
   width: 100%;
@@ -29,6 +28,57 @@
   background-color: var(--color-bg);
   padding: var(--content-padding);
   overflow-y: auto;
+}
+
+/* ==========================================================================
+   GLOBAL MODAL SCROLL-LOCK: Ensure background page never scrolls and no vertical
+   scrollbar appears outside the active modal or popup window.
+   ========================================================================== */
+html:has(.modal-overlay),
+body:has(.modal-overlay),
+html:has(.req-modal-overlay),
+body:has(.req-modal-overlay),
+html:has(.pm-modal-overlay),
+body:has(.pm-modal-overlay),
+html:has(.feedback-modal-overlay),
+body:has(.feedback-modal-overlay),
+html:has(.change-password-modal-overlay),
+body:has(.change-password-modal-overlay),
+html:has(.create-student-modal),
+body:has(.create-student-modal),
+html:has(.profile-modal-backdrop),
+body:has(.profile-modal-backdrop),
+html:has(.full-audit-modal-backdrop),
+body:has(.full-audit-modal-backdrop),
+html:has(.archive-modal-backdrop),
+body:has(.archive-modal-backdrop),
+html:has(.logout-modal-backdrop),
+body:has(.logout-modal-backdrop),
+html:has(.delete-modal-overlay),
+body:has(.delete-modal-overlay),
+html:has(.unified-confirm-overlay),
+body:has(.unified-confirm-overlay),
+html:has(.unified-notification-modal-overlay),
+body:has(.unified-notification-modal-overlay),
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+}
+
+.superadmin-page:has(.modal-overlay),
+.superadmin-page:has(.req-modal-overlay),
+.superadmin-page:has(.pm-modal-overlay),
+.superadmin-page:has(.feedback-modal-overlay),
+.superadmin-page:has(.change-password-modal-overlay),
+.superadmin-page:has(.create-student-modal),
+.superadmin-page:has(.profile-modal-backdrop),
+.superadmin-page:has(.full-audit-modal-backdrop),
+.superadmin-page:has(.archive-modal-backdrop),
+.superadmin-page:has(.logout-modal-backdrop),
+.superadmin-page:has(.delete-modal-overlay),
+.superadmin-page:has(.unified-confirm-overlay),
+.superadmin-page:has(.unified-notification-modal-overlay) {
+  overflow-y: hidden !important;
 }
 
 /* Mobile top bar — hamburger to open the drawer on small screens */

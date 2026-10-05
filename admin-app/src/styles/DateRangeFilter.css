@@ -119,12 +119,36 @@
   z-index: 70;
   width: 380px;
   max-width: calc(100vw - 24px);
+  max-height: min(560px, 85vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   background-color: var(--color-surface, #ffffff);
   border: 1px solid var(--color-border-soft, #e2e8f0);
   border-radius: var(--radius-md, 10px);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
   padding: 16px;
   animation: daterange-pop 0.18s var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.daterange-panel::-webkit-scrollbar {
+  width: 5px;
+}
+
+.daterange-panel::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.daterange-panel::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 5px;
+}
+
+.daterange-panel::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 @keyframes daterange-pop {

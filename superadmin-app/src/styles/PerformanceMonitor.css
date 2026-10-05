@@ -175,6 +175,28 @@
   gap: 2px;
   max-height: 280px;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.pm-month-picker-menu-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.pm-month-picker-menu-list::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.pm-month-picker-menu-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.pm-month-picker-menu-list::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .pm-month-option-item {
@@ -972,6 +994,7 @@
 .pm-modal-overlay {
   position: fixed;
   inset: 0;
+  overflow: hidden;
   background: rgba(15, 20, 16, 0.6);
   backdrop-filter: blur(4px);
   z-index: 1000;
@@ -1070,9 +1093,31 @@
 .pm-modal-body {
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.pm-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pm-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.pm-modal-body::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.pm-modal-body::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .pm-ai-loading-banner {
@@ -1759,20 +1804,24 @@
     font-size: 11px;
   }
 
-  .pm-diagnostic-modal-content {
+  .pm-diagnostic-modal-content,
+  .pm-modal-container {
     max-height: min(88vh, 660px);
   }
 }
 
 /* 14" to 16" Laptop Screen Height Budget (Usable height ~680px - 800px) */
 @media (max-height: 800px) {
-  .pm-diagnostic-modal-content {
+  .pm-diagnostic-modal-content,
+  .pm-modal-container {
     max-height: min(90vh, 600px);
   }
 
-  .pm-diagnostic-body {
+  .pm-diagnostic-body,
+  .pm-modal-body {
     max-height: calc(88vh - 120px);
     overflow-y: auto;
+    overflow-x: hidden;
   }
 }
 

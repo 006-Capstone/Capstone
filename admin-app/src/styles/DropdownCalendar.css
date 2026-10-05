@@ -143,6 +143,11 @@
   width: 100%;
   min-width: 275px;
   max-width: 320px;
+  max-height: min(480px, 85vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
@@ -151,6 +156,24 @@
   z-index: 10050;
   animation: calendarPopIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
+}
+
+.dropdown-calendar-popover::-webkit-scrollbar {
+  width: 5px;
+}
+
+.dropdown-calendar-popover::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.dropdown-calendar-popover::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 5px;
+}
+
+.dropdown-calendar-popover::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .dropdown-calendar-popover.align-right {

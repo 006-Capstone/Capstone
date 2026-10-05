@@ -493,6 +493,7 @@
   justify-content: center;
   z-index: 1100;
   padding: var(--space-4);
+  overflow: hidden;
   animation: modal-fade 0.2s ease;
 }
 
@@ -507,10 +508,34 @@
   padding: var(--space-7) var(--space-8);
   max-width: 440px;
   width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   text-align: center;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   border: 1px solid var(--color-border);
   animation: modal-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.delete-modal-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.delete-modal-card::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 0;
+}
+
+.delete-modal-card::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+}
+
+.delete-modal-card::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 @keyframes modal-pop {

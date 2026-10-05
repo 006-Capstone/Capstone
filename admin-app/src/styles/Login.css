@@ -583,6 +583,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
+  overflow: hidden;
   background-color: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
@@ -599,6 +600,8 @@ body {
   width: 90%;
   max-height: min(820px, 94vh);
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   overscroll-behavior: contain;
   position: relative;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);

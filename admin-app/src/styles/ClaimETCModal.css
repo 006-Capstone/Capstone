@@ -16,6 +16,7 @@
   z-index: 10000;
   padding: var(--space-4);
   animation: fadeIn 0.2s var(--ease-spring);
+  overflow: hidden;
 }
 
 .etc-modal {
@@ -26,11 +27,33 @@
   width: 100%;
   max-height: min(90vh, 620px);
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--color-border-soft);
   position: relative;
   text-align: center;
   animation: modalSlideIn 0.25s var(--ease-spring);
+}
+
+.etc-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.etc-modal::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 0;
+}
+
+.etc-modal::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+}
+
+.etc-modal::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 @media (max-height: 850px) {

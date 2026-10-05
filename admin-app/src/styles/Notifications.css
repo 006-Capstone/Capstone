@@ -5,6 +5,7 @@
 .notifications-overlay {
   position: fixed;
   inset: 0;
+  overflow: hidden;
   background-color: rgba(15, 23, 16, 0.45);
   backdrop-filter: blur(3px);
   z-index: 1000;
@@ -165,10 +166,30 @@
 .notifications-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   padding: 0;
   background-color: #ffffff;
   scrollbar-width: thin;
-  scrollbar-color: #e5e7eb transparent;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.notifications-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.notifications-list::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.notifications-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.notifications-list::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 /* ---- Empty State ---- */

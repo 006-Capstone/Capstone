@@ -16,6 +16,7 @@
   justify-content: center;
   z-index: 10000;
   padding: 16px;
+  overflow: hidden;
   animation: admissionsFadeIn 0.22s ease-out;
 }
 
@@ -31,12 +32,32 @@
   max-width: 640px;
   max-height: min(840px, 92vh);
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   position: relative;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05);
   padding: 28px;
   animation: admissionsSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   scrollbar-width: thin;
   scrollbar-color: #8cb986 #f1f5f2;
+}
+
+.admissions-modal-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admissions-modal-card::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 10px 0;
+}
+
+.admissions-modal-card::-webkit-scrollbar-thumb {
+  background-color: #8cb986;
+  border-radius: 6px;
+}
+
+.admissions-modal-card::-webkit-scrollbar-thumb:hover {
+  background-color: #6da466;
 }
 
 @media (max-height: 850px) {

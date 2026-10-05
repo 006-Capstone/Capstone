@@ -5,6 +5,7 @@
 .feedback-modal-overlay {
   position: fixed;
   inset: 0;
+  overflow: hidden;
   background-color: rgba(15, 23, 16, 0.65);
   backdrop-filter: blur(4px);
   z-index: 1200;
@@ -393,10 +394,32 @@
 .feedback-modal-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   padding: 20px 24px;
   background: #f8fafc;
   min-height: 280px;
   max-height: 520px;
+}
+
+.feedback-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.feedback-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.feedback-modal-body::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.feedback-modal-body::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .feedback-cards-grid {

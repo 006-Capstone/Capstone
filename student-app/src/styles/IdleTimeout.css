@@ -15,6 +15,7 @@
   justify-content: center;
   z-index: 9999;
   padding: var(--space-4);
+  overflow: hidden;
   animation: fadeIn 0.2s var(--ease-spring);
 }
 
@@ -24,10 +25,34 @@
   padding: var(--space-8);
   max-width: 440px;
   width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--color-border-soft);
   text-align: center;
   animation: modalSlideIn 0.25s var(--ease-spring);
+}
+
+.idle-timeout-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.idle-timeout-modal::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 0;
+}
+
+.idle-timeout-modal::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+}
+
+.idle-timeout-modal::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .idle-timeout-icon {

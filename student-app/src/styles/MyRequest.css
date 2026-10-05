@@ -180,12 +180,34 @@
   max-width: calc(100vw - 32px);
   max-height: 60vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   background-color: #ffffff;
   border: 1px solid var(--color-border-soft, #e3e6e2);
   border-radius: 10px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
   padding: 12px;
   animation: filter-dropdown-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.filter-dropdown-panel::-webkit-scrollbar {
+  width: 5px;
+}
+
+.filter-dropdown-panel::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.filter-dropdown-panel::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 5px;
+}
+
+.filter-dropdown-panel::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 @keyframes filter-dropdown-pop {
