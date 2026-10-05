@@ -1418,22 +1418,42 @@
    MONTH / DAY / YEAR ETC MODAL STYLES
    ========================================================================== */
 .modal-etc-window {
-  max-width: 500px;
+  max-width: 520px;
+  min-height: 540px;
   overflow: visible !important;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-height: 680px) {
+@media (max-height: 700px) {
   .modal-etc-window {
+    min-height: 0;
     overflow-y: auto !important;
   }
 }
 
-.etc-presets-section {
+.modal-etc-window .etc-presets-section {
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 18px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.modal-etc-window .etc-mdy-container {
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 50;
+}
+
+.modal-etc-window .reason-field-group {
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.modal-etc-window .modal-btn-row {
+  margin-top: auto;
 }
 
 .etc-presets-label {

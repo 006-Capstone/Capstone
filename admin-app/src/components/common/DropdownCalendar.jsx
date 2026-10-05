@@ -92,6 +92,7 @@ const DropdownCalendar = ({
   id,
   title,
   placement = 'auto',
+  compact = false,
   ariaLabel = 'Date picker'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -364,7 +365,7 @@ const DropdownCalendar = ({
       {/* Popover Dropdown Window */}
       {isOpen && (
         <div
-          className={`dropdown-calendar-popover ${actualPlacement === 'top' ? 'placement-top' : ''} ${placement === 'right' ? 'align-right' : ''}`}
+          className={`dropdown-calendar-popover ${actualPlacement === 'top' ? 'placement-top' : ''} ${placement === 'right' ? 'align-right' : ''} ${compact ? 'compact-calendar' : ''}`}
           role="dialog"
           aria-modal="true"
           onClick={(e) => e.stopPropagation()}

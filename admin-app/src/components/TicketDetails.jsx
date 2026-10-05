@@ -2444,6 +2444,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 placeholder="Select target completion date"
                 ariaLabel="Target Completion Date"
                 showPresets={false}
+                placement="bottom"
+                compact={true}
               />
 
               {/* Formatted Date Banner */}

@@ -149,6 +149,8 @@ const ClaimETCModal = ({ ticket, onConfirm, onCancel }) => {
                 presets={SET_COMPLETION_DATE_PRESETS}
                 placeholder="Select estimated completion date"
                 ariaLabel="Estimated Time of Completion"
+                placement="bottom"
+                compact={true}
               />
 
               <div className="etc-notice">

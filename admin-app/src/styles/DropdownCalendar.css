@@ -187,6 +187,50 @@
   animation: calendarPopInTop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Compact variant for modals */
+.dropdown-calendar-popover.compact-calendar {
+  padding: 8px 10px;
+  max-width: 290px;
+  min-width: 260px;
+}
+
+.dropdown-calendar-popover.compact-calendar .cal-nav-header {
+  margin-bottom: 6px;
+}
+
+.dropdown-calendar-popover.compact-calendar .cal-nav-title {
+  font-size: 12.5px;
+}
+
+.dropdown-calendar-popover.compact-calendar .cal-nav-btn {
+  width: 24px;
+  height: 24px;
+  font-size: 9px;
+}
+
+.dropdown-calendar-popover.compact-calendar .cal-weekdays-row {
+  margin-bottom: 2px;
+}
+
+.dropdown-calendar-popover.compact-calendar .cal-weekday-cell {
+  font-size: 9.5px;
+  padding: 2px 0;
+}
+
+.dropdown-calendar-popover.compact-calendar .cal-days-grid {
+  gap: 2px;
+}
+
+.dropdown-calendar-popover.compact-calendar .cal-day-cell {
+  font-size: 11px;
+}
+
+.dropdown-calendar-popover.compact-calendar .cal-footer {
+  margin-top: 6px;
+  padding-top: 6px;
+  font-size: 11px;
+}
+
 @keyframes calendarPopIn {
   from {
     opacity: 0;
