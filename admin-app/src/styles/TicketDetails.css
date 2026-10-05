@@ -1419,6 +1419,13 @@
    ========================================================================== */
 .modal-etc-window {
   max-width: 500px;
+  overflow: visible !important;
+}
+
+@media (max-height: 680px) {
+  .modal-etc-window {
+    overflow-y: auto !important;
+  }
 }
 
 .etc-presets-section {

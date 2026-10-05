@@ -143,6 +143,37 @@ const DropdownCalendar = ({
     };
   }, [isOpen]);
 
+  const [actualPlacement, setActualPlacement] = useState(placement);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (placement === 'top' || placement === 'bottom') {
+      setActualPlacement(placement);
+      return;
+    }
+
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+
+      const modalParent = containerRef.current.closest('.figma-modal-window, .etc-modal, .modal-content, [role="dialog"]');
+      let parentSpaceBelow = spaceBelow;
+      if (modalParent) {
+        const parentRect = modalParent.getBoundingClientRect();
+        parentSpaceBelow = parentRect.bottom - rect.bottom;
+      }
+
+      const minCalendarHeight = showPresets ? 360 : 300;
+      if (parentSpaceBelow < minCalendarHeight || spaceBelow < minCalendarHeight) {
+        setActualPlacement('top');
+      } else {
+        setActualPlacement('bottom');
+      }
+    }
+  }, [isOpen, placement, showPresets]);
+
   const handleToggle = () => {
     if (disabled) return;
     setIsOpen((prev) => !prev);
@@ -333,7 +364,7 @@ const DropdownCalendar = ({
       {/* Popover Dropdown Window */}
       {isOpen && (
         <div
-          className={`dropdown-calendar-popover ${placement === 'right' ? 'align-right' : ''}`}
+          className={`dropdown-calendar-popover ${actualPlacement === 'top' ? 'placement-top' : ''} ${placement === 'right' ? 'align-right' : ''}`}
           role="dialog"
           aria-modal="true"
           onClick={(e) => e.stopPropagation()}

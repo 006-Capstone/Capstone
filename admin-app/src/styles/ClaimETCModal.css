@@ -26,8 +26,7 @@
   max-width: 440px;
   width: 100%;
   max-height: min(90vh, 620px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
@@ -36,6 +35,13 @@
   position: relative;
   text-align: center;
   animation: modalSlideIn 0.25s var(--ease-spring);
+}
+
+@media (max-height: 680px) {
+  .etc-modal {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 }
 
 .etc-modal::-webkit-scrollbar {

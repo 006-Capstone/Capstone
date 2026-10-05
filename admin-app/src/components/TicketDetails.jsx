@@ -2443,6 +2443,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 minDate={new Date().toISOString().split('T')[0]}
                 placeholder="Select target completion date"
                 ariaLabel="Target Completion Date"
+                showPresets={false}
               />
 
               {/* Formatted Date Banner */}
