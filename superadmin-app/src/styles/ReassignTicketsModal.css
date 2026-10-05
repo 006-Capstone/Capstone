@@ -38,7 +38,69 @@
 .reassign-modal {
   width: 90%;
   max-width: 900px;
-  max-height: 90vh;
+  max-height: min(90vh, calc(100vh - 32px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.reassign-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.reassign-modal .modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reassign-modal .modal-icon {
+  font-size: 1.5rem;
+  color: var(--color-primary, #105e06);
+}
+
+.reassign-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #111827;
+}
+
+.reassign-modal .modal-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.reassign-modal .modal-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.reassign-modal .modal-close:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.reassign-modal .modal-body {
+  padding: 1.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
@@ -46,22 +108,33 @@
   scrollbar-color: #cbd5e1 transparent;
 }
 
-.reassign-modal::-webkit-scrollbar {
+.reassign-modal .modal-body::-webkit-scrollbar {
   width: 6px;
 }
 
-.reassign-modal::-webkit-scrollbar-track {
+.reassign-modal .modal-body::-webkit-scrollbar-track {
   background: transparent;
-  margin: 10px 0;
+  margin: 6px 0;
 }
 
-.reassign-modal::-webkit-scrollbar-thumb {
+.reassign-modal .modal-body::-webkit-scrollbar-thumb {
   background-color: #cbd5e1;
   border-radius: 6px;
 }
 
-.reassign-modal::-webkit-scrollbar-thumb:hover {
+.reassign-modal .modal-body::-webkit-scrollbar-thumb:hover {
   background-color: #94a3b8;
+}
+
+.reassign-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0 0 12px 12px;
+  flex-shrink: 0;
 }
 
 /* Staff Comparison */
@@ -416,7 +489,7 @@
 
 @media (max-width: 576px) {
   .reassign-modal {
-    max-height: 95vh;
+    max-height: min(95vh, calc(100vh - 20px));
   }
 
   .ticket-item {

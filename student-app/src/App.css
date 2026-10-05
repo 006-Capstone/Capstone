@@ -60,11 +60,13 @@ body.modal-open {
 .login-container-student.modal-open,
 .dashboard:has(.admissions-modal-overlay),
 .dashboard:has(.profile-settings-overlay),
+.dashboard:has(.password-modal-overlay),
 .dashboard:has(.idle-timeout-overlay),
 .dashboard:has(.unified-confirm-overlay),
 .dashboard:has(.unified-notification-modal-overlay),
 .my-request-container:has(.admissions-modal-overlay),
 .my-request-container:has(.profile-settings-overlay),
+.my-request-container:has(.password-modal-overlay),
 .my-request-container:has(.idle-timeout-overlay),
 .my-request-container:has(.unified-confirm-overlay),
 .my-request-container:has(.unified-notification-modal-overlay) {

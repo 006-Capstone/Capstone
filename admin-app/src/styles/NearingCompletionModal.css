@@ -24,13 +24,12 @@
   border-radius: var(--radius-lg, 12px);
   width: 100%;
   max-width: 960px;
-  max-height: 88vh;
+  max-height: min(88vh, calc(100vh - 32px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 48px -12px rgba(15, 23, 16, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.08);
   position: relative;
-  overflow: hidden;
   animation: nearingSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -58,6 +57,7 @@
   align-items: flex-start;
   border-bottom: 1px solid var(--color-border-soft, #eaede8);
   background-color: #ffffff;
+  flex-shrink: 0;
 }
 
 .nearing-header-title-wrap {
@@ -137,6 +137,7 @@
   gap: var(--space-3, 12px);
   background-color: var(--gray-50, #f8f9f7);
   border-bottom: 1px solid var(--color-border-soft, #eaede8);
+  flex-shrink: 0;
 }
 
 .nearing-summary-card {
@@ -203,6 +204,7 @@
   border-bottom: 1px solid var(--color-border-soft, #eaede8);
   background-color: #ffffff;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .nearing-search-wrap {
@@ -289,13 +291,13 @@
 
 /* Modal Body */
 .nearing-modal-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
-  min-height: 250px;
   background-color: var(--gray-50, #f8f9f7);
 }
 
@@ -798,6 +800,7 @@
   background-color: var(--gray-50, #f8f9f7);
   flex-wrap: wrap;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .nearing-session-checkbox-label {

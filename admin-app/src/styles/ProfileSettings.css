@@ -620,6 +620,7 @@
   justify-content: center;
   z-index: 1100;
   padding: 16px;
+  overflow: hidden;
   animation: modalFadeIn 0.18s ease-out;
 }
 
@@ -629,8 +630,32 @@
   border-radius: 12px;
   width: 100%;
   max-width: 440px;
+  max-height: min(90vh, calc(100vh - 32px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
   animation: modalSlideIn 0.2s ease-out;
+}
+
+.password-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.password-modal::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.password-modal::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 6px;
+}
+
+.password-modal::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 .password-modal h3 {

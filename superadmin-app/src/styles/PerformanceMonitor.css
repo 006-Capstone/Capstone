@@ -1010,7 +1010,7 @@
   border: 1px solid var(--color-border-soft, #e5eae4);
   width: 100%;
   max-width: 860px;
-  max-height: 90vh;
+  max-height: min(90vh, calc(100vh - 40px));
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-2xl, 0 28px 50px -10px rgba(0, 0, 0, 0.16));
@@ -1030,6 +1030,7 @@
   padding: 18px 24px;
   border-bottom: 1px solid var(--color-divider, #edf0ec);
   background: var(--gray-50, #f8f9f7);
+  flex-shrink: 0;
 }
 
 .pm-modal-title-area {
@@ -1092,6 +1093,8 @@
 
 .pm-modal-body {
   padding: 24px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
@@ -1369,6 +1372,7 @@
   padding: 16px 24px;
   border-top: 1px solid var(--color-divider, #edf0ec);
   background: var(--gray-50, #f8f9f7);
+  flex-shrink: 0;
 }
 
 .pm-btn-secondary {

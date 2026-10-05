@@ -518,11 +518,12 @@
 /* 14" to 16" Laptop Screen Height Budget (Usable height ~680px - 800px) */
 @media (max-height: 850px) {
   .modal-content,
-  .etc-modal,
-  .ticket-details-modal,
-  .efficiency-warning-modal,
-  .nearing-modal-dialog {
-    max-height: min(88vh, 650px) !important;
+  .figma-modal-window,
+  .eff-modal-card,
+  .nearing-modal,
+  .password-modal,
+  .reply-modal {
+    max-height: min(88vh, calc(100vh - 32px)) !important;
   }
 }
 

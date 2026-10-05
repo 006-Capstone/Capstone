@@ -1297,7 +1297,7 @@
   padding: 28px 32px;
   max-width: 480px;
   width: 100%;
-  max-height: 90vh;
+  max-height: min(90vh, calc(100vh - 32px));
   overflow-y: auto;
   overflow-x: hidden;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
@@ -2161,4 +2161,18 @@
 .reassign-date-warning-msg svg {
   color: #b45309;
   flex-shrink: 0;
+}
+
+@media (max-height: 800px) {
+  .figma-modal-window {
+    padding: 20px 24px;
+    max-height: min(92vh, calc(100vh - 24px));
+  }
+}
+
+@media (max-width: 640px) {
+  .figma-modal-window {
+    padding: 20px 18px;
+    max-height: min(94vh, calc(100vh - 16px));
+  }
 }
