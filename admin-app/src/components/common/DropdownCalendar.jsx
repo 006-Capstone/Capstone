@@ -148,8 +148,23 @@ const DropdownCalendar = ({
     setIsOpen((prev) => !prev);
   };
 
+  const isNextMonthDisabled = useMemo(() => {
+    if (!maxDate) return false;
+    const parsedMax = parseIsoString(maxDate);
+    if (!parsedMax) return false;
+    return viewYear > parsedMax.year || (viewYear === parsedMax.year && viewMonth >= parsedMax.month);
+  }, [maxDate, viewYear, viewMonth]);
+
+  const isPrevMonthDisabled = useMemo(() => {
+    if (!effectiveMinDate) return false;
+    const parsedMin = parseIsoString(effectiveMinDate);
+    if (!parsedMin) return false;
+    return viewYear < parsedMin.year || (viewYear === parsedMin.year && viewMonth <= parsedMin.month);
+  }, [effectiveMinDate, viewYear, viewMonth]);
+
   const handlePrevMonth = (e) => {
     e.stopPropagation();
+    if (isPrevMonthDisabled) return;
     setViewMonth((prev) => {
       if (prev === 0) {
         setViewYear((y) => y - 1);
@@ -161,6 +176,7 @@ const DropdownCalendar = ({
 
   const handleNextMonth = (e) => {
     e.stopPropagation();
+    if (isNextMonthDisabled) return;
     setViewMonth((prev) => {
       if (prev === 11) {
         setViewYear((y) => y + 1);
@@ -328,7 +344,10 @@ const DropdownCalendar = ({
               {presets.map((preset) => {
                 const presetIso = getOffsetIso(preset.offset);
                 const isPresetActive = value === presetIso;
-                const isPresetDisabled = Boolean(effectiveMinDate && presetIso < effectiveMinDate);
+                const isPresetDisabled = Boolean(
+                  (effectiveMinDate && presetIso < effectiveMinDate) ||
+                  (maxDate && presetIso > maxDate)
+                );
 
                 return (
                   <button
@@ -353,6 +372,7 @@ const DropdownCalendar = ({
               type="button"
               className="cal-nav-btn"
               onClick={handlePrevMonth}
+              disabled={isPrevMonthDisabled}
               aria-label="Previous Month"
               title="Previous Month"
             >
@@ -367,6 +387,7 @@ const DropdownCalendar = ({
               type="button"
               className="cal-nav-btn"
               onClick={handleNextMonth}
+              disabled={isNextMonthDisabled}
               aria-label="Next Month"
               title="Next Month"
             >
@@ -443,7 +464,10 @@ const DropdownCalendar = ({
                     type="button"
                     className="cal-footer-btn cal-today-btn"
                     onClick={(e) => handlePresetClick(e, 0)}
-                    disabled={Boolean(effectiveMinDate && todayIso < effectiveMinDate)}
+                    disabled={Boolean(
+                      (effectiveMinDate && todayIso < effectiveMinDate) ||
+                      (maxDate && todayIso > maxDate)
+                    )}
                   >
                     Today
                   </button>

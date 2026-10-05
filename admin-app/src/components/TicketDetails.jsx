@@ -14,14 +14,15 @@ import {
   FaLock,
   FaExchangeAlt,
   FaCalendarAlt,
-  FaClock
+  FaClock,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { 
   notifyStudentStatusChange, 
   notifyStudentComment, 
-  notifyStudentEtcChange,
+  notifyStudentEtcChange, 
   notifyStaffReassignment 
 } from '../utils/notificationHelper';
 import Notifications from './Notifications';
@@ -41,6 +42,25 @@ const formatEtcLabel = (value) => {
     day: 'numeric',
     year: 'numeric'
   });
+};
+
+const getTicketEtcIso = (t) => {
+  if (!t) return '';
+  if (t.etc && isISODate(t.etc)) return t.etc;
+  const raw = t.etc || t.estimatedCompletion;
+  if (!raw) return '';
+  try {
+    const d = raw?.toDate ? raw.toDate() : new Date(raw);
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  } catch (e) {
+    // fallback
+  }
+  return '';
 };
 
 const MONTHS = [
@@ -255,6 +275,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     }
     return ticket.previousOffice || ticket.reassignedFrom || 'original';
   }, [ticket]);
+
+  // Original Estimated Time of Completion (ETC) normalized to YYYY-MM-DD
+  const ticketEtcIso = useMemo(() => getTicketEtcIso(ticket), [ticket]);
+  const todayIso = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const isRerouteDateBeyondEtc = Boolean(ticketEtcIso && reassignTargetDate && reassignTargetDate > ticketEtcIso);
+  const isRerouteDateInPast = Boolean(reassignTargetDate && reassignTargetDate < todayIso);
+  const isOriginalEtcPast = Boolean(ticketEtcIso && ticketEtcIso < todayIso);
 
   // Check if the current office/staff belongs to the original department where the request originated
   const isOriginalDepartment = useCallback(() => {
@@ -956,6 +983,16 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       return;
     }
 
+    if (newDate < todayIso) {
+      showToast('Target completion date cannot be in the past.', 'error');
+      return;
+    }
+
+    if (ticketEtcIso && newDate > ticketEtcIso) {
+      showToast(`Target completion date cannot exceed the original ETC (${formatReadableDate(ticketEtcIso)}).`, 'error');
+      return;
+    }
+
     setInternalTargetDate(newDate);
 
     try {
@@ -986,7 +1023,20 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       showToast('Request is already assigned to this office', 'info');
       return;
     }
-    const defaultDate = ticket.internalTargetDate || ticket.etc || isoDateFromOffset(2);
+
+    if (isOriginalEtcPast) {
+      showToast(`Cannot reroute: Original ETC (${formatReadableDate(ticketEtcIso)}) is overdue. Please update the ETC first.`, 'error');
+      return;
+    }
+
+    let defaultDate = ticket.internalTargetDate || ticketEtcIso || isoDateFromOffset(2);
+    if (ticketEtcIso && defaultDate > ticketEtcIso) {
+      defaultDate = ticketEtcIso;
+    }
+    if (defaultDate < todayIso) {
+      defaultDate = todayIso;
+    }
+
     setReassignTargetDate(defaultDate);
     setShowReassignModal(true);
   };
@@ -995,6 +1045,26 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     if (!isOwner) {
       showToast('You do not have permission to reassign this request.', 'error');
       setShowReassignModal(false);
+      return;
+    }
+
+    if (isOriginalEtcPast) {
+      showToast(`Cannot reroute: Original ETC (${formatReadableDate(ticketEtcIso)}) is overdue. Please update the ETC first.`, 'error');
+      return;
+    }
+
+    if (!reassignTargetDate) {
+      showToast('Please select a target completion date.', 'error');
+      return;
+    }
+
+    if (reassignTargetDate < todayIso) {
+      showToast('Target completion date cannot be in the past.', 'error');
+      return;
+    }
+
+    if (ticketEtcIso && reassignTargetDate > ticketEtcIso) {
+      showToast(`Target completion date cannot exceed the original ETC (${formatReadableDate(ticketEtcIso)}).`, 'error');
       return;
     }
 
@@ -1887,12 +1957,18 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     ? `Only ${ticketHandler || 'the assigned staff'} can set this date` 
                     : "Set internal target date (does not affect Status Timeline or student)"
                 }
-                minDate={new Date().toISOString().split('T')[0]}
+                minDate={todayIso}
+                maxDate={ticketEtcIso || undefined}
                 presets={TARGET_COMPLETION_DATE_PRESETS}
                 footerActions="cancel"
                 placeholder="Set target completion date"
                 ariaLabel="Target Completion Date"
               />
+              {ticketEtcIso && (
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                  Original ETC: <strong>{formatReadableDate(ticketEtcIso)}</strong> (target date cannot exceed this)
+                </div>
+              )}
               <p className="mgmt-info-text">
                 {(isReroutedTicket && (ticket.internalTargetSetBy || ticket.previousOffice)) ? (
                   <>
@@ -2153,14 +2229,50 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               <label className="modal-label">
                 TARGET COMPLETION DATE &amp; DURATION
               </label>
+
+              {ticketEtcIso && (
+                <div className="reassign-etc-reference-banner">
+                  <FaClock className="banner-icon" />
+                  <div className="banner-content">
+                    <span className="banner-title">Original ETC Reference:</span>
+                    <span className="banner-date">{formatReadableDate(ticketEtcIso)}</span>
+                    <span className="banner-desc">— Rerouting target date cannot go beyond this date.</span>
+                  </div>
+                </div>
+              )}
+
+              {isOriginalEtcPast && (
+                <div className="reassign-date-warning-msg" style={{ marginBottom: '8px' }}>
+                  <FaExclamationTriangle />
+                  <span>The original ETC ({formatReadableDate(ticketEtcIso)}) is already overdue. Update the request's ETC before rerouting.</span>
+                </div>
+              )}
+
               <DropdownCalendar
                 value={reassignTargetDate}
                 onChange={(newDate) => setReassignTargetDate(newDate)}
-                minDate={new Date().toISOString().split('T')[0]}
+                minDate={todayIso}
+                maxDate={ticketEtcIso || undefined}
                 presets={TARGET_COMPLETION_DATE_PRESETS}
                 placeholder="Set target completion date"
                 ariaLabel="Reroute Target Completion Date"
+                disabled={isOriginalEtcPast}
               />
+
+              {isRerouteDateBeyondEtc && (
+                <div className="reassign-date-error-msg">
+                  <FaExclamationTriangle />
+                  <span>Target date cannot exceed original ETC ({formatReadableDate(ticketEtcIso)})</span>
+                </div>
+              )}
+
+              {isRerouteDateInPast && (
+                <div className="reassign-date-error-msg">
+                  <FaExclamationTriangle />
+                  <span>Target date cannot be in the past</span>
+                </div>
+              )}
+
               <div className="reassign-duration-hint">
                 Allocated duration: <strong>{calculateDaysCount(reassignTargetDate)} {calculateDaysCount(reassignTargetDate) === 1 ? 'day' : 'days'}</strong> (Target: {formatReadableDate(reassignTargetDate)})
               </div>
@@ -2246,7 +2358,14 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 type="button"
                 className="btn-modal-submit btn-submit-green" 
                 onClick={confirmReassign}
-                disabled={reassignNote.trim().length < 2 || !reassignTargetDate || isReassigning}
+                disabled={
+                  reassignNote.trim().length < 2 || 
+                  !reassignTargetDate || 
+                  isReassigning ||
+                  isRerouteDateBeyondEtc ||
+                  isRerouteDateInPast ||
+                  isOriginalEtcPast
+                }
               >
                 {isReassigning ? 'Reassigning...' : 'Confirm Reassignment'}
               </button>

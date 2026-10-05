@@ -1934,7 +1934,6 @@
   opacity: 1;
 }
 
-
 /* ==========================================================================
    FILE PREVIEW MODAL
    ========================================================================== */
@@ -2067,4 +2066,67 @@
   .file-size {
     font-size: 12px;
   }
+}
+
+/* Reassign Modal ETC Reference & Validation Banner */
+.reassign-etc-reference-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: #166534;
+}
+
+.reassign-etc-reference-banner .etc-ref-icon {
+  color: #15803d;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.reassign-etc-reference-banner strong {
+  color: #14532d;
+  font-weight: 700;
+}
+
+.reassign-date-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.reassign-date-error-msg svg {
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+.reassign-date-warning-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.reassign-date-warning-msg svg {
+  color: #b45309;
+  flex-shrink: 0;
 }

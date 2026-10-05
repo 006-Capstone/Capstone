@@ -88,12 +88,13 @@ const PROFANE_WORDS = [
   'patayin',
 
   // Visayan / Bisaya / Regional dialects
-  'buang', 'boang', 'ywa', 'minatay', 'patay', 'patyon',
+  'buang', 'boang', 'yawa', 'ywa', 'minatay', 'patay', 'patyon',
   'bugo', 'bogo', 'bugok', 'bogok', 'lapuk',
   'bilat', 'oten', 'kayat', 'ukininam',
+  'piste', 'pisti', 'psti', 'atay', 'aty', 'bigaon',
 
   // Leetspeak / Symbol variations
-  '8080', 'y@w@', 'p*ta', 'g@go'
+  '8080', 'y@w@', 'yw@', 'p*ta', 'g@go', '@ty', 'at@y'
 ];
 
 const PROFANE_PHRASES = [

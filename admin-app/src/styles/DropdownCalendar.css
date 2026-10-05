@@ -260,10 +260,16 @@
   transition: all 0.12s ease;
 }
 
-.cal-nav-btn:hover {
+.cal-nav-btn:hover:not(:disabled) {
   background-color: #f0fdf4;
   border-color: #86efac;
   color: #166534;
+}
+
+.cal-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* --------------------------------------------------------------------------

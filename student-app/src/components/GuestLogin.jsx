@@ -643,15 +643,8 @@ const GuestLogin = () => {
           />
         ) : view === 'check' ? (
           <section className="guest-section">
-            <div className="guest-section-header-row">
-              <div>
-                <h2 className="section-title-guest">Check Request Status</h2>
-                <p className="section-subtitle-guest">Track the live progress of an existing request using your Request ID.</p>
-              </div>
-              <button type="button" className="btn-back-to-options" onClick={goHome}>
-                <FaArrowLeft /> Back to Options
-              </button>
-            </div>
+            <h2 className="section-title-guest">Check Request Status</h2>
+            <p className="section-subtitle-guest">Track the live progress of an existing request using your Request ID.</p>
 
             <div className="form-group-guest">
               <label className="form-label-guest" htmlFor="guestRequestId">Enter Request ID <span className="required-star">*</span></label>
@@ -683,13 +676,6 @@ const GuestLogin = () => {
             </div>
 
             <div className="form-actions-guest">
-              <button 
-                type="button" 
-                className="cancel-btn-guest" 
-                onClick={goHome}
-              >
-                Back to Options
-              </button>
               <button 
                 type="button" 
                 className="cancel-btn-guest" 
