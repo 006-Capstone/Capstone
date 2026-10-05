@@ -1456,6 +1456,39 @@
   margin-top: auto;
 }
 
+/* ==========================================================================
+   REASSIGN MODAL STYLES
+   ========================================================================== */
+.modal-reassign-window {
+  max-width: 520px;
+  min-height: 580px;
+  overflow: visible !important;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-height: 720px) {
+  .modal-reassign-window {
+    min-height: 0;
+    overflow-y: auto !important;
+  }
+}
+
+.modal-reassign-window .reassign-date-field-group {
+  position: relative;
+  z-index: 50;
+  margin-bottom: 14px;
+}
+
+.modal-reassign-window .modal-field-group:not(.reassign-date-field-group) {
+  position: relative;
+  z-index: 1;
+}
+
+.modal-reassign-window .modal-btn-row {
+  margin-top: auto;
+}
+
 .etc-presets-label {
   display: block;
   font-size: 10.5px;

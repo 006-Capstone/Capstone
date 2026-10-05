@@ -2219,13 +2219,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       {/* Modal: Reassign Office */}
       {showReassignModal && (
         <div className="figma-modal-overlay" onClick={cancelReassign}>
-          <div className="figma-modal-window" onClick={(e) => e.stopPropagation()}>
+          <div className="figma-modal-window modal-reassign-window" onClick={(e) => e.stopPropagation()}>
             <h3 className="modal-heading green-heading">Reassign to {reassignOffice}</h3>
             <p className="modal-explainer">
               Please specify the target completion deadline and a reason for reassigning request #{ticket.requestId}
             </p>
             
-            <div className="modal-field-group">
+            <div className="modal-field-group reassign-date-field-group">
               <label className="modal-label">
                 TARGET COMPLETION DATE &amp; DURATION
               </label>
@@ -2257,6 +2257,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 placeholder="Set target completion date"
                 ariaLabel="Reroute Target Completion Date"
                 disabled={isOriginalEtcPast}
+                placement="bottom"
+                compact={true}
               />
 
               {isRerouteDateBeyondEtc && (
