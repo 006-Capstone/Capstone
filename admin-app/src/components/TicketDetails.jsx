@@ -2220,7 +2220,18 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       {showReassignModal && (
         <div className="figma-modal-overlay" onClick={cancelReassign}>
           <div className="figma-modal-window modal-reassign-window" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-heading green-heading">Reassign to {reassignOffice}</h3>
+            <div className="modal-header-row">
+              <h3 className="modal-heading green-heading">Reassign to {reassignOffice}</h3>
+              <button 
+                type="button" 
+                className="modal-close-icon-btn" 
+                onClick={cancelReassign} 
+                title="Close"
+                disabled={isReassigning}
+              >
+                <FaTimes />
+              </button>
+            </div>
             <p className="modal-explainer">
               Please specify the target completion deadline and a reason for reassigning request #{ticket.requestId}
             </p>
@@ -2289,7 +2300,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 placeholder="Example: This inquiry belongs to the Finance Office..."
                 value={reassignNote}
                 onChange={(e) => setReassignNote(e.target.value)}
-                rows={4}
+                rows={3}
                 maxLength={500}
               />
               <div className="modal-char-counter">
@@ -2300,7 +2311,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </div>
             </div>
 
-            <div className="modal-field-group">
+            <div className="modal-field-group reassign-attach-group">
               <label className="modal-label">
                 ATTACH FILES FOR REROUTING <span style={{ fontWeight: 'normal', color: '#64748b', textTransform: 'none' }}>(Optional)</span>
               </label>

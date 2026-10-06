@@ -1418,18 +1418,19 @@
    MONTH / DAY / YEAR ETC MODAL STYLES
    ========================================================================== */
 .modal-etc-window {
-  max-width: 520px;
-  min-height: 540px;
+  max-width: 500px;
+  padding: 24px 28px;
   overflow: visible !important;
-  display: flex;
-  flex-direction: column;
 }
 
 @media (max-height: 700px) {
   .modal-etc-window {
-    min-height: 0;
     overflow-y: auto !important;
   }
+}
+
+.modal-etc-window .modal-explainer {
+  margin: 0 0 14px 0;
 }
 
 .modal-etc-window .etc-presets-section {
@@ -1437,7 +1438,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 10px 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .modal-etc-window .etc-mdy-container {
@@ -1447,13 +1448,13 @@
 }
 
 .modal-etc-window .reason-field-group {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   position: relative;
   z-index: 1;
 }
 
 .modal-etc-window .modal-btn-row {
-  margin-top: auto;
+  margin-top: 20px;
 }
 
 /* ==========================================================================
@@ -1461,17 +1462,18 @@
    ========================================================================== */
 .modal-reassign-window {
   max-width: 520px;
-  min-height: 580px;
+  padding: 24px 28px;
   overflow: visible !important;
-  display: flex;
-  flex-direction: column;
 }
 
 @media (max-height: 720px) {
   .modal-reassign-window {
-    min-height: 0;
     overflow-y: auto !important;
   }
+}
+
+.modal-reassign-window .modal-explainer {
+  margin: 0 0 14px 0;
 }
 
 .modal-reassign-window .reassign-date-field-group {
@@ -1483,10 +1485,15 @@
 .modal-reassign-window .modal-field-group:not(.reassign-date-field-group) {
   position: relative;
   z-index: 1;
+  margin-bottom: 14px;
+}
+
+.modal-reassign-window .modal-field-group.reassign-attach-group {
+  margin-bottom: 18px;
 }
 
 .modal-reassign-window .modal-btn-row {
-  margin-top: auto;
+  margin-top: 20px;
 }
 
 .etc-presets-label {
@@ -1575,8 +1582,9 @@
   background-color: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 8px;
-  padding: 9px 14px;
-  font-size: 12.5px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  font-size: 12px;
 }
 
 .preview-label {
@@ -2164,25 +2172,45 @@
 .reassign-etc-reference-banner {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background-color: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px 12px;
   margin-bottom: 10px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: #166534;
 }
 
-.reassign-etc-reference-banner .etc-ref-icon {
+.reassign-etc-reference-banner .banner-icon {
   color: #15803d;
-  font-size: 13px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
-.reassign-etc-reference-banner strong {
-  color: #14532d;
+.reassign-etc-reference-banner .banner-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+.reassign-etc-reference-banner .banner-title {
   font-weight: 700;
+  color: #14532d;
+}
+
+.reassign-etc-reference-banner .banner-date {
+  font-weight: 700;
+  color: #15803d;
+  background-color: #dcfce7;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.reassign-etc-reference-banner .banner-desc {
+  color: #166534;
 }
 
 .reassign-date-error-msg {
