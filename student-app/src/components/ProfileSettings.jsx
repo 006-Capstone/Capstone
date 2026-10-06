@@ -13,8 +13,7 @@ import '../styles/ProfileSettings.css';
 
 // Only the fields the user can actually edit count toward "changed"
 // (read-only fields like grade level, section, email, school ID and the
-// derived M.I. don't).
-const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix', 'phoneNumber', 'twoFactorEnabled'];
+const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix'];
 
 function ProfileSettings({ onClose }) {
   const { toast, alertModal, confirm } = useNotification();
@@ -374,13 +373,6 @@ function ProfileSettings({ onClose }) {
     }
   };
 
-  const handleToggle2FA = () => {
-    setProfileData(prev => ({
-      ...prev,
-      twoFactorEnabled: !prev.twoFactorEnabled
-    }));
-  };
-
   const hasChanges = useMemo(() => {
     if (!originalProfileData) return false;
     if (profilePicture) return true;
@@ -417,9 +409,7 @@ function ProfileSettings({ onClose }) {
         suffix: profileData.suffix,
         gradeLevel: profileData.gradeLevel,
         section: profileData.section,
-        phoneNumber: profileData.phoneNumber,
         profilePicture: profilePictureURL,
-        twoFactorEnabled: profileData.twoFactorEnabled,
         updatedAt: new Date().toISOString()
       });
 
@@ -721,17 +711,13 @@ function ProfileSettings({ onClose }) {
                   </div>
 
                   <div className="form-group">
-                    <label>PHONE NUMBER <span className="required">*</span></label>
-                    <div className="input-with-icon">
-                      <input
-                        type="tel"
-                        name="phoneNumber"
-                        value={profileData.phoneNumber}
-                        onChange={handleInputChange}
-                        className="masked-field"
-                      />
-                      <FaEyeSlash className="eye-icon" />
-                    </div>
+                    <label>SCHOOL ID <span className="required">*</span></label>
+                    <input
+                      type="text"
+                      value={profileData.schoolId}
+                      readOnly
+                      className="readonly-field"
+                    />
                   </div>
                 </div>
 
@@ -743,16 +729,6 @@ function ProfileSettings({ onClose }) {
                       name="middleName"
                       value={profileData.middleName}
                       onChange={handleInputChange}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>SCHOOL ID <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      value={profileData.schoolId}
-                      readOnly
-                      className="readonly-field"
                     />
                   </div>
                 </div>
@@ -816,21 +792,6 @@ function ProfileSettings({ onClose }) {
               <button className="change-password-btn" onClick={() => setShowPasswordModal(true)}>
                 Change Password
               </button>
-            </div>
-
-            <div className="security-item">
-              <div className="security-info">
-                <h4>Two-Factor Authentication (2FA)</h4>
-                <p>Secure your account by adding an additional security layer via SMS</p>
-              </div>
-              <label className="settings-toggle">
-                <input
-                  type="checkbox"
-                  checked={profileData.twoFactorEnabled}
-                  onChange={handleToggle2FA}
-                />
-                <span className="settings-toggle-slider"></span>
-              </label>
             </div>
           </div>
 

@@ -11,8 +11,7 @@ import { useNotification } from '../context/NotificationContext';
 import { SettingsModalSkeleton, SettingsContentSkeleton } from './common/Skeleton';
 import '../styles/ProfileSettings.css';
 
-// Only the fields the user can actually edit count toward "changed"
-const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix', 'phoneNumber', 'twoFactorEnabled'];
+const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix'];
 
 function ProfileSettings({ onClose }) {
   const { toast, alertModal } = useNotification();
@@ -299,13 +298,6 @@ function ProfileSettings({ onClose }) {
     }
   };
 
-  const handleToggle2FA = () => {
-    setProfileData(prev => ({
-      ...prev,
-      twoFactorEnabled: !prev.twoFactorEnabled
-    }));
-  };
-
   const hasChanges = useMemo(() => {
     if (!originalProfileData) return false;
     if (profilePicture) return true;
@@ -337,9 +329,7 @@ function ProfileSettings({ onClose }) {
         middleName: profileData.middleName,
         middleInitial: profileData.middleInitial,
         suffix: profileData.suffix,
-        phoneNumber: profileData.phoneNumber,
         profilePicture: profilePictureURL,
-        twoFactorEnabled: profileData.twoFactorEnabled,
         updatedAt: new Date().toISOString()
       };
 
@@ -597,13 +587,12 @@ function ProfileSettings({ onClose }) {
                   </div>
 
                   <div className="form-group">
-                    <label>PHONE NUMBER <span className="required">*</span></label>
+                    <label>USERNAME <span className="required">*</span></label>
                     <input
-                      type="tel"
-                      name="phoneNumber"
-                      value={profileData.phoneNumber}
-                      onChange={handleInputChange}
-                      placeholder="e.g. 0912 345 6789"
+                      type="text"
+                      value={profileData.username}
+                      readOnly
+                      className="readonly-field"
                     />
                   </div>
                 </div>
@@ -624,16 +613,6 @@ function ProfileSettings({ onClose }) {
                     <input
                       type="text"
                       value={profileData.staffId}
-                      readOnly
-                      className="readonly-field"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>USERNAME <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      value={profileData.username}
                       readOnly
                       className="readonly-field"
                     />
@@ -680,21 +659,6 @@ function ProfileSettings({ onClose }) {
               <button className="change-password-btn" onClick={() => setShowPasswordModal(true)}>
                 Change Password
               </button>
-            </div>
-
-            <div className="security-item">
-              <div className="security-info">
-                <h4>Two-Factor Authentication (2FA)</h4>
-                <p>Secure your account by adding an additional security layer via SMS</p>
-              </div>
-              <label className="settings-toggle">
-                <input
-                  type="checkbox"
-                  checked={profileData.twoFactorEnabled}
-                  onChange={handleToggle2FA}
-                />
-                <span className="settings-toggle-slider"></span>
-              </label>
             </div>
           </div>
 

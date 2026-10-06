@@ -11,7 +11,6 @@ import '../styles/Login.css';
 const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   const [studentId, setStudentId] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberDevice, setRememberDevice] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -19,15 +18,6 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   const [showContactAdmissions, setShowContactAdmissions] = useState(false);
   const [qrScanner, setQrScanner] = useState(null);
   const [scanningStatus, setScanningStatus] = useState('initializing'); // 'initializing', 'ready', 'scanning', 'success', 'error'
-
-  // Load remembered student ID on mount
-  useEffect(() => {
-    const rememberedId = localStorage.getItem('rememberedStudentId');
-    if (rememberedId) {
-      setStudentId(rememberedId);
-      setRememberDevice(true);
-    }
-  }, []);
 
   const handleStudentIdChange = (e) => {
     const value = e.target.value;
@@ -102,13 +92,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
 
       // Sign in with Firebase Authentication using email and password
       await signInWithEmailAndPassword(auth, studentData.email, password);
-
-      // Save or remove remembered student ID based on checkbox
-      if (rememberDevice) {
-        localStorage.setItem('rememberedStudentId', studentId);
-      } else {
-        localStorage.removeItem('rememberedStudentId');
-      }
+      localStorage.removeItem('rememberedStudentId');
 
       // Prepare student data for localStorage - handle both new and legacy formats
       const formattedStudentData = {
@@ -380,11 +364,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       // Attempt automatic login with decrypted password
       console.log('[Encryption] Attempting automatic login with email:', studentData.email);
       await signInWithEmailAndPassword(auth, studentData.email, password);
-
-      // Save remembered student ID if checkbox was selected
-      if (rememberDevice) {
-        localStorage.setItem('rememberedStudentId', studentId);
-      }
+      localStorage.removeItem('rememberedStudentId');
 
       // Prepare student data for localStorage
       const formattedStudentData = {
@@ -610,19 +590,6 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
-              </div>
-
-              <div className="remember-device-row">
-                <input
-                  type="checkbox"
-                  id="rememberDevice"
-                  checked={rememberDevice}
-                  onChange={(e) => setRememberDevice(e.target.checked)}
-                  className="remember-checkbox"
-                />
-                <label htmlFor="rememberDevice" className="remember-label">
-                  Remember this device
-                </label>
               </div>
 
               <button type="submit" className="sign-in-btn-student" disabled={loading}>

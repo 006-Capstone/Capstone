@@ -10,19 +10,9 @@ const Login = ({ onLogin }) => {
   const { alertModal } = useNotification();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Load remembered username on mount
-  useEffect(() => {
-    const remembered = localStorage.getItem('rememberedSuperadminUsername');
-    if (remembered) {
-      setUsername(remembered);
-      setRememberMe(true);
-    }
-  }, []);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -83,13 +73,7 @@ const Login = ({ onLogin }) => {
 
       // Authenticate with Firebase using email and password
       await signInWithEmailAndPassword(auth, superadminData.email, password);
-
-      // Save or remove remembered username based on checkbox
-      if (rememberMe) {
-        localStorage.setItem('rememberedSuperadminUsername', inputVal);
-      } else {
-        localStorage.removeItem('rememberedSuperadminUsername');
-      }
+      localStorage.removeItem('rememberedSuperadminUsername');
 
       // Store superadmin info in localStorage
       localStorage.setItem('superadminAuth', 'true');
@@ -213,19 +197,7 @@ const Login = ({ onLogin }) => {
                   </button>
                 </div>
               </div>
-              
-              <div className="remember-section">
-                <input
-                  type="checkbox"
-                  id="remember"
-                  className="remember-checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <label htmlFor="remember" className="remember-label">
-                  Remember this device
-                </label>
-              </div>
+
               
               <button type="submit" className="sign-in-button" disabled={loading}>
                 {loading ? 'Signing In...' : 'Sign In'}

@@ -216,26 +216,6 @@ html, body, #root {
   outline: none;
 }
 
-.remember-section {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 22px;
-}
-
-.remember-checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: #2e7d32;
-  cursor: pointer;
-}
-
-.remember-label {
-  font-size: 13px;
-  color: #6b7280;
-  cursor: pointer;
-}
-
 .sign-in-button {
   width: 100%;
   padding: 14px;
@@ -306,10 +286,6 @@ html, body, #root {
 
   .superadmin-login .form-group {
     margin-bottom: 12px;
-  }
-
-  .remember-section {
-    margin-bottom: 14px;
   }
 
   .sign-in-button {
