@@ -383,7 +383,7 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
   if (loading) {
     return (
       <div className="performance-monitor-container">
-        <OverviewCardsSkeleton />
+        <OverviewCardsSkeleton count={6} className="pm-skeleton-cards" />
         <div style={{ marginTop: '24px' }}>
           <DataTableSkeleton rows={5} />
         </div>

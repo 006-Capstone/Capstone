@@ -298,6 +298,11 @@
   box-sizing: border-box;
 }
 
+.skeleton-overview-grid.pm-skeleton-cards {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .skeleton-overview-card {
   background: #ffffff;
   padding: 16px 18px;
@@ -507,7 +512,13 @@
   gap: 6px;
 }
 
-/* Responsive adjustments */
+@media (max-width: 1280px) {
+  .skeleton-overview-grid.pm-skeleton-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
 @media (max-width: 1199px) {
   .skeleton-overview-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -520,9 +531,17 @@
   }
 }
 
+@media (max-width: 768px) {
+  .skeleton-overview-grid.pm-skeleton-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
 @media (max-width: 639px) {
   .skeleton-overview-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
   .skeleton-bubble-left,
   .skeleton-bubble-right {

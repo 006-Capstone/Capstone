@@ -1404,8 +1404,8 @@
 
 @media (max-width: 639px) {
   .analytics-stats {
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .analytics-stats .stat-value {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MdStar, MdStarHalf, MdStarBorder } from 'react-icons/md';
-import { FaArrowLeft, FaChevronRight } from 'react-icons/fa';
+import { FaChevronRight, FaBuilding, FaBook, FaGraduationCap, FaMoneyBillWave } from 'react-icons/fa';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Skeleton } from './common/Skeleton';
@@ -10,10 +10,10 @@ import '../styles/Feedback.css';
 
 // Default office structure - will be populated with real data from Firebase
 const DEFAULT_OFFICES = [
-  { id: 'finance', name: 'Finance', rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
-  { id: 'registrar', name: 'Registrar', rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
-  { id: 'library', name: 'Library', rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
-  { id: 'guidance', name: 'Guidance', rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 }
+  { id: 'finance', name: 'Finance', icon: FaMoneyBillWave, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
+  { id: 'registrar', name: 'Registrar', icon: FaGraduationCap, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
+  { id: 'library', name: 'Library', icon: FaBook, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
+  { id: 'guidance', name: 'Guidance', icon: FaBuilding, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 }
 ];
 
 function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }) {
@@ -24,13 +24,12 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
   const [helpfulness, setHelpfulness] = useState(0);
   const [helpfulnessHover, setHelpfulnessHover] = useState(0);
   const [comments, setComments] = useState('');
-  const [followUp, setFollowUp] = useState(false);
   const [offices, setOffices] = useState(DEFAULT_OFFICES);
   const [submitting, setSubmitting] = useState(false);
   const [loadingRatings, setLoadingRatings] = useState(true);
 
   // Frontend-only gating: Submit Feedback stays disabled until both required
-  // star ratings are given (Additional Comments and Follow-up are optional).
+  // star ratings are given (Additional Comments are optional).
   const isFormValid = responseTime > 0 && helpfulness > 0;
   const liveProfanity = checkProfanity(comments).hasProfanity;
 
@@ -58,7 +57,6 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
     setHelpfulness(0);
     setHelpfulnessHover(0);
     setComments('');
-    setFollowUp(false);
   }, [initialOffice]);
 
   // Fetch and calculate real office ratings from Firebase
@@ -234,7 +232,6 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
         hasProfanity,
         flaggedForProfanity,
         profanityWordsDetected: profanityWords,
-        followUp,
         createdAt: serverTimestamp()
       };
 
@@ -394,66 +391,74 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
             </div>
           ) : (
             <div className="office-grid">
-              {offices.map((office) => (
-                <div
-                  key={office.id}
-                  className="office-rating-card"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigateToOffice(office.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      navigateToOffice(office.id);
-                    }
-                  }}
-                  aria-label={`Rate the ${office.name} office`}
-                >
-                  <div className="office-card-header">
-                    <h3>{office.name}</h3>
-                    <span className="rate-office-tag">
-                      Rate <FaChevronRight className="rate-arrow-icon" />
-                    </span>
-                  </div>
+              {offices.map((office) => {
+                const OfficeIcon = office.icon || FaBuilding;
+                return (
+                  <div
+                    key={office.id}
+                    className="office-rating-card"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigateToOffice(office.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigateToOffice(office.id);
+                      }
+                    }}
+                    aria-label={`Rate the ${office.name} office`}
+                  >
+                    <div className="office-card-header">
+                      <div className="office-card-title-wrap">
+                        <div className="office-icon-badge">
+                          <OfficeIcon className="office-card-icon" />
+                        </div>
+                        <h3>{office.name}</h3>
+                      </div>
+                      <span className="rate-office-tag">
+                        Rate <FaChevronRight className="rate-arrow-icon" />
+                      </span>
+                    </div>
 
-                  <div className="rating-display">
-                    <span className="rating-number">
-                      {office.rating > 0 ? office.rating.toFixed(1) : 'N/A'}
-                      <span className="rating-total">/5</span>
-                    </span>
-                    <div className="stars" aria-hidden="true">
-                      {office.rating > 0 ? renderStars(office.rating) : (
-                        <>
-                          <MdStarBorder className="empty" />
-                          <MdStarBorder className="empty" />
-                          <MdStarBorder className="empty" />
-                          <MdStarBorder className="empty" />
-                          <MdStarBorder className="empty" />
-                        </>
-                      )}
+                    <div className="rating-display">
+                      <span className="rating-number">
+                        {office.rating > 0 ? office.rating.toFixed(1) : 'N/A'}
+                        <span className="rating-total">/5</span>
+                      </span>
+                      <div className="stars" aria-hidden="true">
+                        {office.rating > 0 ? renderStars(office.rating) : (
+                          <>
+                            <MdStarBorder className="empty" />
+                            <MdStarBorder className="empty" />
+                            <MdStarBorder className="empty" />
+                            <MdStarBorder className="empty" />
+                            <MdStarBorder className="empty" />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {office.totalFeedback > 0 && (
+                      <p className="feedback-count">{office.totalFeedback} feedback{office.totalFeedback !== 1 ? 's' : ''}</p>
+                    )}
+                    <div className="metrics">
+                      <div className="metric-row">
+                        <span className="metric-label">Response Time</span>
+                        <div className="metric-bar">
+                          <div className="metric-fill" style={{ width: `${office.responseTime}%` }}></div>
+                        </div>
+                        <span className="metric-value">{office.responseTime}%</span>
+                      </div>
+                      <div className="metric-row">
+                        <span className="metric-label">Helpfulness</span>
+                        <div className="metric-bar">
+                          <div className="metric-fill" style={{ width: `${office.helpfulness}%` }}></div>
+                        </div>
+                        <span className="metric-value">{office.helpfulness}%</span>
+                      </div>
                     </div>
                   </div>
-                  {office.totalFeedback > 0 && (
-                    <p className="feedback-count">{office.totalFeedback} feedback{office.totalFeedback !== 1 ? 's' : ''}</p>
-                  )}
-                  <div className="metrics">
-                    <div className="metric-row">
-                      <span className="metric-label">Response Time</span>
-                      <div className="metric-bar">
-                        <div className="metric-fill" style={{ width: `${office.responseTime}%` }}></div>
-                      </div>
-                      <span className="metric-value">{office.responseTime}%</span>
-                    </div>
-                    <div className="metric-row">
-                      <span className="metric-label">Helpfulness</span>
-                      <div className="metric-bar">
-                        <div className="metric-fill" style={{ width: `${office.helpfulness}%` }}></div>
-                      </div>
-                      <span className="metric-value">{office.helpfulness}%</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -477,16 +482,6 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
             <h1 className="page-title">{officeName} Feedback</h1>
             <p className="page-subtitle">Share your ratings and comments for the {officeName} Department</p>
           </div>
-          {!isRequestFeedback && (
-            <button
-              type="button"
-              className="feedback-back-link"
-              onClick={goBackToOverview}
-            >
-              <FaArrowLeft />
-              <span>All Offices</span>
-            </button>
-          )}
         </div>
 
         {/* Overall Satisfaction card */}
@@ -536,6 +531,7 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
         <div className="comments-card">
           <div className="comments-header-row">
             <h4>Additional Comments</h4>
+            <span className="comments-char-count">{comments.length}/500</span>
           </div>
           <textarea
             className={`figma-textarea ${liveProfanity ? 'has-profanity-warning' : ''}`}
@@ -549,33 +545,6 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
               ⚠️ Inappropriate language detected. Words will be masked (***) and flagged upon submission.
             </p>
           )}
-        </div>
-
-        <div className="follow-up-card">
-          <div className="follow-up-header">
-            <div>
-              <h4>Follow-up Contact</h4>
-              <p>May we contact you for further details about your experience?</p>
-            </div>
-            {/* Scoped class names (follow-up-*) so this switch never collides
-                with the settings 2FA toggle (both defined global .toggle-switch) */}
-            <div
-              className={`follow-up-switch ${followUp ? 'active' : ''}`}
-              role="switch"
-              aria-checked={followUp}
-              aria-label="Allow follow-up contact"
-              tabIndex={0}
-              onClick={() => setFollowUp(!followUp)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setFollowUp(!followUp);
-                }
-              }}
-            >
-              <div className="follow-up-slider"></div>
-            </div>
-          </div>
         </div>
 
         <div className="form-actions-figma">
