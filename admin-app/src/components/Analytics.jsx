@@ -33,8 +33,76 @@ const getInitials = (name) => {
 --------------------------------------------------------------------------- */
 const getTicketDate = (value) => {
   if (!value) return null;
-  const date = value?.toDate ? value.toDate() : new Date(value);
-  return date instanceof Date && !isNaN(date.getTime()) ? date : null;
+  if (value?.toDate && typeof value.toDate === 'function') return value.toDate();
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof value === 'number') {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  return null;
+};
+
+const getEtcDeadline = (val) => {
+  if (!val) return null;
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const [y, m, d] = val.split('-').map(Number);
+    return new Date(y, m - 1, d, 23, 59, 59, 999);
+  }
+  const d = getTicketDate(val);
+  if (!d) return null;
+  if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+  }
+  return d;
+};
+
+const getTicketSlaStatus = (ticket) => {
+  const now = new Date();
+  const deadline = getEtcDeadline(ticket.etc || ticket.estimatedCompletion);
+  const resolvedDate = getTicketDate(ticket.resolvedAt) || ((ticket.status || '').toLowerCase() === 'resolved' ? getTicketDate(ticket.updatedAt) : null);
+  const s = (ticket.status || '').toLowerCase();
+
+  if (s === 'resolved') {
+    if (deadline && resolvedDate) {
+      return resolvedDate <= deadline ? 'On-Time' : 'Late';
+    }
+    return 'Completed';
+  }
+
+  if (s !== 'cancelled' && s !== 'rejected') {
+    if (!deadline) {
+      const created = getTicketDate(ticket.createdAt);
+      if (created && (now.getTime() - created.getTime()) > (72 * 60 * 60 * 1000)) {
+        return 'Overdue (>72h)';
+      }
+      return 'No ETC Set';
+    }
+    const isDueToday = 
+      deadline.getFullYear() === now.getFullYear() &&
+      deadline.getMonth() === now.getMonth() &&
+      deadline.getDate() === now.getDate();
+
+    if (isDueToday) return 'Due Today';
+    if (deadline < now) return 'Overdue';
+    return 'On Track';
+  }
+
+  return ticket.status || 'N/A';
+};
+
+const formatEtcDate = (val) => {
+  if (!val) return 'N/A';
+  const d = getTicketDate(val);
+  if (!d) return 'N/A';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 const filterTicketsByDate = (requests, filter) => {
@@ -315,12 +383,81 @@ const Analytics = ({ department, onViewRequest, onNavigate }) => {
 
   const exportToCSV = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    let csv = 'Request ID,Subject,Student,Student ID,Status,Assigned To,Created At\n';
+    const periodString = isFilterActive
+      ? appliedFilter.label
+        ? `${appliedFilter.label}${appliedFilter.from && appliedFilter.to && appliedFilter.from !== appliedFilter.to ? `: ${formatFilterDate(appliedFilter.from)} – ${formatFilterDate(appliedFilter.to)}` : ''}`
+        : `${appliedFilter.from ? `from ${formatFilterDate(appliedFilter.from)}` : ''}${appliedFilter.from && appliedFilter.to ? ' to ' : ''}${appliedFilter.to ? formatFilterDate(appliedFilter.to) : ''}`
+      : 'All Time';
+
+    let csv = `${department} - Analytics Report\n`;
+    csv += `Report Period: ${periodString}\n`;
+    csv += `Generated: ${new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}\n`;
+    csv += '\n';
+
+    // Analytics Summary Section
+    csv += 'ANALYTICS SUMMARY\n';
+    csv += `Total Requests,${analytics.total}\n`;
+    csv += `Avg Resolution Time,${analytics.avgResolutionTime}\n`;
+    csv += `Resolution Rate,${analytics.total > 0 ? Math.round((analytics.resolved / analytics.total) * 100) : 0}%\n`;
+    csv += `Cancelled Rate,${analytics.cancelledRate}%\n`;
+    csv += '\n';
+
+    // Status Breakdown Section
+    csv += 'STATUS BREAKDOWN\n';
+    csv += 'Status,Count,Percentage\n';
+    csv += `Pending,${analytics.pending},${analytics.total > 0 ? Math.round((analytics.pending / analytics.total) * 100) : 0}%\n`;
+    csv += `In Process,${analytics.inProcess},${analytics.total > 0 ? Math.round((analytics.inProcess / analytics.total) * 100) : 0}%\n`;
+    csv += `Resolved,${analytics.resolved},${analytics.total > 0 ? Math.round((analytics.resolved / analytics.total) * 100) : 0}%\n`;
+    csv += `Cancelled,${analytics.cancelled},${analytics.total > 0 ? Math.round((analytics.cancelled / analytics.total) * 100) : 0}%\n`;
+    csv += '\n';
+
+    // Staff Activity
+    if (staffActivity.length > 0) {
+      csv += 'STAFF ACTIVITY\n';
+      csv += 'Staff Member,Resolved,Total Handled,Resolution Rate\n';
+      staffActivity.forEach(s => {
+        csv += `${esc(s.name)},${s.resolved},${s.handled},${s.percentage}%\n`;
+      });
+      csv += '\n';
+    }
+
+    // Top Request Subjects
+    if (topSubjects.length > 0) {
+      csv += 'TOP REQUEST SUBJECTS\n';
+      csv += 'Rank,Subject,Count,Percentage\n';
+      topSubjects.forEach((item, index) => {
+        csv += `#${index + 1},${esc(item.subject)},${item.count},${item.percentage}%\n`;
+      });
+      csv += '\n';
+    }
+
+    // Detailed Requests Table
+    csv += 'REQUEST DETAILS\n';
+    csv += 'Request ID,Subject,Student Name,Student ID,Is Guest,Status,Assigned To,Claimed At,Estimated Completion,SLA Compliance,Resolved At,Created At,Resolution Note\n';
+
     filteredTickets.forEach(t => {
-      const created = getTicketDate(t.createdAt);
+      const createdAt = getTicketDate(t.createdAt);
+      const claimedAt = getTicketDate(t.claimedAt || t.claimedDate || t.inProgressAt);
+      const resolvedAt = getTicketDate(t.resolvedAt) || ((t.status || '').toLowerCase() === 'resolved' ? getTicketDate(t.updatedAt) : null);
+      const isGuest = Boolean(t.isGuest);
+      const studentName = t.student || t.studentName || (isGuest ? 'Guest User' : 'Student');
+      const studentId = t.studentId || t.studentID || t.idNumber || '';
+      const slaStatus = getTicketSlaStatus(t);
+
       csv += [
-        esc(t.id), esc(t.subject), esc(t.studentName), esc(t.studentId),
-        esc(t.status), esc(t.assignedTo), esc(created ? created.toISOString() : '')
+        esc(t.id || t.requestId),
+        esc(t.subject || t.title),
+        esc(studentName),
+        esc(studentId),
+        esc(isGuest ? 'Yes' : 'No'),
+        esc(t.status),
+        esc(t.assignedTo || t.assignedToStaff || 'Unassigned'),
+        esc(claimedAt ? claimedAt.toISOString() : ''),
+        esc(formatEtcDate(t.etc || t.estimatedCompletion)),
+        esc(slaStatus),
+        esc(resolvedAt ? resolvedAt.toISOString() : ''),
+        esc(createdAt ? createdAt.toISOString() : ''),
+        esc(t.resolutionNote || '')
       ].join(',') + '\n';
     });
 

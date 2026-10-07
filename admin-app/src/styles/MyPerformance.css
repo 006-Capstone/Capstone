@@ -2006,3 +2006,138 @@
 .export-pdf-btn:active {
   transform: translateY(0);
 }
+
+/* ==========================================================================
+   PRINT-ONLY STYLES FOR MY PERFORMANCE
+   ========================================================================== */
+.my-performance-container .print-only-report {
+  display: none;
+}
+
+@media print {
+  /* Ensure background and other UI chrome are hidden when printing */
+  body * {
+    visibility: hidden;
+  }
+
+  .my-performance-container .print-only-report,
+  .my-performance-container .print-only-report * {
+    visibility: visible;
+  }
+
+  .my-performance-container .print-only-report {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 24px;
+    background: #ffffff;
+    color: #1a202c;
+    font-family: Arial, sans-serif;
+  }
+
+  .my-performance-container .print-header {
+    margin-bottom: 24px;
+    border-bottom: 3px solid #165a27;
+    padding-bottom: 16px;
+  }
+
+  .my-performance-container .print-header h1 {
+    font-size: 26px;
+    color: #165a27;
+    margin: 0 0 6px 0;
+    font-weight: 700;
+  }
+
+  .my-performance-container .print-subtitle {
+    color: #4a5568;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .my-performance-container .print-date {
+    color: #718096;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .my-performance-container .print-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .my-performance-container .print-stat-box {
+    border: 1px solid #e2e8f0;
+    padding: 14px;
+    border-radius: 8px;
+    break-inside: avoid;
+    background: #fcfdfc;
+  }
+
+  .my-performance-container .print-stat-label {
+    font-size: 11px;
+    color: #718096;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  .my-performance-container .print-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #165a27;
+  }
+
+  .my-performance-container .print-section {
+    margin-bottom: 24px;
+    break-inside: avoid;
+  }
+
+  .my-performance-container .print-section-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #165a27;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 6px;
+  }
+
+  .my-performance-container .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    page-break-inside: avoid;
+  }
+
+  .my-performance-container .print-table th {
+    background: #165a27;
+    color: #ffffff;
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .my-performance-container .print-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 12px;
+    color: #2d3748;
+  }
+
+  .my-performance-container .print-table tr:nth-child(even) {
+    background: #f7fafc;
+  }
+
+  .my-performance-container .print-table thead {
+    display: table-header-group;
+  }
+
+  .my-performance-container .print-table tbody tr {
+    page-break-inside: avoid;
+  }
+}

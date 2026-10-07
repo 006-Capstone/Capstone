@@ -17,7 +17,8 @@ import {
   FaInfoCircle,
   FaDownload,
   FaBrain,
-  FaAward
+  FaAward,
+  FaPrint
 } from 'react-icons/fa';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -614,6 +615,10 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
     URL.revokeObjectURL(url);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (loading) {
     return (
       <div className="my-performance-container">
@@ -648,6 +653,12 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
           </div>
 
           <div className="performance-header-actions">
+            {/* Print Button */}
+            <button className="export-pdf-btn" onClick={handlePrint} title="Print Performance Report">
+              <FaPrint />
+              Print
+            </button>
+
             {/* Export CSV Button */}
             <button className="export-pdf-btn" onClick={exportToCSV}>
               <FaDownload />
@@ -1198,6 +1209,145 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
           </span>
         </div>
       </footer>
+
+      {/* Hidden Print-Only Report */}
+      <div className="print-only-report">
+        <div className="print-header">
+          <h1>{staffName || 'Staff Member'} - Performance Report</h1>
+          <div className="print-subtitle">
+            {staffOffice ? `${staffOffice} Office` : 'Office Administration'} &bull; Individual Performance & SLA Compliance Audit
+          </div>
+          <div className="print-date">
+            <strong>Time Period:</strong> {
+              timeRange === 'all' ? 'All Time' :
+              timeRange === 'month' ? 'This Month' :
+              timeRange === '30days' ? 'Last 30 Days' :
+              timeRange === '7days' ? 'Last 7 Days' : 'Today'
+            }<br />
+            <strong>Standing Status:</strong> {metrics.standing.label} ({getClearanceInfo(metrics.clearanceRate).tier})<br />
+            <strong>Generated:</strong> {new Date().toLocaleString('en-US', { 
+              month: 'long', 
+              day: 'numeric', 
+              year: 'numeric', 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </div>
+        </div>
+
+        <div className="print-stats-grid">
+          <div className="print-stat-box">
+            <div className="print-stat-label">Monthly Clearance Rate</div>
+            <div className="print-stat-value">{metrics.clearanceRate}%</div>
+          </div>
+          <div className="print-stat-box">
+            <div className="print-stat-label">On-Time SLA Rate</div>
+            <div className="print-stat-value">{metrics.onTimeRate}%</div>
+          </div>
+          <div className="print-stat-box">
+            <div className="print-stat-label">Avg Turnaround</div>
+            <div className="print-stat-value">{metrics.avgTurnaroundDisplay}</div>
+          </div>
+          <div className="print-stat-box">
+            <div className="print-stat-label">Resolved Requests</div>
+            <div className="print-stat-value">{metrics.resolvedCount}</div>
+          </div>
+          <div className="print-stat-box">
+            <div className="print-stat-label">In Progress</div>
+            <div className="print-stat-value">{metrics.activeCount}</div>
+          </div>
+          <div className="print-stat-box">
+            <div className="print-stat-label">Overdue Requests</div>
+            <div className="print-stat-value">{metrics.overdueCount}</div>
+          </div>
+        </div>
+
+        <div className="print-section">
+          <div className="print-section-title">Institutional Compliance Summary</div>
+          <table className="print-table">
+            <thead>
+              <tr>
+                <th>Compliance Metric</th>
+                <th>Current Status</th>
+                <th>Standard / Policy</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Clearance Standard Tier</td>
+                <td><strong>{getClearanceInfo(metrics.clearanceRate).tier}</strong></td>
+                <td>{getClearanceInfo(metrics.clearanceRate).label} (&ge;80% target)</td>
+              </tr>
+              <tr>
+                <td>Academic Standing</td>
+                <td><strong>{metrics.standing.label}</strong></td>
+                <td>{metrics.standing.description}</td>
+              </tr>
+              <tr>
+                <td>Anti-Hoarding Rule</td>
+                <td><strong>{metrics.isRestrictedByHoarding ? `Restricted (${metrics.acceptedTodayCount}/5 Accepted Today)` : 'Normal Standing'}</strong></td>
+                <td>10+ in progress &rarr; maximum 5 accepted claims/day</td>
+              </tr>
+              <tr>
+                <td>Consistency Milestone</td>
+                <td><strong>{streakData?.hasGoodStreak ? `4-Week Milestone Maintained (${streakData.score}% Clearance)` : 'Standard Tracking'}</strong></td>
+                <td>Zero overdue tickets & verified resolution consistency</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {myFilteredTickets.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title">Handled Requests ({myFilteredTickets.length})</div>
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Subject</th>
+                  <th>Student</th>
+                  <th>Status</th>
+                  <th>Claimed At</th>
+                  <th>SLA Compliance</th>
+                  <th>Estimated Completion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myFilteredTickets.map((t) => {
+                  const isGuest = Boolean(t.isGuest);
+                  const studentName = t.student || t.studentName || (isGuest ? 'Guest User' : 'Student');
+                  const slaTag = getTicketSlaTag(t);
+                  const claimedVal = t.claimedAt || t.claimedDate || t.inProgressAt;
+                  return (
+                    <tr key={t.id}>
+                      <td>{t.id}</td>
+                      <td>{t.subject || t.title}</td>
+                      <td>{studentName}</td>
+                      <td>{t.status}</td>
+                      <td>
+                        {claimedVal ? (
+                          <>
+                            <div>{formatDate(claimedVal)}</div>
+                            {formatTime(claimedVal) && (
+                              <div style={{ fontSize: '10.5px', color: '#718096' }}>
+                                {formatTime(claimedVal)}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          'N/A'
+                        )}
+                      </td>
+                      <td>{slaTag.label}</td>
+                      <td>{formatDate(t.etc)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Notifications Modal */}
       {showNotifications && (
