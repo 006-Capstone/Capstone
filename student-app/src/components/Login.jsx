@@ -622,7 +622,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
                     className="forgot-password-link" 
                     onClick={onForgotPassword}
                   >
-                    Forget Password?
+                    Forgot Password?
                   </button>
                 </div>
                 <div className="password-input-wrapper">
