@@ -397,12 +397,6 @@ export const DataTableSkeleton = ({
 export const NewRequestSkeleton = () => {
   return (
     <div className="new-request-page" aria-label="Loading request form..." role="status">
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-        <Skeleton variant="text" width="100px" height="16px" />
-        <span style={{ color: 'var(--gray-300, #d1d5db)' }}>/</span>
-        <Skeleton variant="text" width="90px" height="16px" />
-      </div>
-
       <div className="page-header" style={{ marginBottom: '16px' }}>
         <div className="page-title-group">
           <Skeleton variant="text" width="220px" height="32px" style={{ marginBottom: '6px' }} />

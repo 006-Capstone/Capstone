@@ -16,7 +16,6 @@ import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { validateContent } from '../utils/contentModeration';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
-import Breadcrumb from './Breadcrumb';
 import { useNotification } from '../context/NotificationContext';
 import { NewRequestSkeleton } from './common/Skeleton';
 import '../styles/NewRequest.css';
@@ -433,13 +432,6 @@ function NewRequest({ onNavigate }) {
 
   return (
     <div className="new-request-page">
-      <Breadcrumb
-        items={[
-          { label: 'Request History', onClick: () => onNavigate('request') },
-          { label: 'New Request', current: true }
-        ]}
-      />
-
       <div className="page-header">
         <div className="page-title-group">
           <h1 className="page-title">Submit New Request</h1>

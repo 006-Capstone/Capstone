@@ -8,7 +8,6 @@ import {
 } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import Breadcrumb from './Breadcrumb';
 import StatusBadge from './StatusBadge';
 import FilterDropdown from './FilterDropdown';
 import { DataTableSkeleton } from './common/Skeleton';
