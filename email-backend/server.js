@@ -949,6 +949,113 @@ app.post('/api/reset-password', async (req, res) => {
   }
 });
 
+/**
+ * Verify QR login and issue custom Firebase Auth token
+ * Eliminates storing user passwords in QR codes (#1 and #3)
+ */
+app.post('/api/verify-qr-login', async (req, res) => {
+  try {
+    const { type, id, username, officeId, token } = req.body;
+
+    if (!type || !token || (!id && !username)) {
+      return res.status(400).json({ success: false, error: 'Missing required login parameters' });
+    }
+
+    const db = admin.firestore();
+
+    if (type === 'student') {
+      const studentId = String(id).trim();
+      let querySnapshot = await db.collection('students').where('id', '==', studentId).get();
+      if (querySnapshot.empty) {
+        querySnapshot = await db.collection('students').where('studentId', '==', studentId).get();
+      }
+
+      if (querySnapshot.empty) {
+        return res.status(404).json({ success: false, error: 'Student account not found' });
+      }
+
+      const studentDoc = querySnapshot.docs[0];
+      const studentData = studentDoc.data();
+
+      if (studentData.isActive === false) {
+        return res.status(403).json({ success: false, error: 'Student account is suspended' });
+      }
+
+      if (!studentData.qrToken || studentData.qrToken !== token) {
+        return res.status(401).json({ success: false, error: 'Invalid or revoked QR code token' });
+      }
+
+      let customToken = null;
+      try {
+        customToken = await admin.auth().createCustomToken(studentData.uid);
+      } catch (authErr) {
+        console.warn('[Warning] Could not create custom auth token:', authErr.message);
+      }
+
+      return res.json({
+        success: true,
+        customToken,
+        userData: {
+          ...studentData,
+          firestoreDocId: studentDoc.id
+        }
+      });
+
+    } else if (type === 'staff') {
+      const staffUsername = String(username).trim();
+      const querySnapshot = await db.collection('staff').where('username', '==', staffUsername).get();
+
+      if (querySnapshot.empty) {
+        return res.status(404).json({ success: false, error: 'Staff account not found' });
+      }
+
+      let matchedDoc = null;
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data();
+        const staffOfficeId = (data.officeId || data.office || '').toLowerCase();
+        if (!officeId || staffOfficeId === String(officeId).toLowerCase() || (data.office && data.office.toLowerCase() === String(officeId).toLowerCase())) {
+          matchedDoc = docSnap;
+          break;
+        }
+      }
+
+      if (!matchedDoc) {
+        return res.status(400).json({ success: false, error: 'Staff office mismatch' });
+      }
+
+      const staffData = matchedDoc.data();
+      if (staffData.isActive === false) {
+        return res.status(403).json({ success: false, error: 'Staff account is suspended' });
+      }
+
+      if (!staffData.qrToken || staffData.qrToken !== token) {
+        return res.status(401).json({ success: false, error: 'Invalid or revoked QR code token' });
+      }
+
+      let customToken = null;
+      try {
+        customToken = await admin.auth().createCustomToken(staffData.uid);
+      } catch (authErr) {
+        console.warn('[Warning] Could not create custom auth token:', authErr.message);
+      }
+
+      return res.json({
+        success: true,
+        customToken,
+        userData: {
+          ...staffData,
+          firestoreDocId: matchedDoc.id
+        }
+      });
+    } else {
+      return res.status(400).json({ success: false, error: 'Invalid account type' });
+    }
+  } catch (error) {
+    console.error('[Error] QR login verification failed:', error);
+    res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Email backend running on http://localhost:${PORT}`);

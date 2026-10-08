@@ -386,3 +386,103 @@ exports.updateUserPassword = onCall({
     );
   }
 });
+
+/**
+ * Verify QR login and issue custom Firebase Auth token
+ * Eliminates storing user passwords in QR codes (#1 and #3)
+ */
+exports.verifyQRLogin = onCall({
+  cors: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    /firebase\.app$/,
+    /\.web\.app$/,
+    /\.firebaseapp\.com$/,
+  ],
+}, async (request) => {
+  const {type, id, username, officeId, token} = request.data || {};
+
+  if (!type || !token || (!id && !username)) {
+    throw new HttpsError("invalid-argument", "Missing required login parameters");
+  }
+
+  const db = admin.firestore();
+
+  if (type === "student") {
+    const studentId = String(id).trim();
+    let querySnapshot = await db.collection("students").where("id", "==", studentId).get();
+    if (querySnapshot.empty) {
+      querySnapshot = await db.collection("students").where("studentId", "==", studentId).get();
+    }
+
+    if (querySnapshot.empty) {
+      throw new HttpsError("not-found", "Student account not found");
+    }
+
+    const studentDoc = querySnapshot.docs[0];
+    const studentData = studentDoc.data();
+
+    if (studentData.isActive === false) {
+      throw new HttpsError("permission-denied", "Student account is suspended");
+    }
+
+    if (!studentData.qrToken || studentData.qrToken !== token) {
+      throw new HttpsError("unauthenticated", "Invalid or revoked QR code token");
+    }
+
+    // Generate Firebase Custom Auth Token
+    const customToken = await admin.auth().createCustomToken(studentData.uid);
+    return {
+      success: true,
+      customToken,
+      userData: {
+        ...studentData,
+        firestoreDocId: studentDoc.id,
+      },
+    };
+  } else if (type === "staff") {
+    const staffUsername = String(username).trim();
+    const querySnapshot = await db.collection("staff").where("username", "==", staffUsername).get();
+
+    if (querySnapshot.empty) {
+      throw new HttpsError("not-found", "Staff account not found");
+    }
+
+    let matchedDoc = null;
+    for (const docSnap of querySnapshot.docs) {
+      const data = docSnap.data();
+      const staffOfficeId = (data.officeId || data.office || "").toLowerCase();
+      if (!officeId || staffOfficeId === String(officeId).toLowerCase() || (data.office && data.office.toLowerCase() === String(officeId).toLowerCase())) {
+        matchedDoc = docSnap;
+        break;
+      }
+    }
+
+    if (!matchedDoc) {
+      throw new HttpsError("failed-precondition", "Staff office mismatch");
+    }
+
+    const staffData = matchedDoc.data();
+    if (staffData.isActive === false) {
+      throw new HttpsError("permission-denied", "Staff account is suspended");
+    }
+
+    if (!staffData.qrToken || staffData.qrToken !== token) {
+      throw new HttpsError("unauthenticated", "Invalid or revoked QR code token");
+    }
+
+    const customToken = await admin.auth().createCustomToken(staffData.uid);
+    return {
+      success: true,
+      customToken,
+      userData: {
+        ...staffData,
+        firestoreDocId: matchedDoc.id,
+      },
+    };
+  } else {
+    throw new HttpsError("invalid-argument", "Invalid account type");
+  }
+});
+

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
 import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
-import { encryptCredentials } from '../utils/qrEncryption';
+import { encryptCredentials, encryptQRData, generateSecureToken } from '../utils/qrEncryption';
 import { useNotification } from '../context/NotificationContext';
 import { SettingsModalSkeleton, SettingsContentSkeleton } from './common/Skeleton';
 import '../styles/ProfileSettings.css';
@@ -104,7 +104,22 @@ function ProfileSettings({ onClose }) {
         return;
       }
 
-      const encryptedData = encryptCredentials(username, officeId, password);
+      const staffData = JSON.parse(localStorage.getItem('staffData') || '{}');
+      if (staffData?.email) {
+        try {
+          await signInWithEmailAndPassword(auth, staffData.email, password);
+        } catch (pwErr) {
+          console.error('[Error] Invalid staff password for QR generation:', pwErr);
+          toast.error('Incorrect password. Please verify your current password.');
+          return;
+        }
+      }
+
+      // 1. Generate unique random cryptographic token (NO passwords in QR!)
+      const token = generateSecureToken();
+
+      // 2. Encrypt token-based QR data
+      const encryptedData = encryptQRData(username, officeId, token);
 
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
         width: 400,
@@ -117,18 +132,22 @@ function ProfileSettings({ onClose }) {
       });
       setQrCodeDataURL(qrDataURL);
 
-      const staffData = JSON.parse(localStorage.getItem('staffData'));
       if (staffData?.firestoreDocId) {
         const docRef = doc(db, 'staff', staffData.firestoreDocId);
         await updateDoc(docRef, {
+          qrToken: token,
           qrCodeData: encryptedData,
           qrCodeGeneratedAt: new Date().toISOString()
         });
         setProfileData(prev => ({
           ...prev,
+          qrToken: token,
           qrCodeData: encryptedData
         }));
       }
+
+      console.log('✅ Permanent staff QR code generated without storing raw password');
+      toast.success('Permanent staff QR code generated successfully!');
     } catch (error) {
       console.error('Error generating QR code:', error);
       toast.error('Failed to generate QR code. Please try again.');

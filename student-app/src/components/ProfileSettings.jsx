@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut, signInWithEmailAndPassword } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
 import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload, FaSignOutAlt, FaListAlt } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
-import { encryptCredentials } from '../utils/qrEncryption';
+import { encryptCredentials, encryptQRData, generateSecureToken } from '../utils/qrEncryption';
 import { useNotification } from '../context/NotificationContext';
 import { SettingsModalSkeleton, SettingsContentSkeleton } from './common/Skeleton';
 import '../styles/ProfileSettings.css';
@@ -95,23 +95,40 @@ function ProfileSettings({ onClose }) {
 
   const generateQRCode = async (studentId, password) => {
     try {
-      console.log('[QRCode] Generating encrypted QR code for student ID:', studentId);
+      console.log('[QRCode] Generating secure passwordless QR code for student ID:', studentId);
       
       // Ensure it's exactly 4 digits
       if (!/^\d{4}$/.test(studentId)) {
         console.error('[Error] Invalid student ID format for QR:', studentId);
+        toast.error('Invalid student ID format. Must be 4 digits.');
         return;
       }
       
       if (!password) {
         console.error('[Error] Password required for QR generation');
+        toast.error('Password is required to generate QR code.');
         return;
       }
+
+      // Verify password with Firebase Auth to ensure caller is legitimate account owner
+      const studentData = JSON.parse(localStorage.getItem('studentData') || '{}');
+      if (studentData?.email) {
+        try {
+          await signInWithEmailAndPassword(auth, studentData.email, password);
+        } catch (pwErr) {
+          console.error('[Error] Invalid password entered for QR generation:', pwErr);
+          toast.error('Incorrect password. Please verify your current password.');
+          return;
+        }
+      }
+
+      // 1. Generate unique cryptographic token (Zero passwords inside the QR code!)
+      const token = generateSecureToken();
       
-      // Encrypt the credentials
-      const encryptedData = encryptCredentials(studentId, password);
+      // 2. Encrypt token-based QR data
+      const encryptedData = encryptQRData(studentId, token);
       
-      // Generate QR code image with encrypted data
+      // 3. Generate QR code image with encrypted data
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
         width: 400,
         margin: 4,
@@ -123,11 +140,11 @@ function ProfileSettings({ onClose }) {
       });
       setQrCodeDataURL(qrDataURL);
       
-      // Save encrypted data to Firestore so QR persists
-      const studentData = JSON.parse(localStorage.getItem('studentData'));
-      if (studentData.firestoreDocId) {
+      // 4. Save token to Firestore so the permanent QR token persists and works for login
+      if (studentData?.firestoreDocId) {
         const docRef = doc(db, 'students', studentData.firestoreDocId);
         await updateDoc(docRef, {
+          qrToken: token,
           qrCodeData: encryptedData,
           qrCodeGeneratedAt: new Date().toISOString()
         });
@@ -135,13 +152,15 @@ function ProfileSettings({ onClose }) {
         // Update local state
         setProfileData(prev => ({
           ...prev,
+          qrToken: token,
           qrCodeData: encryptedData
         }));
         
-        console.log('[Success] QR code saved to Firestore');
+        console.log('[Success] Secure token saved to Firestore');
       }
       
-      console.log('[Success] QR code generated successfully with encrypted credentials');
+      console.log('[Success] QR code generated successfully without storing raw password');
+      toast.success('Permanent QR code generated successfully!');
     } catch (error) {
       console.error('[Error] Error generating QR code:', error);
       toast.error('Failed to generate QR code. Please try again.');

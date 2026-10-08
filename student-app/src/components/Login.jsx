@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaQrcode, FaUserCircle, FaShieldAlt, FaEye, FaEyeSlash, FaTimes, FaCheckCircle } from 'react-icons/fa';
 import { auth, db } from '../firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Html5Qrcode } from 'html5-qrcode';
 import { decryptCredentials } from '../utils/qrEncryption';
@@ -303,10 +304,9 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         return;
       }
       
-      const { studentId, password } = credentials;
-      console.log('[Success] QR code decrypted successfully');
-      console.log('[ID] Student ID from QR:', studentId, '(length:', studentId.length, ')');
-      console.log('[Key] Password length:', password.length);
+      const { studentId, token, password, isTokenBased } = credentials;
+      console.log('[Success] QR code decrypted successfully. Token-based:', isTokenBased);
+      console.log('[ID] Student ID from QR:', studentId);
 
       // Validate student ID format - must be exactly 4 digits
       if (!/^\d{4}$/.test(studentId)) {
@@ -361,9 +361,64 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         return;
       }
 
-      // Attempt automatic login with decrypted password
-      console.log('[Encryption] Attempting automatic login with email:', studentData.email);
-      await signInWithEmailAndPassword(auth, studentData.email, password);
+      // Authenticate: Token-based (new passwordless) or Password-based (legacy)
+      if (isTokenBased && token) {
+        console.log('[Auth] Authenticating via secure passwordless QR token');
+        
+        // 1. Verify token matches Firestore record
+        if (!studentData.qrToken || studentData.qrToken !== token) {
+          console.error('[Error] QR token mismatch or revoked');
+          setScanningStatus('error');
+          setError('Invalid or revoked QR code. Please generate a new QR code in your profile settings.');
+          setLoading(false);
+          return;
+        }
+
+        // 2. Call backend / Cloud Function to issue custom token (#3)
+        let customTokenAuthSuccess = false;
+        try {
+          const functions = getFunctions();
+          const verifyQRLogin = httpsCallable(functions, 'verifyQRLogin');
+          const res = await verifyQRLogin({
+            type: 'student',
+            id: studentId,
+            token: token
+          });
+
+          if (res?.data?.customToken) {
+            await signInWithCustomToken(auth, res.data.customToken);
+            customTokenAuthSuccess = true;
+            console.log('[Success] Authenticated with Firebase Custom Token');
+          }
+        } catch (fnErr) {
+          console.warn('[Warning] Cloud Function verifyQRLogin not available, checking local API fallback:', fnErr.message);
+          try {
+            const apiRes = await fetch('http://localhost:5000/api/verify-qr-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'student', id: studentId, token: token })
+            });
+            if (apiRes.ok) {
+              const apiData = await apiRes.json();
+              if (apiData.customToken) {
+                await signInWithCustomToken(auth, apiData.customToken);
+                customTokenAuthSuccess = true;
+                console.log('[Success] Authenticated with local backend custom token');
+              }
+            }
+          } catch (apiErr) {
+            console.warn('[Warning] Local backend verify-qr-login not available:', apiErr.message);
+          }
+        }
+
+      } else if (password) {
+        // Fallback for legacy QR codes that still contain password
+        console.log('[Legacy] Authenticating with legacy password from QR');
+        await signInWithEmailAndPassword(auth, studentData.email, password);
+      } else {
+        throw new Error('QR code does not contain a valid login token or credentials');
+      }
+
       localStorage.removeItem('rememberedStudentId');
 
       // Prepare student data for localStorage

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaDollarSign, FaBook, FaUsers, FaClipboardList, FaShieldAlt, FaEye, FaEyeSlash, FaQrcode, FaTimes, FaCheckCircle } from 'react-icons/fa';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -283,8 +284,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
         return;
       }
       
-      const { username, password, officeId } = credentials;
-      console.log('[Success] QR code decrypted successfully');
+      const { username, officeId, token, password, isTokenBased } = credentials;
+      console.log('[Success] QR code decrypted successfully. Token-based:', isTokenBased);
       console.log('[User] Username from QR:', username);
       console.log('[Office] Office from QR:', officeId);
 
@@ -336,9 +337,64 @@ const Login = ({ onLogin, onForgotPassword }) => {
         return;
       }
 
-      // Authenticate with Firebase
-      console.log('[Encryption] Attempting automatic login with email:', staffData.email);
-      await signInWithEmailAndPassword(auth, staffData.email, password);
+      // Authenticate: Token-based (new passwordless) or Password-based (legacy)
+      if (isTokenBased && token) {
+        console.log('[Auth] Authenticating staff via secure passwordless QR token');
+
+        // 1. Verify token matches Firestore record
+        if (!staffData.qrToken || staffData.qrToken !== token) {
+          console.error('[Error] Staff QR token mismatch or revoked');
+          setScanningStatus('error');
+          setError('Invalid or revoked QR code. Please generate a new QR code in your profile settings.');
+          setLoading(false);
+          return;
+        }
+
+        // 2. Call backend / Cloud Function to issue custom auth token (#3)
+        let customTokenSuccess = false;
+        try {
+          const functions = getFunctions();
+          const verifyQRLogin = httpsCallable(functions, 'verifyQRLogin');
+          const res = await verifyQRLogin({
+            type: 'staff',
+            username: username,
+            officeId: officeId,
+            token: token
+          });
+
+          if (res?.data?.customToken) {
+            await signInWithCustomToken(auth, res.data.customToken);
+            customTokenSuccess = true;
+            console.log('[Success] Staff authenticated via Firebase Custom Token');
+          }
+        } catch (fnErr) {
+          console.warn('[Warning] Cloud Function verifyQRLogin not available, checking local API fallback:', fnErr.message);
+          try {
+            const apiRes = await fetch('http://localhost:5000/api/verify-qr-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'staff', username: username, officeId: officeId, token: token })
+            });
+            if (apiRes.ok) {
+              const apiData = await apiRes.json();
+              if (apiData.customToken) {
+                await signInWithCustomToken(auth, apiData.customToken);
+                customTokenSuccess = true;
+                console.log('[Success] Staff authenticated via local backend custom token');
+              }
+            }
+          } catch (apiErr) {
+            console.warn('[Warning] Local backend verify-qr-login not available:', apiErr.message);
+          }
+        }
+
+      } else if (password) {
+        // Fallback for legacy QR codes that still contain password
+        console.log('[Legacy] Authenticating staff via legacy password from QR');
+        await signInWithEmailAndPassword(auth, staffData.email, password);
+      } else {
+        throw new Error('QR code does not contain a valid login token or credentials');
+      }
 
       // Store staff info in localStorage
       const staffInfo = {

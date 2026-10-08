@@ -3,30 +3,51 @@ import CryptoJS from 'crypto-js';
 const ENCRYPTION_KEY = process.env.REACT_APP_QR_ENCRYPTION_KEY || 'asj_student_qr_default_secret_key';
 const APP_SIGNATURE = 'ASJ_STUDENT_QR'; // Unique signature for this app
 
+export const generateSecureToken = () => {
+  return 'qrt_' + CryptoJS.lib.WordArray.random(16).toString();
+};
+
 /**
- * Encrypts student credentials for QR code
+ * Encrypts student QR data WITHOUT storing the raw password (#1 and #3)
  * @param {string} studentId - 4-digit student ID
- * @param {string} password - Student password
+ * @param {string} token - Random cryptographic token
  * @returns {string} Encrypted string for QR code
  */
-export const encryptCredentials = (studentId, password) => {
+export const encryptQRData = (studentId, token) => {
   try {
-    // Create payload with signature
+    const payload = {
+      sig: APP_SIGNATURE,
+      id: studentId,
+      token: token,
+      ts: Date.now()
+    };
+    
+    const jsonString = JSON.stringify(payload);
+    const encrypted = CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
+    console.log('[Encryption] Secure passwordless QR generated successfully');
+    return encrypted;
+  } catch (error) {
+    console.error('[Error] Encryption error:', error);
+    throw new Error('Failed to encrypt QR data');
+  }
+};
+
+/**
+ * Legacy wrapper / fallback
+ */
+export const encryptCredentials = (studentId, password, token = null) => {
+  if (token) {
+    return encryptQRData(studentId, token);
+  }
+  try {
     const payload = {
       sig: APP_SIGNATURE,
       id: studentId,
       pwd: password,
-      ts: Date.now() // timestamp for additional security
+      ts: Date.now()
     };
-    
-    // Convert to JSON string
     const jsonString = JSON.stringify(payload);
-    
-    // Encrypt using AES
-    const encrypted = CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
-    
-    console.log('[Encryption] Credentials encrypted successfully');
-    return encrypted;
+    return CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
   } catch (error) {
     console.error('[Error] Encryption error:', error);
     throw new Error('Failed to encrypt credentials');
@@ -35,8 +56,9 @@ export const encryptCredentials = (studentId, password) => {
 
 /**
  * Decrypts QR code data
+ * Supports both new secure token format and legacy password format
  * @param {string} encryptedData - Encrypted string from QR code
- * @returns {object|null} { studentId, password } or null if invalid
+ * @returns {object|null} { studentId, token, password, isTokenBased } or null if invalid
  */
 export const decryptCredentials = (encryptedData) => {
   try {
@@ -58,17 +80,21 @@ export const decryptCredentials = (encryptedData) => {
       return null;
     }
     
-    // Check if QR code is too old (optional - prevent old QR codes from working)
-    const ageInDays = (Date.now() - payload.ts) / (1000 * 60 * 60 * 24);
-    if (ageInDays > 365) { // QR code expires after 1 year
-      console.error('[Error] QR code expired');
-      return null;
+    // Check if QR code is too old (1 year expiration)
+    if (payload.ts) {
+      const ageInDays = (Date.now() - payload.ts) / (1000 * 60 * 60 * 24);
+      if (ageInDays > 365) {
+        console.error('[Error] QR code expired');
+        return null;
+      }
     }
     
-    console.log('[Success] Credentials decrypted successfully');
+    console.log('[Success] QR payload decrypted successfully');
     return {
       studentId: payload.id,
-      password: payload.pwd
+      token: payload.token || null,
+      password: payload.pwd || null,
+      isTokenBased: Boolean(payload.token)
     };
   } catch (error) {
     console.error('[Error] Decryption error:', error);
