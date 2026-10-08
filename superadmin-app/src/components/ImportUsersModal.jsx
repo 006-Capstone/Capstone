@@ -603,6 +603,13 @@ const ImportUsersModal = ({
     XLSX.writeFile(wb, `import_summary_${userType}_${Date.now()}.xlsx`);
   };
 
+  const handleModalClose = () => {
+    if (importSummary && onSuccess) {
+      onSuccess();
+    }
+    onClose();
+  };
+
   const validCount = validationResults.filter(r => r.isValid).length;
   const errorCount = validationResults.filter(r => !r.isValid).length;
 
@@ -628,7 +635,7 @@ const ImportUsersModal = ({
               </p>
             </div>
           </div>
-          <button className="import-close-btn" onClick={onClose} disabled={isImporting} title="Close">
+          <button className="import-close-btn" onClick={handleModalClose} disabled={isImporting} title="Close">
             <FaTimes />
           </button>
         </div>
@@ -707,16 +714,6 @@ const ImportUsersModal = ({
                   onClick={handleDownloadReport}
                 >
                   <FaDownload /> Download Audit Report (.xlsx)
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => {
-                    if (onSuccess) onSuccess();
-                    onClose();
-                  }}
-                >
-                  <FaCheckCircle /> Finish & View Updated List
                 </button>
               </div>
             </div>

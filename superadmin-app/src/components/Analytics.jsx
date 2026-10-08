@@ -726,10 +726,17 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
           <p className="page-subtitle">Track request volume, satisfaction, and department performance</p>
         </div>
         <div className="analytics-header-right">
-          <button className="btn-primary export-button" onClick={exportToCSV}>
-            <FaDownload className="export-icon" aria-hidden="true" />
-            <span>Export CSV</span>
-          </button>
+          {activeTab === 'overview' && (
+            <button
+              type="button"
+              className="btn-primary export-button"
+              onClick={exportToCSV}
+              title="Export Overview & Reports to CSV"
+            >
+              <FaDownload className="export-icon" aria-hidden="true" />
+              <span>Export CSV</span>
+            </button>
+          )}
           <NotificationBell />
         </div>
       </div>

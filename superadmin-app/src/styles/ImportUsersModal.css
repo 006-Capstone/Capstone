@@ -681,7 +681,7 @@
 
 .summary-actions-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 0.75rem;
   margin-top: 0.5rem;
 }

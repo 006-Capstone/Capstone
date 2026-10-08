@@ -24,7 +24,8 @@ import {
   FaBook,
   FaUserFriends,
   FaChevronDown,
-  FaCheck
+  FaCheck,
+  FaDownload
 } from 'react-icons/fa';
 import { calculateStaffMonthlyBehavior } from '../utils/performanceAnalytics';
 import { analyzeMonthlyStaffBehaviorWithAI } from '../utils/groqService';
@@ -347,6 +348,113 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
     window.print();
   };
 
+  // Export comprehensive monthly performance, warnings, and 4-week trajectory data to CSV
+  const exportPerformanceToCSV = useCallback(() => {
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const monthName = selectedMonthOption ? selectedMonthOption.label : 'Current Month';
+    const deptFilterName = selectedDept === 'all' ? 'All Departments' : selectedDept;
+
+    let csvContent = '';
+
+    // Report Header & Audit Metadata
+    csvContent += 'ACADEMIA DE SAN JOSE - STAFF PERFORMANCE & BEHAVIORAL MONITOR REPORT\n';
+    csvContent += `Generated: "${currentDate}"\n`;
+    csvContent += `Observation Period: "${monthName} (4-Week Monthly Evaluation Window)"\n`;
+    csvContent += `Department Scope: "${deptFilterName}"\n`;
+    if (searchQuery.trim()) {
+      csvContent += `Search Filter: "${searchQuery.trim()}"\n`;
+    }
+    csvContent += '\n';
+
+    // 1. Executive Summary
+    csvContent += '1. EXECUTIVE PERFORMANCE SUMMARY\n';
+    csvContent += 'Metric,Value\n';
+    csvContent += `Observation Period,"${monthName}"\n`;
+    csvContent += `Monitored Staff Count,${summaryStats.totalStaffCount}\n`;
+    csvContent += `Total Assigned Tickets in Cycle,${summaryStats.totalAssignedMonth}\n`;
+    csvContent += `Total Resolved Tickets in Cycle,${summaryStats.totalResolvedMonth}\n`;
+    csvContent += `Overall Monthly Clearance Rate,${summaryStats.monthClearanceRate}%\n`;
+    csvContent += `Good Standing (Healthy Throughput),${summaryStats.goodCount}\n`;
+    csvContent += `1st Warning: Notice to Explain (NTE),${summaryStats.warning1Count}\n`;
+    csvContent += `2nd Warning: Verbal Reprimand,${summaryStats.warning2Count}\n`;
+    csvContent += `3rd Warning: Notice of Suspension,${summaryStats.warning3Count}\n`;
+    csvContent += `4th Warning: Notice for Termination,${summaryStats.warning4Count}\n`;
+    csvContent += '\n';
+
+    // 2. Department Health Breakdown
+    csvContent += '2. DEPARTMENT HEALTH & WORKLOAD BREAKDOWN\n';
+    csvContent += 'Department,Staff Count,Assigned Tickets,Resolved Tickets,Clearance Rate %,Staff with Warnings\n';
+    departmentSections.forEach(dept => {
+      csvContent += `"${dept.label}",${dept.staffList.length},${dept.totalAssigned},${dept.totalResolved},${dept.avgClearance}%,${dept.warningCount}\n`;
+    });
+    csvContent += '\n';
+
+    // 3. Staff Evaluation & Warning Audit
+    csvContent += '3. INDIVIDUAL STAFF PERFORMANCE & WARNING AUDIT\n';
+    csvContent += 'Staff Name,Email,Department,Role,Assigned,Resolved,Clearance Rate %,Avg Resolution Time,Initial Rollover,Rollover to Next Month,Behavioral Archetype,Warning Level,NTE Required,Evaluation Reason\n';
+    filteredProfiles.forEach(p => {
+      const s = p.staff || {};
+      const t = p.totals || {};
+      const arch = p.archetype || {};
+      const w = p.warningEvaluation || {};
+      const avgResText = (t.avgMonthlyResolutionHours || 0) > 0 ? `${t.avgMonthlyResolutionHours} hrs` : 'N/A';
+      const cleanReason = (w.reason || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ');
+      const cleanName = (s.name || s.fullName || 'N/A').replace(/"/g, '""');
+      const cleanEmail = (s.email || 'N/A').replace(/"/g, '""');
+      const cleanDept = (s.department || s.office || 'N/A').replace(/"/g, '""');
+      const cleanRole = (s.role || 'Staff').replace(/"/g, '""');
+      const cleanArch = (arch.title || p.trajectory?.archetype || 'Steady Pacer').replace(/"/g, '""');
+      const cleanWarning = (w.label || w.shortLabel || 'Good Standing').replace(/"/g, '""');
+      const initialRollover = p.weeks?.[0]?.rollover || 0;
+      const netRollover = t.netRolloverNextMonth || 0;
+
+      csvContent += `"${cleanName}","${cleanEmail}","${cleanDept}","${cleanRole}",${t.totalAssigned || 0},${t.totalResolved || 0},${t.overallClearanceRate || 0}%,"${avgResText}",${initialRollover},${netRollover},"${cleanArch}","${cleanWarning}","${w.nteRecommended ? 'YES' : 'NO'}","${cleanReason}"\n`;
+    });
+    csvContent += '\n';
+
+    // 4. 4-Week Weekly Performance Breakdown
+    csvContent += '4. WEEKLY 4-WEEK PERFORMANCE TRAJECTORY (W1 TO W4)\n';
+    csvContent += 'Staff Name,Department,Week,Days Window,Assigned,Resolved,Rollover In,Total Workload,Unresolved Left,Clearance Rate %,Avg Resolution (hrs),Pickup Latency (hrs),Student Rating\n';
+    filteredProfiles.forEach(p => {
+      const s = p.staff || {};
+      const cleanName = (s.name || s.fullName || 'N/A').replace(/"/g, '""');
+      const cleanDept = (s.department || s.office || 'N/A').replace(/"/g, '""');
+      if (p.weeks && p.weeks.length > 0) {
+        p.weeks.forEach(wk => {
+          const ratingText = wk.avgSatisfaction !== null && wk.avgSatisfaction !== undefined ? `${wk.avgSatisfaction} Stars` : 'No rating';
+          csvContent += `"${cleanName}","${cleanDept}","Week ${wk.weekNum}","${wk.label}",${wk.assigned},${wk.resolved},${wk.rollover},${wk.totalWorkload},${wk.unresolvedAtEnd},${wk.clearanceRate}%,${wk.avgResolutionHours},${wk.avgPickupLatencyHours},"${ratingText}"\n`;
+        });
+      }
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const safeMonth = (selectedMonthOption ? selectedMonthOption.label : 'monthly').toLowerCase().replace(/\s+/g, '_');
+    const filename = `performance_report_${safeMonth}_${new Date().toISOString().split('T')[0]}.csv`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [
+    selectedMonthOption,
+    selectedDept,
+    searchQuery,
+    summaryStats,
+    departmentSections,
+    filteredProfiles
+  ]);
+
   // Synchronize department when passed from Overview & Reports
   useEffect(() => {
     if (initialDept) {
@@ -459,6 +567,17 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            className="pm-export-btn"
+            onClick={exportPerformanceToCSV}
+            title="Export monthly performance and behavior report to CSV"
+            aria-label="Export Performance Report as CSV"
+          >
+            <FaDownload className="pm-export-icon" />
+            <span>Export CSV</span>
+          </button>
 
           <button
             type="button"
@@ -942,7 +1061,7 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
                 onClick={handlePrintDiagnostic}
               >
                 <FaPrint />
-                <span>Print / Export Summary</span>
+                <span>Print Diagnostic Summary</span>
               </button>
               <button
                 type="button"
