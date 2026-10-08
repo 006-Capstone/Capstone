@@ -23,8 +23,93 @@
   flex-wrap: wrap;
 }
 
+/* ---- Header Action Group & Buttons ---- */
+.user-action-buttons-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .create-student-btn {
   /* inherits .btn-primary */
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  border-radius: 9px;
+  font-family: var(--font-family, 'Inter', -apple-system, sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.import-accounts-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 42px;
+  padding: 0 16px 0 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbf6 100%);
+  color: var(--green-900, #0d4a05);
+  border: 1px solid #b8dfb3;
+  border-radius: 9px;
+  box-shadow: 0 1px 3px rgba(16, 94, 6, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-family: var(--font-family, 'Inter', -apple-system, sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.import-btn-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background-color: var(--green-100, #d6f4cf);
+  color: var(--green-800, #105e06);
+  font-size: 13px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.import-btn-text {
+  line-height: 1;
+}
+
+.import-accounts-btn:hover {
+  background: linear-gradient(180deg, #f0faee 0%, #e3f6df 100%);
+  border-color: var(--green-700, #1a7a0e);
+  color: var(--green-950, #072a04);
+  box-shadow: 0 4px 12px rgba(16, 94, 6, 0.16), 0 1px 3px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1.5px);
+}
+
+.import-accounts-btn:hover .import-btn-icon-wrap {
+  background-color: var(--green-800, #105e06);
+  color: #ffffff;
+  transform: scale(1.08) rotate(-4deg);
+  box-shadow: 0 2px 6px rgba(16, 94, 6, 0.25);
+}
+
+.import-accounts-btn:active {
+  transform: translateY(0);
+  background: #e3f6df;
+  box-shadow: 0 1px 2px rgba(16, 94, 6, 0.1);
+}
+
+.import-accounts-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26, 122, 14, 0.28), 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 /* ---- Tabs row ---- */
@@ -1079,6 +1164,13 @@ select.form-input-super option:disabled {
     justify-content: flex-start;
   }
 
+  .user-action-buttons-group {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+  }
+
+  .import-accounts-btn,
   .create-student-btn {
     flex: 1;
     justify-content: center;

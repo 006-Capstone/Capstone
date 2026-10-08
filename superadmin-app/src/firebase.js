@@ -25,4 +25,15 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
 
-export { app, analytics, db, auth, storage };
+// Secondary auth instance to create accounts without signing out the current superadmin session
+export const getSecondaryAuth = () => {
+  const secondaryAppName = 'SecondaryAuthApp';
+  let secondaryApp = getApps().find(a => a.name === secondaryAppName);
+  if (!secondaryApp) {
+    secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+  }
+  return getAuth(secondaryApp);
+};
+
+export { app, analytics, db, auth, storage, firebaseConfig };
+

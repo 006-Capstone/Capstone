@@ -34,16 +34,18 @@ import {
   FaInfoCircle,
   FaArrowLeft,
   FaTrashAlt,
-  FaLock
+  FaLock,
+  FaFileImport
 } from 'react-icons/fa';
-import { db, auth } from '../firebase';
+import { db, auth, getSecondaryAuth } from '../firebase';
 import { collection, addDoc, getDocs, getDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import NotificationBell from './NotificationBell';
 import Archive from './Archive';
 import { DataTableSkeleton } from './common/Skeleton';
 import ChangePasswordModal from './ChangePasswordModal';
+import ImportUsersModal from './ImportUsersModal';
 import Toast from './Toast';
 import '../styles/UserManagement.css';
 
@@ -59,6 +61,7 @@ const DATE_PRESET_OPTIONS = [
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('students'); // 'students' or 'staff'
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   
   // Selection state for archiving
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
@@ -836,9 +839,13 @@ const UserManagement = () => {
       const password = generatePassword();
       setGeneratedPassword(password);
 
-      // Create Firebase Authentication account
-      const userCredential = await createUserWithEmailAndPassword(auth, studentEmail, password);
+      // Create Firebase Authentication account (using isolated secondary auth to protect superadmin session)
+      const secondaryAuth = getSecondaryAuth();
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, studentEmail, password);
       const user = userCredential.user;
+      try {
+        await signOut(secondaryAuth);
+      } catch (_) {}
 
       // Build full name
       const middleInitial = studentMiddleName ? studentMiddleName.charAt(0).toUpperCase() + '.' : '';
@@ -1089,9 +1096,13 @@ const UserManagement = () => {
       const password = generatePassword();
       setGeneratedPassword(password);
 
-      // Create Firebase Authentication account
-      const userCredential = await createUserWithEmailAndPassword(auth, staffEmail, password);
+      // Create Firebase Authentication account (using isolated secondary auth to protect superadmin session)
+      const secondaryAuth = getSecondaryAuth();
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, staffEmail, password);
       const user = userCredential.user;
+      try {
+        await signOut(secondaryAuth);
+      } catch (_) {}
 
       const selectedOffice = offices.find(o => o.id === staffOffice);
 
@@ -2800,10 +2811,29 @@ const UserManagement = () => {
         </div>
         <div className="header-actions">
           {(activeTab === 'students' || activeTab === 'staff') && (
-            <button className="btn-primary create-student-btn" onClick={activeTab === 'students' ? handleNewStudent : handleNewStaff}>
-              <FaUserPlus aria-hidden="true" />
-              {activeTab === 'students' ? 'Create Student Account' : 'Create Staff Account'}
-            </button>
+            <div className="user-action-buttons-group">
+              <button
+                type="button"
+                className="import-accounts-btn"
+                onClick={() => setShowImportModal(true)}
+                title={activeTab === 'students' ? 'Import Students from CSV or Excel' : 'Import Staff from CSV or Excel'}
+              >
+                <span className="import-btn-icon-wrap">
+                  <FaFileImport aria-hidden="true" />
+                </span>
+                <span className="import-btn-text">
+                  {activeTab === 'students' ? 'Import Students' : 'Import Staff'}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="btn-primary create-student-btn"
+                onClick={activeTab === 'students' ? handleNewStudent : handleNewStaff}
+              >
+                <FaUserPlus aria-hidden="true" />
+                {activeTab === 'students' ? 'Create Student Account' : 'Create Staff Account'}
+              </button>
+            </div>
           )}
           <NotificationBell />
         </div>
@@ -4353,6 +4383,19 @@ const UserManagement = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {showImportModal && (
+        <ImportUsersModal
+          initialType={activeTab === 'staff' ? 'staff' : 'students'}
+          existingStudents={students}
+          existingStaff={staffMembers}
+          offices={offices}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            showToast('Account import completed successfully!', 'success');
+          }}
+        />
       )}
     </div>
   );
