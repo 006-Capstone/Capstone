@@ -1,8 +1,8 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth, inMemoryPersistence } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
@@ -31,6 +31,11 @@ export const getSecondaryAuth = () => {
   let secondaryApp = getApps().find(a => a.name === secondaryAppName);
   if (!secondaryApp) {
     secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+    try {
+      return initializeAuth(secondaryApp, { persistence: inMemoryPersistence });
+    } catch (_) {
+      return getAuth(secondaryApp);
+    }
   }
   return getAuth(secondaryApp);
 };

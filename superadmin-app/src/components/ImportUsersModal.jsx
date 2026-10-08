@@ -390,7 +390,6 @@ const ImportUsersModal = ({
     setIsImporting(true);
     setImportProgress({ current: 0, total: toImport.length, percent: 0 });
 
-    const secondaryAuth = getSecondaryAuth();
     const createdList = [];
     const failedList = [];
     let emailsSent = 0;
@@ -402,158 +401,169 @@ const ImportUsersModal = ({
           ? '/api/send-temporary-password'
           : 'http://localhost:5000/api/send-temporary-password');
 
-    for (let i = 0; i < toImport.length; i++) {
-      const row = toImport[i];
-      const { data } = row;
-      const temporaryPassword = generatePassword();
-
+    const sendEmailWithTimeout = async (payload) => {
       try {
-        if (userType === 'students') {
-          // 1. Create auth user with secondary auth (preserves superadmin session!)
-          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, data.email, temporaryPassword);
-          const authUser = userCredential.user;
-
-          // Sign out immediately from secondary auth so it remains clean
-          try {
-            await signOut(secondaryAuth);
-          } catch (_) {}
-
-          // 2. Build full name
-          const middleInitial = data.middleName ? data.middleName.charAt(0).toUpperCase() + '.' : '';
-          const fullName = `${data.firstName} ${middleInitial} ${data.lastName}${data.suffix ? ' ' + data.suffix : ''}`.replace(/\s+/g, ' ').trim();
-
-          // 3. Save to Firestore
-          await addDoc(collection(db, 'students'), {
-            id: data.id,
-            uid: authUser.uid,
-            firstName: data.firstName.trim(),
-            lastName: data.lastName.trim(),
-            middleName: data.middleName.trim(),
-            middleInitial: data.middleName ? data.middleName.charAt(0).toUpperCase() : '',
-            suffix: data.suffix.trim(),
-            gradeLevel: data.gradeLevel.trim(),
-            section: data.section.trim(),
-            name: fullName,
-            fullName: fullName,
-            email: data.email.trim(),
-            role: 'student',
-            createdAt: serverTimestamp(),
-            isActive: true,
-            mustChangePassword: true
-          });
-
-          // 4. Send email credentials if requested
-          if (sendEmails) {
-            try {
-              const res = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  email: data.email.trim(),
-                  userName: fullName,
-                  temporaryPassword: temporaryPassword,
-                  role: 'student'
-                })
-              });
-              if (res.ok) emailsSent++;
-            } catch (err) {
-              console.warn(`[Import] Failed to email student ${data.email}:`, err);
-            }
-          }
-
-          createdList.push({ ...data, name: fullName, temporaryPassword });
-
-        } else {
-          // Staff Import
-          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, data.email, temporaryPassword);
-          const authUser = userCredential.user;
-
-          try {
-            await signOut(secondaryAuth);
-          } catch (_) {}
-
-          const middleInitial = data.middleName ? data.middleName.charAt(0).toUpperCase() + '.' : '';
-          const fullName = `${data.firstName} ${middleInitial} ${data.lastName}${data.suffix ? ' ' + data.suffix : ''}`.replace(/\s+/g, ' ').trim();
-
-          await addDoc(collection(db, 'staff'), {
-            uid: authUser.uid,
-            firstName: data.firstName.trim(),
-            lastName: data.lastName.trim(),
-            middleName: data.middleName.trim(),
-            middleInitial: data.middleName ? data.middleName.charAt(0).toUpperCase() : '',
-            suffix: data.suffix.trim(),
-            name: fullName,
-            fullName: fullName,
-            email: data.email.trim(),
-            username: data.username.trim(),
-            office: data.office,
-            officeId: data.officeId,
-            role: 'staff',
-            createdAt: serverTimestamp(),
-            isActive: true,
-            mustChangePassword: true
-          });
-
-          if (sendEmails) {
-            try {
-              const res = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  email: data.email.trim(),
-                  userName: fullName,
-                  temporaryPassword: temporaryPassword,
-                  role: 'admin',
-                  office: data.office
-                })
-              });
-              if (res.ok) emailsSent++;
-            } catch (err) {
-              console.warn(`[Import] Failed to email staff ${data.email}:`, err);
-            }
-          }
-
-          createdList.push({ ...data, name: fullName, temporaryPassword });
-        }
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5s max timeout
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return res.ok;
       } catch (err) {
-        console.error(`[Import] Error importing row ${row.rowIndex}:`, err);
-        failedList.push({
-          row: row.rowIndex,
-          identifier: userType === 'students' ? data.id || data.email : data.username || data.email,
-          error: err.message || 'Creation failed'
+        console.warn('[Import] Email send timed out or backend unreachable:', err.message);
+        return false;
+      }
+    };
+
+    try {
+      const secondaryAuth = getSecondaryAuth();
+
+      for (let i = 0; i < toImport.length; i++) {
+        const row = toImport[i];
+        const { data } = row;
+        const temporaryPassword = generatePassword();
+
+        try {
+          if (userType === 'students') {
+            // 1. Create auth user with secondary auth (preserves superadmin session!)
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, data.email, temporaryPassword);
+            const authUser = userCredential.user;
+
+            // Sign out immediately from secondary auth so it remains clean
+            try {
+              await signOut(secondaryAuth);
+            } catch (_) {}
+
+            // 2. Build full name
+            const middleInitial = data.middleName ? data.middleName.charAt(0).toUpperCase() + '.' : '';
+            const fullName = `${data.firstName} ${middleInitial} ${data.lastName}${data.suffix ? ' ' + data.suffix : ''}`.replace(/\s+/g, ' ').trim();
+
+            // 3. Save to Firestore
+            await addDoc(collection(db, 'students'), {
+              id: data.id,
+              uid: authUser.uid,
+              firstName: data.firstName.trim(),
+              lastName: data.lastName.trim(),
+              middleName: data.middleName.trim(),
+              middleInitial: data.middleName ? data.middleName.charAt(0).toUpperCase() : '',
+              suffix: data.suffix.trim(),
+              gradeLevel: data.gradeLevel.trim(),
+              section: data.section.trim(),
+              name: fullName,
+              fullName: fullName,
+              email: data.email.trim(),
+              role: 'student',
+              createdAt: serverTimestamp(),
+              isActive: true,
+              mustChangePassword: true
+            });
+
+            // 4. Send email credentials if requested (non-blocking with timeout)
+            if (sendEmails) {
+              const emailOk = await sendEmailWithTimeout({
+                email: data.email.trim(),
+                userName: fullName,
+                temporaryPassword: temporaryPassword,
+                role: 'student'
+              });
+              if (emailOk) emailsSent++;
+            }
+
+            createdList.push({ ...data, name: fullName, temporaryPassword });
+
+          } else {
+            // Staff Import
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, data.email, temporaryPassword);
+            const authUser = userCredential.user;
+
+            try {
+              await signOut(secondaryAuth);
+            } catch (_) {}
+
+            const middleInitial = data.middleName ? data.middleName.charAt(0).toUpperCase() + '.' : '';
+            const fullName = `${data.firstName} ${middleInitial} ${data.lastName}${data.suffix ? ' ' + data.suffix : ''}`.replace(/\s+/g, ' ').trim();
+
+            await addDoc(collection(db, 'staff'), {
+              uid: authUser.uid,
+              firstName: data.firstName.trim(),
+              lastName: data.lastName.trim(),
+              middleName: data.middleName.trim(),
+              middleInitial: data.middleName ? data.middleName.charAt(0).toUpperCase() : '',
+              suffix: data.suffix.trim(),
+              name: fullName,
+              fullName: fullName,
+              email: data.email.trim(),
+              username: data.username.trim(),
+              office: data.office,
+              officeId: data.officeId,
+              role: 'staff',
+              createdAt: serverTimestamp(),
+              isActive: true,
+              mustChangePassword: true
+            });
+
+            if (sendEmails) {
+              const emailOk = await sendEmailWithTimeout({
+                email: data.email.trim(),
+                userName: fullName,
+                temporaryPassword: temporaryPassword,
+                role: 'admin',
+                office: data.office
+              });
+              if (emailOk) emailsSent++;
+            }
+
+            createdList.push({ ...data, name: fullName, temporaryPassword });
+          }
+        } catch (err) {
+          console.error(`[Import] Error importing row ${row.rowIndex}:`, err);
+          failedList.push({
+            row: row.rowIndex,
+            identifier: userType === 'students' ? data.id || data.email : data.username || data.email,
+            error: err.message || 'Creation failed'
+          });
+        }
+
+        const current = i + 1;
+        setImportProgress({
+          current,
+          total: toImport.length,
+          percent: Math.round((current / toImport.length) * 100)
         });
       }
 
-      const current = i + 1;
-      setImportProgress({
-        current,
-        total: toImport.length,
-        percent: Math.round((current / toImport.length) * 100)
-      });
-    }
+      // Add activity log to Firestore
+      try {
+        await addDoc(collection(db, 'activityLogs'), {
+          action: `Batch Import (${userType === 'students' ? 'Students' : 'Staff Members'})`,
+          category: 'import',
+          details: `Successfully imported ${createdList.length} ${userType} account(s)${failedList.length ? ` (${failedList.length} failed)` : ''}.`,
+          status: createdList.length > 0 ? 'Success' : 'Failed',
+          timestamp: serverTimestamp()
+        });
+      } catch (auditErr) {
+        console.warn('Failed to record import audit log:', auditErr);
+      }
 
-    // Add activity log to Firestore
-    try {
-      await addDoc(collection(db, 'activityLogs'), {
-        action: `Batch Import (${userType === 'students' ? 'Students' : 'Staff Members'})`,
-        category: 'import',
-        details: `Successfully imported ${createdList.length} ${userType} account(s)${failedList.length ? ` (${failedList.length} failed)` : ''}.`,
-        status: createdList.length > 0 ? 'Success' : 'Failed',
-        timestamp: serverTimestamp()
+      setImportSummary({
+        totalProcessed: toImport.length,
+        successCount: createdList.length,
+        failCount: failedList.length,
+        emailsSent,
+        failedRows: failedList,
+        createdAccounts: createdList
       });
-    } catch (auditErr) {
-      console.warn('Failed to record import audit log:', auditErr);
-    }
 
-    setIsImporting(false);
-    setImportSummary({
-      totalProcessed: toImport.length,
-      successCount: createdList.length,
-      failCount: failedList.length,
-      emailsSent,
-      failedRows: failedList,
-      createdAccounts: createdList
-    });
+    } catch (globalErr) {
+      console.error('[Import] Fatal error during import process:', globalErr);
+      alert('An unexpected error occurred during import: ' + globalErr.message);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   // Download import results report
