@@ -58,10 +58,14 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
     return officeTickets.filter(t => {
       const assigned = (t.assignedTo || '').trim().toLowerCase();
       const claimed = (t.claimedBy || '').trim().toLowerCase();
+      const assignedStaff = (t.assignedToStaff || '').trim().toLowerCase();
+      const reassignedTo = (t.reassignedToStaff || '').trim().toLowerCase();
       return (
         (assigned && assigned === staffName) ||
         (claimed && claimed === staffName) ||
-        (staffUid && t.assignedToStaff === staffUid)
+        (assignedStaff && assignedStaff === staffName) ||
+        (reassignedTo && reassignedTo === staffName) ||
+        (staffUid && (t.assignedToStaff === staffUid || t.claimedByUid === staffUid || t.assignedStaffId === staffUid))
       );
     });
   }, [officeTickets, staffData]);

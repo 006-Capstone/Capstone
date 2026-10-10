@@ -84,6 +84,7 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
       return {
         id: s.id || s.firestoreId,
         firestoreId: s.firestoreId || s.id,
+        uid: s.uid || s.id || s.firestoreId,
         name: s.name,
         department: s.department || s.office || '',
         office: s.office || s.department || '',
@@ -107,6 +108,7 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
       staffMember: {
         id: staffObj.id || staffObj.firestoreId,
         firestoreId: staffObj.firestoreId || staffObj.id,
+        uid: staffObj.uid || staffObj.id || staffObj.firestoreId,
         name: staffObj.name,
         department: staffObj.department || staffObj.office || '',
         office: staffObj.office || staffObj.department || '',

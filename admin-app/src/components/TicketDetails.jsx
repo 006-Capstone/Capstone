@@ -221,7 +221,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   }, []);
 
   // Display name of who owns/claimed the ticket
-  const ticketHandler = ticket?.claimedBy || ticket?.assignedTo || ticket?.assignedToStaff || null;
+  const ticketHandler = ticket?.assignedTo || ticket?.claimedBy || ticket?.reassignedToStaff || ticket?.assignedToStaff || null;
 
   // Authorization check: whether this request belongs to or was claimed by current staff
   const isOwner = useMemo(() => {
@@ -233,12 +233,22 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     const assigned = (ticket.assignedTo || '').trim().toLowerCase();
     const claimed = (ticket.claimedBy || '').trim().toLowerCase();
     const assignedStaff = (ticket.assignedToStaff || '').trim().toLowerCase();
+    const reassignedTo = (ticket.reassignedToStaff || '').trim().toLowerCase();
 
     const matchesName = Boolean(
-      staffName && (assigned === staffName || claimed === staffName || assignedStaff === staffName)
+      staffName && (
+        assigned === staffName || 
+        claimed === staffName || 
+        assignedStaff === staffName ||
+        reassignedTo === staffName
+      )
     );
     const matchesUid = Boolean(
-      staffUid && (ticket.assignedToStaff === staffUid || ticket.claimedByUid === staffUid)
+      staffUid && (
+        ticket.assignedToStaff === staffUid || 
+        ticket.claimedByUid === staffUid ||
+        ticket.assignedStaffId === staffUid
+      )
     );
 
     return Boolean(matchesName || matchesUid);
@@ -257,8 +267,18 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   const cleanOffice = (str) => (str || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
 
-  // Check if the ticket has been rerouted to another department
-  const isTicketRerouted = Boolean(ticket?.reassignedFrom || ticket?.previousOffice);
+  // Check if the ticket has been rerouted across offices/departments
+  const isTicketRerouted = useMemo(() => {
+    if (!ticket) return false;
+    // Workload rebalancing within the same department by Superadmin is NOT a cross-office reroute
+    if (ticket.reassignReason === 'workload_rebalancing' || ticket.workloadRebalanced) {
+      if (ticket.previousOffice && cleanOffice(ticket.previousOffice) !== cleanOffice(ticket.office)) {
+        return true;
+      }
+      return false;
+    }
+    return Boolean(ticket.previousOffice || (ticket.reassignedFrom && !ticket.reassignedFromStaff));
+  }, [ticket]);
 
   // Original department name where the request was first filed
   const originalDepartmentName = useMemo(() => {
@@ -286,6 +306,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   // Check if the current office/staff belongs to the original department where the request originated
   const isOriginalDepartment = useCallback(() => {
     if (!ticket) return false;
+    // Workload rebalancing within the same department means current office is original
+    if (ticket.reassignReason === 'workload_rebalancing' || ticket.workloadRebalanced) {
+      if (!ticket.previousOffice || cleanOffice(ticket.previousOffice) === cleanOffice(ticket.office)) {
+        return true;
+      }
+    }
     // If ticket was never rerouted, the current office is the original department
     if (!ticket.reassignedFrom && !ticket.previousOffice && (!ticket.officeHistory || Object.keys(ticket.officeHistory).length === 0)) {
       return true;
@@ -1379,7 +1405,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       )}
 
       {/* Rerouted Request Reminder Callout (Compact) */}
-      {(ticket.reassignedFrom || ticket.previousOffice) && (
+      {isTicketRerouted && (ticket.reassignedFrom || ticket.previousOffice) && (
         <div className="ticket-rerouted-callout">
           <div className="rerouted-callout-icon-wrap">
             <FaExchangeAlt />

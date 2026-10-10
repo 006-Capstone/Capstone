@@ -13,7 +13,7 @@ import {
   FaCheck,
   FaUserFriends
 } from 'react-icons/fa';
-import { collection, getDocs, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, addDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/ReassignTicketsModal.css';
@@ -52,17 +52,26 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
       const closedStatuses = ['resolved', 'cancelled', 'completed', 'rejected'];
 
       const staffTickets = requestsSnap.docs
-        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+        .map(docSnap => {
+          const data = docSnap.data();
+          return {
+            ...data,
+            firestoreId: docSnap.id,
+            id: docSnap.id
+          };
+        })
         .filter(ticket => {
           const status = (ticket.status || '').trim().toLowerCase();
           if (closedStatuses.includes(status)) return false;
 
-          const assigned = (ticket.assignedTo || ticket.claimedBy || '').trim().toLowerCase();
-          const staffUid = ticket.assignedToStaff || ticket.assignedStaffId || '';
+          const assigned = (ticket.assignedTo || '').trim().toLowerCase();
+          const claimed = (ticket.claimedBy || '').trim().toLowerCase();
+          const assignedStaff = (ticket.assignedToStaff || '').trim().toLowerCase();
+          const staffUid = ticket.assignedToStaff || ticket.assignedStaffId || ticket.claimedByUid || '';
 
-          const isAssigned = (memberName && assigned === memberName) ||
-            (memberId && staffUid === memberId) ||
-            (memberUid && staffUid === memberUid);
+          const isAssigned = (memberName && (assigned === memberName || claimed === memberName || assignedStaff === memberName)) ||
+            (memberId && (staffUid === memberId || ticket.assignedToStaff === memberId)) ||
+            (memberUid && (staffUid === memberUid || ticket.claimedByUid === memberUid));
 
           return isAssigned;
         })
@@ -195,49 +204,80 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
       return;
     }
 
-    const targetStaffMember = allStaff.find(s => (s.id === targetStaff || s.firestoreId === targetStaff));
+    const targetStaffMember = allStaff.find(s => (s.id === targetStaff || s.firestoreId === targetStaff || s.uid === targetStaff));
     if (!targetStaffMember) {
       if (toast?.error) toast.error('Invalid target colleague selected');
       return;
     }
+
+    const targetUid = targetStaffMember.uid || targetStaffMember.id || targetStaffMember.firestoreId;
+    const targetName = targetStaffMember.name;
+    const fromUid = staffMember.uid || staffMember.id || staffMember.firestoreId;
+    const fromName = staffMember.name;
 
     try {
       setReassigning(true);
 
       // Update each selected ticket/request
       for (const ticketId of selectedTickets) {
+        const ticketDoc = tickets.find(t => t.id === ticketId || t.firestoreId === ticketId);
+        const actualDocId = ticketDoc?.firestoreId || ticketDoc?.id || ticketId;
+        const displayRequestId = ticketDoc?.requestId || ticketDoc?.ticketId || actualDocId;
+
         const updatePayload = {
-          assignedTo: targetStaffMember.name,
-          claimedBy: targetStaffMember.name,
-          assignedToStaff: targetStaffMember.id || targetStaffMember.firestoreId,
+          assignedTo: targetName,
+          claimedBy: targetName,
+          assignedToStaff: targetName,
+          claimedByUid: targetUid,
+          assignedStaffId: targetUid,
+          reassignedToStaff: targetName,
+          reassignedFromStaff: fromName,
+          reassignedBy: 'Super Administrator',
           reassignedAt: serverTimestamp(),
-          reassignedFrom: staffMember.name,
-          reassignedBy: 'superadmin',
-          reassignReason: 'workload_rebalancing'
+          reassignReason: 'workload_rebalancing',
+          workloadRebalanced: true,
+          status: 'In Process',
+          updatedAt: serverTimestamp(),
+          followUps: arrayUnion({
+            message: `Workload rebalanced: Request reassigned from ${fromName} to ${targetName} by Super Administrator.`,
+            sentBy: 'system',
+            sentByName: 'Super Administrator',
+            sentAt: new Date().toISOString()
+          })
         };
 
         try {
-          await updateDoc(doc(db, 'requests', ticketId), updatePayload);
-        } catch (_) {
-          await updateDoc(doc(db, 'tickets', ticketId), updatePayload);
+          await updateDoc(doc(db, 'requests', actualDocId), updatePayload);
+        } catch (errReq) {
+          console.warn('[ReassignTicketsModal] updateDoc requests failed, trying tickets:', errReq);
+          try {
+            await updateDoc(doc(db, 'tickets', actualDocId), updatePayload);
+          } catch (errTick) {
+            console.error('[ReassignTicketsModal] Failed to update ticket document:', errTick);
+          }
         }
 
-        // Create notification for target staff
+        // Create notification for target staff matching admin-app Notifications.jsx schema
         try {
           await addDoc(collection(db, 'notifications'), {
-            userId: targetStaffMember.id || targetStaffMember.firestoreId,
+            recipientId: targetUid,
+            recipientType: 'staff',
+            userId: targetUid,
             userType: 'staff',
             recipientRole: 'staff',
-            type: 'ticket_reassigned',
-            title: '📋 New Request Assigned',
-            message: `A request has been reassigned to you from ${staffMember.name} for workload balancing.`,
+            type: 'ticket_rerouted',
+            title: '📋 Request Reassigned to You',
+            message: `Request #${displayRequestId} has been reassigned to you from ${fromName} for workload rebalancing.`,
+            isRead: false,
+            read: false,
             timestamp: serverTimestamp(),
             createdAt: serverTimestamp(),
-            read: false,
             priority: 'medium',
             metadata: {
-              requestId: ticketId,
-              fromStaff: staffMember.name,
+              requestId: displayRequestId,
+              firestoreId: actualDocId,
+              fromStaff: fromName,
+              toStaff: targetName,
               reason: 'workload_rebalancing'
             }
           });
@@ -246,22 +286,26 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
         }
       }
 
-      // Create notification for original staff
+      // Create notification for original staff matching admin-app Notifications.jsx schema
       try {
         await addDoc(collection(db, 'notifications'), {
-          userId: staffMember.id || staffMember.firestoreId,
+          recipientId: fromUid,
+          recipientType: 'staff',
+          userId: fromUid,
           userType: 'staff',
           recipientRole: 'staff',
-          type: 'tickets_reassigned',
+          type: 'ticket_rerouted',
           title: '📋 Requests Reassigned',
-          message: `${selectedTickets.length} request(s) have been reassigned to ${targetStaffMember.name} to help balance your workload.`,
+          message: `${selectedTickets.length} request(s) have been reassigned to ${targetName} to help balance your workload.`,
+          isRead: false,
+          read: false,
           timestamp: serverTimestamp(),
           createdAt: serverTimestamp(),
-          read: false,
           priority: 'low',
           metadata: {
             ticketCount: selectedTickets.length,
-            toStaff: targetStaffMember.name,
+            toStaff: targetName,
+            fromStaff: fromName,
             reason: 'workload_rebalancing'
           }
         });
@@ -273,10 +317,10 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
       try {
         await addDoc(collection(db, 'performance_logs'), {
           action: 'tickets_reassigned',
-          fromStaffId: staffMember.id || staffMember.firestoreId,
-          fromStaffName: staffMember.name,
-          toStaffId: targetStaffMember.id || targetStaffMember.firestoreId,
-          toStaffName: targetStaffMember.name,
+          fromStaffId: fromUid,
+          fromStaffName: fromName,
+          toStaffId: targetUid,
+          toStaffName: targetName,
           ticketCount: selectedTickets.length,
           ticketIds: selectedTickets,
           timestamp: serverTimestamp(),

@@ -14,7 +14,7 @@ import {
   FaExclamationTriangle,
   FaTrophy
 } from 'react-icons/fa';
-import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, getDoc, doc, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { markAsRead, markAllAsRead } from '../utils/notificationHelper';
 import { RequestFeedSkeleton } from './common/Skeleton';
@@ -45,21 +45,37 @@ const computePanelPosition = () => {
 
 const fetchRequestByNotification = async (notif) => {
   const requestId = notif.metadata?.requestId;
-  if (!requestId) return null;
+  const firestoreId = notif.metadata?.firestoreId;
+  if (!requestId && !firestoreId) return null;
 
   const requestsRef = collection(db, 'requests');
-  const queries = [
-    query(requestsRef, where('requestId', '==', requestId), limit(1)),
-    query(requestsRef, where('previousRequestId', '==', requestId), limit(1))
-  ];
 
-  for (const q of queries) {
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
-      return { firestoreId: doc.id, ...doc.data() };
+  if (requestId) {
+    const queries = [
+      query(requestsRef, where('requestId', '==', requestId), limit(1)),
+      query(requestsRef, where('previousRequestId', '==', requestId), limit(1))
+    ];
+
+    for (const q of queries) {
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        return { firestoreId: docSnap.id, ...docSnap.data() };
+      }
     }
   }
+
+  // Try direct Firestore document lookup
+  const targetDocId = firestoreId || requestId;
+  if (targetDocId) {
+    try {
+      const directDoc = await getDoc(doc(db, 'requests', targetDocId));
+      if (directDoc.exists()) {
+        return { firestoreId: directDoc.id, ...directDoc.data() };
+      }
+    } catch (_) {}
+  }
+
   return null;
 };
 
@@ -80,6 +96,8 @@ const getNotificationIcon = (notif) => {
     case 'student_followup':
       return { icon: <FaCommentDots />, className: 'type-comment' };
     case 'ticket_rerouted':
+    case 'ticket_reassigned':
+    case 'tickets_reassigned':
       return { icon: <FaExchangeAlt />, className: 'type-rerouted' };
     case 'etc_update':
       return { icon: <FaClock />, className: 'type-etc' };

@@ -42,12 +42,22 @@ export const getStaffTickets = (tickets = [], staffName = '', staffUid = '') => 
     const assigned = (t.assignedTo || '').trim().toLowerCase();
     const claimed = (t.claimedBy || '').trim().toLowerCase();
     const assignedStaff = (t.assignedToStaff || '').trim().toLowerCase();
+    const reassignedTo = (t.reassignedToStaff || '').trim().toLowerCase();
 
     const matchesName = Boolean(
-      nameLower && (assigned === nameLower || claimed === nameLower || assignedStaff === nameLower)
+      nameLower && (
+        assigned === nameLower || 
+        claimed === nameLower || 
+        assignedStaff === nameLower ||
+        reassignedTo === nameLower
+      )
     );
     const matchesUid = Boolean(
-      uid && (t.assignedToStaff === uid || t.claimedByUid === uid)
+      uid && (
+        t.assignedToStaff === uid || 
+        t.claimedByUid === uid ||
+        t.assignedStaffId === uid
+      )
     );
 
     return matchesName || matchesUid;
