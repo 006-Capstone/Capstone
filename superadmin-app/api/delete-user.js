@@ -16,12 +16,20 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { uid } = req.body || {};
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (_) {}
+    }
 
-    if (!uid) {
+    let { uid, email } = body;
+    console.log('[API delete-user] Request received:', { uid, email });
+
+    if (!uid && !email) {
       return res.status(400).json({
         success: false,
-        error: 'Missing user UID'
+        error: 'Missing user UID or email'
       });
     }
 
@@ -30,20 +38,58 @@ module.exports = async function handler(req, res) {
 
     if (!auth) {
       const detail = adminInit.error ? adminInit.error.message : 'Missing FIREBASE_CLIENT_EMAIL or FIREBASE_PRIVATE_KEY';
+      console.error('[API delete-user] Firebase Admin not configured:', detail);
       return res.status(500).json({
         success: false,
         error: `Firebase Admin authentication is not configured on the server (${detail}). Please ensure FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY are added to your Vercel Project Settings > Environment Variables.`
       });
     }
 
+    // If UID is not provided, look up user by email
+    if (!uid && email) {
+      try {
+        const userRecord = await auth.getUserByEmail(email.trim());
+        uid = userRecord.uid;
+        console.log(`[API delete-user] Found UID ${uid} for email ${email}`);
+      } catch (findErr) {
+        if (findErr.code === 'auth/user-not-found') {
+          console.warn(`[API delete-user] User with email ${email} already not in Firebase Auth`);
+          return res.json({
+            success: true,
+            message: 'User was already not in Firebase Auth'
+          });
+        }
+        throw findErr;
+      }
+    }
+
     // Delete user from Firebase Authentication
     try {
       await auth.deleteUser(uid);
-      console.log('[Success] User deleted from Firebase Auth:', uid);
+      console.log('[API delete-user] [Success] User deleted from Firebase Auth by UID:', uid);
     } catch (authError) {
-      // If user was already deleted from Auth, treat as success so cleanup can continue
+      // If UID failed but we have an email, try one more time by email
+      if (authError.code === 'auth/user-not-found' && email) {
+        try {
+          const userRecord = await auth.getUserByEmail(email.trim());
+          await auth.deleteUser(userRecord.uid);
+          console.log('[API delete-user] [Success] User deleted from Firebase Auth by email:', email);
+          return res.json({
+            success: true,
+            message: 'User deleted from Firebase Auth by email'
+          });
+        } catch (e2) {
+          if (e2.code === 'auth/user-not-found') {
+            return res.json({
+              success: true,
+              message: 'User was already not in Firebase Auth'
+            });
+          }
+        }
+      }
+
       if (authError.code === 'auth/user-not-found') {
-        console.warn('[Warning] User already not found in Firebase Auth:', uid);
+        console.warn('[API delete-user] User already not found in Firebase Auth:', uid);
         return res.json({
           success: true,
           message: 'User was already not in Firebase Auth'
@@ -57,7 +103,7 @@ module.exports = async function handler(req, res) {
       message: 'User deleted from Firebase Authentication'
     });
   } catch (error) {
-    console.error('[Error] Error deleting user from Firebase Auth:', error);
+    console.error('[API delete-user] [Error]:', error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Failed to delete user from Firebase Auth'

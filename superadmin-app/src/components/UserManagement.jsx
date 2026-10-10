@@ -688,8 +688,14 @@ const UserManagement = () => {
   };
 
   // Delete user from Firebase Authentication via backend / Vercel API
-  const deleteAuthUser = async (uid) => {
-    if (!uid) return;
+  const deleteAuthUser = async (user) => {
+    const uid = typeof user === 'string' ? user : user?.uid;
+    const email = typeof user === 'object' ? user?.email : null;
+    if (!uid && !email) {
+      console.warn('[deleteAuthUser] No UID or email provided for target user');
+      return { success: false, error: 'No UID or email found on user record' };
+    }
+
     try {
       const studentPortalUrl = process.env.VITE_STUDENT_APP_URL || process.env.REACT_APP_STUDENT_APP_URL;
       const apiUrl = process.env.NODE_ENV === 'production'
@@ -705,32 +711,22 @@ const UserManagement = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ uid })
+        body: JSON.stringify({ uid, email })
       });
 
-      if (!response.ok) {
-        if (apiUrl.startsWith('http://localhost:5000')) {
-          try {
-            await fetch('/api/delete-user', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ uid })
-            });
-          } catch (_) {}
-        }
-        console.warn(`[Warning] Auth deletion returned status ${response.status}`);
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || (data && data.success === false)) {
+        const errorMsg = data?.error || `HTTP ${response.status}: Failed to delete from Auth`;
+        console.warn(`[Warning] Auth deletion failed: ${errorMsg}`);
+        return { success: false, error: errorMsg };
       } else {
-        console.log(`[Success] Deleted user ${uid} from Firebase Auth`);
+        console.log(`[Success] Deleted user (${uid || email}) from Firebase Auth:`, data?.message);
+        return { success: true };
       }
     } catch (err) {
-      console.warn('[Warning] Could not contact primary delete-user endpoint:', err.message);
-      try {
-        await fetch('/api/delete-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid })
-        });
-      } catch (_) {}
+      console.warn('[Warning] Could not contact delete-user endpoint:', err.message);
+      return { success: false, error: err.message };
     }
   };
 
@@ -796,13 +792,21 @@ const UserManagement = () => {
         }
         showToast(`Successfully archived ${selectedList.length} student account(s) and their requests.`);
       } else if (confirmAction === 'delete') {
+        let authFailures = 0;
+        let lastError = '';
         for (const account of selectedList) {
-          if (account.uid) {
-            await deleteAuthUser(account.uid);
+          const res = await deleteAuthUser(account);
+          if (res && !res.success) {
+            authFailures++;
+            lastError = res.error;
           }
           await deleteDoc(doc(db, 'students', account.firestoreId));
         }
-        showToast(`Successfully deleted ${selectedList.length} student account(s).`);
+        if (authFailures > 0) {
+          showToast(`Deleted ${selectedList.length} from database, but ${authFailures} failed in Firebase Auth (${lastError})`, 'error');
+        } else {
+          showToast(`Successfully deleted ${selectedList.length} student account(s).`);
+        }
       }
 
       setSelectedStudentIds([]);
@@ -1829,10 +1833,8 @@ const UserManagement = () => {
         await new Promise(resolve => setTimeout(resolve, 500));
         showToast(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
       } else if (confirmAction === 'delete') {
-        // Delete from Firebase Authentication
-        if (target.uid) {
-          await deleteAuthUser(target.uid);
-        }
+        // Delete from Firebase Authentication (by UID and/or email)
+        const authResult = await deleteAuthUser(target);
 
         // Delete from Firestore
         await deleteDoc(doc(db, collectionName, target.firestoreId));
@@ -1842,7 +1844,12 @@ const UserManagement = () => {
         
         // Wait a moment for Firestore real-time listeners to update
         await new Promise(resolve => setTimeout(resolve, 500));
-        showToast('Account deleted successfully!');
+
+        if (authResult && !authResult.success) {
+          showToast(`Account removed from database, but Auth deletion error: ${authResult.error}`, 'error');
+        } else {
+          showToast('Account deleted successfully!');
+        }
       }
       setShowConfirmModal(false);
       setSelectedStudent(null);
