@@ -352,7 +352,7 @@ const GuestLogin = () => {
     if (!initialHandler && docData.followUps && Array.isArray(docData.followUps)) {
       for (const f of docData.followUps) {
         if (!f || !f.message || typeof f.message !== 'string') continue;
-        const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by/i);
+        const match = f.message.match(/(?:reassigned|rerouted) from\s+(.+?)\s+to\s+(.+?)\s+by/i);
         if (match && match[1]) {
           const candidate = match[1].trim();
           if (!takerName || candidate.toLowerCase() !== takerName.toLowerCase()) {
@@ -395,7 +395,7 @@ const GuestLogin = () => {
 
     if (docData.reassignedFrom) {
       timeline.push({
-        status: 'REASSIGNED',
+        status: 'REROUTED',
         completed: true,
         active: false,
         date: toLong(docData.reassignedAt || docData.updatedAt),

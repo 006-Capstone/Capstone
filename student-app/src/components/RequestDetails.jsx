@@ -365,7 +365,7 @@ function RequestDetails({ requestData, onNavigate }) {
     if (!initialHandler && request.followUps && Array.isArray(request.followUps)) {
       for (const f of request.followUps) {
         if (!f || !f.message || typeof f.message !== 'string') continue;
-        const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by/i);
+        const match = f.message.match(/(?:reassigned|rerouted) from\s+(.+?)\s+to\s+(.+?)\s+by/i);
         if (match && match[1]) {
           const candidate = match[1].trim();
           if (!takerName || candidate.toLowerCase() !== takerName.toLowerCase()) {
@@ -451,8 +451,8 @@ function RequestDetails({ requestData, onNavigate }) {
         const msg = f.message;
         const msgLower = msg.toLowerCase();
 
-        if (msgLower.includes('reassigned from')) {
-          const match = msg.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
+        if (msgLower.includes('reassigned from') || msgLower.includes('rerouted from')) {
+          const match = msg.match(/(?:reassigned|rerouted) from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
           if (match) {
             let reason = '';
             const reasonMatch = msg.match(/Reason:\s*([\s\S]*)$/i);
@@ -553,7 +553,7 @@ function RequestDetails({ requestData, onNavigate }) {
         timelineItems.push({
           kind: 'sub',
           subType: isReturn ? 'returned-to-origin' : 'reassigned',
-          status: isReturn ? 'RETURNED' : 'REASSIGNED',
+          status: isReturn ? 'RETURNED' : 'REROUTED',
           completed: true,
           active: false,
           date: event.date,

@@ -1368,7 +1368,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   const handleReassign = () => {
     if (!isOwner) {
-      showToast('You do not have permission to reassign this request.', 'error');
+      showToast('You do not have permission to reroute this request.', 'error');
       return;
     }
 
@@ -1396,7 +1396,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   const confirmReassign = async () => {
     if (!isOwner) {
-      showToast('You do not have permission to reassign this request.', 'error');
+      showToast('You do not have permission to reroute this request.', 'error');
       setShowReassignModal(false);
       return;
     }
@@ -1503,7 +1503,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         
         updateData.followUps = arrayUnion(
           {
-            message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nTarget Completion: ${reassignTargetDate} (${daysCount} ${daysCount === 1 ? 'day' : 'days'})\nReason: ${reassignNote.trim()}`,
+            message: `Request rerouted from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nTarget Completion: ${reassignTargetDate} (${daysCount} ${daysCount === 1 ? 'day' : 'days'})\nReason: ${reassignNote.trim()}`,
             sentBy: 'system',
             sentByName: 'System',
             sentAt: new Date().toISOString(),
@@ -1524,7 +1524,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         updateData.status = 'Pending';
         
         updateData.followUps = arrayUnion({
-          message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nTarget Completion: ${reassignTargetDate} (${daysCount} ${daysCount === 1 ? 'day' : 'days'})\nReason: ${reassignNote.trim()}`,
+          message: `Request rerouted from ${ticket.office} to ${reassignOffice} by ${staffData.name}\nTarget Completion: ${reassignTargetDate} (${daysCount} ${daysCount === 1 ? 'day' : 'days'})\nReason: ${reassignNote.trim()}`,
           sentBy: 'system',
           sentByName: 'System',
           sentAt: new Date().toISOString(),
@@ -1556,11 +1556,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       setReassignNote('');
       setReassignFiles([]);
       setReassignTargetDate(isoDateFromOffset(2));
-      showToast(`Request reassigned to ${reassignOffice}!`, 'success');
+      showToast(`Request rerouted to ${reassignOffice}!`, 'success');
       onNavigate('my-tickets');
     } catch (error) {
-      console.error('Error reassigning ticket:', error);
-      showToast('Failed to reassign request: ' + error.message, 'error');
+      console.error('Error rerouting ticket:', error);
+      showToast('Failed to reroute request: ' + error.message, 'error');
     } finally {
       setIsReassigning(false);
     }
@@ -1935,7 +1935,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             {/* Threaded Follow-up Messages */}
             {ticket.followUps && ticket.followUps
               .filter(f => 
-                (f.sentBy !== 'system' || (!f.message?.includes('reassigned from') && !f.message?.includes('automatically assigned to'))) &&
+                (f.sentBy !== 'system' || (!f.message?.includes('reassigned from') && !f.message?.includes('rerouted from') && !f.message?.includes('automatically assigned to'))) &&
                 !f.message?.toLowerCase().includes('claimed and taken over') &&
                 !f.message?.toLowerCase().includes('taken over by') &&
                 !f.message?.toLowerCase().includes('workload rebalanced') &&
@@ -2263,8 +2263,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     const msg = f.message;
                     const msgLower = msg.toLowerCase();
 
-                    if (msgLower.includes('reassigned from')) {
-                      const match = msg.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
+                    if (msgLower.includes('reassigned from') || msgLower.includes('rerouted from')) {
+                      const match = msg.match(/(?:reassigned|rerouted) from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
                       if (match) {
                         let reason = '';
                         const reasonMatch = msg.match(/Reason:\s*([\s\S]*)$/i);
@@ -2374,7 +2374,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                         <FaCheck />
                       </div>
                       <div className="step-content">
-                        <h4 className="step-status-name sub-highlight">{isReturn ? 'RETURNED' : 'REASSIGNED'}</h4>
+                        <h4 className="step-status-name sub-highlight">{isReturn ? 'RETURNED' : 'REROUTED'}</h4>
                         {event.date && <p className="step-date-label">{formatDate(event.date)}</p>}
                         <p className="step-sub-desc">
                           {event.from} → {event.to}
@@ -2479,13 +2479,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             </div>
 
             <div className="mgmt-form-item">
-              <label className="mgmt-input-label">REASSIGN TO</label>
+              <label className="mgmt-input-label">REROUTE TO</label>
               <select
                 className="figma-select-input"
                 value={reassignOffice}
                 onChange={(e) => setReassignOffice(e.target.value)}
                 disabled={isTicketClosed || !isOwner}
-                title={!isOwner ? `Reassignment can only be performed by ${ticketHandler || 'the assigned staff'}` : "Select office"}
+                title={!isOwner ? `Rerouting can only be performed by ${ticketHandler || 'the assigned staff'}` : "Select office"}
               >
                 <option value="Finance">Finance Office</option>
                 <option value="Registrar">Registrar's Office</option>
@@ -2499,9 +2499,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   className="btn-figma-reassign-action" 
                   onClick={handleReassign}
                   disabled={!isOwner}
-                  title={!isOwner ? `Only ${ticketHandler || 'the assigned staff'} can reassign this request` : "Reassign Request"}
+                  title={!isOwner ? `Only ${ticketHandler || 'the assigned staff'} can reroute this request` : "Reroute Request"}
                 >
-                  Reassign Request
+                  Reroute Request
                 </button>
               )}
             </div>
@@ -2713,12 +2713,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         </div>
       )}
 
-      {/* Modal: Reassign Office */}
+      {/* Modal: Reroute Office */}
       {showReassignModal && (
         <div className="figma-modal-overlay" onClick={cancelReassign}>
           <div className="figma-modal-window modal-reassign-window" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-row">
-              <h3 className="modal-heading green-heading">Reassign to {reassignOffice}</h3>
+              <h3 className="modal-heading green-heading">Reroute to {reassignOffice}</h3>
               <button 
                 type="button" 
                 className="modal-close-icon-btn" 
@@ -2730,7 +2730,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </button>
             </div>
             <p className="modal-explainer">
-              Please specify the target completion deadline and a reason for reassigning request #{ticket.requestId}
+              Please specify the target completion deadline and a reason for rerouting request #{ticket.requestId}
             </p>
             
             <div className="modal-field-group reassign-date-field-group">
@@ -2790,7 +2790,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
             <div className="modal-field-group">
               <label className="modal-label">
-                REASON FOR REASSIGNMENT
+                REASON FOR REROUTING
               </label>
               <textarea
                 className="modal-input-area"
@@ -2877,7 +2877,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   isOriginalEtcPast
                 }
               >
-                {isReassigning ? 'Reassigning...' : 'Confirm Reassignment'}
+                {isReassigning ? 'Rerouting...' : 'Confirm Reroute'}
               </button>
             </div>
           </div>
