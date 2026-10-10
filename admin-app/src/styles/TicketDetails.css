@@ -2325,3 +2325,96 @@
     max-height: min(94vh, calc(100vh - 16px));
   }
 }
+
+/* Inactivity Policy & Awaiting Response Banners */
+.awaiting-response-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.awaiting-response-banner .awaiting-icon {
+  color: #d97706;
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.awaiting-response-banner .awaiting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  color: #78350f;
+  line-height: 1.4;
+}
+
+.awaiting-response-banner .awaiting-text strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.cancelled-inactivity-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.cancelled-inactivity-banner .cancelled-inactivity-icon {
+  color: #dc2626;
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cancelled-inactivity-banner .cancelled-inactivity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  color: #991b1b;
+  line-height: 1.4;
+}
+
+.cancelled-inactivity-banner .cancelled-inactivity-text strong {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.reply-followup-toggle-row {
+  margin-top: 10px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.reply-followup-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+
+.reply-followup-checkbox-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+

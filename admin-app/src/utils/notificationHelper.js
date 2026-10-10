@@ -151,6 +151,35 @@ export const notifyStudentComment = async (studentUid, requestId, requestSubject
 };
 
 /**
+ * Helper to notify student that additional information/follow-up is required
+ */
+export const notifyStudentFollowUpRequired = async (studentUid, requestId, requestSubject, staffName, etcDate) => {
+  const deadlineText = etcDate ? `before ${formatEtcForMessage(etcDate)}` : 'before the estimated completion date';
+  await createNotification(
+    studentUid,
+    'student',
+    'followup_required',
+    'Action Required: Follow-up Needed',
+    `${staffName} requested additional information for request "${requestSubject}". Please reply ${deadlineText}. If not answered by then, the request will be automatically cancelled.`,
+    { requestId, staffName, etcDate }
+  );
+};
+
+/**
+ * Helper to notify student that request was closed due to inactivity
+ */
+export const notifyStudentInactivityCancelled = async (studentUid, requestId, requestSubject) => {
+  await createNotification(
+    studentUid,
+    'student',
+    'inactivity_cancel',
+    'Request Closed Due to Inactivity',
+    `Your request "${requestSubject}" (#${requestId}) was closed and cancelled due to inactivity. If you still need assistance, please submit a new request.`,
+    { requestId, newStatus: 'Cancelled' }
+  );
+};
+
+/**
  * Human-friendly version of an ETC value for notification text.
  */
 const formatEtcForMessage = (etc) => {

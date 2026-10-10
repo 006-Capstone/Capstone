@@ -66,7 +66,10 @@ const getNotificationIcon = (notif) => {
       return { icon: <FaBullhorn />, className: 'type-announcement' };
     case 'new_deadline':
     case 'important_deadline':
-      return { icon: <FaCalendarAlt />, className: 'type-deadline' };
+    case 'followup_required':
+      return { icon: <FaClock />, className: 'type-inprocess' };
+    case 'inactivity_cancel':
+      return { icon: <FaTimes />, className: 'type-status' };
     default:
       return { icon: <FaInfoCircle />, className: 'type-default' };
   }

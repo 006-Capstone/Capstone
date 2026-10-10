@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { checkAndCancelInactiveTickets } from '../utils/inactivityHelper';
 
 // If no snapshot arrives within this window (e.g. the device is offline),
 // resolve loading so the UI never gets stuck behind a full-screen spinner.
@@ -122,6 +123,11 @@ export const useOfficeTickets = (department) => {
         setTickets(ticketsData);
         setError(null);
         setLoading(false);
+
+        // Check and auto-cancel any inactive requests whose student follow-up window expired
+        checkAndCancelInactiveTickets(ticketsData).catch(e => {
+          console.warn('[useOfficeTickets] Auto-cancel check warning:', e);
+        });
       },
       (err) => {
         clearTimeout(timer);

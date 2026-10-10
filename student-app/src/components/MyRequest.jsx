@@ -10,6 +10,7 @@ import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import StatusBadge from './StatusBadge';
 import FilterDropdown from './FilterDropdown';
+import { isTicketInactiveExpired, autoCancelInactiveTicket } from '../utils/inactivityHelper';
 import { DataTableSkeleton } from './common/Skeleton';
 import '../styles/MyRequest.css';
 
@@ -91,6 +92,13 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
 
         // Sort by date (newest first)
         requestsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
+
+        // Check for any inactive requests exceeding follow-up deadline
+        requestsData.forEach(r => {
+          if (isTicketInactiveExpired(r)) {
+            autoCancelInactiveTicket(r).catch(e => console.warn('[MyRequest] Auto-cancel error:', e));
+          }
+        });
 
         console.log('📥 Real-time update: Loaded', requestsData.length, 'requests');
         setRequests(requestsData);
@@ -241,8 +249,16 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
                     <td>#{req.id}</td>
                     <td>{req.office}</td>
                     <td>{req.subject}</td>
-                    <td>{req.date}</td>
-                    <td><StatusBadge status={req.status} /></td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                        <StatusBadge status={req.status} />
+                        {req.awaitingStudentResponse && req.status?.toLowerCase() === 'in process' && (
+                          <span className="needs-followup-pill" title="Action required: Reply to staff before deadline">
+                            Needs Reply
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="row-action">
                       <button
                         type="button"

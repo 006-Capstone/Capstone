@@ -23,8 +23,14 @@ import {
   notifyStudentStatusChange, 
   notifyStudentComment, 
   notifyStudentEtcChange, 
-  notifyStaffReassignment 
+  notifyStaffReassignment,
+  notifyStudentFollowUpRequired
 } from '../utils/notificationHelper';
+import { 
+  isTicketInactiveExpired, 
+  autoCancelInactiveTicket, 
+  formatInactivityDeadline 
+} from '../utils/inactivityHelper';
 import Notifications from './Notifications';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
@@ -220,6 +226,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [loading, setLoading] = useState(true);
   const [replyMessage, setReplyMessage] = useState('');
   const [replyFiles, setReplyFiles] = useState([]);
+  const [requiresFollowUp, setRequiresFollowUp] = useState(true);
   const [sending, setSending] = useState(false);
   const [reassignOffice, setReassignOffice] = useState('');
   const [urgencyLevel, setUrgencyLevel] = useState('Normal');
@@ -692,14 +699,20 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           data.firstClaimedBy = resolvedOriginal;
           data.reassignedFromStaff = resolvedOriginal;
         }
-        setTicket({
+        let ticketObj = {
           ...data,
           firestoreId: docSnap.id
-        });
-        setReassignOffice(data.office || '');
-        setUrgencyLevel(data.urgencyLevel || 'Normal');
-        setEtc(data.etc || '');
-        setInternalTargetDate(data.internalTargetDate || '');
+        };
+        if (isTicketInactiveExpired(ticketObj)) {
+          await autoCancelInactiveTicket(ticketObj);
+          ticketObj.status = 'Cancelled';
+          ticketObj.awaitingStudentResponse = false;
+        }
+        setTicket(ticketObj);
+        setReassignOffice(ticketObj.office || '');
+        setUrgencyLevel(ticketObj.urgencyLevel || 'Normal');
+        setEtc(ticketObj.etc || '');
+        setInternalTargetDate(ticketObj.internalTargetDate || '');
       } else if (ticketData) {
         const actualDocId = ticketData.firestoreId || ticketData.id;
         const resolvedOriginal = await resolveOriginalHandler(db, actualDocId, ticketData);
@@ -707,14 +720,20 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           ticketData.firstClaimedBy = resolvedOriginal;
           ticketData.reassignedFromStaff = resolvedOriginal;
         }
-        setTicket({
+        let ticketObj = {
           ...ticketData,
           firestoreId: actualDocId
-        });
-        setReassignOffice(ticketData.office || '');
-        setUrgencyLevel(ticketData.urgencyLevel || 'Normal');
-        setEtc(ticketData.etc || '');
-        setInternalTargetDate(ticketData.internalTargetDate || '');
+        };
+        if (isTicketInactiveExpired(ticketObj)) {
+          await autoCancelInactiveTicket(ticketObj);
+          ticketObj.status = 'Cancelled';
+          ticketObj.awaitingStudentResponse = false;
+        }
+        setTicket(ticketObj);
+        setReassignOffice(ticketObj.office || '');
+        setUrgencyLevel(ticketObj.urgencyLevel || 'Normal');
+        setEtc(ticketObj.etc || '');
+        setInternalTargetDate(ticketObj.internalTargetDate || '');
       } else {
         showToast('Request not found', 'error');
       }
@@ -911,7 +930,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
       
       const docRef = doc(db, 'requests', ticket.firestoreId);
-      await updateDoc(docRef, {
+      const updatePayload = {
         followUps: arrayUnion({
           message: replyMessage.trim(),
           attachments: attachments,
@@ -921,15 +940,32 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           sentAt: new Date().toISOString()
         }),
         updatedAt: serverTimestamp()
-      });
+      };
+
+      if (requiresFollowUp) {
+        updatePayload.awaitingStudentResponse = true;
+        updatePayload.awaitingResponseSince = new Date().toISOString();
+      }
+
+      await updateDoc(docRef, updatePayload);
 
       if (ticket.studentUid) {
-        await notifyStudentComment(
-          ticket.studentUid,
-          ticket.requestId,
-          ticket.subject,
-          staffData.name
-        );
+        if (requiresFollowUp) {
+          await notifyStudentFollowUpRequired(
+            ticket.studentUid,
+            ticket.requestId,
+            ticket.subject,
+            staffData.name,
+            ticketEtcIso || ticket.internalTargetDate || ''
+          );
+        } else {
+          await notifyStudentComment(
+            ticket.studentUid,
+            ticket.requestId,
+            ticket.subject,
+            staffData.name
+          );
+        }
       }
 
       showToast('Message sent to student successfully!', 'success');
@@ -2008,6 +2044,26 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </div>
             )}
 
+            {/* Awaiting Student Response Banner / Inactivity Cancellation Banner */}
+            {ticket.status === 'In Process' && ticket.awaitingStudentResponse && (
+              <div className="awaiting-response-banner">
+                <FaClock className="awaiting-icon" />
+                <div className="awaiting-text">
+                  <strong>Awaiting Student Follow-up</strong>
+                  <span>The student must reply before <strong>{formatInactivityDeadline(ticket)}</strong>. If no response is received by then, this request will automatically cancel due to inactivity.</span>
+                </div>
+              </div>
+            )}
+            {ticket.status === 'Cancelled' && (ticket.cancelReason?.includes('inactivity') || ticket.cancelReason?.includes('Inactivity')) && (
+              <div className="cancelled-inactivity-banner">
+                <FaExclamationTriangle className="cancelled-inactivity-icon" />
+                <div className="cancelled-inactivity-text">
+                  <strong>Closed Due to Requester Inactivity</strong>
+                  <span>This request was automatically closed and cancelled because no follow-up response was provided before the estimated time of completion.</span>
+                </div>
+              </div>
+            )}
+
             {/* Reply to Student Composer: only rendered if NOT rerouted, or if current staff belongs to the original department */}
             {!isTicketClosed && (!isTicketRerouted || isOriginalDepartment()) && (
               <div className={`reply-composer-section ${!canReplyToStudent ? 'reply-composer-readonly' : ''}`}>
@@ -2062,6 +2118,18 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="reply-followup-toggle-row">
+                  <label className="reply-followup-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={requiresFollowUp}
+                      onChange={(e) => setRequiresFollowUp(e.target.checked)}
+                      disabled={sending || !canReplyToStudent}
+                    />
+                    <span>Requires student follow-up (auto-cancels if no response by estimated completion date)</span>
+                  </label>
                 </div>
 
                 <div className="reply-composer-actions">

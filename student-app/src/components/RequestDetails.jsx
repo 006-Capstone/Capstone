@@ -10,10 +10,11 @@ import {
   MdDescription,
   MdFormatQuote 
 } from 'react-icons/md';
-import { FaUserCircle, FaExchangeAlt } from 'react-icons/fa';
+import { FaUserCircle, FaExchangeAlt, FaClock, FaInfoCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { notifyStaffFollowUp } from '../utils/notificationHelper';
+import { isTicketInactiveExpired, autoCancelInactiveTicket, formatInactivityDeadline } from '../utils/inactivityHelper';
 import StatusBadge from './StatusBadge';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
@@ -103,11 +104,16 @@ function RequestDetails({ requestData, onNavigate }) {
           data.firstClaimedBy = resolvedOriginal;
           data.reassignedFromStaff = resolvedOriginal;
         }
-        const createdDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : null);
+        let reqObj = { ...data, firestoreId: docSnap.id };
+        if (isTicketInactiveExpired(reqObj)) {
+          await autoCancelInactiveTicket(reqObj);
+          reqObj.status = 'Cancelled';
+          reqObj.awaitingStudentResponse = false;
+        }
+        const createdDate = reqObj.createdAt?.toDate ? reqObj.createdAt.toDate() : (reqObj.createdAt ? new Date(reqObj.createdAt) : null);
         const isValidDate = createdDate instanceof Date && !isNaN(createdDate.getTime());
         setRequest({
-          ...data,
-          firestoreId: docSnap.id,
+          ...reqObj,
           date: isValidDate ? createdDate.toLocaleDateString('en-US', { 
             month: 'long', 
             day: 'numeric', 
@@ -210,6 +216,8 @@ function RequestDetails({ requestData, onNavigate }) {
           sentAt: new Date().toISOString(),
           timestamp: new Date().toISOString()
         }),
+        awaitingStudentResponse: false,
+        studentRespondedAt: new Date().toISOString(),
         updatedAt: serverTimestamp()
       });
 
@@ -878,6 +886,32 @@ function RequestDetails({ requestData, onNavigate }) {
                   We appreciate you taking the time to share your experience with us.
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Action Required: Follow-up needed banner */}
+          {request.status?.toLowerCase() === 'in process' && request.awaitingStudentResponse && (
+            <div className="student-followup-alert">
+              <div className="alert-top">
+                <FaClock className="alert-icon" />
+                <strong>Action Required: Additional Information Needed</strong>
+              </div>
+              <p>
+                The office is waiting for your reply. Please submit the requested information or documents below before <strong>{formatInactivityDeadline(request)}</strong>. If you do not reply within this timeframe, this request will be automatically closed and cancelled due to inactivity.
+              </p>
+            </div>
+          )}
+
+          {/* Inactivity Cancelled Notice */}
+          {request.status?.toLowerCase() === 'cancelled' && (request.cancelReason?.includes('inactivity') || request.cancelReason?.includes('Inactivity')) && (
+            <div className="student-inactivity-notice">
+              <div className="notice-top">
+                <FaInfoCircle className="notice-icon" />
+                <strong>Request Closed Due to Inactivity</strong>
+              </div>
+              <p>
+                This request was closed because no follow-up response was provided before the estimated time of completion. If you still require assistance, please submit a new request.
+              </p>
             </div>
           )}
 
