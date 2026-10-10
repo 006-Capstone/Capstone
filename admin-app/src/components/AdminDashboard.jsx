@@ -152,7 +152,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return isNaN(d.getTime()) ? 0 : d.getTime();
   };
 
-  // Compute logged-in staff's own ticket metrics (In Progress and Resolved)
+  // Compute logged-in staff's own ticket metrics (In Process and Resolved)
   const myStats = useMemo(() => {
     if (!staffData?.name) return { inProgress: 0, resolved: 0 };
     const staffName = (staffData.name || '').trim().toLowerCase();
@@ -180,7 +180,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return { inProgress, resolved };
   }, [tickets, staffData]);
 
-  // Requests currently in progress for this staff
+  // Requests currently in process for this staff
   const myInProgressCount = myStats.inProgress;
 
   // Reset pagination when switching tabs or typing search
@@ -624,16 +624,16 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
           <div className="stat-total-footer">
             <div className="anti-hoard-strip">
-              <span className="anti-hoard-policy" title="Active Workload: Shows your active in-progress requests">
+              <span className="anti-hoard-policy" title="Active Workload: Shows your active in-process requests">
                 <span className="policy-dot" />
                 Active Workload Monitor
               </span>
               {staffData?.name && (
                 <span
                   className="staff-load-badge"
-                  title={`My In Progress: ${myInProgressCount}`}
+                  title={`My In Process: ${myInProgressCount}`}
                 >
-                  In Progress: <strong>{myInProgressCount}</strong>
+                  In Process: <strong>{myInProgressCount}</strong>
                 </span>
               )}
             </div>

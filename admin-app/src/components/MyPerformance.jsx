@@ -324,7 +324,7 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
     const onTimeRate = effMetrics.onTimeRate;
     const performanceScore = effMetrics.score;
 
-    // Active in progress tickets
+    // Active in process tickets
     const currentActiveTickets = effMetrics.activeCount > 0
       ? myAllTickets.filter(t => {
           const s = (t.status || '').toLowerCase();
@@ -774,7 +774,7 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
                 Active Workload
               </span>
               <span className="staff-load-badge">
-                In Progress: <strong>{metrics.activeCount}</strong>
+                In Process: <strong>{metrics.activeCount}</strong>
               </span>
             </div>
           </div>
@@ -1230,7 +1230,7 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
             <div className="print-stat-value">{metrics.resolvedCount}</div>
           </div>
           <div className="print-stat-box">
-            <div className="print-stat-label">In Progress</div>
+            <div className="print-stat-label">In Process</div>
             <div className="print-stat-value">{metrics.activeCount}</div>
           </div>
           <div className="print-stat-box">

@@ -677,7 +677,7 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
                             {ticket.office || ticket.department || 'Office Request'}
                           </span>
                           <span className="rtm-meta-tag status">
-                            {ticket.status || 'In Progress'}
+                            {ticket.status === 'In Progress' ? 'In Process' : (ticket.status || 'In Process')}
                           </span>
                         </div>
                       </div>

@@ -223,7 +223,7 @@ export const groupRequestsByUrgency = (tickets = []) => {
     {
       key: 'upcoming',
       title: 'Due in 2+ Days (Upcoming)',
-      subtitle: 'Approaching completion window — In progress queue',
+      subtitle: 'Approaching completion window — In process queue',
       urgencyLevel: 'upcoming',
       items: upcoming
     }

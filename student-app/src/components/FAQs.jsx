@@ -50,7 +50,7 @@ const FAQs = ({ onNavigate, loading: propLoading = false }) => {
         },
         {
           question: "What do the ticket statuses mean?",
-          answer: "Pending: Your request has been submitted and is waiting for processing.\n\nIn Progress: The assigned office is currently handling your request.\n\nResolved: The office has completed the request.\n\nClosed: The request has been completed and finalized."
+          answer: "Pending: Your request has been submitted and is waiting for processing.\n\nIn Process: The assigned office is currently handling your request.\n\nResolved: The office has completed the request.\n\nClosed: The request has been completed and finalized."
         },
         {
           question: "How will I know if my request has been updated?",

@@ -842,7 +842,7 @@
   text-overflow: ellipsis;
 }
 
-/* 3. In Progress Cards (Office Overall & Staff's My In Progress - Matching Blue) */
+/* 3. In Process Cards (Office Overall & Staff's My In Process - Matching Blue) */
 .admin-dashboard-container .stat-card.stat-inprogress,
 .admin-dashboard-container .stat-card.stat-my-inprogress {
   border-left: 4.5px solid #2563eb;

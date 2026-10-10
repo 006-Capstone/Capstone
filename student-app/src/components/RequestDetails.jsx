@@ -402,7 +402,7 @@ function RequestDetails({ requestData, onNavigate }) {
       }
       processingDescription = `Being Processed by ${initialHandler}`;
     } else if (status === 'in process' || status === 'resolved') {
-      processingDate = 'In Progress';
+      processingDate = 'In Process';
       processingDescription = initialHandler ? `Being Processed by ${initialHandler}` : 'Being processed by staff';
     }
     

@@ -381,7 +381,7 @@ const NearingCompletionModal = ({
                               <td>
                                 <span className={`nearing-status-badge status-${(ticket.status || 'in-process').toLowerCase().replace(/\s+/g, '-')}`}>
                                   <span className="status-dot" aria-hidden="true" />
-                                  {ticket.status === 'In Process' ? 'In Progress' : ticket.status || 'In Progress'}
+                                  {ticket.status === 'In Progress' ? 'In Process' : ticket.status || 'In Process'}
                                 </span>
                               </td>
 

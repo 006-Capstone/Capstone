@@ -36,7 +36,7 @@ const STAT_CARDS = [
   },
   {
     id: 'active',
-    top: 'IN PROGRESS',
+    top: 'IN PROCESS',
     title: 'Processing',
     icon: <HiOutlineDocumentText aria-hidden="true" />,
     getValue: (s) => s.inProgress,

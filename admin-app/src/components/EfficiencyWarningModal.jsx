@@ -195,7 +195,7 @@ const EfficiencyWarningModal = ({
                 {isMotivate ? resolvedCount : activeCount}
               </div>
               <span className="metric-tile-footnote">
-                {isMotivate ? 'Requests cleared' : 'Currently in progress'}
+                {isMotivate ? 'Requests cleared' : 'Currently in process'}
               </span>
             </div>
           </div>

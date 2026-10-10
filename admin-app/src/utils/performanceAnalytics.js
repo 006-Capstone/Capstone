@@ -137,7 +137,7 @@ export const calculateStaffMonthlyBehavior = (
       ? Math.round((totalResolutionHours / resolvedWithDuration) * 10) / 10
       : 0;
 
-    // Pickup Latency: time from creation until set to In Progress or Resolved (in hours)
+    // Pickup Latency: time from creation until set to In Process or Resolved (in hours)
     let totalPickupHours = 0;
     let pickupCount = 0;
     assignedInWeek.forEach(r => {

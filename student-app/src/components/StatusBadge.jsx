@@ -20,10 +20,11 @@ const STATUS_CLASS_MAP = {
 function StatusBadge({ status, className = '' }) {
   const key = String(status || 'Pending').toLowerCase().trim();
   const statusModifier = STATUS_CLASS_MAP[key] || 'status-pending';
+  const displayStatus = key === 'in progress' ? 'In Process' : (status || 'Pending');
   return (
     <span className={`status-badge ${statusModifier} ${className}`.trim()}>
       <span className="status-dot" aria-hidden="true"></span>
-      {status || 'Pending'}
+      {displayStatus}
     </span>
   );
 }
