@@ -48,12 +48,6 @@ const GuestSubmitted = ({ data, onHome, onTrack }) => {
     
     y += 8;
     doc.setFont('helvetica', 'bold');
-    doc.text('Office Code:', 20, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(data.officeCode, 70, y);
-    
-    y += 8;
-    doc.setFont('helvetica', 'bold');
     doc.text('Subject:', 20, y);
     doc.setFont('helvetica', 'normal');
     doc.text(data.subject || 'N/A', 70, y);
@@ -145,10 +139,6 @@ const GuestSubmitted = ({ data, onHome, onTrack }) => {
         <div className="guest-detail-row">
           <span className="guest-detail-label">Target Office</span>
           <span className="guest-detail-value">{data.officeName}</span>
-        </div>
-        <div className="guest-detail-row">
-          <span className="guest-detail-label">Office Code</span>
-          <span className="guest-detail-value">{data.officeCode}</span>
         </div>
         <div className="guest-detail-row">
           <span className="guest-detail-label">Subject</span>

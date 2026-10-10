@@ -230,16 +230,6 @@ function RequestDetails({ requestData, onNavigate }) {
     onNavigate('feedback-for-request', request);
   };
 
-  const getOfficeCode = (office) => {
-    const codes = {
-      'Finance': 'FIN-001',
-      'Library': 'LIB-001',
-      'Registrar': 'REG-001',
-      'Guidance': 'GUI-001'
-    };
-    return codes[office] || 'N/A';
-  };
-
   const getEstimatedCompletion = (createdDate, etc, reqObj) => {
     const target = reqObj || request;
     const isClaimed = Boolean(
@@ -893,8 +883,8 @@ function RequestDetails({ requestData, onNavigate }) {
               <span className="value">#{request.requestId}</span>
             </div>
             <div className="detail-row">
-              <span className="label">OFFICE CODE</span>
-              <span className="value">{getOfficeCode(request.office)}</span>
+              <span className="label">OFFICE</span>
+              <span className="value">{request.office || 'N/A'}</span>
             </div>
             <div className="detail-row">
               <span className="label">DATE OF CREATION</span>

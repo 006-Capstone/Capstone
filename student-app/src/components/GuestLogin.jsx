@@ -54,28 +54,24 @@ const guestOffices = [
   {
     id: 'finance',
     name: 'Finance',
-    code: 'FIN-001',
     description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.',
     subjects: ['Balance Verification', 'Payment Plan', 'Refund Request', 'Billing Inquiry']
   },
   {
     id: 'library',
     name: 'Library',
-    code: 'LIB-001',
     description: 'Manages book borrowing/returning, library accounts, and student concerns related to library services and resources.',
     subjects: ['Book Request', 'Lost Book Report', 'Library Card Issue', 'Resource Access']
   },
   {
     id: 'registrar',
     name: 'Registrar',
-    code: 'REG-001',
     description: 'Handles student records such as enrollment, grades, certificates, transcripts, and other official academic documents.',
     subjects: ['Document Request', 'Grade Inquiry', 'Enrollment Issue', 'Transcript Request']
   },
   {
     id: 'guidance',
     name: 'Guidance',
-    code: 'GUI-001',
     description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
     subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
   }
@@ -137,7 +133,6 @@ const GuestLogin = () => {
   const { toast, confirm } = useNotification();
   const [view, setView] = useState('options'); // 'options' | 'check' | 'new' | 'status' | 'submitted'
   const [requestId, setRequestId] = useState('');
-  const [officeCode, setOfficeCode] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [parentFirstName, setParentFirstName] = useState('');
@@ -417,7 +412,6 @@ const GuestLogin = () => {
     return {
       requestNumber: `#${docData.requestId || ''}`,
       rawRequestId: docData.requestId || '',
-      officeCode: docData.officeCode || String(enteredCode || '').replace(/[#\s]/g, '') || `${docData.office?.substring(0, 3).toUpperCase()}-001`,
       officeName,
       subject: docData.subject || 'Student Inquiry',
       description: docData.description || '',
@@ -440,7 +434,7 @@ const GuestLogin = () => {
     };
   };
 
-  const trackRequest = async (reqId, code) => {
+  const trackRequest = async (reqId) => {
     setTrackingLoading(true);
     setTrackNotFound(false);
     setTrackError('');
@@ -465,7 +459,7 @@ const GuestLogin = () => {
           data.firstClaimedBy = resolvedOriginal;
           data.reassignedFromStaff = resolvedOriginal;
         }
-        setStatusData(buildStatusData(data, code));
+        setStatusData(buildStatusData(data));
       }
     } catch (error) {
       console.error('Error tracking request:', error);
@@ -478,7 +472,7 @@ const GuestLogin = () => {
 
   const handleBrowseConfirm = () => {
     if (requestId.trim()) {
-      trackRequest(requestId, officeCode);
+      trackRequest(requestId);
     }
   };
 
@@ -488,11 +482,11 @@ const GuestLogin = () => {
       return;
     }
     if (submissionData) {
-      trackRequest(submissionData.requestNumber, submissionData.officeCode);
+      trackRequest(submissionData.rawRequestId || submissionData.requestNumber);
       return;
     }
     if (requestId.trim()) {
-      trackRequest(requestId, officeCode);
+      trackRequest(requestId);
       return;
     }
     setView('check');
@@ -507,7 +501,6 @@ const GuestLogin = () => {
       setSubmitting(true);
       const office = guestOffices.find((o) => o.id === selectedOffice);
       const officeName = office ? office.name : 'Finance';
-      const officeCodeVal = office ? office.code : 'FIN-001';
       const prefix = officeName.substring(0, 3).toUpperCase();
       const generatedRequestId = `${prefix}-${random3()}-${random3()}-${random3()}`;
 
@@ -572,7 +565,6 @@ const GuestLogin = () => {
         subject: subject.trim(),
         description: description.trim(),
         office: officeName,
-        officeCode: officeCodeVal,
         status: 'Pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -595,7 +587,6 @@ const GuestLogin = () => {
       const submissionInfo = {
         requestNumber: `#${generatedRequestId}`,
         rawRequestId: generatedRequestId,
-        officeCode: officeCodeVal,
         officeName,
         subject: subject.trim(),
         description: description.trim(),
@@ -717,7 +708,7 @@ const GuestLogin = () => {
           <GuestSubmitted 
             data={submissionData} 
             onHome={resetGuestForm} 
-            onTrack={() => trackRequest(submissionData.rawRequestId, submissionData.officeCode)}
+            onTrack={() => trackRequest(submissionData.rawRequestId)}
           />
         ) : view === 'check' ? (
           <section className="guest-section">
@@ -736,28 +727,11 @@ const GuestLogin = () => {
               />
             </div>
 
-            <div className="form-group-guest">
-              <label className="form-label-guest" htmlFor="guestOfficeCode">Office Code <span className="optional-guest">(Optional)</span></label>
-              <select
-                id="guestOfficeCode"
-                className="form-select-guest"
-                value={officeCode}
-                onChange={(e) => setOfficeCode(e.target.value)}
-              >
-                <option value="" disabled hidden style={{ display: 'none' }}>Select office code (optional)</option>
-                {guestOffices.map((office) => (
-                  <option key={office.id} value={office.code}>
-                    {office.code} - {office.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div className="form-actions-guest">
               <button 
                 type="button" 
                 className="cancel-btn-guest" 
-                onClick={() => { setRequestId(''); setOfficeCode(''); }}
+                onClick={() => setRequestId('')}
               >
                 Clear
               </button>
@@ -879,7 +853,6 @@ const GuestLogin = () => {
                       <div className="office-info">
                         <div className="office-header-row">
                           <h4 className="office-name">{office.name}</h4>
-                          <span className="office-code-badge">{office.code}</span>
                         </div>
                         <p className="office-description">{office.description}</p>
                       </div>

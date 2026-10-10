@@ -29,7 +29,7 @@ Request Confirmation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 REQUEST NUMBER: ${requestData.requestId}
-OFFICE CODE: ${requestData.officeCode}
+OFFICE: ${requestData.office}
 DATE OF CREATION: ${requestData.createdAt}
 ESTIMATED COMPLETION: ${requestData.estimatedCompletion || 'To be determined by staff'}
 
@@ -42,7 +42,7 @@ SECTION: ${requestData.studentSection}
 OFFICE: ${requestData.office}
 SUBJECT: ${requestData.subject}
 
-Please save this Request Number and Office Code to track your request status.
+Please save this Request Number to track your request status.
 
 Thank you for using our service!
 `;
@@ -92,7 +92,7 @@ Thank you for using our service!
               Your request has been successfully submitted to the <strong>{requestData.office}</strong>.
             </p>
             <p className="guest-success-info-para">
-              You can use your Request Number and Office Code to track its progress at any time.
+              You can use your Request Number to track its progress at any time.
             </p>
           </div>
 
@@ -106,8 +106,8 @@ Thank you for using our service!
               </div>
 
               <div className="guest-success-detail-item">
-                <div className="guest-success-detail-label">Office Code</div>
-                <div className="guest-success-detail-value">{requestData.officeCode}</div>
+                <div className="guest-success-detail-label">Office</div>
+                <div className="guest-success-detail-value">{requestData.office}</div>
               </div>
 
               <div className="guest-success-detail-item">

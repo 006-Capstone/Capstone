@@ -123,7 +123,6 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
         // office is set to 'Registrar' to satisfy Firestore database security rules schema,
         // while targetRole, department, and category strictly isolate it for Superadmin
         office: 'Registrar',
-        officeCode: 'REG-001',
         department: 'Registrar',
         targetRole: 'superadmin',
         assignedToOffice: 'Superadmin',

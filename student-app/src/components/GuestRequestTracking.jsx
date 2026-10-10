@@ -155,9 +155,9 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
               </div>
 
               <div className="detail-row-tracking">
-                <span className="detail-label-tracking">OFFICE CODE</span>
+                <span className="detail-label-tracking">OFFICE</span>
                 <span className="detail-value-tracking">
-                  {requestData.office?.substring(0, 3).toUpperCase() || 'N/A'}-001
+                  {requestData.office || 'N/A'}
                 </span>
               </div>
 

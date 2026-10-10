@@ -60,12 +60,6 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
     
     y += 8;
     doc.setFont('helvetica', 'bold');
-    doc.text('Office Code:', 20, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(data.officeCode, 70, y);
-    
-    y += 8;
-    doc.setFont('helvetica', 'bold');
     doc.text('Status:', 20, y);
     doc.setFont('helvetica', 'normal');
     doc.text(data.status, 70, y);
@@ -272,8 +266,8 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
             <span className="guest-detail-value font-mono">{data.requestNumber}</span>
           </div>
           <div className="guest-detail-row">
-            <span className="guest-detail-label">Office Code</span>
-            <span className="guest-detail-value">{data.officeCode}</span>
+            <span className="guest-detail-label">Office</span>
+            <span className="guest-detail-value">{data.officeName}</span>
           </div>
           <div className="guest-detail-row">
             <span className="guest-detail-label">Student Name</span>
