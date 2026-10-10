@@ -20,7 +20,7 @@ import '../styles/Dashboard.css';
 const STAT_CARDS = [
   {
     id: 'total',
-    top: 'TOTAL REQUESTS',
+    top: 'All Requests',
     title: 'All Requests',
     icon: <MdConfirmationNumber aria-hidden="true" />,
     getValue: (s) => s.total,
@@ -28,7 +28,7 @@ const STAT_CARDS = [
   },
   {
     id: 'submitted',
-    top: 'AWAITING REVIEW',
+    top: 'PENDING',
     title: 'Pending',
     icon: <HiOutlineDocumentAdd aria-hidden="true" />,
     getValue: (s) => s.pending,
@@ -37,14 +37,14 @@ const STAT_CARDS = [
   {
     id: 'active',
     top: 'IN PROCESS',
-    title: 'Processing',
+    title: 'In Process',
     icon: <HiOutlineDocumentText aria-hidden="true" />,
     getValue: (s) => s.inProgress,
     filter: 'In Process'
   },
   {
     id: 'complete',
-    top: 'COMPLETED',
+    top: 'RESOLVED',
     title: 'Resolved',
     icon: <HiOutlineCheckCircle aria-hidden="true" />,
     getValue: (s) => s.resolved,
@@ -180,7 +180,6 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
                 <div className="icon">{card.icon}</div>
                 <div className="stat-card-numbers">
                   <div className="number">{card.getValue(stats)}</div>
-                  <h2>{card.title}</h2>
                 </div>
               </div>
             </button>

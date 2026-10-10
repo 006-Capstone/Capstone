@@ -228,7 +228,7 @@
   line-height: 1;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
-  margin-bottom: 2px;
+  margin: 0;
 }
 
 .stat-card h2 {

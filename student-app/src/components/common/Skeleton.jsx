@@ -251,7 +251,6 @@ export const OverviewCardsSkeleton = ({
             <Skeleton variant="rounded" width={38} height={38} />
             <div className="skeleton-overview-texts">
               <Skeleton variant="text" width="48%" height="28px" />
-              <Skeleton variant="text" width="68%" height="13px" />
             </div>
           </div>
         </div>
