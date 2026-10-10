@@ -152,11 +152,6 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return isNaN(d.getTime()) ? 0 : d.getTime();
   };
 
-  // Anti-Hoarding Rule:
-  // If staff has 10 or more requests still in In Progress, limit accepting requests to 5 per day.
-  const HOARDING_IN_PROGRESS_THRESHOLD = 10;
-  const HOARDING_DAILY_LIMIT = 5;
-
   // Compute logged-in staff's own ticket metrics (In Progress and Resolved)
   const myStats = useMemo(() => {
     if (!staffData?.name) return { inProgress: 0, resolved: 0 };
@@ -185,26 +180,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     return { inProgress, resolved };
   }, [tickets, staffData]);
 
-  // Requests currently in progress for this staff (used by anti-hoarding rule)
+  // Requests currently in progress for this staff
   const myInProgressCount = myStats.inProgress;
-
-  // Compute requests accepted/claimed today by currently logged-in staff
-  const myAcceptedTodayCount = useMemo(() => {
-    if (!staffData?.name) return 0;
-    const name = staffData.name.toLowerCase();
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-
-    return tickets.filter(t => {
-      const assigned = String(t.assignedTo || t.claimedBy || '').toLowerCase();
-      if (assigned !== name) return false;
-      const claimedTs = getTicketClaimedTimestamp(t);
-      return claimedTs >= startOfToday;
-    }).length;
-  }, [tickets, staffData]);
-
-  const isUnderHoardingRestriction = myInProgressCount >= HOARDING_IN_PROGRESS_THRESHOLD;
-  const isAtClaimLimit = isUnderHoardingRestriction && myAcceptedTodayCount >= HOARDING_DAILY_LIMIT;
 
   // Reset pagination when switching tabs or typing search
   useEffect(() => {
@@ -471,15 +448,6 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       return;
     }
 
-    if (isAtClaimLimit) {
-      alertModal({
-        title: 'Anti-Hoarding Policy Notice',
-        message: `You currently have ${myInProgressCount} requests in process (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (limit: ${HOARDING_DAILY_LIMIT} per day).\n\nPlease complete and resolve your current in-process requests before accepting more.`,
-        variant: 'warning'
-      });
-      return;
-    }
-
     setClaimingTicketId(ticket.firestoreId);
 
     // Standard claim state transition (the interact onSuccess step). The
@@ -543,16 +511,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     }
   };
 
-  // Intercept the claim click: check anti-hoarding rule, then open ETC modal
+  // Intercept the claim click: open ETC modal
   const handleClaimRequest = (ticket) => {
-    if (isAtClaimLimit) {
-      alertModal({
-        title: 'Anti-Hoarding Policy Notice',
-        message: `You currently have ${myInProgressCount} requests in process (threshold: ${HOARDING_IN_PROGRESS_THRESHOLD}) and have already accepted ${myAcceptedTodayCount} requests today (daily limit: ${HOARDING_DAILY_LIMIT} per day).\n\nTo ensure fair distribution and prevent backlogs, please finish and resolve your active in-process requests before accepting new ones today.`,
-        variant: 'warning'
-      });
-      return;
-    }
     setEtcClaimTicket(ticket);
   };
 
@@ -664,24 +624,16 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
 
           <div className="stat-total-footer">
             <div className="anti-hoard-strip">
-              <span className="anti-hoard-policy" title="Anti-Hoarding Rule: Staff with 10+ requests in progress are limited to accepting 5 requests per day">
+              <span className="anti-hoard-policy" title="Active Workload: Shows your active in-progress requests">
                 <span className="policy-dot" />
-                Anti-Hoarding Rule: 10+ in progress → max 5 claims/day
+                Active Workload Monitor
               </span>
               {staffData?.name && (
                 <span
-                  className={`staff-load-badge ${isAtClaimLimit ? 'limit-reached' : isUnderHoardingRestriction ? 'warning' : ''}`}
-                  title={
-                    isUnderHoardingRestriction
-                      ? `Anti-hoarding restricted: ${myInProgressCount} in progress (≥${HOARDING_IN_PROGRESS_THRESHOLD}). Today's accepted requests: ${myAcceptedTodayCount}/${HOARDING_DAILY_LIMIT}`
-                      : `My In Progress: ${myInProgressCount} (Daily limit applies when reaching ${HOARDING_IN_PROGRESS_THRESHOLD})`
-                  }
+                  className="staff-load-badge"
+                  title={`My In Progress: ${myInProgressCount}`}
                 >
-                  {isUnderHoardingRestriction ? (
-                    <>Accepted Today: <strong>{myAcceptedTodayCount}/{HOARDING_DAILY_LIMIT}</strong></>
-                  ) : (
-                    <>In Progress: <strong>{myInProgressCount}</strong></>
-                  )}
+                  In Progress: <strong>{myInProgressCount}</strong>
                 </span>
               )}
             </div>
@@ -1028,18 +980,12 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                             ) : (
                               <button
                                 type="button"
-                                className={`action-btn claim-btn ${isAtClaimLimit ? 'claim-btn-limited' : ''}`}
+                                className="action-btn claim-btn"
                                 onClick={() => handleClaimRequest(ticket)}
                                 disabled={claimingTicketId === ticket.firestoreId}
-                                title={
-                                  isAtClaimLimit
-                                    ? `Anti-hoarding limit reached: You currently have ${myInProgressCount} requests in process and reached the daily limit of ${HOARDING_DAILY_LIMIT} accepted requests. Complete in-process requests before accepting more.`
-                                    : isUnderHoardingRestriction
-                                    ? `Anti-hoarding restricted (${myInProgressCount} in process): Accepted ${myAcceptedTodayCount}/${HOARDING_DAILY_LIMIT} today`
-                                    : 'Claim request and set turnaround time'
-                                }
+                                title="Claim request and set turnaround time"
                               >
-                                {claimingTicketId === ticket.firestoreId ? 'Claiming...' : isAtClaimLimit ? 'Daily Limit Reached' : 'Claim Request'}
+                                {claimingTicketId === ticket.firestoreId ? 'Claiming...' : 'Claim Request'}
                               </button>
                             )}
                           </div>

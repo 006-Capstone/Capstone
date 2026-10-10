@@ -156,10 +156,6 @@ const formatTime = (date) => {
   });
 };
 
-/* Anti-Hoarding System Limits */
-const HOARDING_IN_PROGRESS_THRESHOLD = 10;
-const HOARDING_DAILY_LIMIT = 5;
-
 const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -385,15 +381,12 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
       }
     }
 
-    // Today's claims (for anti-hoarding rule)
+    // Today's claims count
     const acceptedTodayCount = myAllTickets.filter(t => {
       const claimed = parseDate(t.claimedAt) || ((t.status || '').toLowerCase().includes('process') ? parseDate(t.updatedAt || t.createdAt) : null);
       if (!claimed) return false;
       return claimed.getTime() >= startOfToday;
     }).length;
-
-    const isRestrictedByHoarding = activeCount >= HOARDING_IN_PROGRESS_THRESHOLD;
-    const isAtClaimLimit = isRestrictedByHoarding && acceptedTodayCount >= HOARDING_DAILY_LIMIT;
 
     // Standing Tier (Aligned with Unified Health Standards)
     let standing = {
@@ -403,25 +396,21 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
       description: 'Your queue is healthy, service delivery is on schedule, and requests are handled promptly.'
     };
 
-    if (overdueCount > 0 || isAtClaimLimit || performanceScore <= 60) {
+    if (overdueCount > 0 || performanceScore <= 60) {
       standing = {
         level: 'critical',
         label: performanceScore <= 60 ? 'Critical Attention' : 'Attention Required',
         icon: FaExclamationTriangle,
         description: overdueCount > 0
           ? `${overdueCount} active request${overdueCount === 1 ? ' is' : 's are'} overdue past estimated completion date or SLA limit (72 hrs). Prioritize processing overdue tickets.`
-          : isAtClaimLimit
-          ? `Daily claim limit reached (${acceptedTodayCount}/${HOARDING_DAILY_LIMIT} claims today) under the Anti-Hoarding policy. Resolve in-progress requests before accepting more.`
           : 'Your efficiency score has dropped to 60% or lower, indicating service bottleneck risk visible to Superadmin oversight.'
       };
-    } else if (isRestrictedByHoarding || performanceScore < 75) {
+    } else if (performanceScore < 75) {
       standing = {
         level: 'advisory',
         label: 'Needs Focus',
         icon: FaClock,
-        description: isRestrictedByHoarding
-          ? `Workload threshold reached with ${activeCount} active requests in progress. Daily limit of ${HOARDING_DAILY_LIMIT} claims applies.`
-          : 'Service turnaround is nearing threshold. Continue processing your active queue to improve turnaround time and efficiency score.'
+        description: 'Service turnaround is nearing threshold. Continue processing your active queue to improve turnaround time and efficiency score.'
       };
     } else if (performanceScore >= 90) {
       standing = {
@@ -449,8 +438,6 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
       onTimeRate,
       avgTurnaroundDisplay,
       acceptedTodayCount,
-      isRestrictedByHoarding,
-      isAtClaimLimit,
       performanceScore,
       standing,
       slaScore: effMetrics.slaScore,
@@ -565,7 +552,6 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
     csv += `On-Time SLA Rate,${metrics.onTimeRate}%\n`;
     csv += `Average Turnaround,${metrics.avgTurnaroundDisplay}\n`;
     csv += `Accepted Today,${metrics.acceptedTodayCount}\n`;
-    csv += `Anti-Hoarding Status,${metrics.isRestrictedByHoarding ? 'Restricted (10+ active)' : 'Normal'}\n`;
     csv += '\n';
     
     // Request Details Section
@@ -763,7 +749,7 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
           </section>
         )}
 
-        {/* Standing & Anti-Hoarding Executive Banner */}
+        {/* Standing & Active Workload Banner */}
         <section className={`standing-executive-banner banner-${metrics.standing.level}`}>
           <div className="banner-left">
             <div className="banner-icon-box">
@@ -783,18 +769,12 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
 
           <div className="banner-right">
             <div className="anti-hoard-strip">
-              <span className="anti-hoard-policy" title="Anti-Hoarding Rule: Staff with 10+ requests in progress are limited to accepting 5 requests per day">
+              <span className="anti-hoard-policy" title="Active Workload: Total active requests in process">
                 <span className="policy-dot" />
-                Anti-Hoarding: 10+ in progress → max 5 claims/day
+                Active Workload
               </span>
-              <span
-                className={`staff-load-badge ${metrics.isAtClaimLimit ? 'limit-reached' : metrics.isRestrictedByHoarding ? 'warning' : ''}`}
-              >
-                {metrics.isRestrictedByHoarding ? (
-                  <>Accepted Today: <strong>{metrics.acceptedTodayCount}/{HOARDING_DAILY_LIMIT}</strong></>
-                ) : (
-                  <>In Progress: <strong>{metrics.activeCount}/{HOARDING_IN_PROGRESS_THRESHOLD}</strong></>
-                )}
+              <span className="staff-load-badge">
+                In Progress: <strong>{metrics.activeCount}</strong>
               </span>
             </div>
           </div>
@@ -986,9 +966,7 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
           </div>
           <div className="perf-card-bottom">
             <span className="subtext-muted">
-              {metrics.activeCount >= HOARDING_IN_PROGRESS_THRESHOLD 
-                ? '⚠️ Above threshold capacity' 
-                : '✓ Within safe handling capacity'}
+              {metrics.activeCount > 0 ? 'Active in-process queue' : 'No active tickets'}
             </span>
           </div>
         </div>
@@ -1204,8 +1182,7 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
         <div className="footer-info-text">
           <strong>Institutional Performance Guidelines:</strong>
           <span>
-            Performance ratings and turnaround metrics are logged on the administration network to support balanced workflow allocation. 
-            In compliance with our anti-hoarding policy, staff maintaining 10 or more active in-progress tickets are limited to 5 new claims per day.
+            Performance ratings and turnaround metrics are logged on the administration network to support balanced workflow allocation and timely service delivery.
           </span>
         </div>
       </footer>
@@ -1282,11 +1259,6 @@ const MyPerformance = ({ userData, onNavigate, onViewRequest }) => {
                 <td>Academic Standing</td>
                 <td><strong>{metrics.standing.label}</strong></td>
                 <td>{metrics.standing.description}</td>
-              </tr>
-              <tr>
-                <td>Anti-Hoarding Rule</td>
-                <td><strong>{metrics.isRestrictedByHoarding ? `Restricted (${metrics.acceptedTodayCount}/5 Accepted Today)` : 'Normal Standing'}</strong></td>
-                <td>10+ in progress &rarr; maximum 5 accepted claims/day</td>
               </tr>
               <tr>
                 <td>Consistency Milestone</td>
