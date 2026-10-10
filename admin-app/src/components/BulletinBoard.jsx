@@ -375,7 +375,8 @@ const BulletinBoard = ({ department, onViewRequest }) => {
   const processImageFile = async (file) => {
     setPhotoError('');
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    const isJpgOrPng = ['image/jpeg', 'image/png'].includes(file.type) || /\.(jpe?g|png)$/i.test(file.name);
+    if (!isJpgOrPng) {
       setPhotoError('Please choose an image file (JPG or PNG).');
       return;
     }
@@ -941,7 +942,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                       onChange={handleFileSelect}
                       style={{ display: 'none' }}
                     />

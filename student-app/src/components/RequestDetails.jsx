@@ -20,6 +20,56 @@ import { useNotification } from '../context/NotificationContext';
 import { resolveOriginalHandler } from '../utils/ticketHistoryHelper';
 import '../styles/RequestDetails.css';
 
+// Smart image compression to stay under Firestore 1 MB document limit
+const MAX_IMAGE_DIMENSION = 1280;
+const MAX_BASE64_LENGTH = 900 * 1024 * 1.37; // ~0.9 MiB raw -> base64 ceiling
+
+const isAllowedFileType = (file) => {
+  if (!file) return false;
+  const allowedMime = ['application/pdf', 'image/png', 'image/jpeg'];
+  if (allowedMime.includes(file.type)) return true;
+  const name = (file.name || '').toLowerCase();
+  return name.endsWith('.pdf') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg');
+};
+
+const compressImage = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('Could not read the image file.'));
+  reader.onload = () => {
+    const img = new Image();
+    img.onerror = () => reject(new Error('That file is not a valid image.'));
+    img.onload = () => {
+      const encode = (maxDim) => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        let quality = 0.82;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > MAX_BASE64_LENGTH && quality > 0.35) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        return dataUrl;
+      };
+
+      let result = encode(MAX_IMAGE_DIMENSION);
+      for (const dim of [1024, 800, 600]) {
+        if (result.length <= MAX_BASE64_LENGTH) break;
+        result = encode(dim);
+      }
+      resolve(result);
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
 function RequestDetails({ requestData, onNavigate }) {
   const { toast, alertModal, confirm } = useNotification();
   const [request, setRequest] = useState(null);
@@ -78,13 +128,30 @@ function RequestDetails({ requestData, onNavigate }) {
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => file.size <= 5 * 1024 * 1024);
+    const validFiles = [];
+    const invalidTypeFiles = [];
+    const oversizeFiles = [];
+
+    files.forEach(file => {
+      if (!isAllowedFileType(file)) {
+        invalidTypeFiles.push(file.name);
+      } else if (file.size > 10 * 1024 * 1024) {
+        oversizeFiles.push(file.name);
+      } else {
+        validFiles.push(file);
+      }
+    });
     
-    if (validFiles.length < files.length) {
-      toast.warning('Some files exceed 5MB and were not added');
+    if (invalidTypeFiles.length > 0) {
+      toast.warning(`Only PDF, PNG, and JPG files are allowed: ${invalidTypeFiles.join(', ')}`);
+    }
+    if (oversizeFiles.length > 0) {
+      toast.warning(`Some files exceed 10MB limit and were not added: ${oversizeFiles.join(', ')}`);
     }
     
-    setFollowUpFiles(prev => [...prev, ...validFiles]);
+    if (validFiles.length > 0) {
+      setFollowUpFiles(prev => [...prev, ...validFiles]);
+    }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -109,18 +176,24 @@ function RequestDetails({ requestData, onNavigate }) {
       setSending(true);
       const attachments = [];
       for (let file of followUpFiles) {
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        let fileData;
+        const isImage = file.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(file.name);
+        if (isImage) {
+          fileData = await compressImage(file);
+        } else {
+          fileData = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
         
         attachments.push({
           name: file.name,
-          data: base64,
+          data: fileData,
           size: file.size,
-          type: file.type,
+          type: file.type || (isImage ? 'image/jpeg' : 'application/pdf'),
           uploadedAt: new Date().toISOString()
         });
       }
@@ -833,7 +906,7 @@ function RequestDetails({ requestData, onNavigate }) {
                 multiple
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
-                accept="image/*,.pdf,.doc,.docx,.txt"
+                accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
               />
               
               {followUpFiles.length > 0 && (
@@ -860,7 +933,7 @@ function RequestDetails({ requestData, onNavigate }) {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={sending || studentFollowUpsCount >= 3}
                 >
-                  <MdAttachFile /> Attach documents (Max 5MB)
+                  <MdAttachFile /> Attach file (PDF, PNG, JPG - Max 10MB)
                 </button>
                 <button 
                   type="button"

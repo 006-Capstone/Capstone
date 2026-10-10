@@ -15,6 +15,14 @@ import '../styles/GuestLogin.css';
 const MAX_IMAGE_DIMENSION = 1280;
 const MAX_BASE64_LENGTH = 900 * 1024 * 1.37; // ~0.9 MiB raw -> base64 ceiling
 
+const isAllowedFileType = (file) => {
+  if (!file) return false;
+  const allowedMime = ['application/pdf', 'image/png', 'image/jpeg'];
+  if (allowedMime.includes(file.type)) return true;
+  const name = (file.name || '').toLowerCase();
+  return name.endsWith('.pdf') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg');
+};
+
 const compressImage = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onerror = () => reject(new Error('Could not read the image file.'));
@@ -23,24 +31,33 @@ const compressImage = (file) => new Promise((resolve, reject) => {
     img.onerror = () => reject(new Error('Invalid image format.'));
     img.onload = () => {
       try {
-        const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
-        const width = Math.max(1, Math.round(img.width * scale));
-        const height = Math.max(1, Math.round(img.height * scale));
+        const encode = (maxDim) => {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const width = Math.max(1, Math.round(img.width * scale));
+          const height = Math.max(1, Math.round(img.height * scale));
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 
-        let quality = 0.82;
-        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+          let quality = 0.82;
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
 
-        while (dataUrl.length > MAX_BASE64_LENGTH && quality > 0.35) {
-          quality -= 0.1;
-          dataUrl = canvas.toDataURL('image/jpeg', quality);
+          while (dataUrl.length > MAX_BASE64_LENGTH && quality > 0.35) {
+            quality -= 0.1;
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+          return dataUrl;
+        };
+
+        let result = encode(MAX_IMAGE_DIMENSION);
+        for (const dim of [1024, 800, 600]) {
+          if (result.length <= MAX_BASE64_LENGTH) break;
+          result = encode(dim);
         }
         
-        resolve(dataUrl);
+        resolve(result);
       } catch (err) {
         reject(err);
       }
@@ -222,23 +239,35 @@ const GuestLogin = () => {
 
   const handleAuthChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.size > 5 * 1024 * 1024) {
-      toast.warning('Authorization file exceeds 5MB limit');
+    if (!file) return;
+    if (!isAllowedFileType(file)) {
+      toast.warning('Only PDF, PNG, and JPG files are allowed');
       e.target.value = '';
       return;
     }
-    setAuthFile(file || null);
+    if (file.size > 10 * 1024 * 1024) {
+      toast.warning('Authorization file exceeds 10MB limit');
+      e.target.value = '';
+      return;
+    }
+    setAuthFile(file);
     e.target.value = '';
   };
 
   const handleAttachmentChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.size > 5 * 1024 * 1024) {
-      toast.warning('Attachment file exceeds 5MB limit');
+    if (!file) return;
+    if (!isAllowedFileType(file)) {
+      toast.warning('Only PDF, PNG, and JPG files are allowed');
       e.target.value = '';
       return;
     }
-    setAttachmentFile(file || null);
+    if (file.size > 10 * 1024 * 1024) {
+      toast.warning('Attachment file exceeds 10MB limit');
+      e.target.value = '';
+      return;
+    }
+    setAttachmentFile(file);
     e.target.value = '';
   };
 
@@ -512,7 +541,8 @@ const GuestLogin = () => {
         let fileData;
         
         // Compress images, keep other files as-is
-        if (authFile.type.startsWith('image/')) {
+        const isAuthImage = authFile.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(authFile.name);
+        if (isAuthImage) {
           console.log('🖼️ Compressing auth image:', authFile.name, `(${(authFile.size / 1024 / 1024).toFixed(2)} MB)`);
           fileData = await compressImage(authFile);
           console.log(`✅ Compressed to ${(fileData.length / 1024).toFixed(0)} KB`);
@@ -524,7 +554,7 @@ const GuestLogin = () => {
           name: authFile.name || 'auth-file',
           data: fileData || '',
           size: authFile.size || 0,
-          type: authFile.type || 'application/octet-stream',
+          type: authFile.type || (isAuthImage ? 'image/jpeg' : 'application/pdf'),
           isAuthProof: true,
           uploadedAt: now
         });
@@ -534,7 +564,8 @@ const GuestLogin = () => {
         let fileData;
         
         // Compress images, keep other files as-is
-        if (attachmentFile.type.startsWith('image/')) {
+        const isAttImage = attachmentFile.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(attachmentFile.name);
+        if (isAttImage) {
           console.log('🖼️ Compressing attachment image:', attachmentFile.name, `(${(attachmentFile.size / 1024 / 1024).toFixed(2)} MB)`);
           fileData = await compressImage(attachmentFile);
           console.log(`✅ Compressed to ${(fileData.length / 1024).toFixed(0)} KB`);
@@ -546,7 +577,7 @@ const GuestLogin = () => {
           name: attachmentFile.name || 'attachment',
           data: fileData || '',
           size: attachmentFile.size || 0,
-          type: attachmentFile.type || 'application/octet-stream',
+          type: attachmentFile.type || (isAttImage ? 'image/jpeg' : 'application/pdf'),
           uploadedAt: now
         });
       }
@@ -968,7 +999,7 @@ const GuestLogin = () => {
                       <>
                         <FaFileUpload className="upload-icon-large upload-icon-green" />
                         <p className="upload-text-main">Click to upload student ID or authorization document</p>
-                        <p className="upload-text-sub">PDF, PNG, JPG, or DOC (Max 5MB)</p>
+                        <p className="upload-text-sub">PDF, PNG, or JPG (Max 10MB)</p>
                       </>
                     )}
                     <input
@@ -976,7 +1007,7 @@ const GuestLogin = () => {
                       type="file"
                       className="file-input-hidden"
                       onChange={handleAuthChange}
-                      accept=".pdf,.doc,.docx,.jpg,.png,.jpeg"
+                      accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
                       aria-label="Upload authorization proof (required)"
                       style={{ pointerEvents: 'none' }}
                     />
@@ -1020,7 +1051,7 @@ const GuestLogin = () => {
                       <>
                         <FaFileUpload className="upload-icon-large" />
                         <p className="upload-text-main">Click to attach supporting receipt or document</p>
-                        <p className="upload-text-sub">PDF, PNG, JPG, or DOC (Max 5MB)</p>
+                        <p className="upload-text-sub">PDF, PNG, or JPG (Max 10MB)</p>
                       </>
                     )}
                     <input
@@ -1028,7 +1059,7 @@ const GuestLogin = () => {
                       type="file"
                       className="file-input-hidden"
                       onChange={handleAttachmentChange}
-                      accept=".pdf,.doc,.docx,.jpg,.png,.jpeg"
+                      accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
                       aria-label="Attach an optional file"
                       style={{ pointerEvents: 'none' }}
                     />

@@ -24,6 +24,14 @@ import '../styles/NewRequest.css';
 const MAX_IMAGE_DIMENSION = 1280;
 const MAX_BASE64_LENGTH = 900 * 1024 * 1.37; // ~0.9 MiB raw -> base64 ceiling
 
+const isAllowedFileType = (file) => {
+  if (!file) return false;
+  const allowedMime = ['application/pdf', 'image/png', 'image/jpeg'];
+  if (allowedMime.includes(file.type)) return true;
+  const name = (file.name || '').toLowerCase();
+  return name.endsWith('.pdf') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg');
+};
+
 const compressImage = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onerror = () => reject(new Error('Could not read the image file.'));
@@ -143,21 +151,26 @@ function NewRequest({ onNavigate }) {
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
     
-    // Filter files by size (max 10MB for images before compression, 5MB for documents)
+    // Filter files: must be PDF, PNG, or JPG, and under 10MB
     const validFiles = [];
-    const invalidFiles = [];
+    const invalidTypeFiles = [];
+    const oversizeFiles = [];
     
     files.forEach(file => {
-      const maxSize = file.type.startsWith('image/') ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
-      if (file.size <= maxSize) {
-        validFiles.push(file);
+      if (!isAllowedFileType(file)) {
+        invalidTypeFiles.push(file.name);
+      } else if (file.size > 10 * 1024 * 1024) {
+        oversizeFiles.push(file.name);
       } else {
-        invalidFiles.push(file.name);
+        validFiles.push(file);
       }
     });
 
-    if (invalidFiles.length > 0) {
-      setError(`These files are too large: ${invalidFiles.join(', ')}. Images must be under 10MB, documents under 5MB.`);
+    if (invalidTypeFiles.length > 0) {
+      setError(`Only PDF, PNG, and JPG files are allowed: ${invalidTypeFiles.join(', ')}`);
+      setTimeout(() => setError(''), 5000);
+    } else if (oversizeFiles.length > 0) {
+      setError(`Files exceed 10MB limit: ${oversizeFiles.join(', ')}`);
       setTimeout(() => setError(''), 5000);
     }
 
@@ -225,8 +238,9 @@ function NewRequest({ onNavigate }) {
       try {
         let fileData;
         
-        // Compress images, keep other files as-is
-        if (file.type.startsWith('image/')) {
+        // Compress images (PNG, JPG), keep PDF as-is
+        const isImage = file.type.startsWith('image/') || /\.(png|jpe?g)$/i.test(file.name);
+        if (isImage) {
           console.log(`🖼️ Compressing image ${i + 1}/${uploadedFiles.length}:`, file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
           fileData = await compressImage(file);
           console.log(`✅ Compressed to ${(fileData.length / 1024).toFixed(0)} KB`);
@@ -613,12 +627,19 @@ function NewRequest({ onNavigate }) {
                 multiple
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
-                accept="image/*,.pdf,.doc,.docx,.txt"
+                accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
               />
               
               <div 
                 className="upload-area" 
                 onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer?.files) {
+                    handleFileSelect({ target: { files: e.dataTransfer.files } });
+                  }
+                }}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -631,7 +652,7 @@ function NewRequest({ onNavigate }) {
                   <FaFileUpload className="upload-icon" />
                 </div>
                 <p className="upload-text">Click to choose files or drag and drop</p>
-                <p className="upload-limit">Images up to 10MB (auto-compressed), documents (PDF, DOC) up to 5MB</p>
+                <p className="upload-limit">PDF, PNG, or JPG up to 10MB (images compressed automatically)</p>
               </div>
 
               {uploadedFiles.length > 0 && (
