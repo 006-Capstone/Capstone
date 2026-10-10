@@ -39,7 +39,7 @@ import {
 } from 'react-icons/fa';
 import { db, auth, getSecondaryAuth } from '../firebase';
 import { collection, addDoc, getDocs, getDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import NotificationBell from './NotificationBell';
 import Archive from './Archive';
@@ -119,6 +119,7 @@ const UserManagement = () => {
   const [activitySearchTerm, setActivitySearchTerm] = useState('');
   const [activityCategoryFilter, setActivityCategoryFilter] = useState('all');
   const [showFullAuditModal, setShowFullAuditModal] = useState(false);
+  const [resendingCredentialsEmail, setResendingCredentialsEmail] = useState(false);
 
   // Archiving state
   const [actionLoading, setActionLoading] = useState(false);
@@ -1631,6 +1632,65 @@ const UserManagement = () => {
     setShowFullAuditModal(false);
   };
 
+  const handleResendCredentialEmail = async () => {
+    if (!selectedUserProfile || !selectedUserProfile.email) {
+      showToast('No valid email address found for this account.', 'error');
+      return;
+    }
+
+    setResendingCredentialsEmail(true);
+    try {
+      await sendPasswordResetEmail(auth, selectedUserProfile.email);
+
+      const isStudent = selectedUserProfile.userType === 'student' || selectedUserProfile.accountType === 'student' || selectedUserProfile.studentId || (!selectedUserProfile.office && selectedUserProfile.id && selectedUserProfile.id.length <= 6);
+      const targetCollection = isStudent ? 'students' : 'staff';
+      const docId = selectedUserProfile.firestoreId || selectedUserProfile.id;
+      const adminEmail = auth?.currentUser?.email || 'Super Admin';
+
+      if (docId) {
+        try {
+          await updateDoc(doc(db, targetCollection, docId), {
+            passwordResetAt: serverTimestamp(),
+            lastPasswordResetAt: serverTimestamp(),
+            passwordResetBy: adminEmail
+          });
+        } catch (docErr) {
+          console.warn('[UserManagement] Could not record passwordResetAt on user document:', docErr);
+        }
+      }
+
+      try {
+        await addDoc(collection(db, 'activityLogs'), {
+          userId: selectedUserProfile.uid || selectedUserProfile.firestoreId || docId,
+          userEmail: selectedUserProfile.email,
+          action: 'Login credential email re-dispatched',
+          category: 'security',
+          details: `Account setup and login access link re-sent to ${selectedUserProfile.email} by ${adminEmail}`,
+          status: 'Dispatched',
+          timestamp: serverTimestamp()
+        });
+      } catch (actErr) {
+        console.warn('[UserManagement] Could not log activity log for credential email resend:', actErr);
+      }
+
+      showToast(`Login setup email successfully sent to ${selectedUserProfile.email}`);
+      await refreshUserProfile();
+    } catch (err) {
+      console.error('[UserManagement] Error resending credential email:', err);
+      let errorMsg = err.message || 'Failed to send login credential email.';
+      if (err.code === 'auth/user-not-found') {
+        errorMsg = 'Account was not found in Authentication service.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMsg = 'Invalid email address format.';
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMsg = 'Too many email requests sent recently. Please try again in a few minutes.';
+      }
+      showToast(errorMsg, 'error');
+    } finally {
+      setResendingCredentialsEmail(false);
+    }
+  };
+
   // Refresh active user profile & re-evaluate audit trail logs
   const refreshUserProfile = async (targetUser = selectedUserProfile) => {
     if (!targetUser) return;
@@ -2211,6 +2271,15 @@ const UserManagement = () => {
                 <div className="admin-action-buttons">
                   <button 
                     type="button"
+                    className="admin-action-btn resend-email"
+                    onClick={handleResendCredentialEmail}
+                    disabled={resendingCredentialsEmail || !selectedUserProfile?.email}
+                  >
+                    <FaEnvelope /> {resendingCredentialsEmail ? 'Sending Email...' : 'Resend Login Email'}
+                  </button>
+
+                  <button 
+                    type="button"
                     className="admin-action-btn change-pw"
                     onClick={() => {
                       setUserToChangePassword(selectedUserProfile);
@@ -2262,6 +2331,16 @@ const UserManagement = () => {
                   <h3 className="profile-overview-title">Account Overview & Insights</h3>
                   <p className="profile-overview-desc">Performance metrics, status overview, and system audit trail.</p>
                 </div>
+                <button
+                  type="button"
+                  className="resend-credentials-btn"
+                  onClick={handleResendCredentialEmail}
+                  disabled={resendingCredentialsEmail || !selectedUserProfile?.email}
+                  title={`Resend account access email to ${selectedUserProfile?.email || 'user'}`}
+                >
+                  <FaEnvelope className="btn-icon-mr" />
+                  {resendingCredentialsEmail ? 'Sending Email...' : 'Resend Login Email'}
+                </button>
               </div>
 
               {/* Stats Cards Grid */}

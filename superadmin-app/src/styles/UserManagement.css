@@ -2380,6 +2380,19 @@ select.form-input-super option:disabled {
   outline: none;
 }
 
+.admin-action-btn.resend-email {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #86efac;
+}
+
+.admin-action-btn.resend-email:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.32);
+  border-color: #22c55e;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 .admin-action-btn.change-pw {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -2471,6 +2484,42 @@ select.form-input-super option:disabled {
   justify-content: space-between;
   border-bottom: 1px solid #e2e8f0;
   padding-bottom: 16px;
+  gap: 16px;
+}
+
+.resend-credentials-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #105E06;
+  color: #ffffff;
+  border: 1px solid #0d4a05;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(16, 94, 6, 0.2);
+}
+
+.resend-credentials-btn:hover:not(:disabled) {
+  background: #0d4a05;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(16, 94, 6, 0.3);
+}
+
+.resend-credentials-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.resend-credentials-btn .btn-icon-mr {
+  font-size: 13px;
 }
 
 .profile-overview-title {
