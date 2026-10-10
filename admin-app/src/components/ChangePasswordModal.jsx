@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { FaLock, FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
+import { FaLock, FaEye, FaEyeSlash, FaShieldAlt, FaKey, FaSignOutAlt, FaExclamationTriangle } from 'react-icons/fa';
 import { auth, db } from '../firebase';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/ChangePasswordModal.css';
 
-const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
+const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
   const { toast } = useNotification();
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [requiresRecentLogin, setRequiresRecentLogin] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const validatePassword = (password) => {
@@ -31,13 +34,35 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
     return null;
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.warn('[ChangePasswordModal] Error during sign out:', err);
+    }
+    localStorage.removeItem('staffData');
+    localStorage.removeItem('selectedTicket');
+    localStorage.removeItem('adminActivePage');
+    if (onLogout) {
+      onLogout();
+    } else {
+      window.location.reload();
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setRequiresRecentLogin(false);
 
     // Validation
     if (!newPassword || !confirmPassword) {
-      setError('Please fill in all fields');
+      setError('Please fill in both the new password and confirm password fields');
+      return;
+    }
+
+    if (currentPassword && newPassword === currentPassword) {
+      setError('Your new password cannot be the same as your current temporary password.');
       return;
     }
 
@@ -48,7 +73,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('New password and confirm password do not match');
       return;
     }
 
@@ -56,36 +81,40 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
 
     try {
       const user = auth.currentUser;
-      
-      // Check if new password is same as old password
-      // Try to reauthenticate with the new password to see if it's the current password
-      try {
-        const credential = EmailAuthProvider.credential(user.email, newPassword);
-        await reauthenticateWithCredential(user, credential);
-        
-        // If reauthentication succeeds, it means new password = old password
-        setError('You cannot reuse your previous password. Please choose a different password for security reasons.');
+      if (!user) {
+        setRequiresRecentLogin(true);
+        setError('Your login session is not active. Please log in again with your credentials.');
         setLoading(false);
         return;
-      } catch (reauthError) {
-        // If reauthentication fails, it means new password ≠ old password (good!)
-        // Continue with password change
-        if (reauthError.code !== 'auth/wrong-password' && reauthError.code !== 'auth/invalid-credential') {
-          // If error is NOT wrong-password, something else went wrong
-          throw reauthError;
+      }
+
+      // If user supplied their current password, reauthenticate first to ensure session is 100% fresh
+      if (currentPassword) {
+        try {
+          const credential = EmailAuthProvider.credential(user.email || staffData?.email, currentPassword);
+          await reauthenticateWithCredential(user, credential);
+        } catch (reauthErr) {
+          console.error('[ChangePasswordModal] Reauth error:', reauthErr);
+          if (reauthErr.code === 'auth/wrong-password' || reauthErr.code === 'auth/invalid-credential') {
+            setError('Current temporary password is incorrect. Please double-check the password you logged in with.');
+            setLoading(false);
+            return;
+          }
+          throw reauthErr;
         }
-        // If it IS wrong-password, that's good - new password is different from old
       }
 
       // Update password in Firebase Authentication
       await updatePassword(user, newPassword);
 
       // Update mustChangePassword flag in Firestore
-      const staffRef = doc(db, 'staff', staffData.firestoreDocId);
-      await updateDoc(staffRef, {
-        mustChangePassword: false,
-        passwordLastChanged: new Date().toISOString()
-      });
+      if (staffData?.firestoreDocId) {
+        const staffRef = doc(db, 'staff', staffData.firestoreDocId);
+        await updateDoc(staffRef, {
+          mustChangePassword: false,
+          passwordLastChanged: new Date().toISOString()
+        });
+      }
 
       // Update localStorage
       const updatedStaffData = {
@@ -94,18 +123,21 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
       };
       localStorage.setItem('staffData', JSON.stringify(updatedStaffData));
 
-      toast.success('Password changed successfully! You can now access the admin portal.');
+      if (toast?.success) {
+        toast.success('Password changed successfully! You can now access the admin portal.');
+      }
       onPasswordChanged();
 
     } catch (error) {
-      console.error('Error changing password:', error);
+      console.error('[ChangePasswordModal] Error changing password:', error);
       
       if (error.code === 'auth/requires-recent-login') {
-        setError('For security reasons, please log in again to change your password.');
+        setRequiresRecentLogin(true);
+        setError('Your security session has expired. Please enter your Current Temporary Password above to verify, or sign out and log back in.');
       } else if (error.code === 'auth/weak-password') {
         setError('Password is too weak. Please choose a stronger password.');
       } else {
-        setError('Failed to change password: ' + error.message);
+        setError('Failed to change password: ' + (error.message || 'Unknown error'));
       }
     } finally {
       setLoading(false);
@@ -122,15 +154,54 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
           
           <h2 className="modal-title">Change Your Password</h2>
           <p className="modal-subtitle">
-            For security reasons, you must change your temporary password before accessing your admin account.
+            For security reasons, you must update your temporary password before accessing your admin account.
           </p>
 
           <form onSubmit={handleSubmit} className="change-password-form">
             {error && (
               <div className="error-message-modal">
-                {error}
+                <div className="error-text-row">
+                  <FaExclamationTriangle className="error-icon" />
+                  <span>{error}</span>
+                </div>
+                {requiresRecentLogin && (
+                  <button 
+                    type="button" 
+                    className="reauth-action-btn"
+                    onClick={handleLogout}
+                  >
+                    <FaSignOutAlt /> Log In Again Now
+                  </button>
+                )}
               </div>
             )}
+
+            <div className="form-group-modal">
+              <label className="form-label-modal">
+                Current Temporary Password <span className="label-hint">(optional if freshly logged in)</span>
+              </label>
+              <div className="password-input-wrapper-modal">
+                <FaKey className="input-icon" />
+                <input
+                  type={showCurrentPassword ? "text" : "password"}
+                  className="form-input-modal"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter the password you logged in with"
+                  disabled={loading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn-modal"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  disabled={loading}
+                  aria-label="Toggle password visibility"
+                >
+                  {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+            </div>
 
             <div className="form-group-modal">
               <label className="form-label-modal">New Password</label>
@@ -141,14 +212,16 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
                   className="form-input-modal"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
+                  placeholder="Enter new secure password"
                   disabled={loading}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   className="password-toggle-btn-modal"
                   onClick={() => setShowNewPassword(!showNewPassword)}
                   disabled={loading}
+                  aria-label="Toggle password visibility"
                 >
                   {showNewPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -156,7 +229,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
             </div>
 
             <div className="form-group-modal">
-              <label className="form-label-modal">Confirm Password</label>
+              <label className="form-label-modal">Confirm New Password</label>
               <div className="password-input-wrapper-modal">
                 <FaLock className="input-icon" />
                 <input
@@ -164,14 +237,16 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
                   className="form-input-modal"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter new password"
+                  placeholder="Re-enter new secure password"
                   disabled={loading}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   className="password-toggle-btn-modal"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   disabled={loading}
+                  aria-label="Toggle password visibility"
                 >
                   {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -201,13 +276,24 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged }) => {
               className="submit-btn-modal" 
               disabled={loading}
             >
-              {loading ? 'Changing Password...' : 'Change Password'}
+              {loading ? 'Updating Password...' : 'Change Password'}
             </button>
           </form>
 
-          <p className="modal-note">
-            <FaLock /> This is a one-time mandatory password change for your security.
-          </p>
+          <div className="modal-bottom-area">
+            <p className="modal-note">
+              <FaLock /> One-time mandatory security check.
+            </p>
+            <button 
+              type="button" 
+              className="modal-logout-link"
+              onClick={handleLogout}
+              disabled={loading}
+            >
+              <FaSignOutAlt className="logout-icon" />
+              <span>Sign Out & Return to Login</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

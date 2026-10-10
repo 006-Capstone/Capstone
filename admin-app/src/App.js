@@ -142,7 +142,7 @@ function App() {
 
   // Show password change modal if required
   if (mustChangePassword && staffData) {
-    return <ChangePasswordModal staffData={staffData} onPasswordChanged={handlePasswordChanged} />;
+    return <ChangePasswordModal staffData={staffData} onPasswordChanged={handlePasswordChanged} onLogout={handleLogout} />;
   }
 
   return (
