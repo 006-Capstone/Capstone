@@ -84,52 +84,54 @@ const ChangePasswordModal = ({ user, onClose, onPasswordChanged }) => {
           <FaTimes />
         </button>
 
-        <div className="modal-icon-container">
-          <FaShieldAlt className="modal-icon" />
-        </div>
-        
-        <h2 className="modal-title">Reset Password</h2>
-        <p className="modal-subtitle">
-          Send a password reset email to <strong>{user.name || user.email}</strong>
-        </p>
+        <div className="change-password-modal-content">
+          <div className="modal-icon-container">
+            <FaShieldAlt className="modal-icon" />
+          </div>
+          
+          <h2 className="modal-title">Reset Password</h2>
+          <p className="modal-subtitle">
+            Send a password reset email to <strong>{user.name || user.email}</strong>
+          </p>
 
-        <div className="change-password-form">
-          {error && (
-            <div className="error-message-modal">
-              {error}
-            </div>
-          )}
+          <div className="change-password-form">
+            {error && (
+              <div className="error-message-modal">
+                {error}
+              </div>
+            )}
 
-          {success && (
-            <div className="success-message-modal">
-              {success}
-            </div>
-          )}
+            {success && (
+              <div className="success-message-modal">
+                {success}
+              </div>
+            )}
 
-          <div className="reset-info-box">
-            <FaEnvelope className="reset-icon" />
-            <div>
-              <p className="reset-email"><strong>{user.email}</strong></p>
-              <p className="reset-description">
-                A password reset link will be sent to this email address. 
-                The user can click the link to create a new password.
-              </p>
+            <div className="reset-info-box">
+              <FaEnvelope className="reset-icon" />
+              <div>
+                <p className="reset-email"><strong>{user.email}</strong></p>
+                <p className="reset-description">
+                  A password reset link will be sent to this email address. 
+                  The user can click the link to create a new password.
+                </p>
+              </div>
             </div>
+
+            <button 
+              type="button"
+              onClick={success ? onPasswordChanged : handleSendResetEmail}
+              className="submit-btn-modal" 
+              disabled={loading}
+            >
+              {loading ? 'Sending Email...' : success ? 'Close' : 'Send Password Reset Email'}
+            </button>
           </div>
 
-          <button 
-            type="button"
-            onClick={success ? onPasswordChanged : handleSendResetEmail}
-            className="submit-btn-modal" 
-            disabled={loading}
-          >
-            {loading ? 'Sending Email...' : success ? 'Close' : 'Send Password Reset Email'}
-          </button>
+          <p className="modal-note">
+            <FaLock /> The reset link will expire in 1 hour for security.
+          </p>
         </div>
-
-        <p className="modal-note">
-          <FaLock /> The reset link will expire in 1 hour for security.
-        </p>
       </div>
     </div>
   );
