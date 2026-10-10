@@ -954,13 +954,45 @@
   font-size: 12px;
 }
 
-/* Card Action Button */
+/* Card Action Buttons */
 .pm-card-actions {
   margin-top: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pm-reassign-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  color: var(--green-900, #105e06);
+  border: 1px solid var(--green-700, #1b8509);
+  border-radius: var(--radius-md, 12px);
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s ease);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.pm-reassign-btn:hover {
+  background: var(--green-50, #f0fdf4);
+  border-color: var(--green-900, #105e06);
+  color: var(--green-950, #0a4004);
+  transform: translateY(-1px);
+}
+
+.pm-reassign-btn:active {
+  transform: translateY(0);
 }
 
 .pm-inspect-btn {
-  width: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -976,6 +1008,7 @@
   box-shadow: 0 2px 6px rgba(16, 94, 6, 0.2);
   transition: all var(--transition-fast, 0.15s ease);
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .pm-inspect-btn:hover {
@@ -1406,6 +1439,45 @@
   border-top: 1px solid var(--color-divider, #edf0ec);
   background: var(--gray-50, #f8f9f7);
   flex-shrink: 0;
+  gap: 12px;
+}
+
+.pm-modal-footer-left {
+  display: flex;
+  align-items: center;
+}
+
+.pm-modal-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pm-btn-reassign {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: var(--green-900, #105e06);
+  border: 1.5px solid var(--green-800, #105e06);
+  border-radius: var(--radius-md, 12px);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s ease);
+  font-family: inherit;
+}
+
+.pm-btn-reassign:hover {
+  background: var(--green-50, #f0fdf4);
+  border-color: var(--green-900, #0c4705);
+  color: var(--green-950, #083303);
+  transform: translateY(-1px);
+}
+
+.pm-btn-reassign:active {
+  transform: translateY(0);
 }
 
 .pm-btn-secondary {

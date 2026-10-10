@@ -17,6 +17,7 @@ import {
   FaHistory,
   FaRedo,
   FaArrowRight,
+  FaExchangeAlt,
   FaClock,
   FaCheckDouble,
   FaDollarSign,
@@ -30,6 +31,7 @@ import {
 import { calculateStaffMonthlyBehavior } from '../utils/performanceAnalytics';
 import { analyzeMonthlyStaffBehaviorWithAI } from '../utils/groqService';
 import { OverviewCardsSkeleton, DataTableSkeleton } from './common/Skeleton';
+import ReassignTicketsModal from './ReassignTicketsModal';
 import '../styles/PerformanceMonitor.css';
 
 const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) => {
@@ -62,6 +64,56 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
   const [activeStaffDiagnostic, setActiveStaffDiagnostic] = useState(null);
   const [analyzingStaffId, setAnalyzingStaffId] = useState(null);
   const [aiCache, setAiCache] = useState({});
+
+  // Reassign Tickets Modal state
+  const [reassignModalState, setReassignModalState] = useState({
+    isOpen: false,
+    staffMember: null
+  });
+
+  // Available staff list with active ticket counts for reassignment target selection
+  const allStaffForReassign = useMemo(() => {
+    return allStaff.map(s => {
+      const staffName = (s.name || '').trim().toLowerCase();
+      const activeCount = allRequests.filter(r => {
+        const assigned = (r.assignedTo || r.claimedBy || '').trim().toLowerCase();
+        const status = (r.status || '').trim().toLowerCase();
+        return assigned === staffName && !['resolved', 'completed', 'cancelled', 'rejected'].includes(status);
+      }).length;
+
+      return {
+        id: s.id || s.firestoreId,
+        firestoreId: s.firestoreId || s.id,
+        name: s.name,
+        department: s.department || s.office || '',
+        office: s.office || s.department || '',
+        activeTickets: activeCount
+      };
+    });
+  }, [allStaff, allRequests]);
+
+  const handleOpenReassignModal = useCallback((profileOrDiagnostic) => {
+    if (!profileOrDiagnostic) return;
+    const staffObj = profileOrDiagnostic.staff || profileOrDiagnostic;
+    const staffName = (staffObj.name || '').trim().toLowerCase();
+    const activeCount = allRequests.filter(r => {
+      const assigned = (r.assignedTo || r.claimedBy || '').trim().toLowerCase();
+      const status = (r.status || '').trim().toLowerCase();
+      return assigned === staffName && !['resolved', 'completed', 'cancelled', 'rejected'].includes(status);
+    }).length;
+
+    setReassignModalState({
+      isOpen: true,
+      staffMember: {
+        id: staffObj.id || staffObj.firestoreId,
+        firestoreId: staffObj.firestoreId || staffObj.id,
+        name: staffObj.name,
+        department: staffObj.department || staffObj.office || '',
+        office: staffObj.office || staffObj.department || '',
+        activeTickets: activeCount
+      }
+    });
+  }, [allRequests]);
 
   // Dynamic month options incorporating both rolling calendar and actual request dates
   const monthOptions = useMemo(() => {
@@ -824,14 +876,26 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
                             </span>
                           </div>
 
-                          {/* Card Action Button */}
+                          {/* Card Action Buttons */}
                           <div className="pm-card-actions">
+                            <button
+                              type="button"
+                              className="pm-reassign-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenReassignModal(profile);
+                              }}
+                              title={`Reassign requests from ${profile.staff.name}`}
+                            >
+                              <FaExchangeAlt />
+                              <span>Reassign</span>
+                            </button>
                             <button
                               type="button"
                               className="pm-inspect-btn"
                               onClick={() => handleInspectStaff(profile)}
                             >
-                              <span>View AI Monthly Diagnostic</span>
+                              <span>View AI Diagnostic</span>
                               <FaArrowRight />
                             </button>
                           </div>
@@ -1055,24 +1119,48 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
 
             {/* Modal Footer */}
             <div className="pm-modal-footer">
-              <button
-                type="button"
-                className="pm-btn-secondary"
-                onClick={handlePrintDiagnostic}
-              >
-                <FaPrint />
-                <span>Print Diagnostic Summary</span>
-              </button>
-              <button
-                type="button"
-                className="pm-btn-primary"
-                onClick={() => setActiveStaffDiagnostic(null)}
-              >
-                Close Diagnostic
-              </button>
+              <div className="pm-modal-footer-left">
+                <button
+                  type="button"
+                  className="pm-btn-secondary"
+                  onClick={handlePrintDiagnostic}
+                >
+                  <FaPrint />
+                  <span>Print Diagnostic Summary</span>
+                </button>
+              </div>
+              <div className="pm-modal-footer-right">
+                <button
+                  type="button"
+                  className="pm-btn-reassign"
+                  onClick={() => handleOpenReassignModal(activeStaffDiagnostic)}
+                  title="Reassign active requests from this staff member"
+                >
+                  <FaExchangeAlt />
+                  <span>Reassign Requests</span>
+                </button>
+                <button
+                  type="button"
+                  className="pm-btn-primary"
+                  onClick={() => setActiveStaffDiagnostic(null)}
+                >
+                  Close Diagnostic
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Reassign Tickets Modal */}
+      {reassignModalState.isOpen && (
+        <ReassignTicketsModal
+          isOpen={reassignModalState.isOpen}
+          onClose={() => setReassignModalState({ isOpen: false, staffMember: null })}
+          staffMember={reassignModalState.staffMember}
+          allStaff={allStaffForReassign}
+          onReassignSuccess={loadData}
+        />
       )}
     </div>
   );
