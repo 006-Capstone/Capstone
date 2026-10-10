@@ -324,10 +324,36 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
       </div>
 
       {/* Staff Response Card if any replies exist */}
-      {data.followUps && data.followUps.filter(f => f.sentBy === 'staff').length > 0 && (
+      {data.followUps && data.followUps.filter(f => 
+        f.sentBy === 'staff' &&
+        !f.message?.includes('automatically assigned to') &&
+        !f.message?.includes('Request marked as Resolved') &&
+        !f.message?.toLowerCase().includes('request rejected by') &&
+        !f.message?.toLowerCase().includes('reassigned from') &&
+        !f.message?.toLowerCase().includes('rerouted from') &&
+        !f.message?.toLowerCase().includes('claimed and taken over') &&
+        !f.message?.toLowerCase().includes('taken over by') &&
+        !f.message?.toLowerCase().includes('workload rebalanced') &&
+        f.type !== 'takeover' &&
+        f.type !== 'reassigned' &&
+        f.type !== 'reassign_staff'
+      ).length > 0 && (
         <div className="guest-replies-section">
           <h3 className="section-title-guest">Official Office Updates</h3>
-          {data.followUps.filter(f => f.sentBy === 'staff').map((reply, rIdx) => (
+          {data.followUps.filter(f => 
+            f.sentBy === 'staff' &&
+            !f.message?.includes('automatically assigned to') &&
+            !f.message?.includes('Request marked as Resolved') &&
+            !f.message?.toLowerCase().includes('request rejected by') &&
+            !f.message?.toLowerCase().includes('reassigned from') &&
+            !f.message?.toLowerCase().includes('rerouted from') &&
+            !f.message?.toLowerCase().includes('claimed and taken over') &&
+            !f.message?.toLowerCase().includes('taken over by') &&
+            !f.message?.toLowerCase().includes('workload rebalanced') &&
+            f.type !== 'takeover' &&
+            f.type !== 'reassigned' &&
+            f.type !== 'reassign_staff'
+          ).map((reply, rIdx) => (
             <div key={rIdx} className="guest-staff-reply-card">
               <div className="reply-header">
                 <FaUserCircle className="reply-staff-icon" />

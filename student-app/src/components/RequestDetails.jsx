@@ -17,6 +17,7 @@ import { notifyStaffFollowUp } from '../utils/notificationHelper';
 import StatusBadge from './StatusBadge';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
+import { resolveOriginalHandler } from '../utils/ticketHistoryHelper';
 import '../styles/RequestDetails.css';
 
 function RequestDetails({ requestData, onNavigate }) {
@@ -41,11 +42,17 @@ function RequestDetails({ requestData, onNavigate }) {
   const loadRequestDetails = async () => {
     try {
       setLoading(true);
-      const docRef = doc(db, 'requests', requestData.firestoreId);
+      const targetDocId = requestData.firestoreId || requestData.id;
+      const docRef = doc(db, 'requests', targetDocId);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
         const data = docSnap.data();
+        const resolvedOriginal = await resolveOriginalHandler(db, docSnap.id, data);
+        if (resolvedOriginal) {
+          data.firstClaimedBy = resolvedOriginal;
+          data.reassignedFromStaff = resolvedOriginal;
+        }
         const createdDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : null);
         const isValidDate = createdDate instanceof Date && !isNaN(createdDate.getTime());
         setRequest({
@@ -263,10 +270,64 @@ function RequestDetails({ requestData, onNavigate }) {
 
     const status = request.status?.toLowerCase();
     
+    // Determine the initial handler who first claimed/processed this request
+    let initialHandler = request.firstClaimedBy || request.reassignedFromStaff || '';
+
+    // Detect if a takeover occurred
+    let takerName = '';
+    if (request.followUps && Array.isArray(request.followUps)) {
+      for (const f of request.followUps) {
+        if (!f || !f.message || typeof f.message !== 'string') continue;
+        const msg = f.message.toLowerCase();
+        if (msg.includes('claimed and taken over') || msg.includes('taken over by') || f.type === 'takeover') {
+          const match = f.message.match(/(?:claimed and taken over by|taken over by)\s+([^.\r\n]+)/i);
+          if (match && match[1]) {
+            takerName = match[1].trim();
+            break;
+          } else if (f.sentByName) {
+            takerName = f.sentByName.trim();
+            break;
+          }
+        }
+      }
+    }
+    if (!takerName && request.reassignedToStaff && request.claimedBy && request.reassignedToStaff.toLowerCase() === request.claimedBy.toLowerCase() && request.pendingTakeover === false) {
+      takerName = request.claimedBy.trim();
+    }
+
+    if (initialHandler && takerName && initialHandler.toLowerCase() === takerName.toLowerCase()) {
+      initialHandler = '';
+    }
+
+    if (!initialHandler && request.followUps && Array.isArray(request.followUps)) {
+      for (const f of request.followUps) {
+        if (!f || !f.message || typeof f.message !== 'string') continue;
+        const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by/i);
+        if (match && match[1]) {
+          const candidate = match[1].trim();
+          if (!takerName || candidate.toLowerCase() !== takerName.toLowerCase()) {
+            initialHandler = candidate;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!initialHandler && request.reassignedFrom && request.officeHistory) {
+      const candidate = request.officeHistory[request.reassignedFrom]?.handledBy || '';
+      if (candidate && (!takerName || candidate.toLowerCase() !== takerName.toLowerCase())) {
+        initialHandler = candidate;
+      }
+    }
+
+    if (!initialHandler && !takerName) {
+      initialHandler = request.claimedBy || request.assignedTo || '';
+    }
+
     let processingDate = 'Pending';
     let processingDescription = 'Waiting for staff to process';
     
-    if (request.claimedAt && request.claimedBy) {
+    if (request.claimedAt && initialHandler) {
       if (request.claimedAt?.toDate) {
         processingDate = request.claimedAt.toDate().toLocaleDateString('en-US', { 
           month: 'long', 
@@ -276,10 +337,10 @@ function RequestDetails({ requestData, onNavigate }) {
       } else if (typeof request.claimedAt === 'string') {
         processingDate = request.claimedAt;
       }
-      processingDescription = `Being Processed by ${request.claimedBy}`;
+      processingDescription = `Being Processed by ${initialHandler}`;
     } else if (status === 'in process' || status === 'resolved') {
       processingDate = 'In Progress';
-      processingDescription = 'Being processed by staff';
+      processingDescription = initialHandler ? `Being Processed by ${initialHandler}` : 'Being processed by staff';
     }
     
     const timelineItems = [
@@ -323,19 +384,24 @@ function RequestDetails({ requestData, onNavigate }) {
     
     if (request.followUps && Array.isArray(request.followUps)) {
       request.followUps.forEach((f) => {
-        if (f && f.message && typeof f.message === 'string' && f.message.toLowerCase().includes('reassigned from')) {
-          const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
+        if (!f || !f.message || typeof f.message !== 'string') return;
+        const msg = f.message;
+        const msgLower = msg.toLowerCase();
+
+        if (msgLower.includes('reassigned from')) {
+          const match = msg.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
           if (match) {
             let reason = '';
-            const reasonMatch = f.message.match(/Reason:\s*([\s\S]*)$/i);
+            const reasonMatch = msg.match(/Reason:\s*([\s\S]*)$/i);
             if (reasonMatch) reason = reasonMatch[1].trim();
 
             const fromOffice = match[1].trim();
             const toOffice = match[2].trim();
-            const byStaff = match[3].trim();
+            const byStaff = match[3].replace(/\.$/, '').trim();
 
             if (fromOffice && toOffice && fromOffice.toLowerCase() !== toOffice.toLowerCase()) {
               events.push({
+                type: 'reassigned',
                 from: fromOffice,
                 to: toOffice,
                 by: byStaff,
@@ -344,11 +410,24 @@ function RequestDetails({ requestData, onNavigate }) {
               });
             }
           }
+        } else if (msgLower.includes('claimed and taken over') || msgLower.includes('taken over by') || f.type === 'takeover') {
+          const match = msg.match(/(?:claimed and taken over by|taken over by)\s+([^.\r\n]+)/i);
+          const staffName = (match ? match[1].trim() : '') || f.sentByName || request.assignedTo || 'Staff Member';
+          const fromStaff = request.reassignedFromStaff || (request.officeHistory && request.officeHistory[request.office]?.handledBy) || '';
+
+          events.push({
+            type: 'takeover',
+            staffName: staffName,
+            fromStaff: fromStaff && fromStaff.toLowerCase() !== staffName.toLowerCase() ? fromStaff : '',
+            by: staffName,
+            date: f.sentAt ? (f.sentAt.toDate ? f.sentAt.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (typeof f.sentAt === 'string' ? new Date(f.sentAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '')) : ''
+          });
         }
       });
     }
 
-    if (events.length === 0 && request.reassignedFrom) {
+    const hasReassignedEvent = events.some(e => e.type === 'reassigned');
+    if (!hasReassignedEvent && request.reassignedFrom) {
       const currentOffice = request.office || 'Office';
       const fromOffice = request.reassignedFrom;
       const history = request.officeHistory || {};
@@ -359,6 +438,7 @@ function RequestDetails({ requestData, onNavigate }) {
 
       if (originOffice) {
         events.push({
+          type: 'reassigned',
           from: originOffice,
           to: fromOffice,
           by: (history[originOffice] && history[originOffice].handledBy) || '',
@@ -370,6 +450,7 @@ function RequestDetails({ requestData, onNavigate }) {
 
       if (fromOffice.toLowerCase() !== currentOffice.toLowerCase()) {
         events.push({
+          type: 'reassigned',
           from: fromOffice,
           to: currentOffice,
           by: request.reassignedBy || (history[fromOffice] && history[fromOffice].handledBy) || '',
@@ -380,6 +461,7 @@ function RequestDetails({ requestData, onNavigate }) {
       } else {
         const otherOffice = Object.keys(history).find(k => k.toLowerCase() !== currentOffice.toLowerCase()) || 'Other Office';
         events.push({
+          type: 'reassigned',
           from: otherOffice,
           to: currentOffice,
           by: request.reassignedBy || (history[otherOffice] && history[otherOffice].handledBy) || '',
@@ -390,22 +472,34 @@ function RequestDetails({ requestData, onNavigate }) {
       }
     }
 
-    const filteredEvents = events.filter(e => e.from && e.to && e.from.trim().toLowerCase() !== e.to.trim().toLowerCase());
-
-    filteredEvents.forEach((event, idx) => {
-      const isReturn = idx > 0 && event.to === filteredEvents[0].from;
-      timelineItems.push({
-        kind: 'sub',
-        subType: isReturn ? 'returned-to-origin' : 'reassigned',
-        status: isReturn ? 'RETURNED' : 'REASSIGNED',
-        completed: true,
-        active: false,
-        date: event.date,
-        details: [
-          `${event.from} → ${event.to}`,
-          event.by ? `Processed by ${event.by}` : ''
-        ].filter(Boolean)
-      });
+    events.forEach((event, idx) => {
+      if (event.type === 'takeover') {
+        timelineItems.push({
+          kind: 'sub',
+          subType: 'reassigned',
+          status: 'CLAIMED / TAKEN OVER',
+          completed: true,
+          active: false,
+          date: event.date,
+          details: [
+            `Claimed and taken over by ${event.staffName}`
+          ]
+        });
+      } else if (event.from && event.to && event.from.trim().toLowerCase() !== event.to.trim().toLowerCase()) {
+        const isReturn = idx > 0 && event.to === events[0]?.from;
+        timelineItems.push({
+          kind: 'sub',
+          subType: isReturn ? 'returned-to-origin' : 'reassigned',
+          status: isReturn ? 'RETURNED' : 'REASSIGNED',
+          completed: true,
+          active: false,
+          date: event.date,
+          details: [
+            `${event.from} → ${event.to}`,
+            event.by ? `Processed by ${event.by}` : ''
+          ].filter(Boolean)
+        });
+      }
     });
 
     if (status === 'returned' || status === 'for follow up') {
@@ -610,8 +704,15 @@ function RequestDetails({ requestData, onNavigate }) {
               f.sentBy === 'staff' && 
               !f.message?.includes('automatically assigned to') && 
               !f.message?.includes('Request marked as Resolved') &&
+              !f.message?.toLowerCase().includes('request rejected by') &&
               !f.message?.toLowerCase().includes('reassigned from') &&
-              !f.message?.toLowerCase().includes('rerouted from')
+              !f.message?.toLowerCase().includes('rerouted from') &&
+              !f.message?.toLowerCase().includes('claimed and taken over') &&
+              !f.message?.toLowerCase().includes('taken over by') &&
+              !f.message?.toLowerCase().includes('workload rebalanced') &&
+              f.type !== 'takeover' &&
+              f.type !== 'reassigned' &&
+              f.type !== 'reassign_staff'
             ).map((followUp, index) => (
               <div key={`staff-${index}`} className="staff-response">
                 <div className="response-header">

@@ -74,7 +74,8 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
   // Available staff list with active ticket counts for reassignment target selection
   const allStaffForReassign = useMemo(() => {
     return allStaff.map(s => {
-      const staffName = (s.name || '').trim().toLowerCase();
+      const sName = s.name || s.fullName || 'Staff Member';
+      const staffName = sName.trim().toLowerCase();
       const activeCount = allRequests.filter(r => {
         const assigned = (r.assignedTo || r.claimedBy || '').trim().toLowerCase();
         const status = (r.status || '').trim().toLowerCase();
@@ -84,8 +85,9 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
       return {
         id: s.id || s.firestoreId,
         firestoreId: s.firestoreId || s.id,
-        uid: s.uid || s.id || s.firestoreId,
-        name: s.name,
+        uid: s.uid || s.id || s.firestoreId || '',
+        name: sName,
+        fullName: s.fullName || s.name || sName,
         department: s.department || s.office || '',
         office: s.office || s.department || '',
         activeTickets: activeCount
@@ -96,7 +98,8 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
   const handleOpenReassignModal = useCallback((profileOrDiagnostic) => {
     if (!profileOrDiagnostic) return;
     const staffObj = profileOrDiagnostic.staff || profileOrDiagnostic;
-    const staffName = (staffObj.name || '').trim().toLowerCase();
+    const sName = staffObj.name || staffObj.fullName || 'Staff Member';
+    const staffName = sName.trim().toLowerCase();
     const activeCount = allRequests.filter(r => {
       const assigned = (r.assignedTo || r.claimedBy || '').trim().toLowerCase();
       const status = (r.status || '').trim().toLowerCase();
@@ -108,8 +111,9 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
       staffMember: {
         id: staffObj.id || staffObj.firestoreId,
         firestoreId: staffObj.firestoreId || staffObj.id,
-        uid: staffObj.uid || staffObj.id || staffObj.firestoreId,
-        name: staffObj.name,
+        uid: staffObj.uid || staffObj.id || staffObj.firestoreId || '',
+        name: sName,
+        fullName: staffObj.fullName || staffObj.name || sName,
         department: staffObj.department || staffObj.office || '',
         office: staffObj.office || staffObj.department || '',
         activeTickets: activeCount

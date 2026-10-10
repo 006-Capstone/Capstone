@@ -490,7 +490,8 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
       assignedToStaff: staffData.name,
       status: 'In Process',
       claimedAt: new Date(),
-      claimedBy: staffData.name
+      claimedBy: staffData.name,
+      firstClaimedBy: ticket.firstClaimedBy || staffData.name
     };
 
     if (etc) {

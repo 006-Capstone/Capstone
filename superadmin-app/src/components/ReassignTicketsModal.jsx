@@ -13,7 +13,7 @@ import {
   FaCheck,
   FaUserFriends
 } from 'react-icons/fa';
-import { collection, getDocs, doc, updateDoc, addDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, addDoc, serverTimestamp, arrayUnion, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useNotification } from '../context/NotificationContext';
 import '../styles/ReassignTicketsModal.css';
@@ -210,118 +210,149 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
       return;
     }
 
-    const targetUid = targetStaffMember.uid || targetStaffMember.id || targetStaffMember.firestoreId;
-    const targetName = targetStaffMember.name;
-    const fromUid = staffMember.uid || staffMember.id || staffMember.firestoreId;
-    const fromName = staffMember.name;
+    const cleanTargetName = targetStaffMember.name || targetStaffMember.fullName || 'Staff Member';
+    const cleanFromName = staffMember.name || staffMember.fullName || 'Staff Member';
+    const cleanTargetUid = targetStaffMember.uid || targetStaffMember.id || targetStaffMember.firestoreId || '';
+    const cleanFromUid = staffMember.uid || staffMember.id || staffMember.firestoreId || '';
 
     try {
       setReassigning(true);
+      let successCount = 0;
 
       // Update each selected ticket/request
       for (const ticketId of selectedTickets) {
         const ticketDoc = tickets.find(t => t.id === ticketId || t.firestoreId === ticketId);
-        const actualDocId = ticketDoc?.firestoreId || ticketDoc?.id || ticketId;
+        let actualDocId = ticketDoc?.firestoreId || ticketDoc?.id || ticketId;
         const displayRequestId = ticketDoc?.requestId || ticketDoc?.ticketId || actualDocId;
 
         const updatePayload = {
-          assignedTo: targetName,
-          claimedBy: targetName,
-          assignedToStaff: targetName,
-          claimedByUid: targetUid,
-          assignedStaffId: targetUid,
-          reassignedToStaff: targetName,
-          reassignedFromStaff: fromName,
+          reassignedToStaff: cleanTargetName,
+          reassignedToStaffUid: cleanTargetUid,
+          assignedToStaff: cleanTargetName,
+          assignedStaffId: cleanTargetUid,
+          reassignedFromStaff: cleanFromName,
+          reassignedFromStaffUid: cleanFromUid || '',
+          firstClaimedBy: ticketDoc?.firstClaimedBy || cleanFromName,
           reassignedBy: 'Super Administrator',
           reassignedAt: serverTimestamp(),
           reassignReason: 'workload_rebalancing',
           workloadRebalanced: true,
+          pendingTakeover: true,
+          claimedBy: cleanFromName,
+          assignedTo: cleanFromName,
           status: 'In Process',
           updatedAt: serverTimestamp(),
           followUps: arrayUnion({
-            message: `Workload rebalanced: Request reassigned from ${fromName} to ${targetName} by Super Administrator.`,
+            message: `Workload rebalanced: Request reassigned from ${cleanFromName} to ${cleanTargetName} by Super Administrator.`,
             sentBy: 'system',
             sentByName: 'Super Administrator',
             sentAt: new Date().toISOString()
           })
         };
 
+        let updated = false;
         try {
           await updateDoc(doc(db, 'requests', actualDocId), updatePayload);
+          updated = true;
         } catch (errReq) {
-          console.warn('[ReassignTicketsModal] updateDoc requests failed, trying tickets:', errReq);
-          try {
-            await updateDoc(doc(db, 'tickets', actualDocId), updatePayload);
-          } catch (errTick) {
-            console.error('[ReassignTicketsModal] Failed to update ticket document:', errTick);
+          console.warn('[ReassignTicketsModal] updateDoc requests failed by ID, attempting query fallback:', errReq);
+          if (ticketDoc?.requestId) {
+            try {
+              const qSnap = await getDocs(query(collection(db, 'requests'), where('requestId', '==', ticketDoc.requestId)));
+              if (!qSnap.empty) {
+                actualDocId = qSnap.docs[0].id;
+                await updateDoc(doc(db, 'requests', actualDocId), updatePayload);
+                updated = true;
+              }
+            } catch (_) {}
+          }
+          if (!updated) {
+            try {
+              await updateDoc(doc(db, 'tickets', actualDocId), updatePayload);
+              updated = true;
+            } catch (errTick) {
+              console.error('[ReassignTicketsModal] Failed to update ticket document:', actualDocId, errTick);
+            }
           }
         }
 
+        if (updated) {
+          successCount++;
+        }
+
         // Create notification for target staff matching admin-app Notifications.jsx schema
+        if (cleanTargetUid) {
+          try {
+            await addDoc(collection(db, 'notifications'), {
+              recipientId: cleanTargetUid,
+              recipientType: 'staff',
+              userId: cleanTargetUid,
+              userType: 'staff',
+              recipientRole: 'staff',
+              type: 'ticket_rerouted',
+              title: '📋 Request Reassigned to You',
+              message: `Request #${displayRequestId} has been reassigned to you from ${cleanFromName} for workload rebalancing.`,
+              isRead: false,
+              read: false,
+              timestamp: serverTimestamp(),
+              createdAt: serverTimestamp(),
+              priority: 'medium',
+              metadata: {
+                requestId: displayRequestId,
+                firestoreId: actualDocId,
+                fromStaff: cleanFromName,
+                toStaff: cleanTargetName,
+                reason: 'workload_rebalancing'
+              }
+            });
+          } catch (notifErr) {
+            console.warn('[ReassignTicketsModal] Target staff notification warning:', notifErr);
+          }
+        }
+      }
+
+      if (successCount === 0 && selectedTickets.length > 0) {
+        throw new Error('Failed to update requests in the database. Please check Firestore permissions.');
+      }
+
+      // Create notification for original staff matching admin-app Notifications.jsx schema
+      if (cleanFromUid) {
         try {
           await addDoc(collection(db, 'notifications'), {
-            recipientId: targetUid,
+            recipientId: cleanFromUid,
             recipientType: 'staff',
-            userId: targetUid,
+            userId: cleanFromUid,
             userType: 'staff',
             recipientRole: 'staff',
             type: 'ticket_rerouted',
-            title: '📋 Request Reassigned to You',
-            message: `Request #${displayRequestId} has been reassigned to you from ${fromName} for workload rebalancing.`,
+            title: '📋 Requests Reassigned',
+            message: `${successCount} request(s) have been reassigned to ${cleanTargetName} to help balance your workload.`,
             isRead: false,
             read: false,
             timestamp: serverTimestamp(),
             createdAt: serverTimestamp(),
-            priority: 'medium',
+            priority: 'low',
             metadata: {
-              requestId: displayRequestId,
-              firestoreId: actualDocId,
-              fromStaff: fromName,
-              toStaff: targetName,
+              ticketCount: successCount,
+              toStaff: cleanTargetName,
+              fromStaff: cleanFromName,
               reason: 'workload_rebalancing'
             }
           });
-        } catch (notifErr) {
-          console.warn('[ReassignTicketsModal] Target staff notification warning:', notifErr);
+        } catch (notifErr2) {
+          console.warn('[ReassignTicketsModal] Original staff notification warning:', notifErr2);
         }
-      }
-
-      // Create notification for original staff matching admin-app Notifications.jsx schema
-      try {
-        await addDoc(collection(db, 'notifications'), {
-          recipientId: fromUid,
-          recipientType: 'staff',
-          userId: fromUid,
-          userType: 'staff',
-          recipientRole: 'staff',
-          type: 'ticket_rerouted',
-          title: '📋 Requests Reassigned',
-          message: `${selectedTickets.length} request(s) have been reassigned to ${targetName} to help balance your workload.`,
-          isRead: false,
-          read: false,
-          timestamp: serverTimestamp(),
-          createdAt: serverTimestamp(),
-          priority: 'low',
-          metadata: {
-            ticketCount: selectedTickets.length,
-            toStaff: targetName,
-            fromStaff: fromName,
-            reason: 'workload_rebalancing'
-          }
-        });
-      } catch (notifErr2) {
-        console.warn('[ReassignTicketsModal] Original staff notification warning:', notifErr2);
       }
 
       // Log the reassignment for audit history
       try {
         await addDoc(collection(db, 'performance_logs'), {
           action: 'tickets_reassigned',
-          fromStaffId: fromUid,
-          fromStaffName: fromName,
-          toStaffId: targetUid,
-          toStaffName: targetName,
-          ticketCount: selectedTickets.length,
+          fromStaffId: cleanFromUid,
+          fromStaffName: cleanFromName,
+          toStaffId: cleanTargetUid,
+          toStaffName: cleanTargetName,
+          ticketCount: successCount,
           ticketIds: selectedTickets,
           timestamp: serverTimestamp(),
           reason: 'workload_rebalancing',
@@ -334,11 +365,11 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
       if (alertModal) {
         await alertModal({
           title: 'Requests Reassigned',
-          message: `Successfully transferred ${selectedTickets.length} request(s) from ${staffMember.name} to ${targetStaffMember.name}.`,
+          message: `Successfully transferred ${successCount} request(s) from ${cleanFromName} to ${cleanTargetName}.`,
           variant: 'success'
         });
       } else if (toast?.success) {
-        toast.success(`Successfully reassigned ${selectedTickets.length} request(s) to ${targetStaffMember.name}!`);
+        toast.success(`Successfully reassigned ${successCount} request(s) to ${cleanTargetName}!`);
       }
 
       if (typeof onReassignSuccess === 'function') {

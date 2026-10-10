@@ -17,7 +17,7 @@ import {
   FaClock,
   FaExclamationTriangle
 } from 'react-icons/fa';
-import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { 
   notifyStudentStatusChange, 
@@ -28,6 +28,7 @@ import {
 import Notifications from './Notifications';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
+import { resolveOriginalHandler } from '../utils/ticketHistoryHelper';
 import DropdownCalendar from './common/DropdownCalendar';
 import '../styles/TicketDetails.css';
 
@@ -162,6 +163,8 @@ const getFormattedPreviewDate = (year, month, day) => {
   });
 };
 
+const cleanOffice = (str) => (str || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
+
 const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) => {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -226,33 +229,154 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   // Authorization check: whether this request belongs to or was claimed by current staff
   const isOwner = useMemo(() => {
     if (!ticket || !currentStaff) return false;
-    const staffName = (currentStaff.name || '').trim().toLowerCase();
-    const staffUid = currentStaff.uid;
-    if (!staffName && !staffUid) return false;
+
+    // Collect all possible name variants for currently logged-in staff
+    const staffNames = [
+      currentStaff.name,
+      currentStaff.fullName,
+      `${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim(),
+      currentStaff.username,
+      currentStaff.email
+    ].filter(Boolean).map(n => n.trim().toLowerCase());
+
+    const staffUids = [
+      currentStaff.uid,
+      currentStaff.id,
+      currentStaff.firestoreDocId,
+      currentStaff.staffId
+    ].filter(Boolean);
+
+    if (staffNames.length === 0 && staffUids.length === 0) return false;
+
+    // If ticket has been reassigned by SuperAdmin and is pending takeover,
+    // active ownership is suspended until the reassigned staff claims/takes it over!
+    const isSuperAdminReassigned = 
+      ticket.workloadRebalanced === true ||
+      ticket.reassignReason === 'workload_rebalancing' ||
+      ticket.reassignedBy === 'Super Administrator';
+
+    if (ticket.pendingTakeover || isSuperAdminReassigned) {
+      const claimedLower = (ticket.claimedBy || '').trim().toLowerCase();
+      const reassignedLower = (ticket.reassignedToStaff || '').trim().toLowerCase();
+      // If claimedBy does not match reassignedToStaff, takeover has not yet occurred
+      if (claimedLower && reassignedLower && claimedLower !== reassignedLower) {
+        return false;
+      }
+    }
 
     const assigned = (ticket.assignedTo || '').trim().toLowerCase();
     const claimed = (ticket.claimedBy || '').trim().toLowerCase();
     const assignedStaff = (ticket.assignedToStaff || '').trim().toLowerCase();
     const reassignedTo = (ticket.reassignedToStaff || '').trim().toLowerCase();
 
-    const matchesName = Boolean(
-      staffName && (
-        assigned === staffName || 
-        claimed === staffName || 
-        assignedStaff === staffName ||
-        reassignedTo === staffName
-      )
+    const matchesName = staffNames.some(name => 
+      assigned === name || 
+      claimed === name || 
+      assignedStaff === name || 
+      (!ticket.pendingTakeover && reassignedTo === name)
     );
-    const matchesUid = Boolean(
-      staffUid && (
-        ticket.assignedToStaff === staffUid || 
-        ticket.claimedByUid === staffUid ||
-        ticket.assignedStaffId === staffUid
-      )
+
+    const matchesUid = staffUids.some(uid =>
+      ticket.assignedToStaff === uid || 
+      ticket.claimedByUid === uid ||
+      ticket.assignedStaffId === uid
     );
 
     return Boolean(matchesName || matchesUid);
   }, [ticket, currentStaff]);
+
+  // Check if current staff belongs to the same department/office as this request
+  const isSameOffice = useMemo(() => {
+    if (!ticket || !currentStaff) return false;
+    const staffOffice = cleanOffice(department || currentStaff.office || currentStaff.officeId);
+    const ticketOffice = cleanOffice(ticket.office || ticket.department);
+    return Boolean(staffOffice && ticketOffice && staffOffice === ticketOffice);
+  }, [ticket, currentStaff, department]);
+
+  // Helper to normalize strings for comparison (strips punctuation, extra spaces, case)
+  const normalizeIdentity = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  };
+
+  // Strictly determine if the current staff member is authorized to claim/take over this request.
+  // STRICT LIMITATION: ONLY requests reassigned by the SuperAdmin specifically to THIS staff member can be claimed/taken over.
+  const canTakeOver = useMemo(() => {
+    if (!ticket || !currentStaff) return false;
+    if (isOwner) return false;
+    if (!isSameOffice) return false;
+
+    // Must be active (not closed, resolved, rejected, or cancelled)
+    const status = (ticket.status || '').toLowerCase();
+    if (status === 'resolved' || status === 'rejected' || status === 'cancelled') {
+      return false;
+    }
+
+    // 1. MUST have been reassigned by the SuperAdmin
+    const isReassignedBySuperAdmin = 
+      ticket.workloadRebalanced === true ||
+      ticket.reassignReason === 'workload_rebalancing' ||
+      ticket.reassignedBy === 'Super Administrator' ||
+      (ticket.followUps && Array.isArray(ticket.followUps) && ticket.followUps.some(f => 
+        f && f.message && typeof f.message === 'string' &&
+        f.message.toLowerCase().includes('workload rebalanced') &&
+        f.message.toLowerCase().includes('super administrator')
+      ));
+
+    if (!isReassignedBySuperAdmin) {
+      return false;
+    }
+
+    // 2. MUST be reassigned specifically to THIS current staff member
+    const currentStaffNames = [
+      currentStaff.name,
+      currentStaff.fullName,
+      `${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim(),
+      currentStaff.username,
+      currentStaff.email
+    ].filter(Boolean);
+
+    const currentStaffUids = [
+      currentStaff.uid,
+      currentStaff.id,
+      currentStaff.firestoreDocId,
+      currentStaff.staffId
+    ].filter(Boolean);
+
+    const targetNames = [
+      ticket.reassignedToStaff,
+      ticket.reassignedPendingStaff
+    ].filter(Boolean);
+
+    const targetUids = [
+      ticket.reassignedToStaffUid,
+      ticket.reassignedPendingStaffUid
+    ].filter(Boolean);
+
+    // Also parse target from SuperAdmin follow-up message if available
+    if (ticket.followUps && Array.isArray(ticket.followUps)) {
+      ticket.followUps.forEach(f => {
+        if (!f || !f.message || typeof f.message !== 'string') return;
+        const msg = f.message;
+        if (msg.toLowerCase().includes('reassigned from') && msg.toLowerCase().includes('super administrator')) {
+          const match = msg.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by/i);
+          if (match && match[2]) {
+            targetNames.push(match[2].trim());
+          }
+        }
+      });
+    }
+
+    const matchesTargetName = targetNames.some(tName => 
+      currentStaffNames.some(sName => normalizeIdentity(sName) === normalizeIdentity(tName))
+    );
+
+    const matchesTargetUid = targetUids.some(tUid => 
+      currentStaffUids.includes(tUid)
+    );
+
+    return Boolean(matchesTargetName || matchesTargetUid);
+  }, [ticket, currentStaff, isOwner, isSameOffice]);
 
   // Check if the ticket was rerouted and if ETC was already set by the original office
   const isReroutedTicket = useMemo(() => {
@@ -264,8 +388,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       ticket.estimatedCompletionSetAt
     );
   }, [ticket]);
-
-  const cleanOffice = (str) => (str || '').toLowerCase().replace(/\s+(office|department)$/i, '').trim();
 
   // Check if the ticket has been rerouted across offices/departments
   const isTicketRerouted = useMemo(() => {
@@ -485,14 +607,41 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     return () => unsubscribe();
   }, []);
 
+  const [takingOver, setTakingOver] = useState(false);
+
   const loadTicketDetails = async () => {
     try {
       setLoading(true);
-      const docRef = doc(db, 'requests', ticketData.firestoreId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        const data = docSnap.data();  
+      let docSnap = null;
+      const targetDocId = ticketData?.firestoreId || ticketData?.id;
+
+      if (targetDocId) {
+        try {
+          const directRef = doc(db, 'requests', targetDocId);
+          const directSnap = await getDoc(directRef);
+          if (directSnap.exists()) {
+            docSnap = directSnap;
+          }
+        } catch (_) {}
+      }
+
+      if (!docSnap && ticketData?.requestId) {
+        try {
+          const q = query(collection(db, 'requests'), where('requestId', '==', ticketData.requestId), limit(1));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            docSnap = snap.docs[0];
+          }
+        } catch (_) {}
+      }
+
+      if (docSnap && docSnap.exists()) {
+        const data = docSnap.data();
+        const resolvedOriginal = await resolveOriginalHandler(db, docSnap.id, data);
+        if (resolvedOriginal) {
+          data.firstClaimedBy = resolvedOriginal;
+          data.reassignedFromStaff = resolvedOriginal;
+        }
         setTicket({
           ...data,
           firestoreId: docSnap.id
@@ -501,14 +650,106 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         setUrgencyLevel(data.urgencyLevel || 'Normal');
         setEtc(data.etc || '');
         setInternalTargetDate(data.internalTargetDate || '');
+      } else if (ticketData) {
+        const actualDocId = ticketData.firestoreId || ticketData.id;
+        const resolvedOriginal = await resolveOriginalHandler(db, actualDocId, ticketData);
+        if (resolvedOriginal) {
+          ticketData.firstClaimedBy = resolvedOriginal;
+          ticketData.reassignedFromStaff = resolvedOriginal;
+        }
+        setTicket({
+          ...ticketData,
+          firestoreId: actualDocId
+        });
+        setReassignOffice(ticketData.office || '');
+        setUrgencyLevel(ticketData.urgencyLevel || 'Normal');
+        setEtc(ticketData.etc || '');
+        setInternalTargetDate(ticketData.internalTargetDate || '');
       } else {
         showToast('Request not found', 'error');
       }
     } catch (error) {
       console.error('Error loading ticket:', error);
-      showToast('Failed to load request details', 'error');
+      if (ticketData) {
+        setTicket(ticketData);
+      } else {
+        showToast('Failed to load request details', 'error');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTakeOverTicket = async () => {
+    if (!ticket || !currentStaff) return;
+
+    // Strict security check: only allow takeover if reassigned to this staff by the SuperAdmin
+    if (!canTakeOver) {
+      showToast('Permission denied. You can only claim/take over requests that were reassigned to you by the Super Administrator.', 'error');
+      return;
+    }
+
+    const docId = ticket.firestoreId || ticketData?.firestoreId || ticket.id;
+    if (!docId) {
+      showToast('Cannot determine request document ID', 'error');
+      return;
+    }
+
+    try {
+      setTakingOver(true);
+      const staffName = currentStaff.name || currentStaff.fullName || 'Staff Member';
+      const staffUid = currentStaff.uid || currentStaff.id || '';
+      const docRef = doc(db, 'requests', docId);
+
+      let previousClaimer = ticket.firstClaimedBy || ticket.reassignedFromStaff || '';
+      if (!previousClaimer) {
+        previousClaimer = await resolveOriginalHandler(db, docId, ticket);
+      }
+      if (!previousClaimer && ticket.claimedBy && ticket.claimedBy !== staffName) {
+        previousClaimer = ticket.claimedBy;
+      }
+      if (!previousClaimer && ticket.followUps && Array.isArray(ticket.followUps)) {
+        for (const f of ticket.followUps) {
+          if (f && f.message && typeof f.message === 'string' && f.message.toLowerCase().includes('reassigned from')) {
+            const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by/i);
+            if (match && match[1]) {
+              previousClaimer = match[1].trim();
+              break;
+            }
+          }
+        }
+      }
+
+      const updateData = {
+        assignedTo: staffName,
+        claimedBy: staffName,
+        assignedToStaff: staffName,
+        claimedByUid: staffUid,
+        assignedStaffId: staffUid,
+        reassignedToStaff: staffName,
+        reassignedFromStaff: previousClaimer || ticket.reassignedFromStaff || '',
+        firstClaimedBy: previousClaimer || ticket.firstClaimedBy || '',
+        pendingTakeover: false,
+        workloadRebalanced: false,
+        status: 'In Process',
+        updatedAt: serverTimestamp(),
+        followUps: arrayUnion({
+          message: `Request claimed and taken over by ${staffName}.`,
+          sentBy: 'staff',
+          sentByName: staffName,
+          sentAt: new Date().toISOString(),
+          type: 'takeover'
+        })
+      };
+
+      await updateDoc(docRef, updateData);
+      showToast(`You have claimed request #${ticket.requestId || ticket.id || docId}`, 'success');
+      await loadTicketDetails();
+    } catch (err) {
+      console.error('Failed to claim/take over request:', err);
+      showToast('Failed to claim request: ' + err.message, 'error');
+    } finally {
+      setTakingOver(false);
     }
   };
 
@@ -1396,11 +1637,33 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       </div>
 
       {!isOwner && (
-        <div className="ticket-readonly-notice">
-          <FaLock className="readonly-notice-icon" />
-          <div className="readonly-notice-text">
-            <strong>View-Only Mode:</strong> This request is {ticketHandler ? `claimed/managed by ${ticketHandler}` : 'not claimed by you'}. You can view the request details and history, but actions such as resolving, rejecting, replying, and editing completion dates are restricted to the assigned staff member.
+        <div className={`ticket-readonly-notice ${canTakeOver ? 'reassigned-takeover-prompt' : ''}`}>
+          <div className="readonly-notice-left">
+            <FaLock className="readonly-notice-icon" />
+            <div className="readonly-notice-text">
+              {canTakeOver ? (
+                <>
+                  <strong>Reassigned Request:</strong> This request was reassigned to you by the Super Administrator. Please claim and take over the request to begin processing it.
+                </>
+              ) : (
+                <>
+                  <strong>View-Only Mode:</strong> This request is {ticketHandler ? `claimed/managed by ${ticketHandler}` : 'not claimed by you'}. You can view the request details and history, but actions such as resolving, rejecting, replying, and editing completion dates are restricted to the assigned staff member.
+                </>
+              )}
+            </div>
           </div>
+          {canTakeOver && (
+            <button
+              type="button"
+              className="btn-takeover-ticket"
+              onClick={handleTakeOverTicket}
+              disabled={takingOver}
+              title="Claim and take over this reassigned request"
+            >
+              <FaExchangeAlt />
+              <span>{takingOver ? 'Claiming...' : 'Claim / Take Over Request'}</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -1579,11 +1842,27 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
             {/* Threaded Follow-up Messages */}
             {ticket.followUps && ticket.followUps
-              .filter(f => f.sentBy !== 'system' || (!f.message?.includes('reassigned from') && !f.message?.includes('automatically assigned to')))
+              .filter(f => 
+                (f.sentBy !== 'system' || (!f.message?.includes('reassigned from') && !f.message?.includes('automatically assigned to'))) &&
+                !f.message?.toLowerCase().includes('claimed and taken over') &&
+                !f.message?.toLowerCase().includes('taken over by') &&
+                !f.message?.toLowerCase().includes('workload rebalanced') &&
+                f.type !== 'takeover' &&
+                f.type !== 'reassigned' &&
+                f.type !== 'reassign_staff'
+              )
               .length > 0 && (
               <div className="conversation-thread-list">
                 {ticket.followUps
-                  .filter(f => f.sentBy !== 'system' || (!f.message?.includes('reassigned from') && !f.message?.includes('automatically assigned to')))
+                  .filter(f => 
+                    (f.sentBy !== 'system' || (!f.message?.includes('reassigned from') && !f.message?.includes('automatically assigned to'))) &&
+                    !f.message?.toLowerCase().includes('claimed and taken over') &&
+                    !f.message?.toLowerCase().includes('taken over by') &&
+                    !f.message?.toLowerCase().includes('workload rebalanced') &&
+                    f.type !== 'takeover' &&
+                    f.type !== 'reassigned' &&
+                    f.type !== 'reassign_staff'
+                  )
                   .map((followUp, i) => {
                     const isStaff = followUp.sentBy === 'staff';
                     return (
@@ -1753,14 +2032,69 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </div>
 
               {/* Milestone 2: PROCESSING */}
-              <div className={`timeline-step ${ticket.claimedBy ? 'step-complete' : 'step-pending'}`}>
-                <div className={`step-circle ${ticket.claimedBy ? 'complete' : 'pending'}`}>
-                  {ticket.claimedBy ? <FaCheck /> : null}
-                </div>
-                <div className="step-content">
-                  <h4 className="step-status-name">PROCESSING</h4>
-                  {ticket.claimedAt && <p className="step-date-label">{formatDate(ticket.claimedAt)}</p>}
-                  {ticket.claimedBy && <p className="step-sub-desc">Accepted and processed by {ticket.claimedBy}</p>}
+              {(() => {
+                let initialStaffHandler = ticket.firstClaimedBy || ticket.reassignedFromStaff || '';
+
+                // Detect if a takeover occurred
+                let takerName = '';
+                if (ticket.followUps && Array.isArray(ticket.followUps)) {
+                  for (const f of ticket.followUps) {
+                    if (!f || !f.message || typeof f.message !== 'string') continue;
+                    const msg = f.message.toLowerCase();
+                    if (msg.includes('claimed and taken over') || msg.includes('taken over by') || f.type === 'takeover') {
+                      const match = f.message.match(/(?:claimed and taken over by|taken over by)\s+([^.\r\n]+)/i);
+                      if (match && match[1]) {
+                        takerName = match[1].trim();
+                        break;
+                      } else if (f.sentByName) {
+                        takerName = f.sentByName.trim();
+                        break;
+                      }
+                    }
+                  }
+                }
+                if (!takerName && ticket.reassignedToStaff && ticket.claimedBy && ticket.reassignedToStaff.toLowerCase() === ticket.claimedBy.toLowerCase() && ticket.pendingTakeover === false) {
+                  takerName = ticket.claimedBy.trim();
+                }
+
+                if (initialStaffHandler && takerName && initialStaffHandler.toLowerCase() === takerName.toLowerCase()) {
+                  initialStaffHandler = '';
+                }
+
+                if (!initialStaffHandler && ticket.followUps && Array.isArray(ticket.followUps)) {
+                  for (const f of ticket.followUps) {
+                    if (!f || !f.message || typeof f.message !== 'string') continue;
+                    const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by/i);
+                    if (match && match[1]) {
+                      const candidate = match[1].trim();
+                      if (!takerName || candidate.toLowerCase() !== takerName.toLowerCase()) {
+                        initialStaffHandler = candidate;
+                        break;
+                      }
+                    }
+                  }
+                }
+
+                if (!initialStaffHandler && ticket.reassignedFrom && ticket.officeHistory) {
+                  const candidate = ticket.officeHistory[ticket.reassignedFrom]?.handledBy || '';
+                  if (candidate && (!takerName || candidate.toLowerCase() !== takerName.toLowerCase())) {
+                    initialStaffHandler = candidate;
+                  }
+                }
+
+                if (!initialStaffHandler && !takerName) {
+                  initialStaffHandler = ticket.claimedBy || ticket.assignedTo || '';
+                }
+
+                return (
+                  <div className={`timeline-step ${ticket.claimedBy ? 'step-complete' : 'step-pending'}`}>
+                    <div className={`step-circle ${ticket.claimedBy ? 'complete' : 'pending'}`}>
+                      {ticket.claimedBy ? <FaCheck /> : null}
+                    </div>
+                    <div className="step-content">
+                      <h4 className="step-status-name">PROCESSING</h4>
+                      {ticket.claimedAt && <p className="step-date-label">{formatDate(ticket.claimedAt)}</p>}
+                      {initialStaffHandler && <p className="step-sub-desc">Accepted and processed by {initialStaffHandler}</p>}
                   
                   {ticket.etc ? (
                     <button
@@ -1798,6 +2132,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   ) : null}
                 </div>
               </div>
+            );
+          })()}
 
               {/* Milestone Sub-Node: Date Adjusted */}
               {ticket.estimatedCompletionSetAt && (
@@ -1823,22 +2159,27 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               {(() => {
                 const events = [];
                 
-                // 1. Check if followUps has logged reassignment messages
+                // 1. Check if followUps has logged reassignment or takeover messages
                 if (ticket.followUps && Array.isArray(ticket.followUps)) {
                   ticket.followUps.forEach((f) => {
-                    if (f && f.message && typeof f.message === 'string' && f.message.toLowerCase().includes('reassigned from')) {
-                      const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
+                    if (!f || !f.message || typeof f.message !== 'string') return;
+                    const msg = f.message;
+                    const msgLower = msg.toLowerCase();
+
+                    if (msgLower.includes('reassigned from')) {
+                      const match = msg.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
                       if (match) {
                         let reason = '';
-                        const reasonMatch = f.message.match(/Reason:\s*([\s\S]*)$/i);
+                        const reasonMatch = msg.match(/Reason:\s*([\s\S]*)$/i);
                         if (reasonMatch) reason = reasonMatch[1].trim();
 
                         const fromOffice = match[1].trim();
                         const toOffice = match[2].trim();
-                        const byStaff = match[3].trim();
+                        const byStaff = match[3].replace(/\.$/, '').trim();
 
                         if (fromOffice && toOffice && fromOffice.toLowerCase() !== toOffice.toLowerCase()) {
                           events.push({
+                            type: 'reassigned',
                             from: fromOffice,
                             to: toOffice,
                             by: byStaff,
@@ -1847,12 +2188,25 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                           });
                         }
                       }
+                    } else if (msgLower.includes('claimed and taken over') || msgLower.includes('taken over by') || f.type === 'takeover') {
+                      const match = msg.match(/(?:claimed and taken over by|taken over by)\s+([^.\r\n]+)/i);
+                      const staffName = (match ? match[1].trim() : '') || f.sentByName || ticket.assignedTo || 'Staff Member';
+                      const fromStaff = ticket.reassignedFromStaff || (ticket.officeHistory && ticket.officeHistory[ticket.office]?.handledBy) || '';
+
+                      events.push({
+                        type: 'takeover',
+                        staffName: staffName,
+                        fromStaff: fromStaff && fromStaff.toLowerCase() !== staffName.toLowerCase() ? fromStaff : '',
+                        by: staffName,
+                        date: f.sentAt
+                      });
                     }
                   });
                 }
 
                 // 2. If no events parsed from followUps, build from ticket reroute metadata
-                if (events.length === 0 && ticket.reassignedFrom) {
+                const hasReassignedEvent = events.some(e => e.type === 'reassigned');
+                if (!hasReassignedEvent && ticket.reassignedFrom) {
                   const currentOffice = ticket.office || 'Office';
                   const fromOffice = ticket.reassignedFrom;
                   const history = ticket.officeHistory || {};
@@ -1864,6 +2218,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
                   if (originOffice) {
                     events.push({
+                      type: 'reassigned',
                       from: originOffice,
                       to: fromOffice,
                       by: (history[originOffice] && history[originOffice].handledBy) || '',
@@ -1874,6 +2229,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   // Main reassignment leg (From -> To)
                   if (fromOffice.toLowerCase() !== currentOffice.toLowerCase()) {
                     events.push({
+                      type: 'reassigned',
                       from: fromOffice,
                       to: currentOffice,
                       by: ticket.reassignedBy || (history[fromOffice] && history[fromOffice].handledBy) || '',
@@ -1883,6 +2239,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   } else {
                     const otherOffice = Object.keys(history).find(k => k.toLowerCase() !== currentOffice.toLowerCase()) || 'Other Office';
                     events.push({
+                      type: 'reassigned',
                       from: otherOffice,
                       to: currentOffice,
                       by: ticket.reassignedBy || (history[otherOffice] && history[otherOffice].handledBy) || '',
@@ -1892,11 +2249,28 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   }
                 }
 
-                const filteredEvents = events.filter(e => e.from && e.to && e.from.trim().toLowerCase() !== e.to.trim().toLowerCase());
-                if (filteredEvents.length === 0) return null;
+                if (events.length === 0) return null;
 
-                return filteredEvents.map((event, idx) => {
-                  const isReturn = idx > 0 && event.to === filteredEvents[0].from;
+                return events.map((event, idx) => {
+                  if (event.type === 'takeover') {
+                    return (
+                      <div key={`takeover-${idx}`} className="timeline-step step-sub-node step-complete">
+                        <div className="step-circle sub-complete">
+                          <FaCheck />
+                        </div>
+                        <div className="step-content">
+                          <h4 className="step-status-name sub-highlight">CLAIMED / TAKEN OVER</h4>
+                          {event.date && <p className="step-date-label">{formatDate(event.date)}</p>}
+                          <p className="step-sub-desc">
+                            Claimed and taken over by {event.staffName}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (!event.from || !event.to || event.from.trim().toLowerCase() === event.to.trim().toLowerCase()) return null;
+                  const isReturn = idx > 0 && event.to === events[0]?.from;
                   return (
                     <div key={`reassign-${idx}`} className="timeline-step step-sub-node step-complete">
                       <div className="step-circle sub-complete">

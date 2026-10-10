@@ -1729,7 +1729,9 @@
 .ticket-readonly-notice {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
   background-color: #f8fafc;
   border: 1px solid #cbd5e1;
   border-left: 4px solid #64748b;
@@ -1741,6 +1743,14 @@
   line-height: 1.5;
 }
 
+.readonly-notice-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 260px;
+}
+
 .readonly-notice-icon {
   font-size: 16px;
   color: #64748b;
@@ -1749,6 +1759,57 @@
 
 .readonly-notice-text strong {
   color: #0f172a;
+}
+
+.btn-takeover-ticket {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #0f172a;
+  color: #ffffff;
+  border: 1px solid #0f172a;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-takeover-ticket:hover:not(:disabled) {
+  background-color: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-takeover-ticket:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ticket-readonly-notice.reassigned-takeover-prompt {
+  background-color: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.ticket-readonly-notice.reassigned-takeover-prompt .readonly-notice-icon {
+  color: #16a34a;
+}
+
+.ticket-readonly-notice.reassigned-takeover-prompt .readonly-notice-text strong {
+  color: #14532d;
+}
+
+.ticket-readonly-notice.reassigned-takeover-prompt .btn-takeover-ticket {
+  background-color: #15803d;
+  border-color: #15803d;
+}
+
+.ticket-readonly-notice.reassigned-takeover-prompt .btn-takeover-ticket:hover:not(:disabled) {
+  background-color: #166534;
 }
 
 /* Rerouted Request Reminder Callout (Compact Banner) */

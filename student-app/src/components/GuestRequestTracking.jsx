@@ -71,10 +71,11 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
 
     // 2. PROCESSING - Show if status is 'in process' or higher
     if (status === 'in process' || status === 'processing' || status === 'resolved') {
+      const origHandler = requestData.firstClaimedBy || requestData.reassignedFromStaff || requestData.claimedBy;
       timelineItems.push({
         label: 'PROCESSING',
         date: requestData.claimedAt ? formatDate(requestData.claimedAt) : formatDate(requestData.createdAt),
-        description: requestData.claimedBy ? `Being Processed by ${requestData.claimedBy}` : 'Being Processed by Staff',
+        description: origHandler ? `Being Processed by ${origHandler}` : 'Being Processed by Staff',
         completed: true
       });
     }

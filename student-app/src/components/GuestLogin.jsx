@@ -8,6 +8,7 @@ import { validateContent } from '../utils/contentModeration';
 import GuestSubmitted from './GuestSubmitted';
 import GuestRequestStatus from './GuestRequestStatus';
 import { useNotification } from '../context/NotificationContext';
+import { resolveOriginalHandler } from '../utils/ticketHistoryHelper';
 import '../styles/GuestLogin.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -296,6 +297,59 @@ const GuestLogin = () => {
       }
     }
 
+    let initialHandler = docData.firstClaimedBy || docData.reassignedFromStaff || '';
+
+    // Detect if a takeover occurred
+    let takerName = '';
+    if (docData.followUps && Array.isArray(docData.followUps)) {
+      for (const f of docData.followUps) {
+        if (!f || !f.message || typeof f.message !== 'string') continue;
+        const msg = f.message.toLowerCase();
+        if (msg.includes('claimed and taken over') || msg.includes('taken over by') || f.type === 'takeover') {
+          const match = f.message.match(/(?:claimed and taken over by|taken over by)\s+([^.\r\n]+)/i);
+          if (match && match[1]) {
+            takerName = match[1].trim();
+            break;
+          } else if (f.sentByName) {
+            takerName = f.sentByName.trim();
+            break;
+          }
+        }
+      }
+    }
+    if (!takerName && docData.reassignedToStaff && docData.claimedBy && docData.reassignedToStaff.toLowerCase() === docData.claimedBy.toLowerCase() && docData.pendingTakeover === false) {
+      takerName = docData.claimedBy.trim();
+    }
+
+    if (initialHandler && takerName && initialHandler.toLowerCase() === takerName.toLowerCase()) {
+      initialHandler = '';
+    }
+
+    if (!initialHandler && docData.followUps && Array.isArray(docData.followUps)) {
+      for (const f of docData.followUps) {
+        if (!f || !f.message || typeof f.message !== 'string') continue;
+        const match = f.message.match(/reassigned from\s+(.+?)\s+to\s+(.+?)\s+by/i);
+        if (match && match[1]) {
+          const candidate = match[1].trim();
+          if (!takerName || candidate.toLowerCase() !== takerName.toLowerCase()) {
+            initialHandler = candidate;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!initialHandler && docData.reassignedFrom && docData.officeHistory) {
+      const candidate = docData.officeHistory[docData.reassignedFrom]?.handledBy || '';
+      if (candidate && (!takerName || candidate.toLowerCase() !== takerName.toLowerCase())) {
+        initialHandler = candidate;
+      }
+    }
+
+    if (!initialHandler && !takerName) {
+      initialHandler = handler;
+    }
+
     const timeline = [
       {
         status: 'SUBMITTED',
@@ -310,7 +364,7 @@ const GuestLogin = () => {
         active: isInProcess,
         date: toLong(docData.claimedAt || docData.updatedAt),
         description: processingActive
-          ? (handler ? `Being Processed by ${handler}` : 'Being processed by staff')
+          ? (initialHandler ? `Being Processed by ${initialHandler}` : 'Being processed by staff')
           : 'Waiting for staff to process'
       }
     ];
@@ -322,6 +376,23 @@ const GuestLogin = () => {
         active: false,
         date: toLong(docData.reassignedAt || docData.updatedAt),
         description: `Transferred from ${docData.reassignedFrom} to ${docData.office}`
+      });
+    }
+
+    if (docData.followUps && Array.isArray(docData.followUps)) {
+      docData.followUps.forEach((f) => {
+        if (!f || !f.message || typeof f.message !== 'string') return;
+        if (f.message.toLowerCase().includes('claimed and taken over') || f.type === 'takeover') {
+          const match = f.message.match(/(?:claimed and taken over by|taken over by)\s+([^.\r\n]+)/i);
+          const staffName = (match ? match[1].trim() : '') || f.sentByName || handler || 'Staff Member';
+          timeline.push({
+            status: 'CLAIMED / TAKEN OVER',
+            completed: true,
+            active: false,
+            date: toLong(f.sentAt),
+            description: `Claimed and taken over by ${staffName}`
+          });
+        }
       });
     }
 
@@ -387,7 +458,14 @@ const GuestLogin = () => {
         setStatusData(null);
         setTrackNotFound(true);
       } else {
-        setStatusData(buildStatusData(snapshot.docs[0].data(), code));
+        const docSnap = snapshot.docs[0];
+        const data = docSnap.data();
+        const resolvedOriginal = await resolveOriginalHandler(db, docSnap.id, data);
+        if (resolvedOriginal) {
+          data.firstClaimedBy = resolvedOriginal;
+          data.reassignedFromStaff = resolvedOriginal;
+        }
+        setStatusData(buildStatusData(data, code));
       }
     } catch (error) {
       console.error('Error tracking request:', error);
