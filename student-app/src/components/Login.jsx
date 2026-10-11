@@ -607,7 +607,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
                   className="form-input-student"
                   value={studentId}
                   onChange={handleStudentIdChange}
-                  placeholder="Enter your 4-digit student ID"
+                  placeholder="Enter the last 4-digit of your Student ID"
                   maxLength="4"
                   pattern="\d{4}"
                   autoComplete="username"
