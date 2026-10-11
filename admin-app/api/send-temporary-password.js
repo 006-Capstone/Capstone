@@ -80,7 +80,7 @@ module.exports = async function handler(req, res) {
           </div>
 
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.STUDENT_APP_URL || 'http://localhost:3000'}" 
+            <a href="${process.env.STUDENT_APP_URL || 'https://student-portal-one-delta.vercel.app'}" 
                style="display: inline-block; background: #2d5016; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Login Now
             </a>

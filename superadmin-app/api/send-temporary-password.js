@@ -45,8 +45,8 @@ module.exports = async function handler(req, res) {
     });
 
     const loginUrl = isStudent 
-      ? (process.env.STUDENT_APP_URL || process.env.REACT_APP_STUDENT_APP_URL || 'http://localhost:3000')
-      : (process.env.ADMIN_APP_URL || process.env.REACT_APP_ADMIN_APP_URL || 'http://localhost:3001');
+      ? (process.env.STUDENT_APP_URL || process.env.REACT_APP_STUDENT_APP_URL || 'https://student-portal-one-delta.vercel.app')
+      : (process.env.ADMIN_APP_URL || process.env.REACT_APP_ADMIN_APP_URL || 'https://admin-website-ruddy.vercel.app');
 
     const info = await transporter.sendMail({
       from: `Academia De San Jose <${fromEmail}>`,

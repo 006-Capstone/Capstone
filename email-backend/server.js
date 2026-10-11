@@ -153,7 +153,7 @@ app.post('/api/send-credentials', async (req, res) => {
             <strong>Temporary Password:</strong> ${password}
           </div>
           
-          <p>Login at: <a href="http://localhost:3000">http://localhost:3000</a></p>
+          <p>Login at: <a href="https://student-portal-one-delta.vercel.app">https://student-portal-one-delta.vercel.app</a></p>
           
           <div class="notice">
             <strong>Important Security Notice:</strong><br>
@@ -188,7 +188,7 @@ STUDENT CREDENTIALS
 Student ID: ${studentId}
 Temporary Password: ${password}
 
-Login at: http://localhost:3000
+Login at: https://student-portal-one-delta.vercel.app
 
 IMPORTANT SECURITY NOTICE
 - Please change your password after your first login
@@ -402,7 +402,7 @@ app.post('/api/send-temporary-password', async (req, res) => {
                      role === 'admin' ? 'Office Staff' : 
                      'Administrator';
     
-    const loginUrl = role === 'student' ? 'http://localhost:3000' : 'http://localhost:3001';
+    const loginUrl = role === 'student' ? 'https://student-portal-one-delta.vercel.app' : 'https://admin-website-ruddy.vercel.app';
 
     // HTML email content
     const htmlContent = `
