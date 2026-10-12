@@ -252,14 +252,15 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
   // Filtered by department and search
   const filteredProfiles = useMemo(() => {
     return staffMonthlyProfiles.filter(profile => {
-      const dept = (profile.staff.department || '').toLowerCase();
+      let dept = (profile.staff.department || '').toLowerCase();
+      if (dept === 'finance' || dept.includes('finance')) dept = 'accounting';
       if (selectedDept !== 'all' && dept !== selectedDept.toLowerCase()) {
         return false;
       }
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const nameMatches = profile.staff.name.toLowerCase().includes(query);
-        const deptMatches = dept.includes(query);
+        const deptMatches = dept.includes(query) || (dept === 'accounting' && query.includes('finance'));
         if (!nameMatches && !deptMatches) return false;
       }
       return true;
@@ -279,7 +280,8 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
     const counts = { all: staffMonthlyProfiles.length };
     DEPARTMENTS.forEach(d => {
       counts[d.id] = staffMonthlyProfiles.filter(p => {
-        const pDept = (p.staff.department || '').toLowerCase();
+        let pDept = (p.staff.department || '').toLowerCase();
+        if (pDept === 'finance' || pDept.includes('finance')) pDept = 'accounting';
         return pDept === d.id.toLowerCase() || pDept.includes(d.short.toLowerCase());
       }).length;
     });
@@ -296,7 +298,8 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
       }
 
       const staffInDept = filteredProfiles.filter(p => {
-        const pDept = (p.staff.department || '').toLowerCase();
+        let pDept = (p.staff.department || '').toLowerCase();
+        if (pDept === 'finance' || pDept.includes('finance')) pDept = 'accounting';
         return pDept === dept.id.toLowerCase() || pDept.includes(dept.short.toLowerCase());
       });
 
@@ -317,7 +320,8 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
 
     // Handle any staff belonging to non-standard department names
     const otherStaff = filteredProfiles.filter(p => {
-      const pDept = (p.staff.department || '').toLowerCase();
+      let pDept = (p.staff.department || '').toLowerCase();
+      if (pDept === 'finance' || pDept.includes('finance')) pDept = 'accounting';
       return !DEPARTMENTS.some(d => pDept === d.id.toLowerCase() || pDept.includes(d.short.toLowerCase()));
     });
 

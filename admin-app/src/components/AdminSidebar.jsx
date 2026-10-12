@@ -189,7 +189,7 @@ const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile, isOpe
             )}
             <div className="user-info">
               <p className="user-name">{staffName}</p>
-              <span className="user-department">{department} DEPARTMENT</span>
+              <span className="user-department">{((department?.toLowerCase() === 'finance') ? 'Accounting' : (department || 'Staff'))?.toUpperCase()} DEPARTMENT</span>
             </div>
           </div>
           

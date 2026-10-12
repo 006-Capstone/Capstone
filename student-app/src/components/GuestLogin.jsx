@@ -530,7 +530,10 @@ const GuestLogin = () => {
       setSubmitting(true);
       const office = guestOffices.find((o) => o.id === selectedOffice);
       const officeName = office ? office.name : 'Accounting';
-      const prefix = officeName.substring(0, 3).toUpperCase();
+      let prefix = officeName.substring(0, 3).toUpperCase();
+      if (prefix === 'FIN' || officeName.toLowerCase().includes('accounting')) {
+        prefix = 'ACC';
+      }
       const generatedRequestId = `${prefix}-${random3()}-${random3()}-${random3()}`;
 
       // Encode attachments with smart compression for images
@@ -754,7 +757,7 @@ const GuestLogin = () => {
                 className="form-input-guest"
                 value={requestId}
                 onChange={(e) => setRequestId(e.target.value)}
-                placeholder="e.g. #FIN-100-010-001 or FIN-100-010-001"
+                placeholder="e.g. #ACC-100-010-001 or ACC-100-010-001"
               />
             </div>
 

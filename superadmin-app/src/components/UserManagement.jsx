@@ -84,7 +84,7 @@ const UserManagement = () => {
   const [staffMiddleName, setStaffMiddleName] = useState('');
   const [staffSuffix, setStaffSuffix] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
-  const [staffOffice, setStaffOffice] = useState('finance');
+  const [staffOffice, setStaffOffice] = useState('accounting');
   const [staffUsername, setStaffUsername] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [usernameChecking, setUsernameChecking] = useState(false);
@@ -275,7 +275,10 @@ const UserManagement = () => {
       }
 
       // Office filter (staff tab only)
-      if (officeFilter !== 'All' && item.office !== officeFilter) return false;
+      if (officeFilter !== 'All') {
+        const itemOffice = (item.office === 'Finance' || item.office === 'finance') ? 'Accounting' : item.office;
+        if (itemOffice !== officeFilter) return false;
+      }
       // Search — students match by name, student ID or email, staff by name, username, email, or office
       if (!q) return true;
       const searchFields =
@@ -543,9 +546,14 @@ const UserManagement = () => {
               ? formatDisplayName(data.firstName, data.middleName || data.middleInitial, data.lastName, data.suffix)
               : (data.name || data.fullName || data.username || '—');
 
+            const normalizedOffice = (data.office === 'Finance' || data.office === 'finance' || data.office?.toLowerCase?.() === 'finance')
+              ? 'Accounting'
+              : (data.office || '—');
+
             return {
               firestoreId: docSnap.id,
               ...data,
+              office: normalizedOffice,
               name: computedStaffName,
               fullName: computedStaffName,
               createdAt: formattedCreatedAt,
@@ -1059,7 +1067,7 @@ const UserManagement = () => {
     setStaffMiddleName('');
     setStaffSuffix('');
     setStaffEmail('');
-    setStaffOffice('finance');
+    setStaffOffice('accounting');
     setStaffUsername('');
     setGeneratedPassword('');
     setError('');
@@ -1355,8 +1363,12 @@ const UserManagement = () => {
     const computedName = (user.firstName || user.lastName)
       ? formatDisplayName(user.firstName, user.middleName || user.middleInitial, user.lastName, user.suffix)
       : (user.name || user.fullName || user.username || '—');
+    const normalizedOffice = (user.office === 'Finance' || user.office === 'finance' || user.office?.toLowerCase?.() === 'finance')
+      ? 'Accounting'
+      : user.office;
     const formattedUser = { 
       ...user, 
+      office: normalizedOffice,
       name: computedName,
       fullName: computedName,
       userType, 

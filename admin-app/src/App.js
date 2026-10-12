@@ -25,7 +25,8 @@ function App() {
     if (staffData) {
       try {
         const parsed = JSON.parse(staffData);
-        return parsed.office || '';
+        const office = parsed.office || '';
+        return (office.toLowerCase() === 'finance') ? 'Accounting' : office;
       } catch (e) {
         return '';
       }
@@ -54,6 +55,10 @@ function App() {
       const storedData = localStorage.getItem('staffData');
       if (storedData) {
         const data = JSON.parse(storedData);
+        if (data.office?.toLowerCase() === 'finance') {
+          data.office = 'Accounting';
+          localStorage.setItem('staffData', JSON.stringify(data));
+        }
         setStaffData(data);
         setMustChangePassword(data.mustChangePassword === true);
       }
@@ -76,7 +81,8 @@ function App() {
   }, [isSidebarOpen]);
 
   const handleLogin = (department) => {
-    setSelectedDepartment(department);
+    const normalized = (department?.toLowerCase() === 'finance') ? 'Accounting' : department;
+    setSelectedDepartment(normalized);
     setIsLoggedIn(true);
     setActivePage('dashboard'); // Always go to dashboard on login
     localStorage.setItem('adminActivePage', 'dashboard'); // Reset to dashboard

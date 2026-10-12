@@ -47,7 +47,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
   });
 
   const [departmentData, setDepartmentData] = useState([
-    { label: 'FIN', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: 'Accounting Office', officeKey: 'Accounting', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' },
+    { label: 'ACC', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: 'Accounting Office', officeKey: 'Accounting', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' },
     { label: 'REG', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: "Registrar's Office", officeKey: 'Registrar', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' },
     { label: 'LIB', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: 'Library', officeKey: 'Library', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' },
     { label: 'GUI', value: 0, max: 1, percentage: 0, campusSharePct: 0, name: 'Guidance & Counseling', officeKey: 'Guidance', resolvedCount: 0, activeCount: 0, overdueCount: 0, clearanceRate: 100, statusTier: 'neutral', statusLabel: 'No Activity' }
@@ -60,7 +60,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
 
   const computeDepartmentData = (requests) => {
     const allReqs = requests || [];
-    const financeRequests = allReqs.filter(req => req.office === 'Accounting');
+    const financeRequests = allReqs.filter(req => req.office === 'Accounting' || req.office === 'Finance');
     const registrarRequests = allReqs.filter(req => req.office === 'Registrar');
     const libraryRequests = allReqs.filter(req => req.office === 'Library');
     const guidanceRequests = allReqs.filter(req => req.office === 'Guidance');
@@ -118,7 +118,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
     };
 
     setDepartmentData([
-      buildDeptStats('FIN', 'Accounting Office', 'Accounting', financeRequests),
+      buildDeptStats('ACC', 'Accounting Office', 'Accounting', financeRequests),
       buildDeptStats('REG', "Registrar's Office", 'Registrar', registrarRequests),
       buildDeptStats('LIB', 'Library', 'Library', libraryRequests),
       buildDeptStats('GUI', 'Guidance & Counseling', 'Guidance', guidanceRequests)

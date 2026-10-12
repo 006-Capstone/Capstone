@@ -974,7 +974,10 @@ export const calculateStaffMonthlyBehavior = (
     staff: {
       id: staff.id || staff.uid,
       name: staff.name || staff.fullName || 'Staff Member',
-      department: staff.office || staff.department || staff.officeId || 'General',
+      department: (() => {
+        const rawDept = staff.office || staff.department || staff.officeId || 'General';
+        return (rawDept.toLowerCase() === 'finance') ? 'Accounting' : rawDept;
+      })(),
       email: staff.email || '',
       role: staff.role || 'staff'
     },

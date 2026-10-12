@@ -62,9 +62,25 @@ const EditRequestForm = () => {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        const loaded = docSnap.data().offices || defaultOffices;
+        const rawOffices = docSnap.data().offices || defaultOffices;
+        let hasChanges = false;
+        const loaded = rawOffices.map(o => {
+          if (o.name === 'Finance' || o.id === 'finance') {
+            const updated = {
+              ...o,
+              name: 'Accounting',
+              description: o.description?.replace(/Finance|finance/g, 'Accounting') || o.description
+            };
+            if (o.name !== 'Accounting') hasChanges = true;
+            return updated;
+          }
+          return o;
+        });
         console.log('[EditRequestForm] Loaded config from Firestore:', loaded);
         setOffices(loaded);
+        if (hasChanges) {
+          await setDoc(docRef, { offices: loaded }, { merge: true });
+        }
       } else {
         // Initialize with default config
         console.log('[EditRequestForm] No config found, initializing with defaults');

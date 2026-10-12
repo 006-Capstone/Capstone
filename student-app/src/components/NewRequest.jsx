@@ -127,7 +127,14 @@ function NewRequest({ onNavigate }) {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        setOffices(docSnap.data().offices || defaultOffices);
+        const rawOffices = docSnap.data().offices || defaultOffices;
+        const normalized = rawOffices.map(o => {
+          if (o.name === 'Finance' || o.id === 'finance') {
+            return { ...o, name: 'Accounting' };
+          }
+          return o;
+        });
+        setOffices(normalized);
       } else {
         setOffices(defaultOffices);
       }
@@ -140,8 +147,11 @@ function NewRequest({ onNavigate }) {
   };
 
   const generateRequestId = (officeName) => {
-    // Generate format: FIN-123-654-789
-    const officePrefix = officeName.substring(0, 3).toUpperCase();
+    // Generate format: ACC-123-654-789
+    let officePrefix = officeName.substring(0, 3).toUpperCase();
+    if (officePrefix === 'FIN' || officeName.toLowerCase().includes('accounting')) {
+      officePrefix = 'ACC';
+    }
     const randomNum1 = Math.floor(100 + Math.random() * 900); // 3 digits
     const randomNum2 = Math.floor(100 + Math.random() * 900); // 3 digits
     const randomNum3 = Math.floor(100 + Math.random() * 900); // 3 digits

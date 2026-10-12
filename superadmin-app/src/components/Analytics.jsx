@@ -466,7 +466,7 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
     const totalAllRequests = requests.length;
 
     return departments.map(d => {
-      const deptRequests = requests.filter(r => r.office === d.name);
+      const deptRequests = requests.filter(r => r.office === d.name || (d.name === 'Accounting' && (r.office === 'Finance' || r.office === 'finance')));
       const totalTickets = deptRequests.length;
       
       const pendingCount = deptRequests.filter(r => r.status === 'Pending').length;
@@ -510,6 +510,9 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
       const officeStaffList = (staffRef.current || []).filter(s => {
         const officeId = String(s.officeId || '').toLowerCase();
         const officeName = String(s.office || '').toLowerCase();
+        if (d.id === 'finance') {
+          return officeId === 'finance' || officeId === 'accounting' || officeName.includes('finance') || officeName.includes('accounting');
+        }
         return officeId === d.id || officeName.includes(d.id);
       });
 
@@ -570,6 +573,9 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
       const deptFeedbacks = feedbacksRef.current.filter(f => {
         const officeId = String(f.officeId || '').toLowerCase();
         const officeName = String(f.office || f.officeName || '').toLowerCase();
+        if (d.id === 'finance') {
+          return officeId === 'finance' || officeId === 'accounting' || officeName.includes('finance') || officeName.includes('accounting');
+        }
         return officeId === d.id || officeName.includes(d.id);
       });
 

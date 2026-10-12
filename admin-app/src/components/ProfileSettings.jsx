@@ -265,8 +265,8 @@ function ProfileSettings({ onClose }) {
           middleInitial: data.middleInitial || (data.middleName ? data.middleName.charAt(0).toUpperCase() : ''),
           suffix: data.suffix || '',
           position: data.position || '',
-          office: data.office || '',
-          officeId: data.officeId || '',
+          office: (data.office?.toLowerCase() === 'finance') ? 'Accounting' : (data.office || ''),
+          officeId: (data.officeId?.toLowerCase() === 'finance') ? 'accounting' : (data.officeId || ''),
           username: data.username || '',
           staffId: data.staffId || '',
           email: data.email || '',
@@ -352,12 +352,17 @@ function ProfileSettings({ onClose }) {
         (profileData.suffix || '').trim()
       ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
+      const normalizedOffice = (profileData.office?.toLowerCase() === 'finance' || staffData.office?.toLowerCase() === 'finance') ? 'Accounting' : (profileData.office || staffData.office);
+      const normalizedOfficeId = (profileData.officeId?.toLowerCase() === 'finance' || staffData.officeId?.toLowerCase() === 'finance') ? 'accounting' : (profileData.officeId || staffData.officeId);
+
       const updateData = {
         lastName: (profileData.lastName || '').trim(),
         firstName: (profileData.firstName || '').trim(),
         middleName: (profileData.middleName || '').trim(),
         middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
         suffix: (profileData.suffix || '').trim(),
+        office: normalizedOffice,
+        officeId: normalizedOfficeId,
         name: fullNameValue,
         fullName: fullNameValue,
         profilePicture: profilePictureURL,
@@ -370,6 +375,8 @@ function ProfileSettings({ onClose }) {
       const updatedStaffData = {
         ...staffData,
         ...profileData,
+        office: normalizedOffice,
+        officeId: normalizedOfficeId,
         middleName: (profileData.middleName || '').trim(),
         middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
         profilePicture: profilePictureURL,

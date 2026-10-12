@@ -43,7 +43,11 @@ export const useOfficeTickets = (department) => {
     const deptLower = deptStr.toLowerCase();
     const deptTitle = deptLower.charAt(0).toUpperCase() + deptLower.slice(1);
     const deptUpper = deptStr.toUpperCase();
-    const deptVariations = Array.from(new Set([deptStr, deptTitle, deptUpper, deptLower])).filter(Boolean);
+    const baseVariations = [deptStr, deptTitle, deptUpper, deptLower];
+    if (deptLower === 'accounting' || deptLower === 'finance') {
+      baseVariations.push('Accounting', 'accounting', 'Finance', 'finance');
+    }
+    const deptVariations = Array.from(new Set(baseVariations)).filter(Boolean);
 
     const q = deptVariations.length > 1
       ? query(collection(db, 'requests'), where('office', 'in', deptVariations))

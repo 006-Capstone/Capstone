@@ -9,7 +9,7 @@ import { decryptCredentials } from '../utils/qrEncryption';
 import '../styles/Login.css';
 
 const Login = ({ onLogin, onForgotPassword }) => {
-  const [selectedDepartment, setSelectedDepartment] = useState('finance');
+  const [selectedDepartment, setSelectedDepartment] = useState('accounting');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,7 +20,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
   const [scanningStatus, setScanningStatus] = useState('initializing');
 
   const departments = [
-    { id: 'finance', name: 'Accounting', icon: FaDollarSign },
+    { id: 'accounting', name: 'Accounting', icon: FaDollarSign },
     { id: 'library', name: 'Library', icon: FaBook },
     { id: 'guidance', name: 'Guidance', icon: FaUsers },
     { id: 'registrar', name: 'Registrar', icon: FaClipboardList }
@@ -46,28 +46,44 @@ const Login = ({ onLogin, onForgotPassword }) => {
     
     try {
       // First, find the staff member by username and office
-      let staffQuery = query(
-        collection(db, 'staff'),
-        where('username', '==', username.trim()),
-        where('officeId', '==', selectedDepartment)
-      );
-      
-      let querySnapshot = await getDocs(staffQuery);
-      
+      const deptIds = (selectedDepartment === 'accounting' || selectedDepartment === 'finance')
+        ? ['accounting', 'finance']
+        : [selectedDepartment];
+      const deptNames = (selectedDepartment === 'accounting' || selectedDepartment === 'finance')
+        ? ['Accounting', 'Finance']
+        : [departments.find(d => d.id === selectedDepartment)?.name].filter(Boolean);
+
+      let querySnapshot = null;
+      for (const dId of deptIds) {
+        const q = query(
+          collection(db, 'staff'),
+          where('username', '==', username.trim()),
+          where('officeId', '==', dId)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          querySnapshot = snap;
+          break;
+        }
+      }
+
       // Fallback: search by office name if officeId was not matched
-      if (querySnapshot.empty) {
-        const dept = departments.find(d => d.id === selectedDepartment);
-        if (dept) {
-          staffQuery = query(
+      if (!querySnapshot || querySnapshot.empty) {
+        for (const dName of deptNames) {
+          const q = query(
             collection(db, 'staff'),
             where('username', '==', username.trim()),
-            where('office', '==', dept.name)
+            where('office', '==', dName)
           );
-          querySnapshot = await getDocs(staffQuery);
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            querySnapshot = snap;
+            break;
+          }
         }
       }
       
-      if (querySnapshot.empty) {
+      if (!querySnapshot || querySnapshot.empty) {
         setError('Invalid username or office. Please check your credentials.');
         setLoading(false);
         return;
@@ -86,6 +102,10 @@ const Login = ({ onLogin, onForgotPassword }) => {
       // Authenticate with Firebase using email and password
       await signInWithEmailAndPassword(auth, staffData.email, password);
 
+      const rawOffice = staffData.office;
+      const normalizedOffice = (rawOffice?.toLowerCase() === 'finance') ? 'Accounting' : (rawOffice || 'Accounting');
+      const normalizedOfficeId = (staffData.officeId === 'finance' || staffData.officeId === 'accounting') ? 'accounting' : (staffData.officeId || 'accounting');
+
       // Store staff info in localStorage
       const staffInfo = {
         name: staffData.name,
@@ -94,8 +114,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
         lastName: staffData.lastName || '',
         email: staffData.email,
         username: staffData.username,
-        office: staffData.office,
-        officeId: staffData.officeId,
+        office: normalizedOffice,
+        officeId: normalizedOfficeId,
         position: staffData.position || '',
         staffId: staffData.staffId || '',
         phoneNumber: staffData.phoneNumber || '',
@@ -108,7 +128,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
       localStorage.setItem('staffData', JSON.stringify(staffInfo));
       
       console.log('[Success] Staff logged in:', staffData.name);
-      onLogin(staffData.office);
+      onLogin(normalizedOffice);
       
     } catch (error) {
       console.error('[Error] Login error:', error);
