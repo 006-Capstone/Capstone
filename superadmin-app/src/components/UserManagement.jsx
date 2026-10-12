@@ -1307,15 +1307,56 @@ const UserManagement = () => {
     handleOpenUserProfile(user, userType);
   };
 
-  // Open User Profile Modal
+  const formatMemberSince = (val) => {
+    if (!val) return 'N/A';
+    if (typeof val === 'string') return val;
+    if (typeof val?.toDate === 'function') {
+      try {
+        return val.toDate().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      } catch (_) {}
+    }
+    if (val instanceof Date && !isNaN(val.getTime())) {
+      try {
+        return val.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      } catch (_) {}
+    }
+    if (typeof val?.seconds === 'number') {
+      try {
+        return new Date(val.seconds * 1000).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      } catch (_) {}
+    }
+    return 'N/A';
+  };
+
+  // Open User Profile Subpage
   const handleOpenUserProfile = async (user, userType) => {
-    setSelectedUserProfile({ ...user, userType });
+    const formattedUser = { 
+      ...user, 
+      userType, 
+      createdAt: formatMemberSince(user.createdAt) 
+    };
+    setSelectedUserProfile(formattedUser);
     setShowUserProfileModal(true);
-    setLoadingUserProfile(true);
     setActivitySearchTerm('');
     setActivityCategoryFilter('all');
     setShowFullAuditModal(false);
-    
+    await loadUserActivityLogs(formattedUser, userType);
+  };
+
+  const loadUserActivityLogs = async (user, userType) => {
+    setLoadingUserProfile(true);
     try {
       const rawCompiledLogs = [];
 
@@ -1611,7 +1652,11 @@ const UserManagement = () => {
       }
 
       // Sort chronological descending (latest first)
-      const sortedLogs = uniqueLogs.sort((a, b) => b.timestamp - a.timestamp);
+      const sortedLogs = uniqueLogs.sort((a, b) => {
+        const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp || 0).getTime();
+        const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp || 0).getTime();
+        return timeB - timeA;
+      });
       setUserActivityLogs(sortedLogs);
     } catch (error) {
       console.error('[Error] Failed to load activity logs:', error);
@@ -1636,7 +1681,7 @@ const UserManagement = () => {
 
   const handleResendCredentialEmail = async () => {
     if (!selectedUserProfile || !selectedUserProfile.email) {
-      showToast('No valid email address found for this account.', 'error');
+      showToast('No valid email address found for this account.', 'error', { title: 'Missing Email' });
       return;
     }
 
@@ -1675,7 +1720,9 @@ const UserManagement = () => {
         console.warn('[UserManagement] Could not log activity log for credential email resend:', actErr);
       }
 
-      showToast(`Login setup email successfully sent to ${selectedUserProfile.email}`);
+      showToast(`Login setup email has been successfully sent to ${selectedUserProfile.email}`, 'success', {
+        title: 'Email Sent'
+      });
       await refreshUserProfile();
     } catch (err) {
       console.error('[UserManagement] Error resending credential email:', err);
@@ -1687,7 +1734,7 @@ const UserManagement = () => {
       } else if (err.code === 'auth/too-many-requests') {
         errorMsg = 'Too many email requests sent recently. Please try again in a few minutes.';
       }
-      showToast(errorMsg, 'error');
+      showToast(errorMsg, 'error', { title: 'Email Send Failed' });
     } finally {
       setResendingCredentialsEmail(false);
     }
@@ -1697,27 +1744,31 @@ const UserManagement = () => {
   const refreshUserProfile = async (targetUser = selectedUserProfile) => {
     if (!targetUser) return;
     try {
-      const isStudent = targetUser.userType === 'student' || targetUser.accountType === 'student' || targetUser.studentId;
+      const isStudent = targetUser.userType === 'student' || targetUser.accountType === 'student' || targetUser.studentId || (!targetUser.office && targetUser.id && targetUser.id.length <= 6);
       const collectionName = isStudent ? 'students' : 'staff';
       const docId = targetUser.firestoreId || targetUser.id;
       if (docId) {
         const userDocSnap = await getDoc(doc(db, collectionName, docId));
         if (userDocSnap.exists()) {
+          const docData = userDocSnap.data();
           const freshData = {
+            ...targetUser,
+            ...docData,
             firestoreId: userDocSnap.id,
-            ...userDocSnap.data(),
+            name: docData.name || targetUser.name || `${docData.firstName || ''} ${docData.lastName || ''}`.trim() || '—',
+            createdAt: formatMemberSince(docData.createdAt || targetUser.createdAt),
             userType: targetUser.userType || (isStudent ? 'student' : 'staff')
           };
           setSelectedUserProfile(freshData);
-          await handleOpenUserProfile(freshData, freshData.userType);
+          await loadUserActivityLogs(freshData, freshData.userType);
           return;
         }
       }
     } catch (err) {
       console.warn('[UserManagement] Could not re-fetch user document:', err);
     }
-    // Fallback: re-run with current object
-    handleOpenUserProfile(targetUser, targetUser.userType);
+    // Fallback: reload logs for current object
+    await loadUserActivityLogs(targetUser, targetUser.userType);
   };
 
   const formatActivityTimestamp = (ts) => {
@@ -2258,7 +2309,7 @@ const UserManagement = () => {
                   </div>
                   <div className="user-info-content">
                     <label>MEMBER SINCE</label>
-                    <p>{selectedUserProfile.createdAt || 'N/A'}</p>
+                    <p>{formatMemberSince(selectedUserProfile.createdAt)}</p>
                   </div>
                 </div>
               </div>
@@ -2333,16 +2384,6 @@ const UserManagement = () => {
                   <h3 className="profile-overview-title">Account Overview & Insights</h3>
                   <p className="profile-overview-desc">Performance metrics, status overview, and system audit trail.</p>
                 </div>
-                <button
-                  type="button"
-                  className="resend-credentials-btn"
-                  onClick={handleResendCredentialEmail}
-                  disabled={resendingCredentialsEmail || !selectedUserProfile?.email}
-                  title={`Resend account access email to ${selectedUserProfile?.email || 'user'}`}
-                >
-                  <FaEnvelope className="btn-icon-mr" />
-                  {resendingCredentialsEmail ? 'Sending Email...' : 'Resend Login Email'}
-                </button>
               </div>
 
               {/* Stats Cards Grid */}
