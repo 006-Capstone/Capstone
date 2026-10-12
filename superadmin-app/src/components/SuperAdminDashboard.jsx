@@ -438,7 +438,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
                 <div className="stat-icon-container">
                   <FaInbox className="stat-icon" aria-hidden="true" />
                 </div>
-                <span className="stat-label">TOTAL VOLUME</span>
+                <span className="stat-label">TOTAL REQUESTS</span>
               </div>
               <div className="stat-value">{stats.totalRequests.toLocaleString()}</div>
               <div className="stat-subtext">All-time submitted requests</div>
@@ -449,10 +449,10 @@ const SuperAdminDashboard = ({ onNavigate }) => {
                 <div className="stat-icon-container amber">
                   <FaExclamationCircle className="stat-icon" aria-hidden="true" />
                 </div>
-                <span className="stat-label">NEEDS ATTENTION</span>
+                <span className="stat-label">PENDING REQUESTS</span>
               </div>
               <div className="stat-value">{stats.pendingCount.toLocaleString()}</div>
-              <div className="stat-subtext">Pending office initial review</div>
+              <div className="stat-subtext">Unclaimed requests</div>
             </div>
 
             <div className="stat-card">
