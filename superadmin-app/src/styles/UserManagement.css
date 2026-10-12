@@ -1283,6 +1283,63 @@ select.form-input-super option:disabled {
   color: #c2410c;
 }
 
+/* Suspension Duration Selector */
+.suspension-duration-selector {
+  margin-top: 18px;
+  background-color: var(--color-surface-warm, #f8faf8);
+  border: 1px solid var(--color-border-soft, #e2e8f0);
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.suspension-duration-label {
+  display: block;
+  font-size: 13px;
+  color: #1e293b;
+  margin-bottom: 10px;
+}
+
+.suspension-duration-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.duration-pill-btn {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.duration-pill-btn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.duration-pill-btn.selected {
+  background: #c2410c;
+  border-color: #9a3412;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(194, 65, 12, 0.3);
+}
+
+.suspension-duration-hint {
+  margin: 10px 0 0 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+  font-style: italic;
+}
+
 /* Archived status badge next to the name */
 .status-archived {
   margin-left: var(--space-2);

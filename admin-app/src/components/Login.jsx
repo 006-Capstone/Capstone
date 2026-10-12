@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaDollarSign, FaBook, FaUsers, FaClipboardList, FaShieldAlt, FaEye, FaEyeSlash, FaQrcode, FaTimes, FaCheckCircle } from 'react-icons/fa';
 import { signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { Html5Qrcode } from 'html5-qrcode';
 import { decryptCredentials } from '../utils/qrEncryption';
@@ -92,11 +92,31 @@ const Login = ({ onLogin, onForgotPassword }) => {
       const staffDoc = querySnapshot.docs[0];
       const staffData = staffDoc.data();
 
-      // Check if staff is active
+      // Check if staff is active or if suspension duration has expired
       if (staffData.isActive === false) {
-        setError('Your account has been suspended. Please contact the administrator.');
-        setLoading(false);
-        return;
+        const suspendedUntil = staffData.suspendedUntil?.toDate ? staffData.suspendedUntil.toDate() : (staffData.suspendedUntil ? new Date(staffData.suspendedUntil) : null);
+        const now = new Date();
+
+        if (suspendedUntil && !isNaN(suspendedUntil.getTime()) && now >= suspendedUntil) {
+          try {
+            await updateDoc(doc(db, 'staff', staffDoc.id), {
+              isActive: true,
+              autoReactivatedAt: serverTimestamp(),
+              suspendedUntil: null
+            });
+            staffData.isActive = true;
+          } catch (autoErr) {
+            console.warn('[Login] Failed to record staff auto-reactivation:', autoErr);
+          }
+        } else {
+          let suspendMsg = 'Your account has been suspended. Please contact the administrator.';
+          if (suspendedUntil && !isNaN(suspendedUntil.getTime())) {
+            suspendMsg = `Your account is temporarily suspended until ${suspendedUntil.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}.`;
+          }
+          setError(suspendMsg);
+          setLoading(false);
+          return;
+        }
       }
 
       // Authenticate with Firebase using email and password
@@ -350,11 +370,31 @@ const Login = ({ onLogin, onForgotPassword }) => {
       console.log('[Success] Staff found:', staffData);
 
       if (staffData.isActive === false) {
-        console.error('[Error] Account suspended');
-        setScanningStatus('error');
-        setError('Your account has been suspended. Please contact the administrator.');
-        setLoading(false);
-        return;
+        const suspendedUntil = staffData.suspendedUntil?.toDate ? staffData.suspendedUntil.toDate() : (staffData.suspendedUntil ? new Date(staffData.suspendedUntil) : null);
+        const now = new Date();
+
+        if (suspendedUntil && !isNaN(suspendedUntil.getTime()) && now >= suspendedUntil) {
+          try {
+            await updateDoc(doc(db, 'staff', staffDoc.id), {
+              isActive: true,
+              autoReactivatedAt: serverTimestamp(),
+              suspendedUntil: null
+            });
+            staffData.isActive = true;
+          } catch (autoErr) {
+            console.warn('[Login] Failed to record staff auto-reactivation in QR login:', autoErr);
+          }
+        } else {
+          console.error('[Error] Account suspended');
+          setScanningStatus('error');
+          let suspendMsg = 'Your account has been suspended. Please contact the administrator.';
+          if (suspendedUntil && !isNaN(suspendedUntil.getTime())) {
+            suspendMsg = `Your account is temporarily suspended until ${suspendedUntil.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}.`;
+          }
+          setError(suspendMsg);
+          setLoading(false);
+          return;
+        }
       }
 
       // Authenticate: Token-based (new passwordless) or Password-based (legacy)

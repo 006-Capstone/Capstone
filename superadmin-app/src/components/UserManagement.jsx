@@ -104,6 +104,7 @@ const UserManagement = () => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [isBulkAction, setIsBulkAction] = useState(false);
   const [bulkSuspendTargetState, setBulkSuspendTargetState] = useState(false);
+  const [suspensionDuration, setSuspensionDuration] = useState('indefinite'); // '24h', '3d', '7d', 'indefinite'
 
   // User Profile Modal State
   const [showUserProfileModal, setShowUserProfileModal] = useState(false);
@@ -1300,6 +1301,7 @@ const UserManagement = () => {
   };
 
   const handleSuspendStudent = (student) => {
+    setSuspensionDuration('indefinite');
     setSelectedStudent(student);
     setConfirmAction('suspend');
     setShowConfirmModal(true);
@@ -1958,6 +1960,7 @@ const UserManagement = () => {
 
   const handleModalSuspendAction = () => {
     if (!selectedUserProfile) return;
+    setSuspensionDuration('indefinite');
     const profile = selectedUserProfile;
     if (profile.userType === 'student') {
       setSelectedStudent(profile);
@@ -2008,21 +2011,68 @@ const UserManagement = () => {
         const updatePayload = {
           isActive: newStatus
         };
+        const adminEmail = auth?.currentUser?.email || 'Super Admin';
+
         if (newStatus) {
           updatePayload.reactivatedAt = serverTimestamp();
-          updatePayload.reactivatedBy = auth?.currentUser?.email || 'Super Admin';
+          updatePayload.reactivatedBy = adminEmail;
+          updatePayload.suspendedUntil = null;
+          updatePayload.suspensionDuration = null;
         } else {
           updatePayload.suspendedAt = serverTimestamp();
-          updatePayload.suspendedBy = auth?.currentUser?.email || 'Super Admin';
+          updatePayload.suspendedBy = adminEmail;
+          updatePayload.suspensionDuration = suspensionDuration;
+
+          let untilDate = null;
+          const now = Date.now();
+          if (suspensionDuration === '24h') {
+            untilDate = new Date(now + 24 * 60 * 60 * 1000);
+          } else if (suspensionDuration === '3d') {
+            untilDate = new Date(now + 3 * 24 * 60 * 60 * 1000);
+          } else if (suspensionDuration === '7d') {
+            untilDate = new Date(now + 7 * 24 * 60 * 60 * 1000);
+          }
+          updatePayload.suspendedUntil = untilDate;
         }
+
         await updateDoc(doc(db, collectionName, target.firestoreId), updatePayload);
+
+        // Record detailed activity log
+        try {
+          const durationLabel = suspensionDuration === '24h' ? '24 Hours'
+            : suspensionDuration === '3d' ? '3 Days'
+            : suspensionDuration === '7d' ? '7 Days'
+            : 'Indefinitely';
+
+          const actionTitle = newStatus ? 'Account suspension lifted' : `Account suspended (${durationLabel})`;
+          const actionDetails = newStatus
+            ? `Account access reactivated by ${adminEmail}. Full portal privileges restored.`
+            : `Account suspended ${suspensionDuration === 'indefinite' ? 'indefinitely (manual reactivation required)' : `temporarily for ${durationLabel} (until ${updatePayload.suspendedUntil?.toLocaleString()})`} by ${adminEmail}.`;
+
+          await addDoc(collection(db, 'activityLogs'), {
+            userId: target.uid || target.firestoreId || target.id,
+            userEmail: target.email,
+            action: actionTitle,
+            category: 'security',
+            details: actionDetails,
+            status: newStatus ? 'Active' : 'Suspended',
+            timestamp: serverTimestamp()
+          });
+        } catch (logErr) {
+          console.warn('[UserManagement] Could not add activity log for suspension:', logErr);
+        }
+
         if (selectedUserProfile) {
           setSelectedUserProfile((prev) => (prev ? { ...prev, ...updatePayload } : null));
         }
         
         // Wait a moment for Firestore real-time listeners to update
         await new Promise(resolve => setTimeout(resolve, 500));
-        showToast(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
+        showToast(
+          newStatus 
+            ? 'Account activated successfully!' 
+            : `Account suspended ${suspensionDuration === 'indefinite' ? 'indefinitely' : `for ${suspensionDuration === '24h' ? '24 hours' : suspensionDuration === '3d' ? '3 days' : '7 days'}`}!`
+        );
       } else if (confirmAction === 'delete') {
         // Delete from Firebase Authentication (by UID and/or email)
         const authResult = await deleteAuthUser(target);
@@ -2547,14 +2597,19 @@ const UserManagement = () => {
                     {selectedUserProfile.isArchived 
                       ? 'Archived' 
                       : selectedUserProfile.isActive === false 
-                      ? 'Suspended' 
+                      ? (selectedUserProfile.suspendedUntil ? 'Temp Suspended' : 'Suspended') 
                       : 'Active'}
                   </div>
                   <p className="stat-period">
                     {selectedUserProfile.isArchived 
                       ? 'Moved to school archive' 
                       : selectedUserProfile.isActive === false 
-                      ? 'Account access disabled' 
+                      ? (selectedUserProfile.suspendedUntil 
+                          ? `Until ${(() => {
+                              const d = selectedUserProfile.suspendedUntil?.toDate ? selectedUserProfile.suspendedUntil.toDate() : new Date(selectedUserProfile.suspendedUntil);
+                              return !isNaN(d.getTime()) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'specified date';
+                            })()}` 
+                          : 'Suspended indefinitely') 
                       : selectedUserProfile.restoredAt 
                       ? 'Restored to directory' 
                       : 'Active in directory'}
@@ -3034,6 +3089,50 @@ const UserManagement = () => {
                     </>
                   )}
                 </div>
+
+                {confirmAction === 'suspend' && !isActivatingAccount && (
+                  <div className="suspension-duration-selector">
+                    <label className="suspension-duration-label">
+                      <strong>Suspension Duration:</strong>
+                    </label>
+                    <div className="suspension-duration-options">
+                      <button
+                        type="button"
+                        className={`duration-pill-btn ${suspensionDuration === '24h' ? 'selected' : ''}`}
+                        onClick={() => setSuspensionDuration('24h')}
+                      >
+                        24 Hours
+                      </button>
+                      <button
+                        type="button"
+                        className={`duration-pill-btn ${suspensionDuration === '3d' ? 'selected' : ''}`}
+                        onClick={() => setSuspensionDuration('3d')}
+                      >
+                        3 Days
+                      </button>
+                      <button
+                        type="button"
+                        className={`duration-pill-btn ${suspensionDuration === '7d' ? 'selected' : ''}`}
+                        onClick={() => setSuspensionDuration('7d')}
+                      >
+                        7 Days
+                      </button>
+                      <button
+                        type="button"
+                        className={`duration-pill-btn ${suspensionDuration === 'indefinite' ? 'selected' : ''}`}
+                        onClick={() => setSuspensionDuration('indefinite')}
+                      >
+                        Indefinite
+                      </button>
+                    </div>
+                    <p className="suspension-duration-hint">
+                      {suspensionDuration === '24h' && 'Account will be automatically reactivated after 24 hours.'}
+                      {suspensionDuration === '3d' && 'Account will be automatically reactivated after 3 days.'}
+                      {suspensionDuration === '7d' && 'Account will be automatically reactivated after 7 days.'}
+                      {suspensionDuration === 'indefinite' && 'Account will remain suspended until a superadmin manually activates it.'}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="modal-actions">
                 <button className="cancel-btn-super" onClick={cancelConfirm} disabled={actionLoading}>
@@ -3482,6 +3581,50 @@ const UserManagement = () => {
                 </>
               )}
             </div>
+
+            {confirmAction === 'suspend' && !isActivatingAccount && (
+              <div className="suspension-duration-selector" style={{ marginBottom: '20px' }}>
+                <label className="suspension-duration-label">
+                  <strong>Suspension Duration:</strong>
+                </label>
+                <div className="suspension-duration-options">
+                  <button
+                    type="button"
+                    className={`duration-pill-btn ${suspensionDuration === '24h' ? 'selected' : ''}`}
+                    onClick={() => setSuspensionDuration('24h')}
+                  >
+                    24 Hours
+                  </button>
+                  <button
+                    type="button"
+                    className={`duration-pill-btn ${suspensionDuration === '3d' ? 'selected' : ''}`}
+                    onClick={() => setSuspensionDuration('3d')}
+                  >
+                    3 Days
+                  </button>
+                  <button
+                    type="button"
+                    className={`duration-pill-btn ${suspensionDuration === '7d' ? 'selected' : ''}`}
+                    onClick={() => setSuspensionDuration('7d')}
+                  >
+                    7 Days
+                  </button>
+                  <button
+                    type="button"
+                    className={`duration-pill-btn ${suspensionDuration === 'indefinite' ? 'selected' : ''}`}
+                    onClick={() => setSuspensionDuration('indefinite')}
+                  >
+                    Indefinite
+                  </button>
+                </div>
+                <p className="suspension-duration-hint">
+                  {suspensionDuration === '24h' && 'Account will be automatically reactivated after 24 hours.'}
+                  {suspensionDuration === '3d' && 'Account will be automatically reactivated after 3 days.'}
+                  {suspensionDuration === '7d' && 'Account will be automatically reactivated after 7 days.'}
+                  {suspensionDuration === 'indefinite' && 'Account will remain suspended until a superadmin manually activates it.'}
+                </p>
+              </div>
+            )}
             <div className="modal-actions">
               <button className="cancel-btn-super" onClick={cancelConfirm} disabled={actionLoading}>
                 Cancel
@@ -4188,7 +4331,17 @@ const UserManagement = () => {
                       </div>
                       <div className="table-cell user-name-cell">
                         <span className="user-name-text">{student.name}</span>
-                        {!student.isActive && <span className="status status-suspended">Suspended</span>}
+                        {!student.isActive && (
+                          <span 
+                            className="status status-suspended"
+                            title={student.suspendedUntil ? `Suspended until ${(() => {
+                              const d = student.suspendedUntil?.toDate ? student.suspendedUntil.toDate() : new Date(student.suspendedUntil);
+                              return !isNaN(d.getTime()) ? d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'specified date';
+                            })()}` : 'Suspended indefinitely'}
+                          >
+                            {student.suspendedUntil ? 'Temp Suspended' : 'Suspended'}
+                          </span>
+                        )}
                       </div>
                       <div className="table-cell">
                         {student.email}
@@ -4383,7 +4536,17 @@ const UserManagement = () => {
                       </div>
                       <div className="table-cell user-name-cell">
                         <span className="user-name-text">{staff.name}</span>
-                        {!staff.isActive && <span className="status status-suspended">Suspended</span>}
+                        {!staff.isActive && (
+                          <span 
+                            className="status status-suspended"
+                            title={staff.suspendedUntil ? `Suspended until ${(() => {
+                              const d = staff.suspendedUntil?.toDate ? staff.suspendedUntil.toDate() : new Date(staff.suspendedUntil);
+                              return !isNaN(d.getTime()) ? d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'specified date';
+                            })()}` : 'Suspended indefinitely'}
+                          >
+                            {staff.suspendedUntil ? 'Temp Suspended' : 'Suspended'}
+                          </span>
+                        )}
                       </div>
                       <div className="table-cell">
                         {staff.email}
@@ -4396,6 +4559,7 @@ const UserManagement = () => {
                         <button
                           className={`table-action-btn ${staff.isActive ? 'suspend' : 'activate'}`}
                           onClick={() => {
+                            setSuspensionDuration('indefinite');
                             setSelectedStaff(staff);
                             setConfirmAction('suspend');
                             setShowConfirmModal(true);

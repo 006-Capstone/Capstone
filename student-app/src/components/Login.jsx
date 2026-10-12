@@ -3,7 +3,7 @@ import { FaQrcode, FaUserCircle, FaShieldAlt, FaEye, FaEyeSlash, FaTimes, FaChec
 import { auth, db } from '../firebase';
 import { signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Html5Qrcode } from 'html5-qrcode';
 import { decryptCredentials } from '../utils/qrEncryption';
 import ContactAdmissionsModal from './ContactAdmissionsModal';
@@ -84,11 +84,32 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       console.log('[Data] Raw student data from Firestore:', studentData);
       console.log('📌 Firestore document ID:', firestoreDocId);
 
-      // Check if account is active
+      // Check if account is active or if suspension duration has expired
       if (studentData.isActive === false) {
-        setError('Your account has been suspended. Please contact administration.');
-        setLoading(false);
-        return;
+        const suspendedUntil = studentData.suspendedUntil?.toDate ? studentData.suspendedUntil.toDate() : (studentData.suspendedUntil ? new Date(studentData.suspendedUntil) : null);
+        const now = new Date();
+
+        if (suspendedUntil && !isNaN(suspendedUntil.getTime()) && now >= suspendedUntil) {
+          // Suspension period has elapsed: auto-reactivate account in Firestore
+          try {
+            await updateDoc(doc(db, 'students', firestoreDocId), {
+              isActive: true,
+              autoReactivatedAt: serverTimestamp(),
+              suspendedUntil: null
+            });
+            studentData.isActive = true;
+          } catch (autoErr) {
+            console.warn('[Login] Failed to record auto-reactivation:', autoErr);
+          }
+        } else {
+          let suspendMsg = 'Your account has been suspended. Please contact administration.';
+          if (suspendedUntil && !isNaN(suspendedUntil.getTime())) {
+            suspendMsg = `Your account is temporarily suspended until ${suspendedUntil.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}.`;
+          }
+          setError(suspendMsg);
+          setLoading(false);
+          return;
+        }
       }
 
       // Sign in with Firebase Authentication using email and password
@@ -364,11 +385,31 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       console.log('[Success] Student found:', studentData);
 
       if (studentData.isActive === false) {
-        console.error('[Error] Account suspended');
-        setScanningStatus('error');
-        setError('Your account has been suspended. Please contact the administrator.');
-        setLoading(false);
-        return;
+        const suspendedUntil = studentData.suspendedUntil?.toDate ? studentData.suspendedUntil.toDate() : (studentData.suspendedUntil ? new Date(studentData.suspendedUntil) : null);
+        const now = new Date();
+
+        if (suspendedUntil && !isNaN(suspendedUntil.getTime()) && now >= suspendedUntil) {
+          try {
+            await updateDoc(doc(db, 'students', firestoreDocId), {
+              isActive: true,
+              autoReactivatedAt: serverTimestamp(),
+              suspendedUntil: null
+            });
+            studentData.isActive = true;
+          } catch (autoErr) {
+            console.warn('[Login] Failed to record auto-reactivation in QR login:', autoErr);
+          }
+        } else {
+          console.error('[Error] Account suspended');
+          setScanningStatus('error');
+          let suspendMsg = 'Your account has been suspended. Please contact the administrator.';
+          if (suspendedUntil && !isNaN(suspendedUntil.getTime())) {
+            suspendMsg = `Your account is temporarily suspended until ${suspendedUntil.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}.`;
+          }
+          setError(suspendMsg);
+          setLoading(false);
+          return;
+        }
       }
 
       // Authenticate: Token-based (new passwordless) or Password-based (legacy)
