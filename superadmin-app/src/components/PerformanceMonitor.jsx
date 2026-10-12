@@ -802,7 +802,6 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
                                 <h4 className="pm-staff-name">{profile.staff.name}</h4>
                                 <div className="pm-staff-meta">
                                   <span className="pm-dept-chip">{profile.staff.department}</span>
-                                  <span className="pm-role-chip">{profile.staff.role}</span>
                                 </div>
                               </div>
                             </div>
