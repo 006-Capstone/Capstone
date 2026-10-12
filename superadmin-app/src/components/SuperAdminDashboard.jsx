@@ -441,7 +441,7 @@ const SuperAdminDashboard = ({ onNavigate }) => {
                 <span className="stat-label">TOTAL VOLUME</span>
               </div>
               <div className="stat-value">{stats.totalRequests.toLocaleString()}</div>
-              <div className="stat-subtext">All-time student & staff requests</div>
+              <div className="stat-subtext">All-time submitted requests</div>
             </div>
 
             <div className="stat-card stat-card-pending">
