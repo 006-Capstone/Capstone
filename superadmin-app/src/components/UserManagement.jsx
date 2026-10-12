@@ -1712,34 +1712,92 @@ const UserManagement = () => {
       return;
     }
 
+    const isPendingFirstLogin = selectedUserProfile.mustChangePassword === true;
+    if (!isPendingFirstLogin) {
+      showToast('This user has already signed in and set their personal password. Please use "Change Password" to send a reset link.', 'info', { title: 'Password Already Set' });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to regenerate and email a new temporary password to ${selectedUserProfile.name} (${selectedUserProfile.email})?\n\nThis will assign a new temporary password and require them to change it on their next login.`
+    );
+    if (!confirmed) return;
+
     setResendingCredentialsEmail(true);
     try {
-      await sendPasswordResetEmail(auth, selectedUserProfile.email);
-
+      const newTempPassword = generatePassword();
       const isStudent = selectedUserProfile.userType === 'student' || selectedUserProfile.accountType === 'student' || selectedUserProfile.studentId || (!selectedUserProfile.office && selectedUserProfile.id && selectedUserProfile.id.length <= 6);
       const targetCollection = isStudent ? 'students' : 'staff';
       const docId = selectedUserProfile.firestoreId || selectedUserProfile.id;
       const adminEmail = auth?.currentUser?.email || 'Super Admin';
 
+      const studentPortalUrl = process.env.VITE_STUDENT_APP_URL || process.env.REACT_APP_STUDENT_APP_URL;
+      const apiUrl = studentPortalUrl 
+        ? `${studentPortalUrl.replace(/\/$/, '')}/api/reset-temporary-password`
+        : (process.env.NODE_ENV === 'production' 
+            ? '/api/reset-temporary-password' 
+            : 'http://localhost:5000/api/reset-temporary-password');
+
+      const payload = {
+        email: selectedUserProfile.email.trim(),
+        userName: selectedUserProfile.name || selectedUserProfile.fullName || 'User',
+        temporaryPassword: newTempPassword,
+        role: isStudent ? 'student' : (selectedUserProfile.role || 'admin'),
+        studentId: selectedUserProfile.id || selectedUserProfile.studentId || '',
+        id: selectedUserProfile.id || '',
+        username: selectedUserProfile.username || '',
+        staffUsername: selectedUserProfile.username || '',
+        office: selectedUserProfile.office || '',
+        uid: selectedUserProfile.uid || selectedUserProfile.firestoreId || docId,
+        docId: docId,
+        adminEmail
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        let errorMsg = `Server error ${response.status}`;
+        try {
+          const errData = await response.json();
+          errorMsg = errData.error || errData.message || errorMsg;
+        } catch {
+          const text = await response.text();
+          if (text) errorMsg = text.slice(0, 120);
+        }
+        throw new Error(errorMsg);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send temporary password email');
+      }
+
+      // Ensure client Firestore doc is synchronized with mustChangePassword: true
       if (docId) {
         try {
           await updateDoc(doc(db, targetCollection, docId), {
+            mustChangePassword: true,
             passwordResetAt: serverTimestamp(),
             lastPasswordResetAt: serverTimestamp(),
             passwordResetBy: adminEmail
           });
         } catch (docErr) {
-          console.warn('[UserManagement] Could not record passwordResetAt on user document:', docErr);
+          console.warn('[UserManagement] Could not record mustChangePassword update on user document:', docErr);
         }
       }
 
+      // Add to activityLogs
       try {
         await addDoc(collection(db, 'activityLogs'), {
           userId: selectedUserProfile.uid || selectedUserProfile.firestoreId || docId,
           userEmail: selectedUserProfile.email,
-          action: 'Login credential email re-dispatched',
+          action: 'Temporary login credentials re-issued',
           category: 'security',
-          details: `Account setup and login access link re-sent to ${selectedUserProfile.email} by ${adminEmail}`,
+          details: `New temporary password generated and emailed to ${selectedUserProfile.email} by ${adminEmail}`,
           status: 'Dispatched',
           timestamp: serverTimestamp()
         });
@@ -1747,21 +1805,14 @@ const UserManagement = () => {
         console.warn('[UserManagement] Could not log activity log for credential email resend:', actErr);
       }
 
-      showToast(`Login setup email has been successfully sent to ${selectedUserProfile.email}`, 'success', {
-        title: 'Email Sent'
+      showToast(`New temporary credentials successfully generated and sent to ${selectedUserProfile.email}`, 'success', {
+        title: 'Credentials Re-issued'
       });
       await refreshUserProfile();
     } catch (err) {
       console.error('[UserManagement] Error resending credential email:', err);
-      let errorMsg = err.message || 'Failed to send login credential email.';
-      if (err.code === 'auth/user-not-found') {
-        errorMsg = 'Account was not found in Authentication service.';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMsg = 'Invalid email address format.';
-      } else if (err.code === 'auth/too-many-requests') {
-        errorMsg = 'Too many email requests sent recently. Please try again in a few minutes.';
-      }
-      showToast(errorMsg, 'error', { title: 'Email Send Failed' });
+      let errorMsg = err.message || 'Failed to send temporary credentials email.';
+      showToast(errorMsg, 'error', { title: 'Credential Dispatch Failed' });
     } finally {
       setResendingCredentialsEmail(false);
     }
@@ -2351,9 +2402,14 @@ const UserManagement = () => {
                 <div className="admin-action-buttons">
                   <button 
                     type="button"
-                    className="admin-action-btn resend-email"
+                    className={`admin-action-btn resend-email ${selectedUserProfile?.mustChangePassword !== true ? 'disabled-action' : ''}`}
                     onClick={handleResendCredentialEmail}
-                    disabled={resendingCredentialsEmail || !selectedUserProfile?.email}
+                    disabled={resendingCredentialsEmail || !selectedUserProfile?.email || selectedUserProfile?.mustChangePassword !== true}
+                    title={
+                      selectedUserProfile?.mustChangePassword !== true
+                        ? 'User has already logged in and established their password. Use "Change Password" to send a reset link.'
+                        : 'Regenerate and email a new temporary password with account ID.'
+                    }
                   >
                     <FaEnvelope /> {resendingCredentialsEmail ? 'Sending Email...' : 'Resend Login Email'}
                   </button>
