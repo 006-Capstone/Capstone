@@ -95,6 +95,15 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       await signInWithEmailAndPassword(auth, studentData.email, password);
       localStorage.removeItem('rememberedStudentId');
 
+      const rawMi = (studentData.middleName || studentData.middleInitial || '').trim().replace(/\./g, '');
+      const formattedMi = rawMi ? `${rawMi.charAt(0).toUpperCase()}.` : '';
+      const fallbackName = [
+        (studentData.firstName || '').trim(),
+        formattedMi,
+        (studentData.lastName || '').trim(),
+        (studentData.suffix || '').trim()
+      ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+
       // Prepare student data for localStorage - handle both new and legacy formats
       const formattedStudentData = {
         firestoreDocId: firestoreDocId, // Store the actual Firestore document ID
@@ -104,9 +113,10 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         firstName: studentData.firstName || studentData.name?.split(' ')[0] || '',
         lastName: studentData.lastName || studentData.name?.split(' ').slice(1).join(' ') || '',
         middleName: studentData.middleName || '',
+        middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
         suffix: studentData.suffix || '',
         email: studentData.email,
-        name: studentData.name || `${studentData.firstName || ''} ${studentData.lastName || ''}`.trim(),
+        name: studentData.name || fallbackName,
         gradeLevel: studentData.gradeLevel || '',
         section: studentData.section || '',
         phoneNumber: studentData.phoneNumber || '',
@@ -421,6 +431,15 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
 
       localStorage.removeItem('rememberedStudentId');
 
+      const rawMi = (studentData.middleName || studentData.middleInitial || '').trim().replace(/\./g, '');
+      const formattedMi = rawMi ? `${rawMi.charAt(0).toUpperCase()}.` : '';
+      const fallbackName = [
+        (studentData.firstName || '').trim(),
+        formattedMi,
+        (studentData.lastName || '').trim(),
+        (studentData.suffix || '').trim()
+      ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+
       // Prepare student data for localStorage
       const formattedStudentData = {
         firestoreDocId: firestoreDocId,
@@ -430,9 +449,10 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         firstName: studentData.firstName || studentData.name?.split(' ')[0] || '',
         lastName: studentData.lastName || studentData.name?.split(' ').slice(1).join(' ') || '',
         middleName: studentData.middleName || '',
+        middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
         suffix: studentData.suffix || '',
         email: studentData.email,
-        name: studentData.name || `${studentData.firstName || ''} ${studentData.lastName || ''}`.trim(),
+        name: studentData.name || fallbackName,
         gradeLevel: studentData.gradeLevel || '',
         section: studentData.section || '',
         phoneNumber: studentData.phoneNumber || '',

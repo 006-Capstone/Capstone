@@ -297,10 +297,11 @@ function ProfileSettings({ onClose }) {
       [name]: value
     }));
 
-    if (name === 'middleName' && value) {
+    if (name === 'middleName') {
+      const trimmed = value ? value.trim().replace(/\./g, '') : '';
       setProfileData(prev => ({
         ...prev,
-        middleInitial: value.charAt(0).toUpperCase()
+        middleInitial: trimmed ? trimmed.charAt(0).toUpperCase() : ''
       }));
     }
   };
@@ -342,19 +343,26 @@ function ProfileSettings({ onClose }) {
         profilePictureURL = await getDownloadURL(storageRef);
       }
 
+      const rawMi = (profileData.middleName || profileData.middleInitial || '').trim().replace(/\./g, '');
+      const formattedMi = rawMi ? `${rawMi.charAt(0).toUpperCase()}.` : '';
+      const fullNameValue = [
+        (profileData.firstName || '').trim(),
+        formattedMi,
+        (profileData.lastName || '').trim(),
+        (profileData.suffix || '').trim()
+      ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+
       const updateData = {
-        lastName: profileData.lastName,
-        firstName: profileData.firstName,
-        middleName: profileData.middleName,
-        middleInitial: profileData.middleInitial,
-        suffix: profileData.suffix,
+        lastName: (profileData.lastName || '').trim(),
+        firstName: (profileData.firstName || '').trim(),
+        middleName: (profileData.middleName || '').trim(),
+        middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
+        suffix: (profileData.suffix || '').trim(),
+        name: fullNameValue,
+        fullName: fullNameValue,
         profilePicture: profilePictureURL,
         updatedAt: new Date().toISOString()
       };
-
-      const fullNameValue = `${profileData.firstName} ${profileData.lastName}`.trim();
-      updateData.name = fullNameValue;
-      updateData.fullName = fullNameValue;
 
       const docRef = doc(db, 'staff', staffData.firestoreDocId);
       await updateDoc(docRef, updateData);
@@ -362,6 +370,8 @@ function ProfileSettings({ onClose }) {
       const updatedStaffData = {
         ...staffData,
         ...profileData,
+        middleName: (profileData.middleName || '').trim(),
+        middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
         profilePicture: profilePictureURL,
         name: fullNameValue,
         fullName: fullNameValue

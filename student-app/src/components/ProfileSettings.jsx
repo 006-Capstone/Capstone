@@ -372,10 +372,11 @@ function ProfileSettings({ onClose }) {
     }));
 
     // Auto-generate middle initial
-    if (name === 'middleName' && value) {
+    if (name === 'middleName') {
+      const trimmed = value ? value.trim().replace(/\./g, '') : '';
       setProfileData(prev => ({
         ...prev,
-        middleInitial: value.charAt(0).toUpperCase()
+        middleInitial: trimmed ? trimmed.charAt(0).toUpperCase() : ''
       }));
     }
   };
@@ -418,16 +419,27 @@ function ProfileSettings({ onClose }) {
         profilePictureURL = await getDownloadURL(storageRef);
       }
 
+      const rawMi = (profileData.middleName || profileData.middleInitial || '').trim().replace(/\./g, '');
+      const formattedMi = rawMi ? `${rawMi.charAt(0).toUpperCase()}.` : '';
+      const fullName = [
+        (profileData.firstName || '').trim(),
+        formattedMi,
+        (profileData.lastName || '').trim(),
+        (profileData.suffix || '').trim()
+      ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+
       // Update Firestore using the correct document ID
       const docRef = doc(db, 'students', studentData.firestoreDocId);
       await updateDoc(docRef, {
-        lastName: profileData.lastName,
-        firstName: profileData.firstName,
-        middleName: profileData.middleName,
-        middleInitial: profileData.middleInitial,
-        suffix: profileData.suffix,
+        lastName: (profileData.lastName || '').trim(),
+        firstName: (profileData.firstName || '').trim(),
+        middleName: (profileData.middleName || '').trim(),
+        middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
+        suffix: (profileData.suffix || '').trim(),
         gradeLevel: profileData.gradeLevel,
         section: profileData.section,
+        name: fullName,
+        fullName: fullName,
         profilePicture: profilePictureURL,
         updatedAt: new Date().toISOString()
       });
@@ -436,6 +448,10 @@ function ProfileSettings({ onClose }) {
       const updatedStudentData = {
         ...studentData,
         ...profileData,
+        middleName: (profileData.middleName || '').trim(),
+        middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
+        name: fullName,
+        fullName: fullName,
         profilePicture: profilePictureURL
       };
       localStorage.setItem('studentData', JSON.stringify(updatedStudentData));

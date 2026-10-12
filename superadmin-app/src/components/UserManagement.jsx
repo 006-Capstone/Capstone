@@ -45,7 +45,7 @@ import NotificationBell from './NotificationBell';
 import Archive from './Archive';
 import { DataTableSkeleton } from './common/Skeleton';
 import ChangePasswordModal from './ChangePasswordModal';
-import ImportUsersModal from './ImportUsersModal';
+import ImportUsersModal, { formatMiddleInitial, formatDisplayName } from './ImportUsersModal';
 import Toast from './Toast';
 import '../styles/UserManagement.css';
 
@@ -539,10 +539,15 @@ const UserManagement = () => {
               console.warn('[Warning] Failed to format staff dates:', err);
             }
 
+            const computedStaffName = (data.firstName || data.lastName)
+              ? formatDisplayName(data.firstName, data.middleName || data.middleInitial, data.lastName, data.suffix)
+              : (data.name || data.fullName || data.username || '—');
+
             return {
               firestoreId: docSnap.id,
               ...data,
-              name: data.name || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.username || '—',
+              name: computedStaffName,
+              fullName: computedStaffName,
               createdAt: formattedCreatedAt,
               archivedAt: formattedArchivedAt,
               archivedBy: data.archivedBy || '—',
@@ -594,10 +599,15 @@ const UserManagement = () => {
               console.warn('[Warning] Failed to format student createdAt:', err);
             }
 
+            const computedStudentName = (data.firstName || data.lastName)
+              ? formatDisplayName(data.firstName, data.middleName || data.middleInitial, data.lastName, data.suffix)
+              : (data.name || data.fullName || '—');
+
             return {
               firestoreId: docSnap.id,
               ...data,
-              name: data.name || `${data.firstName || ''} ${data.lastName || ''}`.trim() || '—',
+              name: computedStudentName,
+              fullName: computedStudentName,
               createdAt: formattedCreatedAt,
               rawCreatedAt: data.createdAt?.toDate ? data.createdAt.toDate().getTime() : (data.createdAt ? new Date(data.createdAt).getTime() : 0)
             };
@@ -903,8 +913,8 @@ const UserManagement = () => {
       } catch (_) {}
 
       // Build full name
-      const middleInitial = studentMiddleName ? studentMiddleName.charAt(0).toUpperCase() + '.' : '';
-      const fullName = `${studentFirstName} ${middleInitial} ${studentLastName}${studentSuffix ? ' ' + studentSuffix : ''}`.replace(/\s+/g, ' ').trim();
+      const rawMiddleInitial = studentMiddleName ? studentMiddleName.trim().replace(/\./g, '').charAt(0).toUpperCase() : '';
+      const fullName = formatDisplayName(studentFirstName, studentMiddleName, studentLastName, studentSuffix);
 
       // Save student data to Firestore
       await addDoc(collection(db, 'students'), {
@@ -913,7 +923,7 @@ const UserManagement = () => {
         firstName: studentFirstName.trim(),
         lastName: studentLastName.trim(),
         middleName: studentMiddleName.trim(),
-        middleInitial: studentMiddleName ? studentMiddleName.charAt(0).toUpperCase() : '',
+        middleInitial: rawMiddleInitial,
         suffix: studentSuffix.trim(),
         gradeLevel: studentGradeLevel.trim(),
         section: studentSection.trim(),
@@ -1163,8 +1173,8 @@ const UserManagement = () => {
       const selectedOffice = offices.find(o => o.id === staffOffice);
 
       // Build full name
-      const middleInitial = staffMiddleName ? staffMiddleName.charAt(0).toUpperCase() + '.' : '';
-      const fullName = `${staffFirstName} ${middleInitial} ${staffLastName}${staffSuffix ? ' ' + staffSuffix : ''}`.replace(/\s+/g, ' ').trim();
+      const rawMiddleInitial = staffMiddleName ? staffMiddleName.trim().replace(/\./g, '').charAt(0).toUpperCase() : '';
+      const fullName = formatDisplayName(staffFirstName, staffMiddleName, staffLastName, staffSuffix);
 
       // Save staff data to Firestore
       await addDoc(collection(db, 'staff'), {
@@ -1172,7 +1182,7 @@ const UserManagement = () => {
         firstName: staffFirstName.trim(),
         lastName: staffLastName.trim(),
         middleName: staffMiddleName.trim(),
-        middleInitial: staffMiddleName ? staffMiddleName.charAt(0).toUpperCase() : '',
+        middleInitial: rawMiddleInitial,
         suffix: staffSuffix.trim(),
         name: fullName,
         fullName: fullName,
@@ -1342,8 +1352,13 @@ const UserManagement = () => {
 
   // Open User Profile Subpage
   const handleOpenUserProfile = async (user, userType) => {
+    const computedName = (user.firstName || user.lastName)
+      ? formatDisplayName(user.firstName, user.middleName || user.middleInitial, user.lastName, user.suffix)
+      : (user.name || user.fullName || user.username || '—');
     const formattedUser = { 
       ...user, 
+      name: computedName,
+      fullName: computedName,
       userType, 
       createdAt: formatMemberSince(user.createdAt) 
     };

@@ -50,6 +50,20 @@ const normalizeRowKeys = (row) => {
   return normalized;
 };
 
+export const formatMiddleInitial = (middleName) => {
+  if (!middleName || typeof middleName !== 'string') return '';
+  const cleaned = middleName.trim().replace(/\./g, '');
+  return cleaned ? `${cleaned.charAt(0).toUpperCase()}.` : '';
+};
+
+export const formatDisplayName = (firstName, middleName, lastName, suffix) => {
+  const f = (firstName || '').trim();
+  const l = (lastName || '').trim();
+  const s = (suffix || '').trim();
+  const mi = formatMiddleInitial(middleName);
+  return [f, mi, l, s].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+};
+
 const ImportUsersModal = ({
   initialType = 'students', // 'students' or 'staff'
   existingStudents = [],
@@ -439,8 +453,8 @@ const ImportUsersModal = ({
             } catch (_) {}
 
             // 2. Build full name
-            const middleInitial = data.middleName ? data.middleName.charAt(0).toUpperCase() + '.' : '';
-            const fullName = `${data.firstName} ${middleInitial} ${data.lastName}${data.suffix ? ' ' + data.suffix : ''}`.replace(/\s+/g, ' ').trim();
+            const rawMiddleInitial = data.middleName ? data.middleName.trim().replace(/\./g, '').charAt(0).toUpperCase() : '';
+            const fullName = formatDisplayName(data.firstName, data.middleName, data.lastName, data.suffix);
 
             // 3. Save to Firestore
             await addDoc(collection(db, 'students'), {
@@ -449,7 +463,7 @@ const ImportUsersModal = ({
               firstName: data.firstName.trim(),
               lastName: data.lastName.trim(),
               middleName: data.middleName.trim(),
-              middleInitial: data.middleName ? data.middleName.charAt(0).toUpperCase() : '',
+              middleInitial: rawMiddleInitial,
               suffix: data.suffix.trim(),
               gradeLevel: data.gradeLevel.trim(),
               section: data.section.trim(),
@@ -485,15 +499,15 @@ const ImportUsersModal = ({
               await signOut(secondaryAuth);
             } catch (_) {}
 
-            const middleInitial = data.middleName ? data.middleName.charAt(0).toUpperCase() + '.' : '';
-            const fullName = `${data.firstName} ${middleInitial} ${data.lastName}${data.suffix ? ' ' + data.suffix : ''}`.replace(/\s+/g, ' ').trim();
+            const rawMiddleInitial = data.middleName ? data.middleName.trim().replace(/\./g, '').charAt(0).toUpperCase() : '';
+            const fullName = formatDisplayName(data.firstName, data.middleName, data.lastName, data.suffix);
 
             await addDoc(collection(db, 'staff'), {
               uid: authUser.uid,
               firstName: data.firstName.trim(),
               lastName: data.lastName.trim(),
               middleName: data.middleName.trim(),
-              middleInitial: data.middleName ? data.middleName.charAt(0).toUpperCase() : '',
+              middleInitial: rawMiddleInitial,
               suffix: data.suffix.trim(),
               name: fullName,
               fullName: fullName,
@@ -872,7 +886,7 @@ const ImportUsersModal = ({
                                     <span className="code-badge">{r.data.id || '—'}</span>
                                   </td>
                                   <td>
-                                    {r.data.firstName} {r.data.lastName}
+                                    {formatDisplayName(r.data.firstName, r.data.middleName, r.data.lastName, r.data.suffix) || `${r.data.firstName} ${r.data.lastName}`}
                                   </td>
                                   <td>
                                     {r.data.gradeLevel} - {r.data.section}
@@ -885,7 +899,7 @@ const ImportUsersModal = ({
                                     <span className="code-badge">{r.data.username || '—'}</span>
                                   </td>
                                   <td>
-                                    {r.data.firstName} {r.data.lastName}
+                                    {formatDisplayName(r.data.firstName, r.data.middleName, r.data.lastName, r.data.suffix) || `${r.data.firstName} ${r.data.lastName}`}
                                   </td>
                                   <td>
                                     <span className="office-badge">{r.data.office || '—'}</span>
