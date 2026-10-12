@@ -8,7 +8,7 @@ import { notifyStudentsNewAnnouncement, notifyStudentsNewDeadline } from '../uti
 import '../styles/BulletinBoard.css';
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-const OFFICES = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
+const OFFICES = ['All Offices', 'Accounting', 'Library', 'Registrar', 'Guidance'];
 const ITEMS_PER_PAGE = 5;
 
 // Featured (semestral) announcement shown in the green hero card

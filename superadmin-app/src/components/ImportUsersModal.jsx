@@ -22,7 +22,7 @@ import { db, getSecondaryAuth } from '../firebase';
 import '../styles/ImportUsersModal.css';
 
 const DEFAULT_OFFICES = [
-  { id: 'finance', name: 'Finance' },
+  { id: 'finance', name: 'Accounting' },
   { id: 'library', name: 'Library' },
   { id: 'guidance', name: 'Guidance' },
   { id: 'registrar', name: 'Registrar' }
@@ -120,7 +120,7 @@ const ImportUsersModal = ({
         'Office'
       ];
       sampleData = [
-        ['Carlos', 'Mendoza', 'Gomez', '', 'carlos.mendoza@example.com', 'cmendoza', 'Finance'],
+        ['Carlos', 'Mendoza', 'Gomez', '', 'carlos.mendoza@example.com', 'cmendoza', 'Accounting'],
         ['Elena', 'Torres', 'Cruz', '', 'elena.torres@example.com', 'etorres', 'Registrar'],
         ['Ramon', 'Bautista', 'Lopez', '', 'ramon.bautista@example.com', 'rbautista', 'Guidance']
       ];

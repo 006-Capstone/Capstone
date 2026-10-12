@@ -282,7 +282,7 @@ const Feedback = ({ department, onViewRequest }) => {
     <div className="feedback-container">
       <div className="feedback-header">
         <div className="feedback-title-group">
-          <h1 className="feedback-title">{department ? `${department.charAt(0).toUpperCase() + department.slice(1)} Feedback` : 'Finance Feedback'}</h1>
+          <h1 className="feedback-title">{department ? `${department.charAt(0).toUpperCase() + department.slice(1)} Feedback` : 'Accounting Feedback'}</h1>
           <p className="feedback-subtitle">What students think about your office's service</p>
         </div>
         <div className="feedback-header-actions">

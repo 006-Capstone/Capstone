@@ -68,10 +68,10 @@ export const generateExecutiveSummary = async (performanceData) => {
   const prompt = `You are an AI performance analyst for Academia de San Jose's ticket management system. Generate exactly 3 concise bullet points summarizing system status.
 
 Institutional Context & Boundaries:
-- The school ONLY has 4 administrative offices: Finance, Guidance, Library, Registrar.
+- The school ONLY has 4 administrative offices: Accounting, Guidance, Library, Registrar.
 - DO NOT invent "IT Support", "IT Helpdesk", "technical support", "portal glitch", or generic corporate IT terms.
-- Real Staff: Registrar (Dorothy Gerolaga); Finance (Jefelah P. Amistoso, Dot g, b s); Library (Ban S).
-- STRICT ISOLATION: Staff belong exclusively to their designated office. NEVER suggest Finance staff (e.g. Jefelah P. Amistoso) to handle Registrar requests or Dorothy's backlog.
+- Real Staff: Registrar (Dorothy Gerolaga); Accounting (Jefelah P. Amistoso, Dot g, b s); Library (Ban S).
+- STRICT ISOLATION: Staff belong exclusively to their designated office. NEVER suggest Accounting staff (e.g. Jefelah P. Amistoso) to handle Registrar requests or Dorothy's backlog.
 
 Current System Status:
 - Overall Health: ${systemHealth?.status || 'normal'} (${systemHealth?.onTrackPercentage || 0}% on-track)
@@ -151,15 +151,15 @@ export const detectAnomalies = async (analyticsData) => {
     staffData
   } = analyticsData;
 
-  const validOffices = ['Finance', 'Guidance', 'Library', 'Registrar'];
+  const validOffices = ['Accounting', 'Guidance', 'Library', 'Registrar'];
 
   const prompt = `You are an AI anomaly detection system for Academia de San Jose's student services ticketing platform. Analyze the following data and identify AT MOST 2-3 significant operational anomalies.
 
 Institutional Context & Boundaries:
-- The school ONLY has 4 administrative offices: Finance, Guidance, Library, Registrar.
+- The school ONLY has 4 administrative offices: Accounting, Guidance, Library, Registrar.
 - DO NOT invent "IT Support", "IT Helpdesk", "technical support", "portal downtime", or generic corporate IT terms.
-- Real Staff: Registrar: Dorothy Gerolaga. Finance: Jefelah P. Amistoso, Dot g, b s. Library: Ban S.
-- STRICT ISOLATION: Staff can only handle work within their own office. NEVER suggest Finance staff (e.g. Jefelah P. Amistoso) for Registrar backlogs. Jefelah is in Finance only.
+- Real Staff: Registrar: Dorothy Gerolaga. Accounting: Jefelah P. Amistoso, Dot g, b s. Library: Ban S.
+- STRICT ISOLATION: Staff can only handle work within their own office. NEVER suggest Accounting staff (e.g. Jefelah P. Amistoso) for Registrar backlogs. Jefelah is in Accounting only.
 
 Current Metrics (Last 7 days):
 - Active Tickets: ${currentMetrics.activeTickets}
@@ -186,7 +186,7 @@ Strict Rules:
 2. Keep text extremely brief and scannable:
    - title: concise title (max 5 words, no emojis)
    - description: exactly 1 crisp sentence (max 18 words, no emojis)
-   - affectedArea: MUST BE strictly either one of the 4 offices (Finance, Guidance, Library, Registrar) or a specific staff member who belongs to that office (max 4 words).
+   - affectedArea: MUST BE strictly either one of the 4 offices (Accounting, Guidance, Library, Registrar) or a specific staff member who belongs to that office (max 4 words).
    - recommendation: immediate action (max 8 words, no emojis)
 3. Do NOT include ANY emojis or symbols.
 
@@ -266,7 +266,7 @@ Format your response as a JSON object:
                   // Cross-department mismatch (e.g. Jefelah in Registrar anomaly)
                   affected = 'Registrar';
                 } else if (/finance|tuition|balance|payment/i.test(`${title} ${desc}`) && staffDept !== 'finance') {
-                  affected = 'Finance';
+                  affected = 'Accounting';
                 } else {
                   affected = matchedStaff.name;
                 }
@@ -274,7 +274,7 @@ Format your response as a JSON object:
                 // Unknown/hallucinated area - detect office from title & description
                 const combined = `${title} ${desc}`.toLowerCase();
                 if (/registrar|transcript|tor|coe|clearance|graduation|diploma/i.test(combined)) affected = 'Registrar';
-                else if (/finance|tuition|balance|payment|receipt/i.test(combined)) affected = 'Finance';
+                else if (/finance|tuition|balance|payment|receipt/i.test(combined)) affected = 'Accounting';
                 else if (/library|book|borrow/i.test(combined)) affected = 'Library';
                 else if (/guidance|counsel|moral/i.test(combined)) affected = 'Guidance';
                 else affected = 'Registrar';
@@ -331,12 +331,12 @@ export const generateSmartRecommendations = async (workloadData) => {
     allStaffDetails
   } = workloadData;
 
-  const validDepartments = ['Finance', 'Guidance', 'Library', 'Registrar'];
+  const validDepartments = ['Accounting', 'Guidance', 'Library', 'Registrar'];
   
   // Build departmental staff roster & lookup map
   const staffByDept = {
     Registrar: [],
-    Finance: [],
+    Accounting: [],
     Library: [],
     Guidance: []
   };
@@ -372,13 +372,13 @@ export const generateSmartRecommendations = async (workloadData) => {
 Analyze the factual data below and provide AT MOST 2-3 genuine, high-impact recommendations.
 
 Context & Institutional Boundaries:
-- The school ONLY has 4 administrative offices: Finance, Guidance, Library, Registrar.
+- The school ONLY has 4 administrative offices: Accounting, Guidance, Library, Registrar.
 - Tickets are student academic/financial services: Transcripts, Certificates of Enrollment, Good Moral, Clearances, Tuition Balances, and Library Clearances.
 - DO NOT invent "IT Support", "IT Helpdesk", "technical support", or generic corporate IT terms like "keyword routing triage". Such departments DO NOT exist in this school.
 
 Departmental Staff Roster:
 - Registrar: ${staffByDept.Registrar.length > 0 ? staffByDept.Registrar.join(', ') : 'Dorothy Gerolaga'}
-- Finance: ${staffByDept.Finance.length > 0 ? staffByDept.Finance.join(', ') : 'None'}
+- Accounting: ${staffByDept.Accounting.length > 0 ? staffByDept.Accounting.join(', ') : 'None'}
 - Library: ${staffByDept.Library.length > 0 ? staffByDept.Library.join(', ') : 'None'}
 - Guidance: ${staffByDept.Guidance.length > 0 ? staffByDept.Guidance.join(', ') : 'None'}
 
@@ -399,8 +399,8 @@ ${Object.entries(departmentCapacity || {}).map(([dept, data]) =>
 
 CRITICAL ANTI-HALLUCINATION & REASSIGNMENT RULES:
 1. STRICT DEPARTMENT ISOLATION: Staff belong EXCLUSIVELY to their designated office.
-   - Finance staff (e.g. Jefelah P. Amistoso, Dot g, b s) CAN NEVER handle Registrar, Library, or Guidance requests or backlogs!
-   - Registrar staff (e.g. Dorothy Gerolaga) CAN NEVER handle Finance, Library, or Guidance requests!
+   - Accounting staff (e.g. Jefelah P. Amistoso, Dot g, b s) CAN NEVER handle Registrar, Library, or Guidance requests or backlogs!
+   - Registrar staff (e.g. Dorothy Gerolaga) CAN NEVER handle Accounting, Library, or Guidance requests!
    - Cross-department ticket reassignment or cross-department task assignment is STRICTLY FORBIDDEN!
 2. If an office (such as Registrar) has only one staff member and they are overloaded, DO NOT attempt to reassign their tickets to another office. Recommend type "hire" (request new staff for that office) or type "process_improvement" (workflow checklist, batch processing) instead.
 3. "affectedStaff": MUST ONLY contain staff who actually belong to the department of that recommendation. If a recommendation applies to the office as a whole, set "affectedStaff": ["<OfficeName>"] (e.g. ["Registrar"]).
@@ -455,7 +455,7 @@ Format as JSON:
       if (!rec) return null;
       const text = `${rec.title || ''} ${rec.description || ''}`.toLowerCase();
       if (/registrar|transcript|tor|coe|enrollment|clearance|diploma|academic record|graduation|records/i.test(text)) return 'Registrar';
-      if (/finance|tuition|balance|payment|receipt|cashier|assessment|fee|billing/i.test(text)) return 'Finance';
+      if (/finance|tuition|balance|payment|receipt|cashier|assessment|fee|billing/i.test(text)) return 'Accounting';
       if (/library|book|borrow|circulation/i.test(text)) return 'Library';
       if (/guidance|counseling|good moral|conduct/i.test(text)) return 'Guidance';
       return null;
@@ -656,10 +656,10 @@ Format as JSON:
       recs = [
         {
           id: "rec-1",
-          title: "Cross-train Finance staff",
+          title: "Cross-train Accounting staff",
           category: "Staff Training",
           priority: "HIGH",
-          description: "Enable Finance officer to process clearance tickets, reducing bottlenecks."
+          description: "Enable Accounting officer to process clearance tickets, reducing bottlenecks."
         }
       ];
     }

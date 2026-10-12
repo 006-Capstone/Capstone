@@ -18,7 +18,7 @@ import '../styles/MyRequest.css';
 // state a student's own request can actually be in (staff can return requests,
 // so Returned / For Follow Up are included too).
 const STATUS_OPTIONS = ['All Status', 'Pending', 'In Process', 'Resolved', 'Cancelled', 'Returned', 'For Follow Up'];
-const OFFICE_OPTIONS = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
+const OFFICE_OPTIONS = ['All Offices', 'Accounting', 'Library', 'Registrar', 'Guidance'];
 const PAGE_SIZE = 10;
 
 function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Status' }) {

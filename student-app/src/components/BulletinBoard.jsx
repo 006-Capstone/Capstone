@@ -23,7 +23,7 @@ function BulletinBoard() {
   const [selectedOffice, setSelectedOffice] = useState('All Offices');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const offices = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
+  const offices = ['All Offices', 'Accounting', 'Library', 'Registrar', 'Guidance'];
 
   // Filter announcements by selected office (check department field - case-insensitive)
   const filteredAnnouncements = selectedOffice === 'All Offices'

@@ -10,7 +10,7 @@ import '../styles/Feedback.css';
 
 // Default office structure - will be populated with real data from Firebase
 const DEFAULT_OFFICES = [
-  { id: 'finance', name: 'Finance', icon: FaMoneyBillWave, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
+  { id: 'finance', name: 'Accounting', icon: FaMoneyBillWave, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
   { id: 'registrar', name: 'Registrar', icon: FaGraduationCap, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
   { id: 'library', name: 'Library', icon: FaBook, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 },
   { id: 'guidance', name: 'Guidance', icon: FaBuilding, rating: 0, responseTime: 0, helpfulness: 0, breakdown: [0, 0, 0, 0, 0], totalFeedback: 0 }
@@ -38,7 +38,7 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
     if (selectedRequest) {
       // Map office name to office ID
       const officeMap = {
-        'Finance': 'finance',
+        'Accounting': 'finance',
         'Library': 'library',
         'Registrar': 'registrar',
         'Guidance': 'guidance'

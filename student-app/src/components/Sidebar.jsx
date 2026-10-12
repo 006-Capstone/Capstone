@@ -19,7 +19,7 @@ const FEEDBACK_OFFICES = [
   { label: 'Guidance', page: 'feedback-guidance' },
   { label: 'Library', page: 'feedback-library' },
   { label: 'Registrar', page: 'feedback-registrar' },
-  { label: 'Finance', page: 'feedback-finance' }
+  { label: 'Accounting', page: 'feedback-finance' }
 ];
 
 function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = false, onClose }) {

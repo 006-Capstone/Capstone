@@ -2555,7 +2555,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 disabled={isTicketClosed || !isOwner}
                 title={!isOwner ? `Rerouting can only be performed by ${ticketHandler || 'the assigned staff'}` : "Select office"}
               >
-                <option value="Finance">Finance Office</option>
+                <option value="Accounting">Accounting Office</option>
                 <option value="Registrar">Registrar's Office</option>
                 <option value="Library">Library</option>
                 <option value="Guidance">Guidance Office</option>
@@ -2862,7 +2862,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </label>
               <textarea
                 className="modal-input-area"
-                placeholder="Example: This inquiry belongs to the Finance Office..."
+                placeholder="Example: This inquiry belongs to the Accounting Office..."
                 value={reassignNote}
                 onChange={(e) => setReassignNote(e.target.value)}
                 rows={3}

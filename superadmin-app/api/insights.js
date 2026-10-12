@@ -34,10 +34,10 @@ export default async function handler(req, res) {
     recommendations: [
       {
         id: "rec-1",
-        title: "Cross-train Finance staff",
+        title: "Cross-train Accounting staff",
         category: "Staff Training",
         priority: "HIGH",
-        description: "Enable Finance officer to process clearance tickets, reducing bottlenecks."
+        description: "Enable Accounting officer to process clearance tickets, reducing bottlenecks."
       }
     ]
   };
@@ -63,10 +63,10 @@ You must respond with valid JSON matching this exact structure:
   "recommendations": [
     {
       "id": "rec-1",
-      "title": "Cross-train Finance staff",
+      "title": "Cross-train Accounting staff",
       "category": "Staff Training",
       "priority": "HIGH",
-      "description": "Enable Finance officer to process clearance tickets, reducing bottlenecks."
+      "description": "Enable Accounting officer to process clearance tickets, reducing bottlenecks."
     }
   ]
 }`;

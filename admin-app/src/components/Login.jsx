@@ -20,7 +20,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
   const [scanningStatus, setScanningStatus] = useState('initializing');
 
   const departments = [
-    { id: 'finance', name: 'Finance', icon: FaDollarSign },
+    { id: 'finance', name: 'Accounting', icon: FaDollarSign },
     { id: 'library', name: 'Library', icon: FaBook },
     { id: 'guidance', name: 'Guidance', icon: FaUsers },
     { id: 'registrar', name: 'Registrar', icon: FaClipboardList }

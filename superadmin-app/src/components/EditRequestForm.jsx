@@ -27,7 +27,7 @@ const EditRequestForm = () => {
   const defaultOffices = [
     {
       id: 'finance',
-      name: 'Finance',
+      name: 'Accounting',
       description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.',
       subjects: ['Balance Verification', 'Payment Plan', 'Refund Request', 'Billing Inquiry']
     },

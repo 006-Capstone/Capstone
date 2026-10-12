@@ -48,7 +48,7 @@ const getNiceTickStep = (max) => {
 
 const SATISFACTION_OFFICES = [
   { id: 'all', name: 'All Offices' },
-  { id: 'finance', name: 'Finance' },
+  { id: 'finance', name: 'Accounting' },
   { id: 'library', name: 'Library' },
   { id: 'registrar', name: 'Registrar' },
   { id: 'guidance', name: 'Guidance' }
@@ -224,7 +224,7 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
     if (!officeId || officeId === 'all') return feedbacks;
 
     const officeNames = {
-      finance: 'Finance',
+      finance: 'Accounting',
       library: 'Library',
       registrar: 'Registrar',
       guidance: 'Guidance'
@@ -234,7 +234,7 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
     return feedbacks.filter(f => {
       const id = String(f.officeId || '').toLowerCase();
       const name = String(f.office || '').toLowerCase();
-      // Match by id (finance) OR by display name (Finance / Finance Office)
+      // Match by id (finance) OR by display name (Accounting / Accounting Office)
       return id === officeId || name.includes(displayName.toLowerCase());
     });
   };
@@ -457,7 +457,7 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
 
   const calculateDepartmentEfficiency = (requests) => {
     const departments = [
-      { id: 'finance', name: 'Finance', label: 'Finance Office', icon: 'finance' },
+      { id: 'finance', name: 'Accounting', label: 'Accounting Office', icon: 'finance' },
       { id: 'library', name: 'Library', label: 'Library', icon: 'library' },
       { id: 'registrar', name: 'Registrar', label: "Registrar's Office", icon: 'registrar' },
       { id: 'guidance', name: 'Guidance', label: 'Guidance & Counseling', icon: 'guidance' }

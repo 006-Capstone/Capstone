@@ -268,7 +268,7 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
 
   // Primary departments in Academia De San Jose
   const DEPARTMENTS = useMemo(() => [
-    { id: 'Finance', label: 'Finance Office', icon: FaDollarSign, short: 'Finance' },
+    { id: 'Accounting', label: 'Accounting Office', icon: FaDollarSign, short: 'Accounting' },
     { id: 'Registrar', label: 'Registrar Office', icon: FaGraduationCap, short: 'Registrar' },
     { id: 'Library', label: 'Library Office', icon: FaBook, short: 'Library' },
     { id: 'Guidance', label: 'Guidance Office', icon: FaUserFriends, short: 'Guidance' }

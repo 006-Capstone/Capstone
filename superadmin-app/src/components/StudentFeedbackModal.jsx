@@ -47,7 +47,7 @@ const getOfficeBadgeInfo = (feedback) => {
   const rawName = String(feedback.office || '').toLowerCase();
 
   if (rawId.includes('finance') || rawName.includes('finance')) {
-    return { name: 'Finance Office', code: 'finance', className: 'badge-finance' };
+    return { name: 'Accounting Office', code: 'finance', className: 'badge-finance' };
   }
   if (rawId.includes('library') || rawName.includes('library')) {
     return { name: 'Library', code: 'library', className: 'badge-library' };
@@ -327,7 +327,7 @@ const StudentFeedbackModal = ({
                 aria-label="Filter by Department"
               >
                 <option value="all">All Departments</option>
-                <option value="finance">Finance Office</option>
+                <option value="finance">Accounting Office</option>
                 <option value="library">Library</option>
                 <option value="registrar">Registrar's Office</option>
                 <option value="guidance">Guidance Office</option>

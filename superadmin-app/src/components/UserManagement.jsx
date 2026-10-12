@@ -481,7 +481,7 @@ const UserManagement = () => {
     staffUsername.trim() !== '';
 
   const offices = [
-    { id: 'finance', name: 'Finance' },
+    { id: 'finance', name: 'Accounting' },
     { id: 'library', name: 'Library' },
     { id: 'guidance', name: 'Guidance' },
     { id: 'registrar', name: 'Registrar' }

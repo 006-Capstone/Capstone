@@ -70,7 +70,7 @@ const compressImage = (file) => new Promise((resolve, reject) => {
 const guestOffices = [
   {
     id: 'finance',
-    name: 'Finance',
+    name: 'Accounting',
     description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.',
     subjects: ['Balance Verification', 'Payment Plan', 'Refund Request', 'Billing Inquiry']
   },
@@ -529,7 +529,7 @@ const GuestLogin = () => {
     try {
       setSubmitting(true);
       const office = guestOffices.find((o) => o.id === selectedOffice);
-      const officeName = office ? office.name : 'Finance';
+      const officeName = office ? office.name : 'Accounting';
       const prefix = officeName.substring(0, 3).toUpperCase();
       const generatedRequestId = `${prefix}-${random3()}-${random3()}-${random3()}`;
 
@@ -1142,7 +1142,7 @@ const GuestLogin = () => {
                 <div className="guest-option-content">
                   <h3 className="guest-option-name">Submit New Request</h3>
                   <p className="guest-option-desc">
-                    Send a new request or inquiry directly to Finance, Library, Registrar, or Guidance Office.
+                    Send a new request or inquiry directly to Accounting, Library, Registrar, or Guidance Office.
                   </p>
                 </div>
                 <div className="guest-option-action">

@@ -428,7 +428,7 @@ export const generateWorkloadRecommendations = (staffWorkloads) => {
       });
     } else {
       // Sole or overloaded department staff without peers in that department
-      // DO NOT pair with someone from another office (e.g. Finance staff cannot take Registrar tickets)
+      // DO NOT pair with someone from another office (e.g. Accounting staff cannot take Registrar tickets)
       const deptName = heavyStaff.department || heavyStaff.office || 'Office';
       recommendations.push({
         type: 'hire',
@@ -636,7 +636,7 @@ export const forecastCapacity = (allTickets, staffMembers) => {
   
   // Identify bottleneck risk by department
   const departmentForecasts = {};
-  const offices = ['Finance', 'Guidance', 'Library', 'Registrar'];
+  const offices = ['Accounting', 'Guidance', 'Library', 'Registrar'];
   
   offices.forEach(office => {
     const deptTickets = recentTickets.filter(t => t.office === office);

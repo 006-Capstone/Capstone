@@ -50,7 +50,7 @@ export const capturePerformanceSnapshot = async () => {
     });
     
     // Analyze each department
-    const offices = ['Finance', 'Guidance', 'Library', 'Registrar'];
+    const offices = ['Accounting', 'Guidance', 'Library', 'Registrar'];
     const departmentMetrics = {};
     
     for (const office of offices) {

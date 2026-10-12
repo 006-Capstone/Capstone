@@ -37,7 +37,7 @@ const FAQs = ({ onNavigate, loading: propLoading = false }) => {
         },
         {
           question: "Which school offices can I send requests to?",
-          answer: "The system is designed to support academic requests handled by participating school offices, such as the Registrar, Library, Guidance Office, and Finance Office."
+          answer: "The system is designed to support academic requests handled by participating school offices, such as the Registrar, Library, Guidance Office, and Accounting Office."
         }
       ]
     },
