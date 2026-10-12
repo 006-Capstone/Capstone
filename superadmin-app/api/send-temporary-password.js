@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { email, userName, temporaryPassword, role, office } = req.body || {};
+    const { email, userName, temporaryPassword, role, office, username, studentId, id, staffUsername } = req.body || {};
 
     if (!email || !userName || !temporaryPassword) {
       return res.status(400).json({ 
@@ -26,6 +26,8 @@ module.exports = async function handler(req, res) {
     }
 
     const isStudent = role === 'student';
+    const resolvedStudentId = studentId || id || '';
+    const resolvedUsername = username || staffUsername || '';
     const roleText = isStudent ? 'Student' : 
                      (role === 'admin' || role === 'staff') ? 'Office Staff' : 
                      'Staff Member';
@@ -72,11 +74,24 @@ module.exports = async function handler(req, res) {
                 <td style="padding: 10px; color: #6b7280; font-weight: bold; width: 40%;">Email:</td>
                 <td style="padding: 10px; color: #111827; font-weight: 500;">${email}</td>
               </tr>
+              ${isStudent ? `
+              ${resolvedStudentId ? `
+              <tr>
+                <td style="padding: 10px; color: #6b7280; font-weight: bold;">Student ID:</td>
+                <td style="padding: 10px; color: #111827; font-weight: 500;">${resolvedStudentId}</td>
+              </tr>` : ''}
+              ` : `
+              ${resolvedUsername ? `
+              <tr>
+                <td style="padding: 10px; color: #6b7280; font-weight: bold;">Username:</td>
+                <td style="padding: 10px; color: #111827; font-weight: 500;">${resolvedUsername}</td>
+              </tr>` : ''}
               ${office ? `
               <tr>
                 <td style="padding: 10px; color: #6b7280; font-weight: bold;">Assigned Office:</td>
                 <td style="padding: 10px; color: #111827; font-weight: 500;">${office}</td>
               </tr>` : ''}
+              `}
               <tr>
                 <td style="padding: 10px; color: #6b7280; font-weight: bold;">Temporary Password:</td>
                 <td style="padding: 10px; color: #105E06; font-family: monospace; font-size: 18px; font-weight: bold;">${temporaryPassword}</td>
@@ -105,7 +120,27 @@ module.exports = async function handler(req, res) {
             <p style="margin: 0;">© 2026 Academia De San Jose. All rights reserved.</p>
           </div>
         </div>
-      `
+      `,
+      text: `
+Academia De San Jose - Account Created
+
+Welcome, ${userName}!
+
+Your ${roleText} account has been successfully created. Below are your temporary login credentials:
+
+CREDENTIALS
+Email: ${email}
+${isStudent ? (resolvedStudentId ? `Student ID: ${resolvedStudentId}\n` : '') : `${resolvedUsername ? `Username: ${resolvedUsername}\n` : ''}${office ? `Assigned Office: ${office}\n` : ''}`}Temporary Password: ${temporaryPassword}
+
+Login at: ${loginUrl}
+
+IMPORTANT SECURITY NOTICE:
+- Please change your password immediately after your first login.
+- Do not share your temporary credentials with anyone.
+- Keep this email in a secure location.
+
+© 2026 Academia De San Jose. All rights reserved.
+      `.trim()
     });
 
     console.log('[Success] Temporary password email sent:', info.messageId);

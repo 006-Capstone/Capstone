@@ -468,7 +468,8 @@ const ImportUsersModal = ({
                 email: data.email.trim(),
                 userName: fullName,
                 temporaryPassword: temporaryPassword,
-                role: 'student'
+                role: 'student',
+                studentId: (data.id || data.studentId || '').toString().trim()
               });
               if (emailOk) emailsSent++;
             }
@@ -512,7 +513,8 @@ const ImportUsersModal = ({
                 userName: fullName,
                 temporaryPassword: temporaryPassword,
                 role: 'admin',
-                office: data.office
+                office: data.office,
+                username: (data.username || '').toString().trim()
               });
               if (emailOk) emailsSent++;
             }

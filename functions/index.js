@@ -127,6 +127,11 @@ exports.sendCredentialsEmail = onCall({
           
           <div class="credentials-box">
             <div class="credential-row">
+              <div class="credential-label">Email</div>
+              <div class="credential-value">${email}</div>
+            </div>
+
+            <div class="credential-row">
               <div class="credential-label">Student ID</div>
               <div class="credential-value">${studentId}</div>
             </div>
@@ -292,10 +297,20 @@ exports.sendStaffCredentialsEmail = onCall({
           
           <div class="credentials-box">
             <div class="credential-row">
+              <div class="credential-label">Email</div>
+              <div class="credential-value">${email}</div>
+            </div>
+
+            <div class="credential-row">
               <div class="credential-label">Username</div>
               <div class="credential-value">${username}</div>
             </div>
             
+            <div class="credential-row">
+              <div class="credential-label">Assigned Office</div>
+              <div class="credential-value">${office || "Administrative"}</div>
+            </div>
+
             <div class="credential-row">
               <div class="credential-label">Temporary Password</div>
               <div class="credential-value">${password}</div>

@@ -114,18 +114,23 @@ module.exports = async (req, res) => {
           
           <div class="credentials-box">
             <div class="credential-row">
+              <div class="credential-label">Email</div>
+              <div class="credential-value">${email}</div>
+            </div>
+
+            <div class="credential-row">
               <div class="credential-label">Username</div>
               <div class="credential-value">${username}</div>
             </div>
             
             <div class="credential-row">
+              <div class="credential-label">Assigned Office</div>
+              <div class="credential-value">${office}</div>
+            </div>
+
+            <div class="credential-row">
               <div class="credential-label">Temporary Password</div>
               <div class="credential-value">${password}</div>
-            </div>
-            
-            <div class="credential-row">
-              <div class="credential-label">Office</div>
-              <div class="credential-value">${office}</div>
             </div>
           </div>
           
@@ -159,9 +164,10 @@ Dear ${staffName},
 Your staff account for the ${office} office has been created.
 
 STAFF CREDENTIALS
+Email: ${email}
 Username: ${username}
+Assigned Office: ${office}
 Temporary Password: ${password}
-Office: ${office}
 
 IMPORTANT SECURITY NOTICE
 - Change your password immediately after first login

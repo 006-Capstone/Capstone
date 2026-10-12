@@ -114,6 +114,11 @@ module.exports = async (req, res) => {
           
           <div class="credentials-box">
             <div class="credential-row">
+              <div class="credential-label">Email</div>
+              <div class="credential-value">${email}</div>
+            </div>
+
+            <div class="credential-row">
               <div class="credential-label">Student ID</div>
               <div class="credential-value">${studentId}</div>
             </div>
@@ -156,6 +161,7 @@ Dear ${studentName},
 Your student account has been successfully created. You can now access the Academia De San Jose Student Portal using the credentials below:
 
 STUDENT CREDENTIALS
+Email: ${email}
 Student ID: ${studentId}
 Temporary Password: ${password}
 

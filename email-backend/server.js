@@ -149,6 +149,7 @@ app.post('/api/send-credentials', async (req, res) => {
           <p>Your student account has been successfully created. You can now access the Student Portal using the credentials below:</p>
           
           <div class="credentials">
+            <strong>Email:</strong> ${email}<br>
             <strong>Student ID:</strong> ${studentId}<br>
             <strong>Temporary Password:</strong> ${password}
           </div>
@@ -185,6 +186,7 @@ Dear ${studentName},
 Your student account has been successfully created. You can now access the Academia De San Jose Student Portal using the credentials below:
 
 STUDENT CREDENTIALS
+Email: ${email}
 Student ID: ${studentId}
 Temporary Password: ${password}
 
@@ -304,12 +306,13 @@ app.post('/api/send-staff-credentials', async (req, res) => {
           <p>Your staff account has been successfully created for the ${office} Office. You can now access the Admin Portal using the credentials below:</p>
           
           <div class="credentials">
+            <strong>Email:</strong> ${email}<br>
             <strong>Username:</strong> ${username}<br>
-            <strong>Temporary Password:</strong> ${password}<br>
-            <strong>Department:</strong> ${office}
+            <strong>Assigned Office:</strong> ${office}<br>
+            <strong>Temporary Password:</strong> ${password}
           </div>
           
-          <p>Login at: <a href="http://localhost:3001">http://localhost:3001</a></p>
+          <p>Login at: <a href="https://admin-website-ruddy.vercel.app">https://admin-website-ruddy.vercel.app</a></p>
           
           <div class="notice">
             <strong>Important Security Notice:</strong><br>
@@ -341,11 +344,12 @@ Dear ${staffName},
 Your staff account has been successfully created for the ${office} Office. You can now access the Academia De San Jose Admin Portal using the credentials below:
 
 STAFF CREDENTIALS
+Email: ${email}
 Username: ${username}
+Assigned Office: ${office}
 Temporary Password: ${password}
-Department: ${office}
 
-Login at: http://localhost:3001
+Login at: https://admin-website-ruddy.vercel.app
 
 IMPORTANT SECURITY NOTICE
 - Please change your password after your first login
@@ -388,7 +392,7 @@ This is an automated email. Please do not reply to this message.
 // This endpoint matches the Vercel serverless function naming
 app.post('/api/send-temporary-password', async (req, res) => {
   try {
-    const { email, userName, temporaryPassword, role } = req.body;
+    const { email, userName, temporaryPassword, role, office, username, studentId, id, staffUsername } = req.body;
 
     // Validate input
     if (!email || !userName || !temporaryPassword) {
@@ -398,11 +402,14 @@ app.post('/api/send-temporary-password', async (req, res) => {
       });
     }
 
-    const roleText = role === 'student' ? 'Student' : 
-                     role === 'admin' ? 'Office Staff' : 
+    const isStudent = role === 'student';
+    const resolvedStudentId = studentId || id || '';
+    const resolvedUsername = username || staffUsername || '';
+    const roleText = isStudent ? 'Student' : 
+                     (role === 'admin' || role === 'staff') ? 'Office Staff' : 
                      'Administrator';
     
-    const loginUrl = role === 'student' ? 'https://student-portal-one-delta.vercel.app' : 'https://admin-website-ruddy.vercel.app';
+    const loginUrl = isStudent ? 'https://student-portal-one-delta.vercel.app' : 'https://admin-website-ruddy.vercel.app';
 
     // HTML email content
     const htmlContent = `
@@ -469,6 +476,12 @@ app.post('/api/send-temporary-password', async (req, res) => {
           
           <div class="credentials">
             <strong>Email:</strong> ${email}<br>
+            ${isStudent ? `
+            ${resolvedStudentId ? `<strong>Student ID:</strong> ${resolvedStudentId}<br>` : ''}
+            ` : `
+            ${resolvedUsername ? `<strong>Username:</strong> ${resolvedUsername}<br>` : ''}
+            ${office ? `<strong>Assigned Office:</strong> ${office}<br>` : ''}
+            `}
             <strong>Temporary Password:</strong> ${temporaryPassword}
           </div>
           
@@ -505,7 +518,7 @@ Your ${roleText} account has been successfully created. You can now access the p
 
 CREDENTIALS
 Email: ${email}
-Temporary Password: ${temporaryPassword}
+${isStudent ? (resolvedStudentId ? `Student ID: ${resolvedStudentId}\n` : '') : `${resolvedUsername ? `Username: ${resolvedUsername}\n` : ''}${office ? `Assigned Office: ${office}\n` : ''}`}Temporary Password: ${temporaryPassword}
 
 Login at: ${loginUrl}
 

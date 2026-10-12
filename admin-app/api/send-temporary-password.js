@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { email, userName, temporaryPassword, role } = req.body || {};
+    const { email, userName, temporaryPassword, role, office, username, studentId, id, staffUsername } = req.body || {};
 
     if (!email || !userName || !temporaryPassword) {
       return res.status(400).json({ 
@@ -25,8 +25,11 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const roleText = role === 'student' ? 'Student' : 
-                     role === 'admin' ? 'Office Staff' : 
+    const isStudent = role === 'student';
+    const resolvedStudentId = studentId || id || '';
+    const resolvedUsername = username || staffUsername || '';
+    const roleText = isStudent ? 'Student' : 
+                     (role === 'admin' || role === 'staff') ? 'Office Staff' : 
                      'Administrator';
 
     const fromEmail = process.env.GMAIL_USER || 'academiadesanjose3@gmail.com';
@@ -39,6 +42,10 @@ module.exports = async function handler(req, res) {
       }
     });
 
+    const loginUrl = isStudent 
+      ? (process.env.STUDENT_APP_URL || 'https://student-portal-one-delta.vercel.app')
+      : (process.env.ADMIN_APP_URL || 'https://admin-website-ruddy.vercel.app');
+
     const info = await transporter.sendMail({
       from: `Academia De San Jose <${fromEmail}>`,
       to: email,
@@ -47,7 +54,7 @@ module.exports = async function handler(req, res) {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #2d5016; margin: 0;">Academia De San Jose</h1>
-            <p style="color: #666; margin: 5px 0 0 0;">Student Portal System</p>
+            <p style="color: #666; margin: 5px 0 0 0;">${isStudent ? 'Student Portal' : 'Admin & Staff Portal'}</p>
           </div>
           
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
@@ -60,9 +67,27 @@ module.exports = async function handler(req, res) {
           <div style="background: #fff; border: 2px solid #2d5016; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
-                <td style="padding: 10px; color: #666; font-weight: bold;">Email:</td>
+                <td style="padding: 10px; color: #666; font-weight: bold; width: 40%;">Email:</td>
                 <td style="padding: 10px; color: #333;">${email}</td>
               </tr>
+              ${isStudent ? `
+              ${resolvedStudentId ? `
+              <tr>
+                <td style="padding: 10px; color: #666; font-weight: bold;">Student ID:</td>
+                <td style="padding: 10px; color: #333;">${resolvedStudentId}</td>
+              </tr>` : ''}
+              ` : `
+              ${resolvedUsername ? `
+              <tr>
+                <td style="padding: 10px; color: #666; font-weight: bold;">Username:</td>
+                <td style="padding: 10px; color: #333;">${resolvedUsername}</td>
+              </tr>` : ''}
+              ${office ? `
+              <tr>
+                <td style="padding: 10px; color: #666; font-weight: bold;">Assigned Office:</td>
+                <td style="padding: 10px; color: #333;">${office}</td>
+              </tr>` : ''}
+              `}
               <tr>
                 <td style="padding: 10px; color: #666; font-weight: bold;">Temporary Password:</td>
                 <td style="padding: 10px; color: #2d5016; font-family: monospace; font-size: 18px; font-weight: bold;">${temporaryPassword}</td>
@@ -80,7 +105,7 @@ module.exports = async function handler(req, res) {
           </div>
 
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.STUDENT_APP_URL || 'https://student-portal-one-delta.vercel.app'}" 
+            <a href="${loginUrl}" 
                style="display: inline-block; background: #2d5016; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Login Now
             </a>
@@ -91,7 +116,27 @@ module.exports = async function handler(req, res) {
             <p>© 2025 Academia De San Jose. All rights reserved.</p>
           </div>
         </div>
-      `
+      `,
+      text: `
+Academia De San Jose - Account Created
+
+Welcome, ${userName}!
+
+Your ${roleText} account has been successfully created. Below are your login credentials:
+
+CREDENTIALS
+Email: ${email}
+${isStudent ? (resolvedStudentId ? `Student ID: ${resolvedStudentId}\n` : '') : `${resolvedUsername ? `Username: ${resolvedUsername}\n` : ''}${office ? `Assigned Office: ${office}\n` : ''}`}Temporary Password: ${temporaryPassword}
+
+Login at: ${loginUrl}
+
+IMPORTANT SECURITY NOTICE:
+- Please change your password immediately after your first login
+- Do not share your credentials with anyone
+- Keep this email in a secure location
+
+© 2025 Academia De San Jose. All rights reserved.
+      `.trim()
     });
 
     console.log('[Success] Temporary password email sent:', info.messageId);

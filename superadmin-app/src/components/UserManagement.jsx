@@ -945,7 +945,8 @@ const UserManagement = () => {
             email: studentEmail.trim(),
             userName: fullName,
             temporaryPassword: password,
-            role: 'student'
+            role: 'student',
+            studentId: studentId.trim()
           })
         });
 
@@ -1205,7 +1206,8 @@ const UserManagement = () => {
             userName: fullName,
             temporaryPassword: password,
             role: 'admin',
-            office: selectedOffice.name
+            office: selectedOffice.name,
+            username: staffUsername.trim()
           })
         });
 
