@@ -123,6 +123,10 @@
   margin-bottom: 7px;
 }
 
+.label-row .form-label-student {
+  margin-bottom: 0;
+}
+
 .form-label-student {
   font-size: 13px;
   font-weight: 600;
@@ -150,13 +154,15 @@
   text-decoration: underline;
 }
 
-.form-input-student {
+.form-input-student,
+.login-form-student .form-input-student {
   width: 100%;
+  height: 44px;
   padding: 11px 14px;
-  padding-right: 46px; /* Add space for eye icon */
   border: 1px solid #d1d5db;
   border-radius: 10px;
   font-size: 14px;
+  line-height: 1.4;
   color: #1a1a1a;
   transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -164,23 +170,42 @@
   box-sizing: border-box;
 }
 
-.form-input-student:hover {
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrapper .form-input-student,
+.login-form-student .password-input-wrapper input {
+  padding-right: 46px; /* Add space for eye icon */
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background-color: #fafafa;
+  color: #1a1a1a;
+  font-size: 14px;
+  height: 44px;
+}
+
+.form-input-student:hover,
+.login-form-student .form-input-student:hover,
+.login-form-student .password-input-wrapper input:hover {
   border-color: #c9c9c9;
 }
 
-.form-input-student:focus {
+.form-input-student:focus,
+.login-form-student .form-input-student:focus,
+.login-form-student .password-input-wrapper input:focus {
   outline: none;
   border-color: #2e7d32;
   background-color: #ffffff;
   box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.14);
 }
 
-.form-input-student::placeholder {
-  color: #b3b3b3;
-}
-
-.password-input-wrapper {
-  position: relative;
+.form-input-student::placeholder,
+.login-form-student .form-input-student::placeholder,
+.login-form-student .password-input-wrapper input::placeholder {
+  color: #9ca3af;
+  -webkit-text-fill-color: #9ca3af;
 }
 
 .password-toggle-btn {
@@ -396,7 +421,8 @@
   }
 
   /* 16px inputs prevent iOS Safari auto-zoom on focus */
-  .form-input-student {
+  .form-input-student,
+  .login-form-student .password-input-wrapper input {
     font-size: 16px;
   }
 }

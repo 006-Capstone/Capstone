@@ -249,6 +249,7 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
                     <td>#{req.id}</td>
                     <td>{req.office}</td>
                     <td>{req.subject}</td>
+                    <td>{req.date}</td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                         <StatusBadge status={req.status} />
