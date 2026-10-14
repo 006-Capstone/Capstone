@@ -757,11 +757,49 @@ body {
   display: none !important;
 }
 
-/* Upload Action */
+/* Upload and Switch Camera Actions */
 .qr-card-actions {
   margin-top: 18px;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-switch-camera-btn {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;
+  padding: 10px 18px;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.qr-switch-camera-btn:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.qr-switch-icon {
+  font-size: 14px;
+  color: #15803d;
+  transition: transform 0.25s ease;
+}
+
+.qr-switch-camera-btn:hover .qr-switch-icon {
+  transform: rotate(180deg);
 }
 
 .qr-upload-button {
@@ -830,7 +868,8 @@ body {
     height: 270px;
   }
 
-  .qr-upload-button {
+  .qr-upload-button,
+  .qr-switch-camera-btn {
     max-width: 270px;
   }
 }

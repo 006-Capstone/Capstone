@@ -10,7 +10,7 @@ import {
   MdDescription,
   MdFormatQuote 
 } from 'react-icons/md';
-import { FaUserCircle, FaExchangeAlt, FaClock, FaInfoCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaUserCircle, FaClock, FaInfoCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { notifyStaffFollowUp } from '../utils/notificationHelper';
@@ -691,26 +691,6 @@ function RequestDetails({ requestData, onNavigate }) {
                 )}
               </div>
             </div>
-
-            {/* Compact Rerouted indicator */}
-            {request.reassignedFrom && (
-              <div className="reroute-banner-compact">
-                <div className="reroute-compact-info">
-                  <span className="reroute-badge">
-                    <FaExchangeAlt className="reroute-icon" />
-                    <span>Rerouted from {request.reassignedFrom}</span>
-                  </span>
-                  {request.previousRequestId && (
-                    <span className="reroute-prev-id">Prev #{request.previousRequestId}</span>
-                  )}
-                </div>
-                {request.reassignedAt && (
-                  <span className="reroute-date">
-                    {request.reassignedAt?.toDate ? request.reassignedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-                  </span>
-                )}
-              </div>
-            )}
 
             {/* Resolution Note Banner (Shown when Request is Resolved) */}
             {request.status?.toLowerCase() === 'resolved' && (request.resolutionNote || request.resolvedBy) && (

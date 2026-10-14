@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaDollarSign, FaBook, FaUsers, FaClipboardList, FaShieldAlt, FaEye, FaEyeSlash, FaQrcode, FaTimes, FaCheckCircle, FaSpinner, FaExclamationCircle, FaFileUpload, FaInfoCircle } from 'react-icons/fa';
+import { FaDollarSign, FaBook, FaUsers, FaClipboardList, FaShieldAlt, FaEye, FaEyeSlash, FaQrcode, FaTimes, FaCheckCircle, FaSpinner, FaExclamationCircle, FaFileUpload, FaInfoCircle, FaSyncAlt } from 'react-icons/fa';
 import { signInWithEmailAndPassword, signInWithCustomToken, signInAnonymously } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -20,6 +20,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
   const [qrScanner, setQrScanner] = useState(null);
   const qrScannerRef = useRef(null);
   const [scanningStatus, setScanningStatus] = useState('initializing');
+  const [availableCameras, setAvailableCameras] = useState([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
   // Helper to check office equivalence (Accounting and Finance are one and the same across the system)
   const isMatchingOffice = (officeA, officeB) => {
@@ -219,7 +221,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
     }, 200);
   };
 
-  const initializeQRScanner = async () => {
+  const initializeQRScanner = async (targetDeviceId = null) => {
     try {
       console.log('[Config] Initializing QR scanner...');
       await stopScannerSafe();
@@ -230,24 +232,32 @@ const Login = ({ onLogin, onForgotPassword }) => {
       
       console.log('[Camera] Starting camera...');
       
-      // Determine camera config: on phones, select back/environment; on PCs/laptops, select primary webcam
       let cameraConfig = { facingMode: "environment" };
       try {
         const devices = await Html5Qrcode.getCameras();
         if (devices && devices.length > 0) {
-          const backCam = devices.find(d => {
-            const label = (d.label || '').toLowerCase();
-            return label.includes('back') || label.includes('rear') || label.includes('environment');
-          });
-          if (backCam) {
-            cameraConfig = { deviceId: { exact: backCam.id } };
+          setAvailableCameras(devices);
+          if (targetDeviceId) {
+            cameraConfig = { deviceId: { exact: targetDeviceId } };
+            const idx = devices.findIndex(d => d.id === targetDeviceId);
+            if (idx !== -1) setCurrentCameraIndex(idx);
           } else {
-            cameraConfig = { deviceId: { exact: devices[0].id } };
+            const backIndex = devices.findIndex(d => {
+              const label = (d.label || '').toLowerCase();
+              return label.includes('back') || label.includes('rear') || label.includes('environment');
+            });
+            if (backIndex !== -1) {
+              cameraConfig = { deviceId: { exact: devices[backIndex].id } };
+              setCurrentCameraIndex(backIndex);
+            } else {
+              cameraConfig = { deviceId: { exact: devices[0].id } };
+              setCurrentCameraIndex(0);
+            }
           }
         }
       } catch (camErr) {
         console.warn('[Camera] Device enumeration fallback:', camErr);
-        cameraConfig = { facingMode: "user" };
+        cameraConfig = targetDeviceId ? { deviceId: { exact: targetDeviceId } } : { facingMode: "user" };
       }
 
       await scanner.start(
@@ -273,6 +283,14 @@ const Login = ({ onLogin, onForgotPassword }) => {
       setScanningStatus('error');
       setError('Failed to start camera. Please ensure camera permissions are granted.');
     }
+  };
+
+  const handleSwitchCamera = async () => {
+    if (availableCameras.length <= 1) return;
+    const nextIndex = (currentCameraIndex + 1) % availableCameras.length;
+    const nextDevice = availableCameras[nextIndex];
+    setScanningStatus('initializing');
+    await initializeQRScanner(nextDevice.id);
   };
 
   const scanFileWithScales = async (file) => {
@@ -604,6 +622,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
     setShowQRScanner(false);
     setScanningStatus('initializing');
     setLoading(false);
+    setAvailableCameras([]);
+    setCurrentCameraIndex(0);
   };
 
   const handleUploadQRCode = async (event) => {
@@ -822,6 +842,17 @@ const Login = ({ onLogin, onForgotPassword }) => {
             <div id="qr-reader-file-helper" style={{ position: 'absolute', width: '800px', height: '800px', opacity: 0, pointerEvents: 'none', zIndex: -100 }}></div>
 
             <div className="qr-card-actions">
+              {availableCameras.length > 1 && (
+                <button
+                  type="button"
+                  className="qr-switch-camera-btn"
+                  onClick={handleSwitchCamera}
+                  title="Switch between front and rear cameras"
+                >
+                  <FaSyncAlt className="qr-switch-icon" />
+                  <span>Switch Camera</span>
+                </button>
+              )}
               <label htmlFor="qr-file-upload-admin" className="qr-upload-button">
                 <FaFileUpload className="qr-upload-icon" />
                 <span>Upload QR Image File</span>
