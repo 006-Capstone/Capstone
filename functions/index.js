@@ -472,11 +472,23 @@ exports.verifyQRLogin = onCall({
       throw new HttpsError("not-found", "Staff account not found");
     }
 
+    const isMatchingOffice = (offA, offB) => {
+      const a = String(offA || "").trim().toLowerCase();
+      const b = String(offB || "").trim().toLowerCase();
+      if (!a || !b) return false;
+      if (a === b) return true;
+      if ((a === "accounting" || a === "finance") && (b === "accounting" || b === "finance")) {
+        return true;
+      }
+      return false;
+    };
+
     let matchedDoc = null;
     for (const docSnap of querySnapshot.docs) {
       const data = docSnap.data();
-      const staffOfficeId = (data.officeId || data.office || "").toLowerCase();
-      if (!officeId || staffOfficeId === String(officeId).toLowerCase() || (data.office && data.office.toLowerCase() === String(officeId).toLowerCase())) {
+      const staffOfficeId = (data.officeId || "").toLowerCase();
+      const staffOfficeName = (data.office || "").toLowerCase();
+      if (!officeId || isMatchingOffice(staffOfficeId, officeId) || isMatchingOffice(staffOfficeName, officeId)) {
         matchedDoc = docSnap;
         break;
       }

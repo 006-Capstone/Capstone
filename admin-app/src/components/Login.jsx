@@ -21,6 +21,18 @@ const Login = ({ onLogin, onForgotPassword }) => {
   const qrScannerRef = useRef(null);
   const [scanningStatus, setScanningStatus] = useState('initializing');
 
+  // Helper to check office equivalence (Accounting and Finance are one and the same across the system)
+  const isMatchingOffice = (officeA, officeB) => {
+    const a = String(officeA || '').trim().toLowerCase();
+    const b = String(officeB || '').trim().toLowerCase();
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if ((a === 'accounting' || a === 'finance') && (b === 'accounting' || b === 'finance')) {
+      return true;
+    }
+    return false;
+  };
+
   const departments = [
     { id: 'accounting', name: 'Accounting', icon: FaDollarSign },
     { id: 'library', name: 'Library', icon: FaBook },
@@ -391,12 +403,16 @@ const Login = ({ onLogin, onForgotPassword }) => {
         return;
       }
 
-      // Verify office matches (case-insensitive)
+      // Verify office matches (case-insensitive, treating accounting and finance as one and the same)
       let matchedDoc = null;
       for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
-        const staffOfficeId = (data.officeId || data.office || '').toLowerCase();
-        if (staffOfficeId === officeId.toLowerCase() || (data.office && data.office.toLowerCase() === officeId.toLowerCase())) {
+        const staffOfficeId = data.officeId || '';
+        const staffOfficeName = data.office || '';
+        if (
+          isMatchingOffice(staffOfficeId, officeId) ||
+          isMatchingOffice(staffOfficeName, officeId)
+        ) {
           matchedDoc = docSnap;
           break;
         }
@@ -413,6 +429,12 @@ const Login = ({ onLogin, onForgotPassword }) => {
       const staffDoc = matchedDoc;
       const staffData = staffDoc.data();
       console.log('[Success] Staff found:', staffData);
+
+      // Normalize accounting and finance offices so all features stay consistent
+      const rawOffice = staffData.office;
+      const isAcctFin = (rawOffice?.toLowerCase() === 'finance' || rawOffice?.toLowerCase() === 'accounting' || officeId?.toLowerCase() === 'finance' || officeId?.toLowerCase() === 'accounting');
+      const normalizedOffice = isAcctFin ? 'Accounting' : (rawOffice || 'Accounting');
+      const normalizedOfficeId = isAcctFin ? 'accounting' : (staffData.officeId?.toLowerCase() || 'accounting');
 
       if (staffData.isActive === false) {
         const suspendedUntil = staffData.suspendedUntil?.toDate ? staffData.suspendedUntil.toDate() : (staffData.suspendedUntil ? new Date(staffData.suspendedUntil) : null);
@@ -473,7 +495,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
           const res = await verifyQRLogin({
             type: 'staff',
             username: username,
-            officeId: officeId,
+            officeId: normalizedOfficeId,
             token: token
           });
 
@@ -494,7 +516,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
               const apiRes = await fetch(ep, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'staff', username: username, officeId: officeId, token: token })
+                body: JSON.stringify({ type: 'staff', username: username, officeId: normalizedOfficeId, token: token })
               });
               if (apiRes.ok) {
                 const apiData = await apiRes.json();
@@ -532,8 +554,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
         lastName: staffData.lastName || '',
         email: staffData.email,
         username: staffData.username,
-        office: staffData.office,
-        officeId: staffData.officeId,
+        office: normalizedOffice,
+        officeId: normalizedOfficeId,
         position: staffData.position || '',
         staffId: staffData.staffId || '',
         phoneNumber: staffData.phoneNumber || '',
@@ -546,10 +568,8 @@ const Login = ({ onLogin, onForgotPassword }) => {
       localStorage.setItem('staffData', JSON.stringify(staffInfo));
       
       console.log('[Success] Login successful via QR code!');
-      if (staffData.officeId) {
-        setSelectedDepartment(staffData.officeId.toLowerCase());
-      }
-      onLogin(staffData.office);
+      setSelectedDepartment(normalizedOfficeId);
+      onLogin(normalizedOffice);
       setLoading(false);
 
     } catch (error) {

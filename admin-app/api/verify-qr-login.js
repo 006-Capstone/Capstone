@@ -39,7 +39,33 @@ module.exports = async function handler(req, res) {
         return res.status(404).json({ success: false, error: 'Staff account not found' });
       }
 
-      const staffDoc = querySnapshot.docs[0];
+      const isMatchingOffice = (offA, offB) => {
+        const a = String(offA || '').trim().toLowerCase();
+        const b = String(offB || '').trim().toLowerCase();
+        if (!a || !b) return false;
+        if (a === b) return true;
+        if ((a === 'accounting' || a === 'finance') && (b === 'accounting' || b === 'finance')) {
+          return true;
+        }
+        return false;
+      };
+
+      let matchedDoc = null;
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data();
+        const staffOfficeId = (data.officeId || '').toLowerCase();
+        const staffOfficeName = (data.office || '').toLowerCase();
+        if (!officeId || isMatchingOffice(staffOfficeId, officeId) || isMatchingOffice(staffOfficeName, officeId)) {
+          matchedDoc = docSnap;
+          break;
+        }
+      }
+
+      if (!matchedDoc) {
+        return res.status(400).json({ success: false, error: 'Staff office mismatch' });
+      }
+
+      const staffDoc = matchedDoc;
       const staffData = staffDoc.data();
 
       if (staffData.isActive === false) {
