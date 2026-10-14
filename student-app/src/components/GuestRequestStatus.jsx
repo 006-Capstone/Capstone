@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import { Skeleton } from './common/Skeleton';
+import { getStaffSenderOffice, formatOfficeTitle } from '../utils/ticketHistoryHelper';
 import '../styles/GuestRequestStatus.css';
 
 const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
@@ -352,7 +353,7 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
               <div className="reply-header">
                 <FaUserCircle className="reply-staff-icon" />
                 <div>
-                  <h4 className="reply-title">{data.officeName} Department</h4>
+                  <h4 className="reply-title">{formatOfficeTitle(getStaffSenderOffice(reply, data))}</h4>
                   <span className="reply-author">{reply.sentByName || 'Staff Representative'}</span>
                 </div>
                 <span className="reply-date">

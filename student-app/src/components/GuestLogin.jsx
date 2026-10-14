@@ -505,7 +505,14 @@ const GuestLogin = () => {
       estimatedCompletion,
       timeline,
       followUps: docData.followUps || [],
-      attachments: docData.attachments || []
+      attachments: docData.attachments || [],
+      office: docData.office || officeName,
+      officeHistory: docData.officeHistory || {},
+      reassignedFrom: docData.reassignedFrom || '',
+      reassignedAt: docData.reassignedAt || null,
+      previousOffice: docData.previousOffice || '',
+      reassignedBy: docData.reassignedBy || '',
+      firstClaimedBy: docData.firstClaimedBy || ''
     };
   };
 

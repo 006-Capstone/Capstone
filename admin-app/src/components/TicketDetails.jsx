@@ -34,7 +34,7 @@ import {
 import Notifications from './Notifications';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
-import { resolveOriginalHandler } from '../utils/ticketHistoryHelper';
+import { resolveOriginalHandler, getStaffSenderOffice } from '../utils/ticketHistoryHelper';
 import DropdownCalendar from './common/DropdownCalendar';
 import '../styles/TicketDetails.css';
 
@@ -808,6 +808,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           message: `Request claimed and taken over by ${staffName}.`,
           sentBy: 'staff',
           sentByName: staffName,
+          staffOffice: department || ticket.office,
           sentAt: new Date().toISOString(),
           type: 'takeover'
         })
@@ -2011,7 +2012,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                               <FaUserCircle className="thread-student-avatar" />
                             )}
                             <span className="thread-author-name">
-                              {isStaff ? `${ticket.office || department} (${followUp.sentByName})` : (ticket.studentName || 'Student')}
+                              {isStaff ? `${getStaffSenderOffice(followUp, ticket, department)} (${followUp.sentByName})` : (ticket.studentName || 'Student')}
                             </span>
                           </div>
                           <span className="thread-time">{formatDate(followUp.sentAt)}</span>

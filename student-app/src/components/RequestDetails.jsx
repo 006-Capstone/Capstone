@@ -18,7 +18,7 @@ import { isTicketInactiveExpired, autoCancelInactiveTicket, formatInactivityDead
 import StatusBadge from './StatusBadge';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
-import { resolveOriginalHandler } from '../utils/ticketHistoryHelper';
+import { resolveOriginalHandler, getStaffSenderOffice, formatOfficeTitle } from '../utils/ticketHistoryHelper';
 import '../styles/RequestDetails.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -832,7 +832,7 @@ function RequestDetails({ requestData, onNavigate }) {
                 <div className="response-header">
                   <FaUserCircle className="staff-icon" />
                   <div>
-                    <h4>{request.office} Department</h4>
+                    <h4>{formatOfficeTitle(getStaffSenderOffice(followUp, request))}</h4>
                     <span className="staff-name">{followUp.sentByName}</span>
                   </div>
                   <span className="response-date">

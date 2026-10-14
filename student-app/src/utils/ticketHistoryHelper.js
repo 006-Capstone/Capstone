@@ -283,3 +283,80 @@ export async function resolveOriginalHandler(db, docId, ticketData) {
 
   return '';
 }
+
+/**
+ * Resolves the true office from which a staff follow-up/reply originated.
+ * Avoids misattributing previous office messages to the new office after a reroute.
+ *
+ * @param {object} followUp - The followUp message object
+ * @param {object} ticket - The ticket/request document object
+ * @param {string} [currentDepartment] - Optional fallback department of viewing user
+ * @returns {string} The resolved originating office name
+ */
+export function getStaffSenderOffice(followUp, ticket, currentDepartment = '') {
+  if (!followUp) return ticket?.office || currentDepartment || '';
+
+  // 1. Direct explicit office recorded on the message
+  if (followUp.staffOffice && typeof followUp.staffOffice === 'string' && followUp.staffOffice.trim()) {
+    return followUp.staffOffice.trim();
+  }
+  if (followUp.office && typeof followUp.office === 'string' && followUp.office.trim()) {
+    return followUp.office.trim();
+  }
+
+  // 2. Check officeHistory by matching the handler name
+  const senderName = (followUp.sentByName || '').trim().toLowerCase();
+  if (senderName && ticket?.officeHistory && typeof ticket.officeHistory === 'object') {
+    for (const [officeKey, hist] of Object.entries(ticket.officeHistory)) {
+      const histHandler = (hist?.handledBy || '').trim().toLowerCase();
+      if (histHandler && histHandler === senderName) {
+        return officeKey;
+      }
+    }
+  }
+
+  // 3. Check if message was sent before reassignment/reroute
+  if (ticket?.reassignedFrom && followUp.sentAt && ticket.reassignedAt) {
+    try {
+      const sentTime = new Date(followUp.sentAt).getTime();
+      const reassignTime = ticket.reassignedAt?.toDate
+        ? ticket.reassignedAt.toDate().getTime()
+        : new Date(ticket.reassignedAt).getTime();
+      if (!isNaN(sentTime) && !isNaN(reassignTime) && sentTime <= reassignTime) {
+        return ticket.reassignedFrom;
+      }
+    } catch (_) {}
+  }
+
+  // 4. If sender name matches the person who rerouted or first claimed from previous office
+  if (senderName) {
+    const reassignedBy = (ticket?.reassignedBy || '').trim().toLowerCase();
+    const firstClaimed = (ticket?.firstClaimedBy || '').trim().toLowerCase();
+    if (ticket?.previousOffice && (senderName === reassignedBy || senderName === firstClaimed)) {
+      return ticket.previousOffice;
+    }
+    if (ticket?.reassignedFrom && (senderName === reassignedBy || senderName === firstClaimed)) {
+      return ticket.reassignedFrom;
+    }
+  }
+
+  // 5. Fallback to current ticket office or department
+  return ticket?.office || currentDepartment || '';
+}
+
+/**
+ * Formats an office name to display neatly as "X Department" or "X Office"
+ * without awkward duplicates like "Guidance Office Department" or "Registrar Department Department".
+ *
+ * @param {string} officeName
+ * @returns {string}
+ */
+export function formatOfficeTitle(officeName) {
+  if (!officeName || typeof officeName !== 'string') return 'Department';
+  const clean = officeName.trim();
+  if (/department$/i.test(clean) || /office$/i.test(clean)) {
+    return clean;
+  }
+  return `${clean} Department`;
+}
+
