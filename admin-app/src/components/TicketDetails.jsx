@@ -34,7 +34,7 @@ import {
 import Notifications from './Notifications';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
-import { resolveOriginalHandler, getStaffSenderOffice } from '../utils/ticketHistoryHelper';
+import { resolveOriginalHandler, getStaffSenderOffice, getOriginalOffice, getOriginalRequestId, getClaimedStaffForReroutedOffice, getOriginalEtc, getOriginalEstimatedCompletion } from '../utils/ticketHistoryHelper';
 import DropdownCalendar from './common/DropdownCalendar';
 import '../styles/TicketDetails.css';
 
@@ -103,8 +103,10 @@ const formatEtcLabel = (value) => {
 
 const getTicketEtcIso = (t) => {
   if (!t) return '';
+  const orig = getOriginalEtc(t);
+  if (orig && isISODate(orig)) return orig;
   if (t.etc && isISODate(t.etc)) return t.etc;
-  const raw = t.etc || t.estimatedCompletion;
+  const raw = orig || t.etc || t.estimatedCompletion;
   if (!raw) return '';
   try {
     const d = raw?.toDate ? raw.toDate() : new Date(raw);
@@ -248,10 +250,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resolveNote, setResolveNote] = useState('');
   const [resolving, setResolving] = useState(false);
-
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  const [rejecting, setRejecting] = useState(false);
 
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnReason, setReturnReason] = useState('');
@@ -803,6 +801,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         pendingTakeover: false,
         workloadRebalanced: false,
         status: 'In Process',
+        ...(ticket.originalEtc || ticket.etc ? { originalEtc: ticket.originalEtc || getOriginalEtc(ticket) || ticket.etc } : {}),
+        ...(ticket.originalEstimatedCompletion || ticket.estimatedCompletion ? { originalEstimatedCompletion: ticket.originalEstimatedCompletion || ticket.estimatedCompletion } : {}),
         updatedAt: serverTimestamp(),
         followUps: arrayUnion({
           message: `Request claimed and taken over by ${staffName}.`,
@@ -1070,6 +1070,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       const updateData = {
         etc: formattedEtc,
         estimatedCompletion: completionDate,
+        ...(!ticket.originalEtc && !ticket.reassignedFrom ? { originalEtc: formattedEtc, originalEstimatedCompletion: completionDate } : {}),
         estimatedCompletionSetAt: new Date(),
         estimatedCompletionSetBy: staffData.name,
         estimatedCompletionReason: trimmedReason,
@@ -1158,20 +1159,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     }
   };
 
-  // Only Guidance Office and Library Department are permitted to reject requests
-  const canRejectRequest = () => {
-    let currentDept = (department || '').trim().toLowerCase();
-    if (!currentDept) {
-      try {
-        const staffData = JSON.parse(localStorage.getItem('staffData') || '{}');
-        currentDept = (staffData.office || staffData.officeId || ticket?.office || '').trim().toLowerCase();
-      } catch (e) {
-        currentDept = (ticket?.office || '').trim().toLowerCase();
-      }
-    }
-    return currentDept.includes('guidance') || currentDept.includes('library');
-  };
-
   const confirmResolveTicket = async () => {
     if (!isOwner) {
       showToast(`You do not have permission to resolve this request. It is assigned to ${ticketHandler || 'another staff member'}.`, 'error');
@@ -1229,69 +1216,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     }
   };
 
-  const confirmRejectTicket = async () => {
-    if (!isOwner) {
-      showToast('You do not have permission to reject this request.', 'error');
-      setShowRejectModal(false);
-      return;
-    }
-
-    if (!canRejectRequest()) {
-      showToast('Rejecting requests is only permitted for Guidance Office and Library Department', 'error');
-      setShowRejectModal(false);
-      return;
-    }
-
-    if (!rejectReason.trim()) {
-      showToast('Please provide a reason for rejecting this request', 'error');
-      return;
-    }
-
-    try {
-      setRejecting(true);
-      const oldStatus = ticket.status;
-      const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
-      const docRef = doc(db, 'requests', ticket.firestoreId);
-      
-      const updateData = {
-        status: 'Rejected',
-        rejectedAt: serverTimestamp(),
-        rejectedBy: staffData.name,
-        rejectedReason: rejectReason.trim(),
-        updatedAt: serverTimestamp(),
-        followUps: arrayUnion({
-          message: `Request rejected by ${staffData.name}.\nReason: ${rejectReason.trim()}`,
-          sentBy: 'staff',
-          sentByName: staffData.name,
-          staffOffice: department || ticket.office,
-          sentAt: new Date().toISOString()
-        })
-      };
-      
-      await updateDoc(docRef, updateData);
-      
-      if (ticket.studentUid) {
-        await notifyStudentStatusChange(
-          ticket.studentUid,
-          ticket.requestId,
-          ticket.subject,
-          oldStatus,
-          'Rejected'
-        );
-      }
-      
-      showToast('Request rejected successfully', 'success');
-      setShowRejectModal(false);
-      setRejectReason('');
-      onNavigate('my-tickets');
-    } catch (error) {
-      console.error('Error rejecting request:', error);
-      showToast('Failed to reject request: ' + error.message, 'error');
-    } finally {
-      setRejecting(false);
-    }
-  };
-
 
   const handleUrgencyChange = async (newUrgency) => {
     if (!isOwner) {
@@ -1339,6 +1263,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       await updateDoc(docRef, {
         etc: newDate,
         estimatedCompletion: completionDate,
+        ...(!ticket.originalEtc && !ticket.reassignedFrom ? { originalEtc: newDate, originalEstimatedCompletion: completionDate } : {}),
         estimatedCompletionSetAt: new Date(),
         estimatedCompletionSetBy: staffData.name,
         updatedAt: serverTimestamp()
@@ -1507,12 +1432,18 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       }
       
       const previousHandler = currentOfficeHistory[reassignOffice];
-      const initialOffice = ticket.originalOffice || originalDepartmentName || ticket.reassignedFrom || ticket.previousOffice || ticket.office;
+      const initialOffice = ticket.originalOffice || getOriginalOffice(ticket) || originalDepartmentName || ticket.reassignedFrom || ticket.previousOffice || ticket.office;
+      const initialRequestId = ticket.originalRequestId || getOriginalRequestId(ticket) || ticket.requestId;
+      const initialEtc = ticket.originalEtc || getOriginalEtc(ticket) || ticket.etc || '';
+      const initialEstimatedCompletion = ticket.originalEstimatedCompletion || ticket.estimatedCompletion || null;
       const updateData = {
         office: reassignOffice,
         requestId: ticket.requestId,
         officeId: reassignOffice.toLowerCase(),
         originalOffice: initialOffice,
+        originalRequestId: initialRequestId,
+        ...(initialEtc ? { originalEtc: initialEtc } : {}),
+        ...(initialEstimatedCompletion ? { originalEstimatedCompletion: initialEstimatedCompletion } : {}),
         reassignedFrom: ticket.office,
         reassignedBy: staffData.name,
         reassignedAt: serverTimestamp(),
@@ -1850,44 +1781,24 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             <div className="summary-bottom-row">
               <span className="submitted-time-text">Submitted {getTimeAgo(ticket.createdAt)}</span>
 
-              {!isTicketClosed && (
+              {!isTicketClosed && isOriginalDepartment() && (
                 <div className="summary-actions-wrap">
-                  {canRejectRequest() && (
-                    <button 
-                      type="button" 
-                      className="btn-figma-reject" 
-                      onClick={() => {
-                        if (!isOwner) {
-                          showToast(`Only the assigned staff member (${ticketHandler || 'assigned staff'}) can reject this request.`, 'error');
-                          return;
-                        }
-                        setShowRejectModal(true);
-                      }}
-                      disabled={!isOwner}
-                      title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can reject this request` : 'Reject Request'}
-                    >
-                      <FaTimes className="btn-icon" />
-                      <span>Reject Request</span>
-                    </button>
-                  )}
-                  {isOriginalDepartment() && (
-                    <button 
-                      type="button" 
-                      className="btn-figma-resolve" 
-                      onClick={() => {
-                        if (!isOwner) {
-                          showToast(`Only the assigned staff member (${ticketHandler || 'assigned staff'}) can resolve this request.`, 'error');
-                          return;
-                        }
-                        setShowResolveModal(true);
-                      }}
-                      disabled={!isOwner}
-                      title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can resolve this request` : 'Resolve Request'}
-                    >
-                      <FaCheck className="btn-icon" />
-                      <span>Resolve Request</span>
-                    </button>
-                  )}
+                  <button 
+                    type="button" 
+                    className="btn-figma-resolve" 
+                    onClick={() => {
+                      if (!isOwner) {
+                        showToast(`Only the assigned staff member (${ticketHandler || 'assigned staff'}) can resolve this request.`, 'error');
+                        return;
+                      }
+                      setShowResolveModal(true);
+                    }}
+                    disabled={!isOwner}
+                    title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can resolve this request` : 'Resolve Request'}
+                  >
+                    <FaCheck className="btn-icon" />
+                    <span>Resolve Request</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -2507,6 +2418,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
                   if (!event.from || !event.to || event.from.trim().toLowerCase() === event.to.trim().toLowerCase()) return null;
                   const isReturn = idx > 0 && event.to === events[0]?.from;
+                  const claimedStaff = getClaimedStaffForReroutedOffice(ticket, event.to);
                   return (
                     <div key={`reassign-${idx}`} className="timeline-step step-sub-node step-complete">
                       <div className="step-circle sub-complete">
@@ -2516,8 +2428,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                         <h4 className="step-status-name sub-highlight">{isReturn ? 'RETURNED' : 'REROUTED'}</h4>
                         {event.date && <p className="step-date-label">{formatDate(event.date)}</p>}
                         <p className="step-sub-desc">
-                          {event.from} → {event.to}
-                          {event.by ? ` by ${event.by}` : ''}
+                          {event.from} → {event.to}{claimedStaff ? ` (${claimedStaff})` : ''}
                         </p>
                       </div>
                     </div>
@@ -2742,68 +2653,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 disabled={resolving || !resolveNote.trim()}
               >
                 {resolving ? 'Resolving...' : 'Confirm Resolve'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Reject Request */}
-      {showRejectModal && canRejectRequest() && (
-        <div className="figma-modal-overlay" onClick={() => setShowRejectModal(false)}>
-          <div className="figma-modal-window" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-row">
-              <h3 className="modal-heading danger-heading">Reject Request</h3>
-              <button 
-                type="button" 
-                className="modal-close-icon-btn" 
-                onClick={() => setShowRejectModal(false)}
-                title="Close"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <p className="modal-explainer">
-              Reject request <strong>#{ticket.requestId}</strong>. The student will receive a notification with this rejection reason.
-            </p>
-
-            <div className="modal-field-group">
-              <label className="modal-label">
-                Reason for Rejection <span className="required-marker">(Required):</span>
-              </label>
-              <textarea
-                className="modal-input-area"
-                placeholder="Specify the reason why this request cannot be fulfilled..."
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                rows={4}
-                maxLength={400}
-                required
-              />
-              <div className="modal-char-counter">
-                {rejectReason.trim().length === 0 && (
-                  <span className="reason-required-text">Reason is required &bull; </span>
-                )}
-                {rejectReason.length}/400 characters
-              </div>
-            </div>
-
-            <div className="modal-btn-row">
-              <button 
-                type="button" 
-                className="btn-modal-back" 
-                onClick={() => setShowRejectModal(false)}
-                disabled={rejecting}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className="btn-modal-submit btn-submit-danger" 
-                onClick={confirmRejectTicket}
-                disabled={rejecting || !rejectReason.trim()}
-              >
-                {rejecting ? 'Rejecting...' : 'Confirm Reject'}
               </button>
             </div>
           </div>

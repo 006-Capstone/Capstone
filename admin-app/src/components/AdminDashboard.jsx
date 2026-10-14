@@ -463,9 +463,13 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
     };
 
     if (etc) {
-      updateData.etc = etc;
-      updateData.etcUpdatedBy = staffData.name;
-      updateData.etcUpdatedAt = serverTimestamp();
+      if (!ticket.originalEtc && !ticket.reassignedFrom && !ticket.previousOffice) {
+        updateData.originalEtc = etc;
+        updateData.originalEstimatedCompletion = etc;
+        updateData.etc = etc;
+        updateData.etcUpdatedBy = staffData.name;
+        updateData.etcUpdatedAt = serverTimestamp();
+      }
     }
 
     try {

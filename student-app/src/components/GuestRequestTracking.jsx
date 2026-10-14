@@ -1,7 +1,7 @@
 import React from 'react';
 import { FaArrowLeft, FaCheckCircle, FaClock, FaTimesCircle, FaSignInAlt } from 'react-icons/fa';
 import { useNotification } from '../context/NotificationContext';
-import { getOriginalOffice } from '../utils/ticketHistoryHelper';
+import { getOriginalOffice, getOriginalRequestId, getClaimedStaffForReroutedOffice, getOriginalEstimatedCompletion } from '../utils/ticketHistoryHelper';
 import '../styles/GuestRequestTracking.css';
 
 const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
@@ -29,16 +29,7 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
   };
 
   const getEstimatedCompletion = () => {
-    // Use the actual estimated completion date set by admin
-    if (requestData?.estimatedCompletion) {
-      const date = requestData.estimatedCompletion.toDate 
-        ? requestData.estimatedCompletion.toDate() 
-        : new Date(requestData.estimatedCompletion);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
-    }
-    
-    // Fallback: if no estimated completion is set, show "To be determined"
-    return 'TO BE DETERMINED';
+    return getOriginalEstimatedCompletion(requestData).toUpperCase();
   };
 
   const formatDate = (timestamp) => {
@@ -77,6 +68,17 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
         label: 'PROCESSING',
         date: requestData.claimedAt ? formatDate(requestData.claimedAt) : formatDate(requestData.createdAt),
         description: origHandler ? `Being Processed by ${origHandler}` : 'Being Processed by Staff',
+        completed: true
+      });
+    }
+
+    // 2.5 REROUTED - Show if request was reassigned/rerouted
+    if (requestData.reassignedFrom) {
+      const claimedStaff = getClaimedStaffForReroutedOffice(requestData, requestData.office);
+      timelineItems.push({
+        label: 'REROUTED',
+        date: requestData.reassignedAt ? formatDate(requestData.reassignedAt) : '',
+        description: `${requestData.reassignedFrom} → ${requestData.office}${claimedStaff ? ` (${claimedStaff})` : ''}`,
         completed: true
       });
     }
@@ -152,7 +154,7 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
               
               <div className="detail-row-tracking">
                 <span className="detail-label-tracking">REQUEST NUMBER</span>
-                <span className="detail-value-tracking">{requestData.requestId}</span>
+                <span className="detail-value-tracking">{getOriginalRequestId(requestData) || requestData.requestId}</span>
               </div>
 
               <div className="detail-row-tracking">

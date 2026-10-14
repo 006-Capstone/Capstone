@@ -114,6 +114,7 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
 
       const newInquiryDoc = {
         requestId: generatedRequestId,
+        originalRequestId: generatedRequestId,
         studentId: cleanStudentId || 'N/A',
         studentUid: currentUid || `guest_${Date.now()}`,
         studentName: fullName,

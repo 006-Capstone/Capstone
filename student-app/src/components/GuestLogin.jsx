@@ -8,7 +8,7 @@ import { validateContent } from '../utils/contentModeration';
 import GuestSubmitted from './GuestSubmitted';
 import GuestRequestStatus from './GuestRequestStatus';
 import { useNotification } from '../context/NotificationContext';
-import { resolveOriginalHandler, getOriginalOffice } from '../utils/ticketHistoryHelper';
+import { resolveOriginalHandler, getOriginalOffice, getOriginalRequestId, getClaimedStaffForReroutedOffice, getOriginalEstimatedCompletion } from '../utils/ticketHistoryHelper';
 import '../styles/GuestLogin.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -319,29 +319,7 @@ const GuestLogin = () => {
     else if (status === 'Cancelled') statusClass = 'is-cancelled';
     else if (status === 'Returned' || status === 'For Follow Up') statusClass = 'is-follow-up';
 
-    let estimatedCompletion = 'To be determined';
-    const isClaimed = Boolean(handler && status !== 'Pending');
-
-    if (isClaimed) {
-      if (docData.etc) {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(docData.etc)) {
-          const [y, m, d] = docData.etc.split('-').map(Number);
-          estimatedCompletion = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        } else {
-          estimatedCompletion = docData.etc;
-        }
-      } else if (docData.estimatedCompletion) {
-        const d = docData.estimatedCompletion?.toDate ? docData.estimatedCompletion.toDate() : new Date(docData.estimatedCompletion);
-        if (!isNaN(d.getTime())) {
-          estimatedCompletion = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        }
-      } else if (docData.targetCompletionDate) {
-        const d = docData.targetCompletionDate?.toDate ? docData.targetCompletionDate.toDate() : new Date(docData.targetCompletionDate);
-        if (!isNaN(d.getTime())) {
-          estimatedCompletion = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        }
-      }
-    }
+    const estimatedCompletion = getOriginalEstimatedCompletion(docData);
 
     let initialHandler = docData.firstClaimedBy || docData.reassignedFromStaff || '';
 
@@ -441,12 +419,13 @@ const GuestLogin = () => {
     }
 
     if (docData.reassignedFrom) {
+      const claimedStaff = getClaimedStaffForReroutedOffice(docData, docData.office);
       timeline.push({
         status: 'REROUTED',
         completed: true,
         active: false,
         date: toLong(docData.reassignedAt || docData.updatedAt),
-        description: `Transferred from ${docData.reassignedFrom} to ${docData.office}`
+        description: `${docData.reassignedFrom} → ${docData.office}${claimedStaff ? ` (${claimedStaff})` : ''}`
       });
     }
 
@@ -485,9 +464,11 @@ const GuestLogin = () => {
       description: isResolved ? 'Request completed' : ''
     });
 
+    const originId = getOriginalRequestId(docData) || docData.requestId || '';
+
     return {
-      requestNumber: `#${docData.requestId || ''}`,
-      rawRequestId: docData.requestId || '',
+      requestNumber: `#${originId}`,
+      rawRequestId: originId,
       officeName,
       subject: docData.subject || 'Student Inquiry',
       description: docData.description || '',
@@ -644,6 +625,7 @@ const GuestLogin = () => {
       const fullParentGuardianName = `${parentFirstName.trim()} ${parentLastName.trim()}`.trim();
       const newRequestDoc = {
         requestId: generatedRequestId,
+        originalRequestId: generatedRequestId,
         studentName: `${firstName.trim()} ${lastName.trim()}`,
         parentGuardianName: fullParentGuardianName,
         parentFirstName: parentFirstName.trim(),

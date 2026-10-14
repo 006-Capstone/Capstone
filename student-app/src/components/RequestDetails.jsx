@@ -18,7 +18,7 @@ import { isTicketInactiveExpired, autoCancelInactiveTicket, formatInactivityDead
 import StatusBadge from './StatusBadge';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
-import { resolveOriginalHandler, getStaffSenderOffice, formatOfficeTitle, getOriginalOffice } from '../utils/ticketHistoryHelper';
+import { resolveOriginalHandler, getStaffSenderOffice, formatOfficeTitle, getOriginalOffice, getOriginalRequestId, getClaimedStaffForReroutedOffice, getOriginalEstimatedCompletion, getOriginalEtc } from '../utils/ticketHistoryHelper';
 import '../styles/RequestDetails.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -320,27 +320,7 @@ function RequestDetails({ requestData, onNavigate }) {
 
   const getEstimatedCompletion = (createdDate, etc, reqObj) => {
     const target = reqObj || request;
-    const isClaimed = Boolean(
-      (target?.claimedBy || target?.assignedTo || target?.assignedToStaff) &&
-      target?.status !== 'Pending'
-    );
-    if (!isClaimed) return 'To be determined';
-
-    const etcVal = etc || target?.etc;
-    if (etcVal) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(etcVal)) {
-        const [y, m, d] = etcVal.split('-').map(Number);
-        return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      }
-      return etcVal;
-    }
-    if (target?.estimatedCompletion) {
-      const d = target.estimatedCompletion?.toDate ? target.estimatedCompletion.toDate() : new Date(target.estimatedCompletion);
-      if (!isNaN(d.getTime())) {
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      }
-    }
-    return 'To be determined';
+    return getOriginalEstimatedCompletion(target);
   };
 
   const renderTimeline = () => {
@@ -601,6 +581,7 @@ function RequestDetails({ requestData, onNavigate }) {
         });
       } else if (event.from && event.to && event.from.trim().toLowerCase() !== event.to.trim().toLowerCase()) {
         const isReturn = idx > 0 && event.to === events[0]?.from;
+        const claimedStaff = getClaimedStaffForReroutedOffice(request, event.to);
         timelineItems.push({
           kind: 'sub',
           subType: isReturn ? 'returned-to-origin' : 'reassigned',
@@ -609,8 +590,7 @@ function RequestDetails({ requestData, onNavigate }) {
           active: false,
           date: event.date,
           details: [
-            `${event.from} → ${event.to}`,
-            event.by ? `Processed by ${event.by}` : ''
+            `${event.from} → ${event.to}${claimedStaff ? ` (${claimedStaff})` : ''}`
           ].filter(Boolean)
         });
       }
@@ -1055,7 +1035,7 @@ function RequestDetails({ requestData, onNavigate }) {
             <h3>Request Details</h3>
             <div className="detail-row">
               <span className="label">REQUEST ID</span>
-              <span className="value">#{request.requestId}</span>
+              <span className="value">#{getOriginalRequestId(request) || request.requestId}</span>
             </div>
             <div className="detail-row">
               <span className="label">OFFICE</span>
@@ -1067,7 +1047,7 @@ function RequestDetails({ requestData, onNavigate }) {
             </div>
             <div className="detail-row">
               <span className="label">ESTIMATED COMPLETION</span>
-              <span className="value">{getEstimatedCompletion(request.createdAt?.toDate ? request.createdAt.toDate() : request.createdAt, request.etc).toUpperCase()}</span>
+              <span className="value">{getOriginalEstimatedCompletion(request).toUpperCase()}</span>
             </div>
           </div>
 

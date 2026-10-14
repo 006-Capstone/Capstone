@@ -371,6 +371,7 @@ function NewRequest({ onNavigate }) {
       // Prepare request data
       const requestData = {
         requestId: requestId,
+        originalRequestId: requestId,
         studentId: student.studentId || student.id,
         studentUid: student.uid,
         studentName: student.name || `${student.firstName} ${student.lastName}`.trim(),
