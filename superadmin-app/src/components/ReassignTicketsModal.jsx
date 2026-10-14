@@ -387,16 +387,25 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
 
   if (!isOpen || !staffMember) return null;
 
-  const staffDept = (staffMember.department || staffMember.office || '').trim().toLowerCase();
+  const normalizeDept = (val) => {
+    const d = (val || '').trim().toLowerCase();
+    if (!d) return '';
+    if (d === 'finance' || d.includes('finance') || d === 'accounting' || d.includes('accounting')) {
+      return 'accounting';
+    }
+    return d;
+  };
+
+  const staffDept = normalizeDept(staffMember.department || staffMember.office);
 
   // Get available colleagues strictly from the same department/office
   const availableStaff = (allStaff || []).filter(s => {
-    const sId = s.id || s.firestoreId;
-    const mId = staffMember.id || staffMember.firestoreId;
+    const sId = s.id || s.firestoreId || s.uid;
+    const mId = staffMember.id || staffMember.firestoreId || staffMember.uid;
     if (sId && mId && sId === mId) return false;
     if ((s.name || '').trim().toLowerCase() === (staffMember.name || '').trim().toLowerCase()) return false;
 
-    const sDept = (s.department || s.office || '').trim().toLowerCase();
+    const sDept = normalizeDept(s.department || s.office);
     return sDept && staffDept && sDept === staffDept;
   });
 

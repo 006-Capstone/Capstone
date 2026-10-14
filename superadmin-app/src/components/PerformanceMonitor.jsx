@@ -82,14 +82,19 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
         return assigned === staffName && !['resolved', 'completed', 'cancelled', 'rejected'].includes(status);
       }).length;
 
+      const rawDept = (s.office || s.department || s.officeId || '').trim();
+      const normalizedDept = (rawDept.toLowerCase() === 'finance' || rawDept.toLowerCase().includes('finance'))
+        ? 'Accounting'
+        : (rawDept || 'Accounting');
+
       return {
         id: s.id || s.firestoreId,
         firestoreId: s.firestoreId || s.id,
         uid: s.uid || s.id || s.firestoreId || '',
         name: sName,
         fullName: s.fullName || s.name || sName,
-        department: s.department || s.office || '',
-        office: s.office || s.department || '',
+        department: normalizedDept,
+        office: normalizedDept,
         activeTickets: activeCount
       };
     });
@@ -106,6 +111,11 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
       return assigned === staffName && !['resolved', 'completed', 'cancelled', 'rejected'].includes(status);
     }).length;
 
+    const rawDept = (staffObj.department || staffObj.office || staffObj.officeId || '').trim();
+    const normalizedDept = (rawDept.toLowerCase() === 'finance' || rawDept.toLowerCase().includes('finance'))
+      ? 'Accounting'
+      : (rawDept || 'Accounting');
+
     setReassignModalState({
       isOpen: true,
       staffMember: {
@@ -114,8 +124,8 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
         uid: staffObj.uid || staffObj.id || staffObj.firestoreId || '',
         name: sName,
         fullName: staffObj.fullName || staffObj.name || sName,
-        department: staffObj.department || staffObj.office || '',
-        office: staffObj.office || staffObj.department || '',
+        department: normalizedDept,
+        office: normalizedDept,
         activeTickets: activeCount
       }
     });
