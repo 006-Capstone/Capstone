@@ -35,7 +35,8 @@ import {
   FaArrowLeft,
   FaTrashAlt,
   FaLock,
-  FaFileImport
+  FaFileImport,
+  FaUserEdit
 } from 'react-icons/fa';
 import { db, auth, getSecondaryAuth } from '../firebase';
 import { collection, addDoc, getDocs, getDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
@@ -121,6 +122,23 @@ const UserManagement = () => {
   const [activityCategoryFilter, setActivityCategoryFilter] = useState('all');
   const [showFullAuditModal, setShowFullAuditModal] = useState(false);
   const [resendingCredentialsEmail, setResendingCredentialsEmail] = useState(false);
+
+  // Edit User Modal State
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [savingUserEdit, setSavingUserEdit] = useState(false);
+  const [editUserError, setEditUserError] = useState('');
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editMiddleName, setEditMiddleName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editSuffix, setEditSuffix] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editGradeLevel, setEditGradeLevel] = useState('Grade 7');
+  const [editSection, setEditSection] = useState('Section A');
+  const [editUsername, setEditUsername] = useState('');
+  const [editOffice, setEditOffice] = useState('');
+  const [editUsernameChecking, setEditUsernameChecking] = useState(false);
+  const [editUsernameStatus, setEditUsernameStatus] = useState('');
+  const [editUsernameMessage, setEditUsernameMessage] = useState('');
 
   // Archiving state
   const [actionLoading, setActionLoading] = useState(false);
@@ -1958,6 +1976,295 @@ const UserManagement = () => {
     setTimeout(() => setCopiedField(''), 2000);
   };
 
+  // Live uniqueness check for staff username during edit
+  const checkEditUsernameAvailability = async (candidateUsername) => {
+    const trimmed = (candidateUsername || '').trim();
+    const currentUsername = (selectedUserProfile?.username || '').trim();
+
+    if (!trimmed) {
+      setEditUsernameStatus('invalid');
+      setEditUsernameMessage('Username cannot be empty');
+      setEditUsernameChecking(false);
+      return;
+    }
+
+    if (trimmed.toLowerCase() === currentUsername.toLowerCase()) {
+      setEditUsernameStatus('current');
+      setEditUsernameMessage('');
+      setEditUsernameChecking(false);
+      return;
+    }
+
+    if (trimmed.length < 3) {
+      setEditUsernameStatus('invalid');
+      setEditUsernameMessage('Must be at least 3 characters');
+      setEditUsernameChecking(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
+      setEditUsernameStatus('invalid');
+      setEditUsernameMessage('Only letters, numbers, underscores, and dots allowed');
+      setEditUsernameChecking(false);
+      return;
+    }
+
+    setEditUsernameChecking(true);
+    try {
+      const staffQuery = query(collection(db, 'staff'), where('username', '==', trimmed));
+      const staffSnap = await getDocs(staffQuery);
+
+      let isTaken = false;
+      staffSnap.forEach((docSnap) => {
+        if (
+          docSnap.id !== selectedUserProfile.firestoreId &&
+          docSnap.id !== selectedUserProfile.id &&
+          docSnap.data().uid !== selectedUserProfile.uid
+        ) {
+          isTaken = true;
+        }
+      });
+
+      if (!isTaken) {
+        const userQuery = query(collection(db, 'users'), where('username', '==', trimmed));
+        const userSnap = await getDocs(userQuery);
+        userSnap.forEach((docSnap) => {
+          if (docSnap.id !== selectedUserProfile.firestoreId && docSnap.id !== selectedUserProfile.uid) {
+            isTaken = true;
+          }
+        });
+      }
+
+      if (isTaken) {
+        setEditUsernameStatus('taken');
+        setEditUsernameMessage('Username already exists');
+      } else {
+        setEditUsernameStatus('available');
+        setEditUsernameMessage('Username is available');
+      }
+    } catch (err) {
+      console.error('Error checking staff username availability:', err);
+    } finally {
+      setEditUsernameChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showEditUserModal || selectedUserProfile?.userType !== 'staff') return;
+    const currentUsername = (selectedUserProfile?.username || '').trim().toLowerCase();
+    const candidate = (editUsername || '').trim().toLowerCase();
+
+    if (!candidate) {
+      setEditUsernameStatus('invalid');
+      setEditUsernameMessage('Username cannot be empty');
+      setEditUsernameChecking(false);
+      return;
+    }
+
+    if (candidate === currentUsername) {
+      setEditUsernameStatus('current');
+      setEditUsernameMessage('');
+      setEditUsernameChecking(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      checkEditUsernameAvailability(editUsername);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [editUsername, showEditUserModal, selectedUserProfile]);
+
+  const handleOpenEditUserModal = () => {
+    if (!selectedUserProfile) return;
+    setEditUserError('');
+    let fName = selectedUserProfile.firstName || '';
+    let lName = selectedUserProfile.lastName || '';
+    let mName = selectedUserProfile.middleName || '';
+    let sfx = selectedUserProfile.suffix || '';
+
+    if (!fName && !lName && (selectedUserProfile.name || selectedUserProfile.fullName)) {
+      const raw = (selectedUserProfile.name || selectedUserProfile.fullName).trim().split(/\s+/);
+      if (raw.length === 1) fName = raw[0];
+      else if (raw.length >= 2) {
+        fName = raw[0];
+        lName = raw.slice(1).join(' ');
+      }
+    }
+
+    setEditFirstName(fName);
+    setEditMiddleName(mName);
+    setEditLastName(lName);
+    setEditSuffix(sfx);
+    setEditEmail(selectedUserProfile.email || '');
+
+    if (selectedUserProfile.userType === 'student') {
+      setEditGradeLevel(selectedUserProfile.gradeLevel || 'Grade 7');
+      setEditSection(selectedUserProfile.section || 'Section A');
+    } else {
+      setEditUsername(selectedUserProfile.username || '');
+      setEditOffice(selectedUserProfile.officeId || offices.find(o => o.name === selectedUserProfile.office)?.id || offices[0]?.id || 'accounting');
+      setEditUsernameStatus('current');
+      setEditUsernameMessage('');
+    }
+
+    setShowEditUserModal(true);
+  };
+
+  const handleSaveUserEdit = async (e) => {
+    if (e) e.preventDefault();
+    setEditUserError('');
+
+    if (!editFirstName.trim()) {
+      setEditUserError('Please enter first name');
+      return;
+    }
+    if (!editLastName.trim()) {
+      setEditUserError('Please enter last name');
+      return;
+    }
+    if (!editEmail.trim() || !editEmail.includes('@')) {
+      setEditUserError('Please enter a valid email address');
+      return;
+    }
+
+    const isStudent = selectedUserProfile.userType === 'student';
+
+    if (isStudent) {
+      if (!editGradeLevel.trim()) {
+        setEditUserError('Please select grade level');
+        return;
+      }
+      if (!editSection.trim()) {
+        setEditUserError('Please select section');
+        return;
+      }
+    } else {
+      const cleanUsername = editUsername.trim();
+      if (!cleanUsername) {
+        setEditUserError('Username cannot be empty');
+        return;
+      }
+      if (cleanUsername.length < 3) {
+        setEditUserError('Username must be at least 3 characters');
+        return;
+      }
+      if (editUsernameChecking) {
+        showToast('Please wait while checking username availability', 'warning');
+        return;
+      }
+      if (editUsernameStatus === 'taken' || editUsernameStatus === 'invalid') {
+        setEditUserError(editUsernameMessage || 'Please enter a valid, unique username');
+        return;
+      }
+    }
+
+    setSavingUserEdit(true);
+    try {
+      const docId = selectedUserProfile.firestoreId || selectedUserProfile.id;
+      const targetCollection = isStudent ? 'students' : 'staff';
+      const docRef = doc(db, targetCollection, docId);
+
+      const rawMiddleInitial = editMiddleName.trim() ? editMiddleName.trim().replace(/\./g, '').charAt(0).toUpperCase() : '';
+      const fullName = formatDisplayName(editFirstName.trim(), editMiddleName.trim(), editLastName.trim(), editSuffix.trim());
+
+      let updatePayload = {
+        firstName: editFirstName.trim(),
+        middleName: editMiddleName.trim(),
+        lastName: editLastName.trim(),
+        middleInitial: rawMiddleInitial,
+        suffix: editSuffix.trim(),
+        name: fullName,
+        fullName: fullName,
+        email: editEmail.trim(),
+        updatedAt: serverTimestamp()
+      };
+
+      const changes = [];
+      if (selectedUserProfile.name !== fullName) changes.push(`Name: "${fullName}"`);
+      if (selectedUserProfile.email !== editEmail.trim()) changes.push(`Email: "${editEmail.trim()}"`);
+
+      if (isStudent) {
+        updatePayload.gradeLevel = editGradeLevel.trim();
+        updatePayload.section = editSection.trim();
+        if (selectedUserProfile.gradeLevel !== editGradeLevel.trim()) changes.push(`Grade: ${editGradeLevel.trim()}`);
+        if (selectedUserProfile.section !== editSection.trim()) changes.push(`Section: ${editSection.trim()}`);
+      } else {
+        const selectedOfficeObj = offices.find(o => o.id === editOffice) || { id: editOffice, name: editOffice };
+        const cleanUsername = editUsername.trim();
+        updatePayload.username = cleanUsername;
+        updatePayload.office = selectedOfficeObj.name;
+        updatePayload.officeId = selectedOfficeObj.id;
+
+        const isUsernameChanged = selectedUserProfile.username !== cleanUsername;
+        if (isUsernameChanged) {
+          updatePayload.qrCodeData = '';
+          changes.push(`Username: "@${cleanUsername}"`);
+        }
+        if (selectedUserProfile.office !== selectedOfficeObj.name) {
+          changes.push(`Office: ${selectedOfficeObj.name}`);
+        }
+      }
+
+      await updateDoc(docRef, updatePayload);
+
+      // Log activity in activityLogs collection
+      try {
+        const changesText = changes.length > 0 ? changes.join(', ') : 'Details updated';
+        await addDoc(collection(db, 'activityLogs'), {
+          userId: selectedUserProfile.uid || docId,
+          userEmail: editEmail.trim(),
+          userName: fullName,
+          action: 'Account Details Updated',
+          details: `Super Admin updated account details: ${changesText}`,
+          category: 'account',
+          status: 'Success',
+          timestamp: serverTimestamp()
+        });
+      } catch (logErr) {
+        console.warn('[EditUser] Failed to log activity:', logErr);
+      }
+
+      // Update local state in selectedUserProfile
+      const updatedProfile = {
+        ...selectedUserProfile,
+        ...updatePayload,
+        name: fullName,
+        fullName: fullName
+      };
+      setSelectedUserProfile(updatedProfile);
+
+      // Update students or staffMembers array in state
+      if (isStudent) {
+        setStudents(prev => prev.map(s => {
+          if (s.firestoreId === docId || s.id === docId) {
+            return { ...s, ...updatePayload };
+          }
+          return s;
+        }));
+      } else {
+        setStaffMembers(prev => prev.map(s => {
+          if (s.firestoreId === docId || s.id === docId) {
+            return { ...s, ...updatePayload };
+          }
+          return s;
+        }));
+      }
+
+      // Refresh activity logs for modal
+      await loadUserActivityLogs(updatedProfile, updatedProfile.userType);
+
+      setShowEditUserModal(false);
+      showToast(`Account details updated successfully!`, 'success');
+    } catch (error) {
+      console.error('Error updating user details:', error);
+      setEditUserError('Failed to update user: ' + error.message);
+      showToast('Failed to update user: ' + error.message, 'error');
+    } finally {
+      setSavingUserEdit(false);
+    }
+  };
+
   const handleModalSuspendAction = () => {
     if (!selectedUserProfile) return;
     setSuspensionDuration('indefinite');
@@ -2336,13 +2643,9 @@ const UserManagement = () => {
                       </>
                     ) : (
                       <>
-                        <FaBuilding className="badge-icon" /> Staff
+                        <FaBuilding className="badge-icon" /> Staff • {selectedUserProfile.office || 'Unassigned'}
                       </>
                     )}
-                  </span>
-                  <span className={`profile-status-pill ${selectedUserProfile.isArchived ? 'archived' : selectedUserProfile.isActive !== false ? 'active' : 'suspended'}`}>
-                    <span className="status-indicator-dot" />
-                    {selectedUserProfile.isArchived ? 'Archived Account' : selectedUserProfile.isActive !== false ? 'Active Account' : 'Suspended Account'}
                   </span>
                 </div>
               </div>
@@ -2419,14 +2722,17 @@ const UserManagement = () => {
                   </div>
                 </div>
 
-                {selectedUserProfile.userType === 'staff' && (
+                {selectedUserProfile.userType === 'student' && (
                   <div className="user-info-item">
                     <div className="user-info-icon-wrap">
-                      <FaBuilding className="user-info-icon" />
+                      <FaSchool className="user-info-icon" />
                     </div>
                     <div className="user-info-content">
-                      <label>ASSIGNED OFFICE</label>
-                      <p>{selectedUserProfile.office || 'N/A'}</p>
+                      <label>GRADE & SECTION</label>
+                      <p>
+                        {selectedUserProfile.gradeLevel || 'N/A'}
+                        {selectedUserProfile.section ? ` - ${selectedUserProfile.section.startsWith('Section') ? selectedUserProfile.section : `Section ${selectedUserProfile.section}`}` : ''}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -2451,7 +2757,16 @@ const UserManagement = () => {
 
                 <div className="admin-action-buttons">
                   <button 
-                    type="button"
+                    type="button" 
+                    className="admin-action-btn edit-user"
+                    onClick={handleOpenEditUserModal}
+                    title="Edit account details"
+                  >
+                    <FaUserEdit /> Edit Details
+                  </button>
+
+                  <button 
+                    type="button" 
                     className={`admin-action-btn resend-email ${selectedUserProfile?.mustChangePassword !== true ? 'disabled-action' : ''}`}
                     onClick={handleResendCredentialEmail}
                     disabled={resendingCredentialsEmail || !selectedUserProfile?.email || selectedUserProfile?.mustChangePassword !== true}
@@ -3034,6 +3349,264 @@ const UserManagement = () => {
               await refreshUserProfile();
             }}
           />
+        )}
+
+        {/* Edit User Details Modal */}
+        {showEditUserModal && selectedUserProfile && (
+          <div 
+            className="create-student-modal"
+            onClick={(e) => { if (e.target === e.currentTarget && !savingUserEdit) setShowEditUserModal(false); }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-user-title"
+          >
+            <div className="modal-content create-account-modal edit-user-modal">
+              <div className="create-modal-header">
+                <div className="create-modal-title-wrap">
+                  <div className="create-modal-icon" aria-hidden="true">
+                    <FaUserEdit />
+                  </div>
+                  <div>
+                    <h2 id="edit-user-title" className="modal-title">
+                      Edit {selectedUserProfile.userType === 'student' ? 'Student' : 'Staff'} Account
+                    </h2>
+                    <p className="modal-subtitle">
+                      Update account profile information and settings
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="create-modal-close"
+                  onClick={() => setShowEditUserModal(false)}
+                  disabled={savingUserEdit}
+                  aria-label="Close modal"
+                >
+                  <FaTimes aria-hidden="true" />
+                </button>
+              </div>
+
+              {editUserError && (
+                <div className="error-message-super">
+                  {editUserError}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveUserEdit} className="create-student-form">
+                <div className="form-row-super">
+                  <div className="form-group-super">
+                    <label className="form-label-super">
+                      First Name <span className="required-star">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input-super"
+                      value={editFirstName}
+                      onChange={(e) => setEditFirstName(e.target.value)}
+                      placeholder="First name"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group-super">
+                    <label className="form-label-super">
+                      Last Name <span className="required-star">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input-super"
+                      value={editLastName}
+                      onChange={(e) => setEditLastName(e.target.value)}
+                      placeholder="Last name"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row-super">
+                  <div className="form-group-super">
+                    <label className="form-label-super">
+                      Middle Name <span className="optional-text">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input-super"
+                      value={editMiddleName}
+                      onChange={(e) => setEditMiddleName(e.target.value)}
+                      placeholder="Middle name"
+                    />
+                  </div>
+
+                  <div className="form-group-super small-input">
+                    <label className="form-label-super">
+                      Suffix <span className="optional-text">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input-super"
+                      value={editSuffix}
+                      onChange={(e) => setEditSuffix(e.target.value)}
+                      placeholder="Jr, Sr, III"
+                      maxLength="10"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group-super">
+                  <label className="form-label-super">
+                    Email Address <span className="required-star">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="form-input-super"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="name@asj.edu"
+                    required
+                  />
+                </div>
+
+                {selectedUserProfile.userType === 'student' ? (
+                  <div className="form-row-super">
+                    <div className="form-group-super">
+                      <label className="form-label-super">
+                        Grade Level <span className="required-star">*</span>
+                      </label>
+                      <select
+                        className="form-input-super"
+                        value={editGradeLevel}
+                        onChange={(e) => setEditGradeLevel(e.target.value)}
+                        required
+                      >
+                        <option value="Grade 7">Grade 7</option>
+                        <option value="Grade 8">Grade 8</option>
+                        <option value="Grade 9">Grade 9</option>
+                        <option value="Grade 10">Grade 10</option>
+                        <option value="Grade 11">Grade 11</option>
+                        <option value="Grade 12">Grade 12</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group-super">
+                      <label className="form-label-super">
+                        Section <span className="required-star">*</span>
+                      </label>
+                      <select
+                        className="form-input-super"
+                        value={editSection}
+                        onChange={(e) => setEditSection(e.target.value)}
+                        required
+                      >
+                        <option value="Section A">Section A</option>
+                        <option value="Section B">Section B</option>
+                        <option value="Section C">Section C</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="form-row-super">
+                      <div className="form-group-super">
+                        <label className="form-label-super">
+                          Username <span className="required-star">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className={`form-input-super ${
+                            editUsernameStatus === 'taken' || editUsernameStatus === 'invalid'
+                              ? 'input-error'
+                              : editUsernameStatus === 'available'
+                              ? 'input-success'
+                              : ''
+                          }`}
+                          value={editUsername}
+                          onChange={(e) => setEditUsername(e.target.value)}
+                          placeholder="Enter staff username"
+                          required
+                        />
+                        {editUsernameChecking && (
+                          <small className="field-status-note checking">
+                            Checking availability...
+                          </small>
+                        )}
+                        {editUsernameStatus === 'available' && !editUsernameChecking && (
+                          <small className="field-status-note success">
+                            ✓ {editUsernameMessage || 'Username available'}
+                          </small>
+                        )}
+                        {editUsernameStatus === 'current' && !editUsernameChecking && (
+                          <small className="field-status-note" style={{ color: '#94a3b8' }}>
+                            Current username
+                          </small>
+                        )}
+                        {(editUsernameStatus === 'taken' || editUsernameStatus === 'invalid') && !editUsernameChecking && (
+                          <small className="field-status-note error">
+                            {editUsernameMessage}
+                          </small>
+                        )}
+                      </div>
+
+                      <div className="form-group-super">
+                        <label className="form-label-super">
+                          Assigned Office <span className="required-star">*</span>
+                        </label>
+                        <select
+                          className="form-input-super"
+                          value={editOffice}
+                          onChange={(e) => setEditOffice(e.target.value)}
+                          required
+                        >
+                          {offices.map((office) => (
+                            <option key={office.id} value={office.id}>
+                              {office.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="password-info-box" style={{ marginTop: '0.5rem' }}>
+                      <FaInfoCircle className="password-info-icon" />
+                      <p>Changing the staff username will invalidate any previous QR badges until regenerated.</p>
+                    </div>
+                  </>
+                )}
+
+                <div className="modal-actions">
+                  <button 
+                    type="button" 
+                    className="cancel-btn-super" 
+                    onClick={() => setShowEditUserModal(false)}
+                    disabled={savingUserEdit}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="create-btn-super"
+                    disabled={
+                      savingUserEdit ||
+                      !editFirstName.trim() ||
+                      !editLastName.trim() ||
+                      !editEmail.trim() ||
+                      (selectedUserProfile.userType === 'staff' && (
+                        !editUsername.trim() ||
+                        editUsernameChecking ||
+                        editUsernameStatus === 'taken' ||
+                        editUsernameStatus === 'invalid'
+                      ))
+                    }
+                  >
+                    <FaCheck />
+                    {savingUserEdit ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
 
         {/* Confirmation Modal (Suspend / Archive / Delete triggered in profile) */}

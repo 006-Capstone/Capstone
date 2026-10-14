@@ -774,6 +774,14 @@ select.form-input-super option:disabled {
   box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
 }
 
+.form-input-super.input-success {
+  border-color: #16a34a;
+}
+
+.form-input-super.input-success:focus {
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
 .field-status-note {
   font-size: 12px;
   margin-top: 4px;
@@ -2031,8 +2039,8 @@ select.form-input-super option:disabled {
 
 .user-profile-container.subpage-mode {
   display: grid;
-  grid-template-columns: 360px 1fr;
-  min-height: 650px;
+  grid-template-columns: 340px 1fr;
+  min-height: 680px;
   max-height: none;
   overflow: visible;
 }
@@ -2040,21 +2048,21 @@ select.form-input-super option:disabled {
 .user-profile-container.subpage-mode .user-profile-left {
   background: #0b3806;
   color: #ffffff;
-  padding: 36px 28px;
+  padding: 32px 24px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 22px;
   overflow-y: visible;
   max-height: none;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .user-profile-container.subpage-mode .user-profile-right {
-  padding: 36px 36px 32px;
+  padding: 32px 36px 36px;
   background: #f8fafc;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 26px;
   overflow-y: visible;
   max-height: none;
 }
@@ -2225,24 +2233,23 @@ select.form-input-super option:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 5px 14px;
+  gap: 8px;
+  padding: 6px 16px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.16);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  color: #f1f5f9;
-  font-size: 12.5px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #f8fafc;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
   max-width: 100%;
-  text-overflow: ellipsis;
-  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   white-space: nowrap;
 }
 
 .user-role-badge .badge-icon {
-  font-size: 13px;
+  font-size: 14px;
   color: #86efac;
 }
 
@@ -2453,6 +2460,19 @@ select.form-input-super option:disabled {
   transform: none !important;
 }
 
+.admin-action-btn.edit-user {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  color: #93c5fd;
+}
+
+.admin-action-btn.edit-user:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.35);
+  border-color: #3b82f6;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 .admin-action-btn.resend-email {
   background: rgba(34, 197, 94, 0.2);
   border: 1px solid rgba(34, 197, 94, 0.4);
@@ -2596,43 +2616,44 @@ select.form-input-super option:disabled {
 }
 
 .profile-overview-title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
   color: #0f172a;
-  margin: 0 0 4px 0;
-  letter-spacing: -0.3px;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.4px;
 }
 
 .profile-overview-desc {
-  font-size: 13px;
+  font-size: 13.5px;
   color: #64748b;
   margin: 0;
+  line-height: 1.4;
 }
 
 /* Stats Cards Grid - 4 Columns horizontally, 2x2 when constrained */
 .user-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
   width: 100%;
 }
 
 .user-stat-card {
   background: #ffffff;
-  border-radius: 10px;
-  padding: 14px 16px;
+  border-radius: 12px;
+  padding: 18px 20px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 104px;
+  min-height: 118px;
   box-sizing: border-box;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .user-stat-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
   border-color: #cbd5e1;
   transform: translateY(-2px);
 }
@@ -2642,26 +2663,26 @@ select.form-input-super option:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .stat-card-label {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   line-height: 1.2;
 }
 
 .stat-card-icon-wrap {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 15px;
   flex-shrink: 0;
 }
 
@@ -2706,12 +2727,12 @@ select.form-input-super option:disabled {
 }
 
 .stat-value {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 800;
   color: #0f172a;
   line-height: 1.2;
-  margin-bottom: 2px;
-  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -2719,19 +2740,19 @@ select.form-input-super option:disabled {
 }
 
 .stat-value.text-xl {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .stat-value.text-lg {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .stat-period {
-  font-size: 11px;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #64748b;
   margin: 0;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2741,47 +2762,48 @@ select.form-input-super option:disabled {
 .activity-history-section {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 20px 22px;
+  border-radius: 14px;
+  padding: 24px 26px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
 
 .activity-history-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .activity-title-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .history-icon {
   color: #105e06;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .activity-history-header h4 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
+  letter-spacing: -0.2px;
 }
 
 .activity-count-badge {
   background: #f1f5f9;
   color: #475569;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 12px;
+  padding: 4px 10px;
+  border-radius: 14px;
   letter-spacing: 0.2px;
 }
 
@@ -2872,8 +2894,8 @@ select.form-input-super option:disabled {
 .activity-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .activity-search-box {
@@ -2881,10 +2903,11 @@ select.form-input-super option:disabled {
   align-items: center;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0 12px;
-  gap: 8px;
-  transition: border-color 0.15s ease;
+  border-radius: 10px;
+  padding: 0 14px;
+  gap: 10px;
+  height: 42px;
+  transition: all 0.15s ease;
 }
 
 .activity-search-box:focus-within {
@@ -2895,7 +2918,7 @@ select.form-input-super option:disabled {
 
 .activity-search-icon {
   color: #94a3b8;
-  font-size: 13px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
@@ -2903,8 +2926,8 @@ select.form-input-super option:disabled {
   flex: 1;
   border: none;
   background: transparent;
-  padding: 8px 0;
-  font-size: 12.5px;
+  padding: 10px 0;
+  font-size: 13px;
   color: #1e293b;
   outline: none;
 }
@@ -2921,7 +2944,7 @@ select.form-input-super option:disabled {
   padding: 4px;
   display: flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .activity-clear-search-btn:hover {
@@ -2931,14 +2954,14 @@ select.form-input-super option:disabled {
 .activity-category-pills {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .activity-pill {
-  padding: 4px 11px;
+  padding: 6px 14px;
   border-radius: 20px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
@@ -2987,8 +3010,8 @@ select.form-input-super option:disabled {
 .activity-log-item {
   display: flex;
   align-items: stretch;
-  gap: 14px;
-  padding: 6px 0;
+  gap: 16px;
+  padding: 8px 0;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -2999,18 +3022,18 @@ select.form-input-super option:disabled {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 28px;
+  width: 32px;
   flex-shrink: 0;
 }
 
 .activity-icon-bubble {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   z-index: 2;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -3050,17 +3073,19 @@ select.form-input-super option:disabled {
 .activity-details {
   flex: 1;
   min-width: 0;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
-  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
   margin-bottom: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   transition: all 0.15s ease;
 }
 
 .activity-log-item:hover .activity-details {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   transform: translateX(2px);
 }
 
