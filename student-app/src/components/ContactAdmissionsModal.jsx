@@ -28,13 +28,19 @@ const GRADE_LEVELS = [
   'Grade 12'
 ];
 
+const SECTIONS = [
+  'Section A',
+  'Section B',
+  'Section C'
+];
+
 const ContactAdmissionsModal = ({ isOpen, onClose }) => {
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [email, setEmail] = useState('');
   const [grade, setGrade] = useState(GRADE_LEVELS[0]);
-  const [section, setSection] = useState('');
+  const [section, setSection] = useState(SECTIONS[0]);
   const [message, setMessage] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +64,7 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
     setStudentId('');
     setEmail('');
     setGrade(GRADE_LEVELS[0]);
-    setSection('');
+    setSection(SECTIONS[0]);
     setMessage('');
     setSubmittedData(null);
     setErrorMessage('');
@@ -371,15 +377,17 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
                     <FaLayerGroup className="field-icon" />
                     <span>Section</span>
                   </label>
-                  <input
+                  <select
                     id="adm-section"
-                    type="text"
-                    className="admissions-input"
-                    placeholder="e.g. St. Francis or Incoming"
+                    className="admissions-select"
                     value={section}
                     onChange={(e) => setSection(e.target.value)}
                     disabled={isSubmitting}
-                  />
+                  >
+                    {SECTIONS.map((sec) => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

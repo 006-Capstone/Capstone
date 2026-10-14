@@ -77,6 +77,7 @@ function RequestDetails({ requestData, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
   const [followUpFiles, setFollowUpFiles] = useState([]);
+  const [isCommentDragOver, setIsCommentDragOver] = useState(false);
   const [sending, setSending] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -134,15 +135,14 @@ function RequestDetails({ requestData, onNavigate }) {
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
     const validFiles = [];
     const invalidTypeFiles = [];
-    const oversizeFiles = [];
 
     files.forEach(file => {
       if (!isAllowedFileType(file)) {
         invalidTypeFiles.push(file.name);
-      } else if (file.size > 10 * 1024 * 1024) {
-        oversizeFiles.push(file.name);
       } else {
         validFiles.push(file);
       }
@@ -150,9 +150,16 @@ function RequestDetails({ requestData, onNavigate }) {
     
     if (invalidTypeFiles.length > 0) {
       toast.warning(`Only PDF, PNG, and JPG files are allowed: ${invalidTypeFiles.join(', ')}`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
-    if (oversizeFiles.length > 0) {
-      toast.warning(`Some files exceed 10MB limit and were not added: ${oversizeFiles.join(', ')}`);
+
+    const currentTotal = followUpFiles.reduce((s, f) => s + (f.size || 0), 0);
+    const newFilesTotal = validFiles.reduce((s, f) => s + (f.size || 0), 0);
+    if (currentTotal + newFilesTotal > 10 * 1024 * 1024) {
+      toast.warning(`Combined attachments exceed 10MB limit (Current: ${(currentTotal / (1024 * 1024)).toFixed(2)} MB, Selected: ${(newFilesTotal / (1024 * 1024)).toFixed(2)} MB)`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
     
     if (validFiles.length > 0) {
@@ -917,7 +924,32 @@ function RequestDetails({ requestData, onNavigate }) {
 
           {/* Follow-up comment section */}
           {request.status?.toLowerCase() !== 'resolved' && request.status?.toLowerCase() !== 'cancelled' && (
-            <div className="comment-section">
+            <div 
+              className={`comment-section ${isCommentDragOver ? 'is-drag-over' : ''}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!sending && studentFollowUpsCount < 3) setIsCommentDragOver(true);
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!sending && studentFollowUpsCount < 3) setIsCommentDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCommentDragOver(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCommentDragOver(false);
+                if (!sending && studentFollowUpsCount < 3 && e.dataTransfer?.files) {
+                  handleFileSelect({ target: { files: e.dataTransfer.files } });
+                }
+              }}
+            >
               <div className="comment-header">
                 <FaUserCircle className="user-icon" />
                 <div>
@@ -928,7 +960,7 @@ function RequestDetails({ requestData, onNavigate }) {
                 </div>
               </div>
               <textarea 
-                placeholder="Type your message here..."
+                placeholder="Type your message here, or drag and drop files..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 disabled={sending || studentFollowUpsCount >= 3}
@@ -967,7 +999,7 @@ function RequestDetails({ requestData, onNavigate }) {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={sending || studentFollowUpsCount >= 3}
                 >
-                  <MdAttachFile /> Attach file (PDF, PNG, JPG - Max 10MB)
+                  <MdAttachFile /> Attach files (Max 10MB combined total)
                 </button>
                 <button 
                   type="button"

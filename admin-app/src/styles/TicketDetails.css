@@ -786,6 +786,21 @@
   cursor: not-allowed;
 }
 
+.reply-textarea-wrapper.is-drag-over {
+  background-color: #f0fdf4 !important;
+  box-shadow: 0 0 0 2px #16a34a !important;
+  outline: 2px dashed #16a34a;
+  outline-offset: -4px;
+}
+
+.reassign-attach-group.is-drag-over {
+  background-color: #f0fdf4;
+  border-radius: 8px;
+  padding: 10px;
+  outline: 2px dashed #16a34a;
+  outline-offset: -2px;
+}
+
 .reply-native-textarea {
   width: 100%;
   min-height: 110px;

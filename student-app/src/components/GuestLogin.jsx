@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignInAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignInAlt, FaArrowLeft, FaArrowRight, FaInfoCircle, FaIdCard, FaPlus } from 'react-icons/fa';
 import { MdHome, MdTrackChanges, MdCheckCircle, MdWarning, MdError, MdPostAdd } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -159,8 +159,11 @@ const GuestLogin = () => {
   const [selectedOffice, setSelectedOffice] = useState('finance');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
-  const [authFile, setAuthFile] = useState(null);
-  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [authFiles, setAuthFiles] = useState([]);
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
+  const [isAuthDragging, setIsAuthDragging] = useState(false);
+  const [isAttachmentDragging, setIsAttachmentDragging] = useState(false);
+  const [showProofGuide, setShowProofGuide] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [statusData, setStatusData] = useState(null);
   const [submissionData, setSubmissionData] = useState(null);
@@ -238,48 +241,66 @@ const GuestLogin = () => {
   const openAttachmentPicker = () => attachmentInputRef.current?.click();
 
   const handleAuthChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (!isAllowedFileType(file)) {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const invalidTypeFiles = selectedFiles.filter((f) => !isAllowedFileType(f));
+    if (invalidTypeFiles.length > 0) {
       toast.warning('Only PDF, PNG, and JPG files are allowed');
       e.target.value = '';
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.warning('Authorization file exceeds 10MB limit');
+
+    const currentTotalSize = [...authFiles, ...attachmentFiles].reduce((acc, f) => acc + (f.size || 0), 0);
+    const newFilesSize = selectedFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+    if (currentTotalSize + newFilesSize > 10 * 1024 * 1024) {
+      toast.warning('Combined upload size exceeds 10MB limit');
       e.target.value = '';
       return;
     }
-    setAuthFile(file);
+
+    setAuthFiles((prev) => [...prev, ...selectedFiles]);
     e.target.value = '';
   };
 
   const handleAttachmentChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (!isAllowedFileType(file)) {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const invalidTypeFiles = selectedFiles.filter((f) => !isAllowedFileType(f));
+    if (invalidTypeFiles.length > 0) {
       toast.warning('Only PDF, PNG, and JPG files are allowed');
       e.target.value = '';
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.warning('Attachment file exceeds 10MB limit');
+
+    const currentTotalSize = [...authFiles, ...attachmentFiles].reduce((acc, f) => acc + (f.size || 0), 0);
+    const newFilesSize = selectedFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+    if (currentTotalSize + newFilesSize > 10 * 1024 * 1024) {
+      toast.warning('Combined upload size exceeds 10MB limit');
       e.target.value = '';
       return;
     }
-    setAttachmentFile(file);
+
+    setAttachmentFiles((prev) => [...prev, ...selectedFiles]);
     e.target.value = '';
   };
 
-  const handleRemoveAuthFile = (e) => {
-    e.stopPropagation();
-    setAuthFile(null);
+  const handleRemoveAuthFile = (indexToRemove, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setAuthFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
     if (authInputRef.current) authInputRef.current.value = '';
   };
 
-  const handleRemoveAttachmentFile = (e) => {
-    e.stopPropagation();
-    setAttachmentFile(null);
+  const handleRemoveAttachmentFile = (indexToRemove, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setAttachmentFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
     if (attachmentInputRef.current) attachmentInputRef.current.value = '';
   };
 
@@ -540,47 +561,47 @@ const GuestLogin = () => {
       const attachments = [];
       const now = Date.now();
       
-      if (authFile) {
+      for (const file of authFiles) {
         let fileData;
         
         // Compress images, keep other files as-is
-        const isAuthImage = authFile.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(authFile.name);
+        const isAuthImage = file.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(file.name);
         if (isAuthImage) {
-          console.log('🖼️ Compressing auth image:', authFile.name, `(${(authFile.size / 1024 / 1024).toFixed(2)} MB)`);
-          fileData = await compressImage(authFile);
+          console.log('🖼️ Compressing auth image:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+          fileData = await compressImage(file);
           console.log(`✅ Compressed to ${(fileData.length / 1024).toFixed(0)} KB`);
         } else {
-          fileData = await fileToBase64(authFile);
+          fileData = await fileToBase64(file);
         }
         
         attachments.push({
-          name: authFile.name || 'auth-file',
+          name: file.name || 'auth-file',
           data: fileData || '',
-          size: authFile.size || 0,
-          type: authFile.type || (isAuthImage ? 'image/jpeg' : 'application/pdf'),
+          size: file.size || 0,
+          type: file.type || (isAuthImage ? 'image/jpeg' : 'application/pdf'),
           isAuthProof: true,
           uploadedAt: now
         });
       }
       
-      if (attachmentFile) {
+      for (const file of attachmentFiles) {
         let fileData;
         
         // Compress images, keep other files as-is
-        const isAttImage = attachmentFile.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(attachmentFile.name);
+        const isAttImage = file.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(file.name);
         if (isAttImage) {
-          console.log('🖼️ Compressing attachment image:', attachmentFile.name, `(${(attachmentFile.size / 1024 / 1024).toFixed(2)} MB)`);
-          fileData = await compressImage(attachmentFile);
+          console.log('🖼️ Compressing attachment image:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+          fileData = await compressImage(file);
           console.log(`✅ Compressed to ${(fileData.length / 1024).toFixed(0)} KB`);
         } else {
-          fileData = await fileToBase64(attachmentFile);
+          fileData = await fileToBase64(file);
         }
         
         attachments.push({
-          name: attachmentFile.name || 'attachment',
+          name: file.name || 'attachment',
           data: fileData || '',
-          size: attachmentFile.size || 0,
-          type: attachmentFile.type || (isAttImage ? 'image/jpeg' : 'application/pdf'),
+          size: file.size || 0,
+          type: file.type || (isAttImage ? 'image/jpeg' : 'application/pdf'),
           uploadedAt: now
         });
       }
@@ -650,8 +671,11 @@ const GuestLogin = () => {
     setSelectedOffice('finance');
     setSubject('');
     setDescription('');
-    setAttachmentFile(null);
-    setAuthFile(null);
+    setAttachmentFiles([]);
+    setAuthFiles([]);
+    setIsAuthDragging(false);
+    setIsAttachmentDragging(false);
+    setShowProofGuide(false);
     setView('options');
   };
 
@@ -666,7 +690,7 @@ const GuestLogin = () => {
     !!selectedOffice &&
     subject.trim() !== '' &&
     description.trim() !== '' &&
-    authFile !== null &&
+    authFiles.length > 0 &&
     !isValidating &&
     validationResult &&
     validationResult.isValid &&
@@ -787,58 +811,66 @@ const GuestLogin = () => {
               <div className="form-section-guest">
                 <h3 className="guest-subheading">1. Student Information</h3>
                 <div className="field-grid">
-                  <div className="form-group-guest">
-                    <label className="form-label-guest" htmlFor="guestFirstName">First Name <span className="required-star">*</span></label>
-                    <input
-                      id="guestFirstName"
-                      type="text"
-                      className="form-input-guest"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                    />
+                  <div className="form-group-guest full-width">
+                    <label className="form-label-guest">
+                      Student Name <span className="required-star">*</span>
+                    </label>
+                    <div className="student-name-grid">
+                      <input
+                        id="guestFirstName"
+                        type="text"
+                        className="form-input-guest"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Enter Student First Name"
+                        aria-label="Student First Name"
+                      />
+                      <input
+                        id="guestLastName"
+                        type="text"
+                        className="form-input-guest"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Enter Student Last Name"
+                        aria-label="Student Last Name"
+                      />
+                    </div>
                   </div>
-                  <div className="form-group-guest">
-                    <label className="form-label-guest" htmlFor="guestLastName">Last Name <span className="required-star">*</span></label>
-                    <input
-                      id="guestLastName"
-                      type="text"
-                      className="form-input-guest"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group-guest">
-                    <label className="form-label-guest" htmlFor="guestGrade">Grade Level <span className="required-star">*</span></label>
-                    <select
-                      id="guestGrade"
-                      className="form-select-guest"
-                      value={grade}
-                      onChange={(e) => setGrade(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled hidden style={{ display: 'none' }}>Select grade level</option>
-                      <option value="Grade 7">Grade 7</option>
-                      <option value="Grade 8">Grade 8</option>
-                      <option value="Grade 9">Grade 9</option>
-                      <option value="Grade 10">Grade 10</option>
-                      <option value="Grade 11">Grade 11</option>
-                      <option value="Grade 12">Grade 12</option>
-                    </select>
-                  </div>
-                  <div className="form-group-guest">
-                    <label className="form-label-guest" htmlFor="guestSection">Section <span className="required-star">*</span></label>
-                    <select
-                      id="guestSection"
-                      className="form-select-guest"
-                      value={section}
-                      onChange={(e) => setSection(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled hidden style={{ display: 'none' }}>Select section</option>
-                      <option value="A">A</option>
-                      <option value="B">B</option>
-                      <option value="C">C</option>
-                    </select>
+                  <div className="form-group-guest full-width">
+                    <label className="form-label-guest">
+                      Grade and Section <span className="required-star">*</span>
+                    </label>
+                    <div className="grade-section-grid">
+                      <select
+                        id="guestGrade"
+                        className="form-select-guest"
+                        value={grade}
+                        onChange={(e) => setGrade(e.target.value)}
+                        required
+                        aria-label="Grade Level"
+                      >
+                        <option value="" disabled hidden style={{ display: 'none' }}>Select grade level</option>
+                        <option value="Grade 7">Grade 7</option>
+                        <option value="Grade 8">Grade 8</option>
+                        <option value="Grade 9">Grade 9</option>
+                        <option value="Grade 10">Grade 10</option>
+                        <option value="Grade 11">Grade 11</option>
+                        <option value="Grade 12">Grade 12</option>
+                      </select>
+                      <select
+                        id="guestSection"
+                        className="form-select-guest"
+                        value={section}
+                        onChange={(e) => setSection(e.target.value)}
+                        required
+                        aria-label="Section"
+                      >
+                        <option value="" disabled hidden style={{ display: 'none' }}>Select section</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="form-group-guest full-width">
                     <label className="form-label-guest">
@@ -965,15 +997,126 @@ const GuestLogin = () => {
                 <h3 className="guest-subheading">4. Attachments</h3>
 
                 <div className="form-group-guest">
-                  <label className="form-label-guest" htmlFor="authProofUpload">
-                    Authorization / Identification Proof <span className="required-star">*</span>
-                  </label>
+                  <div className="auth-proof-header-row">
+                    <label className="form-label-guest" htmlFor="authProofUpload">
+                      Authorization / Identification Proof <span className="required-star">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="auth-proof-guide-pill"
+                      onClick={() => setShowProofGuide((prev) => !prev)}
+                      aria-expanded={showProofGuide}
+                    >
+                      <FaInfoCircle className="pill-icon" />
+                      <span>{showProofGuide ? 'Hide Requirements' : 'What should I upload?'}</span>
+                    </button>
+                  </div>
+
+                  {showProofGuide && (
+                    <div className="auth-proof-guide-card" role="region" aria-label="Required Identification Guidelines">
+                      <div className="guide-card-header">
+                        <div className="guide-card-title-group">
+                          <span className="guide-card-icon"><FaIdCard /></span>
+                          <h4 className="guide-card-title">Required ID &amp; Authorization Proof Guidelines</h4>
+                        </div>
+                        <button
+                          type="button"
+                          className="guide-card-close-btn"
+                          onClick={() => setShowProofGuide(false)}
+                          aria-label="Close guide"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                      <p className="guide-card-intro">
+                        To protect student privacy and ensure verified processing, please upload clear photos or scanned copies (front &amp; back) according to your category:
+                      </p>
+
+                      <div className="guide-category-list">
+                        <div className="guide-category-item">
+                          <div className="guide-category-badge badge-minor">
+                            <span>1. Minor Student (Under 18)</span>
+                          </div>
+                          <p className="guide-category-subtitle">Parent or Legal Guardian must attach:</p>
+                          <ul className="guide-doc-list">
+                            <li><strong>Student's School ID</strong> (or Certificate of Enrollment / Registration / Form 138 if ID not yet issued)</li>
+                            <li><strong>Parent / Guardian's Valid Government-issued ID</strong> (e.g., PhilSys National ID, Driver's License, Passport, UMID, Postal ID, PRC, Voter's ID)</li>
+                          </ul>
+                        </div>
+
+                        <div className="guide-category-item">
+                          <div className="guide-category-badge badge-legal-age">
+                            <span>2. Student of Legal Age (18 and above)</span>
+                          </div>
+                          <p className="guide-category-subtitle">Required documents by submitter:</p>
+                          <ul className="guide-doc-list">
+                            <li><strong>If represented by Parent or Relative:</strong> Letter of Authorization signed by the student + Student's School/Gov ID + Representative's Valid Government ID</li>
+                            <li><strong>If student is requesting directly:</strong> Student's Valid School ID or Government-issued ID</li>
+                          </ul>
+                        </div>
+
+                        <div className="guide-category-item">
+                          <div className="guide-category-badge badge-teacher">
+                            <span>3. Teacher / School Staff / Faculty</span>
+                          </div>
+                          <ul className="guide-doc-list">
+                            <li><strong>Valid School Faculty / Employee ID</strong> (or Certificate of Employment)</li>
+                          </ul>
+                        </div>
+
+                        <div className="guide-category-item">
+                          <div className="guide-category-badge badge-alumni">
+                            <span>4. Alumni / Former Student</span>
+                          </div>
+                          <ul className="guide-doc-list">
+                            <li><strong>Alumni ID or previous School ID</strong>, or any <strong>Valid Government-issued ID</strong></li>
+                            <li><em>Helpful addition:</em> Graduation batch year or copy of Diploma / Transcript of Records (TOR) for prompt verification</li>
+                          </ul>
+                        </div>
+
+                        <div className="guide-category-item guide-special-cases">
+                          <div className="guide-category-badge badge-special">
+                            <span>💡 Additional Proof Alternatives &amp; Tips</span>
+                          </div>
+                          <ul className="guide-doc-list">
+                            <li><strong>Lost School ID:</strong> Attach a Certificate of Registration (COR), School Admission Slip, or an Affidavit of Loss.</li>
+                            <li><strong>Legal Guardian (non-parent):</strong> Attach a Barangay Certificate of Guardianship or Special Power of Attorney (SPA).</li>
+                            <li><strong>Multiple Files Supported:</strong> You can upload multiple files (photos/PDFs) up to 10MB combined total. Attach both front &amp; back of IDs or authorization letters directly.</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div
-                    className={`upload-box-auth ${authFile ? 'has-file' : ''}`}
+                    className={`upload-box-auth ${authFiles.length > 0 ? 'has-file' : ''} ${isAuthDragging ? 'is-drag-over' : ''}`}
                     id="authProofUpload"
                     role="button"
                     tabIndex={0}
                     onClick={openAuthPicker}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAuthDragging(true);
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAuthDragging(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAuthDragging(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAuthDragging(false);
+                      if (e.dataTransfer?.files) {
+                        handleAuthChange({ target: { files: e.dataTransfer.files } });
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
@@ -981,33 +1124,48 @@ const GuestLogin = () => {
                       }
                     }}
                   >
-                    {!authFile && <span className="required-badge">Required</span>}
-                    {authFile ? (
-                      <div className="guest-attached-file">
-                        <FaFileAlt className="guest-file-icon" />
-                        <div className="guest-file-meta">
-                          <span className="guest-file-name">{authFile.name}</span>
-                          <span className="guest-file-size">{formatFileSize(authFile.size)}</span>
+                    {authFiles.length === 0 && <span className="required-badge">Required</span>}
+                    {authFiles.length > 0 ? (
+                      <div className="guest-attached-files-container">
+                        <div className="guest-files-summary">
+                          <span>Attached Documents ({authFiles.length})</span>
+                          <span>{formatFileSize(authFiles.reduce((s, f) => s + (f.size || 0), 0))}</span>
                         </div>
-                        <button
-                          type="button"
-                          className="guest-file-remove"
-                          aria-label="Remove authorization proof"
-                          onClick={handleRemoveAuthFile}
-                        >
-                          <FaTimes />
-                        </button>
+                        <div className="guest-attached-files-list">
+                          {authFiles.map((file, idx) => (
+                            <div key={`${file.name}-${idx}`} className="guest-attached-file">
+                              <FaFileAlt className="guest-file-icon" />
+                              <div className="guest-file-meta">
+                                <span className="guest-file-name">{file.name}</span>
+                                <span className="guest-file-size">{formatFileSize(file.size)}</span>
+                              </div>
+                              <button
+                                type="button"
+                                className="guest-file-remove"
+                                aria-label={`Remove ${file.name}`}
+                                onClick={(e) => handleRemoveAuthFile(idx, e)}
+                              >
+                                <FaTimes />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="guest-add-more-hint">
+                          <FaPlus className="add-more-icon" />
+                          <span>Click to add more authorization files</span>
+                        </div>
                       </div>
                     ) : (
                       <>
                         <FaFileUpload className="upload-icon-large upload-icon-green" />
                         <p className="upload-text-main">Click to upload student ID or authorization document</p>
-                        <p className="upload-text-sub">PDF, PNG, or JPG (Max 10MB)</p>
+                        <p className="upload-text-sub">PDF, PNG, or JPG (Max 10MB combined total, multiple files allowed)</p>
                       </>
                     )}
                     <input
                       ref={authInputRef}
                       type="file"
+                      multiple
                       className="file-input-hidden"
                       onChange={handleAuthChange}
                       accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
@@ -1022,11 +1180,34 @@ const GuestLogin = () => {
                     Additional Supporting File <span className="optional-guest">(Optional)</span>
                   </label>
                   <div
-                    className={`upload-box-dashed ${attachmentFile ? 'has-file' : ''}`}
+                    className={`upload-box-dashed ${attachmentFiles.length > 0 ? 'has-file' : ''} ${isAttachmentDragging ? 'is-drag-over' : ''}`}
                     id="optionalUpload"
                     role="button"
                     tabIndex={0}
                     onClick={openAttachmentPicker}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAttachmentDragging(true);
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAttachmentDragging(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAttachmentDragging(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAttachmentDragging(false);
+                      if (e.dataTransfer?.files) {
+                        handleAttachmentChange({ target: { files: e.dataTransfer.files } });
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
@@ -1034,32 +1215,47 @@ const GuestLogin = () => {
                       }
                     }}
                   >
-                    {attachmentFile ? (
-                      <div className="guest-attached-file">
-                        <FaFileAlt className="guest-file-icon" />
-                        <div className="guest-file-meta">
-                          <span className="guest-file-name">{attachmentFile.name}</span>
-                          <span className="guest-file-size">{formatFileSize(attachmentFile.size)}</span>
+                    {attachmentFiles.length > 0 ? (
+                      <div className="guest-attached-files-container">
+                        <div className="guest-files-summary">
+                          <span>Attached Supporting Documents ({attachmentFiles.length})</span>
+                          <span>{formatFileSize(attachmentFiles.reduce((s, f) => s + (f.size || 0), 0))}</span>
                         </div>
-                        <button
-                          type="button"
-                          className="guest-file-remove"
-                          aria-label="Remove attached file"
-                          onClick={handleRemoveAttachmentFile}
-                        >
-                          <FaTimes />
-                        </button>
+                        <div className="guest-attached-files-list">
+                          {attachmentFiles.map((file, idx) => (
+                            <div key={`${file.name}-${idx}`} className="guest-attached-file">
+                              <FaFileAlt className="guest-file-icon" />
+                              <div className="guest-file-meta">
+                                <span className="guest-file-name">{file.name}</span>
+                                <span className="guest-file-size">{formatFileSize(file.size)}</span>
+                              </div>
+                              <button
+                                type="button"
+                                className="guest-file-remove"
+                                aria-label={`Remove ${file.name}`}
+                                onClick={(e) => handleRemoveAttachmentFile(idx, e)}
+                              >
+                                <FaTimes />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="guest-add-more-hint">
+                          <FaPlus className="add-more-icon" />
+                          <span>Click to add more supporting files</span>
+                        </div>
                       </div>
                     ) : (
                       <>
                         <FaFileUpload className="upload-icon-large" />
                         <p className="upload-text-main">Click to attach supporting receipt or document</p>
-                        <p className="upload-text-sub">PDF, PNG, or JPG (Max 10MB)</p>
+                        <p className="upload-text-sub">PDF, PNG, or JPG (Max 10MB combined total, multiple files allowed)</p>
                       </>
                     )}
                     <input
                       ref={attachmentInputRef}
                       type="file"
+                      multiple
                       className="file-input-hidden"
                       onChange={handleAttachmentChange}
                       accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"

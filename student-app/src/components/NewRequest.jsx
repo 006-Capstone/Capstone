@@ -80,6 +80,7 @@ function NewRequest({ onNavigate }) {
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [error, setError] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [offices, setOffices] = useState([]);
   const fileInputRef = useRef(null);
   
@@ -160,17 +161,15 @@ function NewRequest({ onNavigate }) {
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     
-    // Filter files: must be PDF, PNG, or JPG, and under 10MB
+    // Filter files: must be PDF, PNG, or JPG, and under combined 10MB
     const validFiles = [];
     const invalidTypeFiles = [];
-    const oversizeFiles = [];
     
     files.forEach(file => {
       if (!isAllowedFileType(file)) {
         invalidTypeFiles.push(file.name);
-      } else if (file.size > 10 * 1024 * 1024) {
-        oversizeFiles.push(file.name);
       } else {
         validFiles.push(file);
       }
@@ -179,9 +178,18 @@ function NewRequest({ onNavigate }) {
     if (invalidTypeFiles.length > 0) {
       setError(`Only PDF, PNG, and JPG files are allowed: ${invalidTypeFiles.join(', ')}`);
       setTimeout(() => setError(''), 5000);
-    } else if (oversizeFiles.length > 0) {
-      setError(`Files exceed 10MB limit: ${oversizeFiles.join(', ')}`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const currentTotalSize = uploadedFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+    const newFilesSize = validFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+
+    if (currentTotalSize + newFilesSize > 10 * 1024 * 1024) {
+      setError(`Combined upload size exceeds 10MB limit (Current: ${(currentTotalSize / (1024 * 1024)).toFixed(2)} MB, Selected: ${(newFilesSize / (1024 * 1024)).toFixed(2)} MB)`);
       setTimeout(() => setError(''), 5000);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
 
     if (validFiles.length > 0) {
@@ -641,11 +649,27 @@ function NewRequest({ onNavigate }) {
               />
               
               <div 
-                className="upload-area" 
+                className={`upload-area ${isDragging ? 'is-drag-over' : ''}`} 
                 onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
                   if (e.dataTransfer?.files) {
                     handleFileSelect({ target: { files: e.dataTransfer.files } });
                   }
@@ -662,7 +686,7 @@ function NewRequest({ onNavigate }) {
                   <FaFileUpload className="upload-icon" />
                 </div>
                 <p className="upload-text">Click to choose files or drag and drop</p>
-                <p className="upload-limit">PDF, PNG, or JPG up to 10MB (images compressed automatically)</p>
+                <p className="upload-limit">PDF, PNG, or JPG up to 10MB combined total (multiple files allowed)</p>
               </div>
 
               {uploadedFiles.length > 0 && (

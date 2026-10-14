@@ -3820,7 +3820,7 @@ const UserManagement = () => {
               <div className="form-row-super">
                 <div className="form-group-super">
                   <label className="form-label-super">
-                    Student ID (4 digits) <span className="required-star">*</span>
+                    Student ID (last 4 digits) <span className="required-star">*</span>
                   </label>
                   <input
                     type="text"

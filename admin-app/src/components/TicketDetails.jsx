@@ -226,6 +226,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [loading, setLoading] = useState(true);
   const [replyMessage, setReplyMessage] = useState('');
   const [replyFiles, setReplyFiles] = useState([]);
+  const [isReplyDragOver, setIsReplyDragOver] = useState(false);
   const [requiresFollowUp, setRequiresFollowUp] = useState(true);
   const [sending, setSending] = useState(false);
   const [reassignOffice, setReassignOffice] = useState('');
@@ -237,6 +238,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   const [reassignTargetDate, setReassignTargetDate] = useState(() => isoDateFromOffset(2));
   const [reassignFiles, setReassignFiles] = useState([]);
   const [isReassigning, setIsReassigning] = useState(false);
+  const [isReassignDragOver, setIsReassignDragOver] = useState(false);
   const reassignFileInputRef = useRef(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -823,26 +825,29 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files || []);
+    const rawFiles = e?.target?.files || (Array.isArray(e) ? e : (e?.length !== undefined ? e : []));
+    const files = Array.from(rawFiles);
     const validFiles = [];
     const invalidTypeFiles = [];
-    const oversizeFiles = [];
+    let currentTotalSize = replyFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+    let oversize = false;
 
     files.forEach(file => {
       if (!isAllowedFileType(file)) {
         invalidTypeFiles.push(file.name);
-      } else if (file.size > 10 * 1024 * 1024) {
-        oversizeFiles.push(file.name);
+      } else if (currentTotalSize + file.size > 10 * 1024 * 1024) {
+        oversize = true;
       } else {
         validFiles.push(file);
+        currentTotalSize += file.size;
       }
     });
 
     if (invalidTypeFiles.length > 0) {
       showToast(`Only PDF, PNG, and JPG files are allowed: ${invalidTypeFiles.join(', ')}`, 'error');
     }
-    if (oversizeFiles.length > 0) {
-      showToast(`Some files exceed 10MB limit and were skipped: ${oversizeFiles.join(', ')}`, 'error');
+    if (oversize) {
+      showToast('Combined attachments exceed the 10MB limit and extra files were skipped.', 'error');
     }
     
     setReplyFiles(prev => [...prev, ...validFiles]);
@@ -854,26 +859,29 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const handleReassignFileSelect = (e) => {
-    const files = Array.from(e.target.files || []);
+    const rawFiles = e?.target?.files || (Array.isArray(e) ? e : (e?.length !== undefined ? e : []));
+    const files = Array.from(rawFiles);
     const validFiles = [];
     const invalidTypeFiles = [];
-    const oversizeFiles = [];
+    let currentTotalSize = reassignFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+    let oversize = false;
 
     files.forEach(file => {
       if (!isAllowedFileType(file)) {
         invalidTypeFiles.push(file.name);
-      } else if (file.size > 10 * 1024 * 1024) {
-        oversizeFiles.push(file.name);
+      } else if (currentTotalSize + file.size > 10 * 1024 * 1024) {
+        oversize = true;
       } else {
         validFiles.push(file);
+        currentTotalSize += file.size;
       }
     });
 
     if (invalidTypeFiles.length > 0) {
       showToast(`Only PDF, PNG, and JPG files are allowed: ${invalidTypeFiles.join(', ')}`, 'error');
     }
-    if (oversizeFiles.length > 0) {
-      showToast(`Some files exceed 10MB limit and were skipped: ${oversizeFiles.join(', ')}`, 'error');
+    if (oversize) {
+      showToast('Combined attachments exceed the 10MB limit and extra files were skipped.', 'error');
     }
     
     setReassignFiles(prev => [...prev, ...validFiles]);
@@ -2078,13 +2086,41 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   )}
                 </div>
 
-                <div className={`reply-textarea-wrapper ${!canReplyToStudent ? 'disabled' : ''}`}>
+                <div 
+                  className={`reply-textarea-wrapper ${!canReplyToStudent ? 'disabled' : ''} ${isReplyDragOver ? 'is-drag-over' : ''}`}
+                  onDragOver={(e) => {
+                    if (!canReplyToStudent) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsReplyDragOver(true);
+                  }}
+                  onDragEnter={(e) => {
+                    if (!canReplyToStudent) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsReplyDragOver(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsReplyDragOver(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsReplyDragOver(false);
+                    if (!canReplyToStudent) return;
+                    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                      handleFileSelect({ target: { files: e.dataTransfer.files } });
+                    }
+                  }}
+                >
                   <textarea
                     className="reply-native-textarea"
                     placeholder={
                       !canReplyToStudent 
                         ? `View-only mode — this request is claimed by ${ticketHandler || 'another staff member'}.`
-                        : "Type your message here...."
+                        : "Type your message here.... (or drag & drop files here)"
                     }
                     value={replyMessage}
                     onChange={(e) => setReplyMessage(e.target.value)}
@@ -2145,14 +2181,14 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                       title={
                         !canReplyToStudent 
                           ? `Only authorized staff can attach files` 
-                          : "Attach files (PDF, PNG, JPG - Max 10MB)"
+                          : "Attach files (PDF, PNG, JPG - Max 10MB combined)"
                       }
                     >
                       <FaPaperclip className="attach-action-icon" />
                       <span>Attach Files</span>
                     </button>
                     <span style={{ fontSize: '12px', color: '#64748b' }}>
-                      PDF, PNG, JPG (Max 10MB)
+                      PDF, PNG, JPG (Max 10MB combined)
                     </span>
                   </div>
 
@@ -2876,7 +2912,35 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </div>
             </div>
 
-            <div className="modal-field-group reassign-attach-group">
+            <div 
+              className={`modal-field-group reassign-attach-group ${isReassignDragOver ? 'is-drag-over' : ''}`}
+              onDragOver={(e) => {
+                if (isReassigning) return;
+                e.preventDefault();
+                e.stopPropagation();
+                setIsReassignDragOver(true);
+              }}
+              onDragEnter={(e) => {
+                if (isReassigning) return;
+                e.preventDefault();
+                e.stopPropagation();
+                setIsReassignDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsReassignDragOver(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsReassignDragOver(false);
+                if (isReassigning) return;
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleReassignFileSelect({ target: { files: e.dataTransfer.files } });
+                }
+              }}
+            >
               <label className="modal-label">
                 ATTACH FILES FOR REROUTING <span style={{ fontWeight: 'normal', color: '#64748b', textTransform: 'none' }}>(Optional)</span>
               </label>
@@ -2903,7 +2967,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   <span>Attach Supporting Files</span>
                 </button>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  Supported formats: PDF, PNG, JPG (Max 10MB each)
+                  Supported formats: PDF, PNG, JPG (Max 10MB combined) &bull; Drag &amp; drop supported
                 </span>
               </div>
 

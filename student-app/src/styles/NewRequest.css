@@ -420,6 +420,17 @@
   background-color: var(--sage-50);
 }
 
+.upload-area.is-drag-over {
+  border-color: var(--color-primary) !important;
+  background-color: var(--sage-100) !important;
+  transform: scale(1.01);
+  box-shadow: 0 0 0 4px rgba(30, 86, 49, 0.15) !important;
+}
+
+.upload-area.is-drag-over .upload-icon-circle {
+  transform: translateY(-4px) scale(1.08);
+}
+
 .upload-icon-circle {
   width: 44px;
   height: 44px;

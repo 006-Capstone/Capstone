@@ -595,6 +595,13 @@
   border-radius: var(--radius-md, 12px);
   padding: 24px 28px;
   box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.comment-section.is-drag-over {
+  border-color: var(--color-primary, #105e06) !important;
+  background-color: var(--sage-50, #f6f8f5) !important;
+  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.15) !important;
 }
 
 .comment-header {
