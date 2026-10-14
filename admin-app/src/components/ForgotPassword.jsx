@@ -328,42 +328,43 @@ const ForgotPassword = ({ onClose }) => {
           <p>Follow the steps to reset your staff account password</p>
         </div>
 
-        {/* Step Indicator */}
-        <div className="steps-indicator">
-          <div className={`step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'completed' : ''}`}>
-            <div className="step-number">1</div>
-            <div className="step-label">Send Code</div>
+        <div className="forgot-password-content">
+          {/* Step Indicator */}
+          <div className="steps-indicator">
+            <div className={`step ${step >= 1 ? 'active' : ''} ${step > 1 ? 'completed' : ''}`}>
+              <div className="step-number">1</div>
+              <div className="step-label">Send Code</div>
+            </div>
+            <div className="step-line"></div>
+            <div className={`step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'completed' : ''}`}>
+              <div className="step-number">2</div>
+              <div className="step-label">Verify Code</div>
+            </div>
+            <div className="step-line"></div>
+            <div className={`step ${step >= 3 ? 'active' : ''}`}>
+              <div className="step-number">3</div>
+              <div className="step-label">New Password</div>
+            </div>
           </div>
-          <div className="step-line"></div>
-          <div className={`step ${step >= 2 ? 'active' : ''} ${step > 2 ? 'completed' : ''}`}>
-            <div className="step-number">2</div>
-            <div className="step-label">Verify Code</div>
-          </div>
-          <div className="step-line"></div>
-          <div className={`step ${step >= 3 ? 'active' : ''}`}>
-            <div className="step-number">3</div>
-            <div className="step-label">New Password</div>
-          </div>
-        </div>
 
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
 
-        {success && (
-          <div className="success-message">
-            <FaCheckCircle /> {success}
-          </div>
-        )}
+          {success && (
+            <div className="success-message">
+              <FaCheckCircle /> {success}
+            </div>
+          )}
 
-        {/* Step 1: Enter Username & Send Code */}
-        {step === 1 && (
-          <form onSubmit={handleSendCode} className="reset-form">
-            <p className="form-instruction">
-              Enter your <strong>username</strong>. We'll send a verification code to your registered email address.
-            </p>
+          {/* Step 1: Enter Username & Send Code */}
+          {step === 1 && (
+            <form onSubmit={handleSendCode} className="reset-form">
+              <p className="form-instruction">
+                Enter your <strong>username</strong>. We'll send a verification code to your registered email address.
+              </p>
             
             <div className="form-group">
               <label>Username</label>
@@ -550,6 +551,7 @@ const ForgotPassword = ({ onClose }) => {
             </form>
           )
         )}
+        </div>
       </div>
     </div>
   );
