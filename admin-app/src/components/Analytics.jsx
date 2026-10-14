@@ -181,17 +181,38 @@ const Analytics = ({ department, onViewRequest, onNavigate }) => {
   const { tickets, loading: ticketsLoading } = useOfficeTickets(department);
 
   // Staff members of this office (names + activity attribution)
+  // Double-checks Accounting and Finance interchangeably to avoid missing data
   useEffect(() => {
     let active = true;
     setStaffLoading(true);
-    const q = query(
-      collection(db, 'staff'),
-      where('office', '==', department)
-    );
+
+    const deptStr = String(department || '').trim();
+    const deptLower = deptStr.toLowerCase();
+    const isAccounting = deptLower === 'accounting' || deptLower === 'finance';
+
+    const q = collection(db, 'staff');
     const unsub = onSnapshot(q, (snapshot) => {
       if (!active) return;
       const list = [];
-      snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
+      snapshot.forEach(d => {
+        const data = d.data();
+        const staffOffice = String(data.office || '').trim().toLowerCase();
+        const staffOfficeId = String(data.officeId || '').trim().toLowerCase();
+
+        const matches = isAccounting
+          ? (staffOffice === 'accounting' || staffOffice === 'finance' || staffOfficeId === 'accounting' || staffOfficeId === 'finance')
+          : (staffOffice === deptLower || staffOfficeId === deptLower);
+
+        if (matches) {
+          list.push({
+            id: d.id,
+            ...data,
+            // Ensure previous finance records are normalized to Accounting
+            office: isAccounting ? 'Accounting' : (data.office || deptStr),
+            officeId: isAccounting ? 'accounting' : (data.officeId || deptLower)
+          });
+        }
+      });
       setStaffMembers(list);
       setStaffLoading(false);
     }, (err) => {
@@ -325,20 +346,53 @@ const Analytics = ({ department, onViewRequest, onNavigate }) => {
 
   // Staff activity attribution (resolved vs. handled per staff member)
   const staffActivity = useMemo(() => {
-    return staffMembers
-      .map(staff => {
-        const handled = filteredTickets.filter(t =>
-          t.assignedTo === staff.name || t.claimedBy === staff.name
-        );
-        const resolved = handled.filter(t => t.status === 'Resolved').length;
-        return {
-          name: staff.name,
-          resolved,
-          handled: handled.length,
-          percentage: handled.length > 0 ? Math.round((resolved / handled.length) * 100) : 0
-        };
-      })
-      .sort((a, b) => b.resolved - a.resolved);
+    // Helper to determine if a ticket was handled by a specific staff member
+    const checkTicketMatch = (ticket, staff) => {
+      const sName = String(staff.name || staff.fullName || '').trim().toLowerCase();
+      const sUsername = String(staff.username || '').trim().toLowerCase();
+      const sUid = String(staff.uid || staff.id || '').trim();
+
+      const assigned = String(ticket.assignedTo || '').trim().toLowerCase();
+      const claimed = String(ticket.claimedBy || '').trim().toLowerCase();
+      const resolved = String(ticket.resolvedBy || '').trim().toLowerCase();
+      const assignedStaff = String(ticket.assignedToStaff || '').trim().toLowerCase();
+      const reassignedTo = String(ticket.reassignedToStaff || '').trim().toLowerCase();
+      const claimedByUid = String(ticket.claimedByUid || '').trim();
+      const assignedStaffId = String(ticket.assignedStaffId || ticket.assignedToStaff || '').trim();
+
+      if (sName) {
+        if (assigned === sName || claimed === sName || resolved === sName || assignedStaff === sName || reassignedTo === sName) {
+          return true;
+        }
+      }
+      if (sUsername) {
+        if (assigned === sUsername || claimed === sUsername || resolved === sUsername) {
+          return true;
+        }
+      }
+      if (sUid) {
+        if (claimedByUid === sUid || assignedStaffId === sUid) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    return staffMembers.map(staff => {
+      const sDisplayName = staff.name || staff.fullName || staff.username || 'Staff Member';
+      const handled = filteredTickets.filter(t => checkTicketMatch(t, staff));
+      const resolved = handled.filter(t => String(t.status || '').toLowerCase() === 'resolved').length;
+
+      return {
+        name: sDisplayName,
+        resolved,
+        handled: handled.length,
+        percentage: handled.length > 0 ? Math.round((resolved / handled.length) * 100) : 0
+      };
+    }).sort((a, b) => {
+      if (b.resolved !== a.resolved) return b.resolved - a.resolved;
+      return b.handled - a.handled;
+    });
   }, [staffMembers, filteredTickets]);
 
   const recentTickets = filteredTickets.slice(0, 6);
@@ -846,7 +900,7 @@ const Analytics = ({ department, onViewRequest, onNavigate }) => {
           </div>
 
           {staffActivity.length === 0 ? (
-            <div className="an-empty">No staff in this office yet</div>
+            <div className="an-empty">No staff activity recorded in this office yet</div>
           ) : (
             <div className="an-staff-list">
               {staffActivity.map((staff, index) => {
@@ -855,20 +909,7 @@ const Analytics = ({ department, onViewRequest, onNavigate }) => {
                 const isMidRate = staff.percentage >= 50 && staff.percentage < 80;
 
                 return (
-                  <div
-                    key={index}
-                    className={`an-staff-row ${onNavigate ? 'an-staff-row--clickable' : ''}`}
-                    onClick={() => onNavigate && onNavigate('my-performance')}
-                    title={onNavigate ? "View performance dashboard" : undefined}
-                    role={onNavigate ? "button" : undefined}
-                    tabIndex={onNavigate ? 0 : undefined}
-                    onKeyDown={(e) => {
-                      if (onNavigate && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault();
-                        onNavigate('my-performance');
-                      }
-                    }}
-                  >
+                  <div key={index} className="an-staff-row">
                     <div className="an-staff-info">
                       <div className={`an-staff-avatar-initials an-staff-avatar-initials--${index % 4}`}>
                         {initials}

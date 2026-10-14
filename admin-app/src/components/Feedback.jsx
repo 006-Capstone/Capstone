@@ -92,30 +92,20 @@ const Feedback = ({ department, onViewRequest }) => {
 
     setLoading(true);
     
-    // Map department to officeId
-    const officeIdMap = {
-      'finance': 'finance',
-      'library': 'library',
-      'registrar': 'registrar',
-      'guidance': 'guidance'
-    };
+    const deptLower = String(department || '').toLowerCase().trim();
+    const isAccounting = deptLower === 'accounting' || deptLower === 'finance';
     
-    const officeId = officeIdMap[department.toLowerCase()];
-    
-    if (!officeId) {
-      console.warn('Unknown department:', department);
-      setFeedbackData([]);
-      setLoading(false);
-      return;
-    }
+    // Support both accounting and finance officeIds when fetching feedback
+    const targetOfficeIds = isAccounting 
+      ? ['accounting', 'finance']
+      : [deptLower];
 
     // Query feedback for this office
-    const feedbackQuery = query(
-      collection(db, 'feedback'),
-      where('officeId', '==', officeId)
-    );
+    const feedbackQuery = targetOfficeIds.length > 1
+      ? query(collection(db, 'feedback'), where('officeId', 'in', targetOfficeIds))
+      : query(collection(db, 'feedback'), where('officeId', '==', targetOfficeIds[0]));
 
-    console.log(`[Feedback] Admin querying feedback with officeId: "${officeId}" for department: "${department}"`);
+    console.log(`[Feedback] Admin querying feedback with officeIds: [${targetOfficeIds.join(', ')}] for department: "${department}"`);
 
     const unsubscribe = onSnapshot(feedbackQuery, (querySnapshot) => {
       console.log(`[Feedback] Firebase returned ${querySnapshot.docs.length} feedback documents`);

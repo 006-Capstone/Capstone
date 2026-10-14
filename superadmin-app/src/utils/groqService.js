@@ -70,8 +70,7 @@ export const generateExecutiveSummary = async (performanceData) => {
 Institutional Context & Boundaries:
 - The school ONLY has 4 administrative offices: Accounting, Guidance, Library, Registrar.
 - DO NOT invent "IT Support", "IT Helpdesk", "technical support", "portal glitch", or generic corporate IT terms.
-- Real Staff: Registrar (Dorothy Gerolaga); Accounting (Jefelah P. Amistoso, Dot g, b s); Library (Ban S).
-- STRICT ISOLATION: Staff belong exclusively to their designated office. NEVER suggest Accounting staff (e.g. Jefelah P. Amistoso) to handle Registrar requests or Dorothy's backlog.
+- STRICT ISOLATION: Staff belong exclusively to their designated office. NEVER suggest cross-department ticket reassignment or cross-office task assignment.
 
 Current System Status:
 - Overall Health: ${systemHealth?.status || 'normal'} (${systemHealth?.onTrackPercentage || 0}% on-track)
@@ -126,10 +125,6 @@ Action: [1 sentence on the top operational priority recommendation, max 14 words
     // Sanitize any generic corporate IT hallucinations
     cleaned = cleaned.replace(/it support|helpdesk|technical support|it department|it team/gi, 'administrative office');
     cleaned = cleaned.replace(/keyword routing( triage)?/gi, 'request processing');
-    // Sanitize cross-department staff hallucinations (e.g. Jefelah resolving Registrar)
-    if (/registrar/i.test(cleaned) && /jefelah/i.test(cleaned)) {
-      cleaned = cleaned.replace(/\bjefelah(\s+p\.?)?(\s+amistoso)?\b/gi, 'Registrar staff');
-    }
     return cleaned;
   } catch (error) {
     console.error('Error generating executive summary:', error);
@@ -158,8 +153,7 @@ export const detectAnomalies = async (analyticsData) => {
 Institutional Context & Boundaries:
 - The school ONLY has 4 administrative offices: Accounting, Guidance, Library, Registrar.
 - DO NOT invent "IT Support", "IT Helpdesk", "technical support", "portal downtime", or generic corporate IT terms.
-- Real Staff: Registrar: Dorothy Gerolaga. Accounting: Jefelah P. Amistoso, Dot g, b s. Library: Ban S.
-- STRICT ISOLATION: Staff can only handle work within their own office. NEVER suggest Accounting staff (e.g. Jefelah P. Amistoso) for Registrar backlogs. Jefelah is in Accounting only.
+- STRICT ISOLATION: Staff can only handle work within their own office. NEVER suggest cross-department staff assignments.
 
 Current Metrics (Last 7 days):
 - Active Tickets: ${currentMetrics.activeTickets}
@@ -263,9 +257,9 @@ Format your response as a JSON object:
                 const staffDept = (matchedStaff.department || '').toLowerCase();
                 // Check if staff member belongs to the context described in the anomaly
                 if (/registrar|transcript|coe|graduation/i.test(`${title} ${desc}`) && staffDept !== 'registrar') {
-                  // Cross-department mismatch (e.g. Jefelah in Registrar anomaly)
+                  // Cross-department mismatch
                   affected = 'Registrar';
-                } else if (/finance|tuition|balance|payment/i.test(`${title} ${desc}`) && staffDept !== 'finance') {
+                } else if (/finance|accounting|tuition|balance|payment/i.test(`${title} ${desc}`) && staffDept !== 'finance' && staffDept !== 'accounting') {
                   affected = 'Accounting';
                 } else {
                   affected = matchedStaff.name;
@@ -274,17 +268,11 @@ Format your response as a JSON object:
                 // Unknown/hallucinated area - detect office from title & description
                 const combined = `${title} ${desc}`.toLowerCase();
                 if (/registrar|transcript|tor|coe|clearance|graduation|diploma/i.test(combined)) affected = 'Registrar';
-                else if (/finance|tuition|balance|payment|receipt/i.test(combined)) affected = 'Accounting';
+                else if (/finance|accounting|tuition|balance|payment|receipt/i.test(combined)) affected = 'Accounting';
                 else if (/library|book|borrow/i.test(combined)) affected = 'Library';
                 else if (/guidance|counsel|moral/i.test(combined)) affected = 'Guidance';
                 else affected = 'Registrar';
               }
-            }
-
-            // Sanitize cross-department staff mentions in description and title
-            if (/registrar/i.test(`${affected} ${title} ${desc}`)) {
-              desc = desc.replace(/\bjefelah(\s+p\.?)?(\s+amistoso)?\b/gi, 'Registrar staff');
-              title = title.replace(/\bjefelah(\s+p\.?)?(\s+amistoso)?\b/gi, 'Registrar');
             }
 
             return {
@@ -377,7 +365,7 @@ Context & Institutional Boundaries:
 - DO NOT invent "IT Support", "IT Helpdesk", "technical support", or generic corporate IT terms like "keyword routing triage". Such departments DO NOT exist in this school.
 
 Departmental Staff Roster:
-- Registrar: ${staffByDept.Registrar.length > 0 ? staffByDept.Registrar.join(', ') : 'Dorothy Gerolaga'}
+- Registrar: ${staffByDept.Registrar.length > 0 ? staffByDept.Registrar.join(', ') : 'None'}
 - Accounting: ${staffByDept.Accounting.length > 0 ? staffByDept.Accounting.join(', ') : 'None'}
 - Library: ${staffByDept.Library.length > 0 ? staffByDept.Library.join(', ') : 'None'}
 - Guidance: ${staffByDept.Guidance.length > 0 ? staffByDept.Guidance.join(', ') : 'None'}
@@ -399,8 +387,7 @@ ${Object.entries(departmentCapacity || {}).map(([dept, data]) =>
 
 CRITICAL ANTI-HALLUCINATION & REASSIGNMENT RULES:
 1. STRICT DEPARTMENT ISOLATION: Staff belong EXCLUSIVELY to their designated office.
-   - Accounting staff (e.g. Jefelah P. Amistoso, Dot g, b s) CAN NEVER handle Registrar, Library, or Guidance requests or backlogs!
-   - Registrar staff (e.g. Dorothy Gerolaga) CAN NEVER handle Accounting, Library, or Guidance requests!
+   - Staff assigned to one office CAN NEVER handle requests or backlogs for any other office!
    - Cross-department ticket reassignment or cross-department task assignment is STRICTLY FORBIDDEN!
 2. If an office (such as Registrar) has only one staff member and they are overloaded, DO NOT attempt to reassign their tickets to another office. Recommend type "hire" (request new staff for that office) or type "process_improvement" (workflow checklist, batch processing) instead.
 3. "affectedStaff": MUST ONLY contain staff who actually belong to the department of that recommendation. If a recommendation applies to the office as a whole, set "affectedStaff": ["<OfficeName>"] (e.g. ["Registrar"]).

@@ -215,12 +215,26 @@ export const notifyStudentEtcChange = async (studentUid, requestId, requestSubje
  */
 export const notifyStaffNewRequest = async (office, requestId, requestSubject, studentName) => {
   try {
+    const offStr = String(office || '').trim();
+    const offLower = offStr.toLowerCase();
+    const isAccounting = offLower === 'accounting' || offLower === 'finance';
+    const variations = isAccounting 
+      ? ['Accounting', 'accounting', 'Finance', 'finance']
+      : [offStr, offLower, offLower.charAt(0).toUpperCase() + offLower.slice(1)];
+    const uniqueVariations = Array.from(new Set(variations)).filter(Boolean);
+
     // Get all active staff in this office
-    const staffQuery = query(
-      collection(db, 'staff'),
-      where('office', '==', office),
-      where('isActive', '==', true)
-    );
+    const staffQuery = uniqueVariations.length > 1
+      ? query(
+          collection(db, 'staff'),
+          where('office', 'in', uniqueVariations),
+          where('isActive', '==', true)
+        )
+      : query(
+          collection(db, 'staff'),
+          where('office', '==', offStr),
+          where('isActive', '==', true)
+        );
     const querySnapshot = await getDocs(staffQuery);
     
     // Create notification for each staff member
@@ -275,12 +289,26 @@ export const notifyStaffFollowUp = async (assignedToStaffName, requestId, reques
  */
 export const notifyStaffReassignment = async (toOffice, requestId, requestSubject, fromOffice, reassignedBy) => {
   try {
+    const offStr = String(toOffice || '').trim();
+    const offLower = offStr.toLowerCase();
+    const isAccounting = offLower === 'accounting' || offLower === 'finance';
+    const variations = isAccounting 
+      ? ['Accounting', 'accounting', 'Finance', 'finance']
+      : [offStr, offLower, offLower.charAt(0).toUpperCase() + offLower.slice(1)];
+    const uniqueVariations = Array.from(new Set(variations)).filter(Boolean);
+
     // Get all active staff in the target office
-    const staffQuery = query(
-      collection(db, 'staff'),
-      where('office', '==', toOffice),
-      where('isActive', '==', true)
-    );
+    const staffQuery = uniqueVariations.length > 1
+      ? query(
+          collection(db, 'staff'),
+          where('office', 'in', uniqueVariations),
+          where('isActive', '==', true)
+        )
+      : query(
+          collection(db, 'staff'),
+          where('office', '==', offStr),
+          where('isActive', '==', true)
+        );
     const querySnapshot = await getDocs(staffQuery);
     
     // Create notification for each staff member
