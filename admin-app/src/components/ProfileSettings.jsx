@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signInWithEmailAndPassword } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
-import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload } from 'react-icons/fa';
+import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload, FaInfoCircle, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
 import { encryptCredentials, encryptQRData, generateSecureToken } from '../utils/qrEncryption';
@@ -11,7 +11,7 @@ import { useNotification } from '../context/NotificationContext';
 import { SettingsModalSkeleton, SettingsContentSkeleton } from './common/Skeleton';
 import '../styles/ProfileSettings.css';
 
-const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix'];
+const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix', 'username'];
 
 function ProfileSettings({ onClose }) {
   const { toast, alertModal } = useNotification();
@@ -57,6 +57,109 @@ function ProfileSettings({ onClose }) {
     new: false,
     confirm: false
   });
+
+  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState(''); // 'available' | 'taken' | 'invalid' | 'current' | ''
+  const [usernameMessage, setUsernameMessage] = useState('');
+
+  const checkUsernameAvailability = async (candidateUsername) => {
+    const trimmed = (candidateUsername || '').trim();
+    const currentUsername = (originalProfileData?.username || '').trim();
+
+    if (!trimmed) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Username cannot be empty');
+      setUsernameChecking(false);
+      return;
+    }
+
+    if (trimmed.toLowerCase() === currentUsername.toLowerCase()) {
+      setUsernameStatus('current');
+      setUsernameMessage('');
+      setUsernameChecking(false);
+      return;
+    }
+
+    if (trimmed.length < 3) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Must be at least 3 characters');
+      setUsernameChecking(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Only letters, numbers, underscores, and dots allowed');
+      setUsernameChecking(false);
+      return;
+    }
+
+    setUsernameChecking(true);
+    try {
+      const staffData = JSON.parse(localStorage.getItem('staffData') || '{}');
+      const staffQuery = query(collection(db, 'staff'), where('username', '==', trimmed));
+      const staffSnap = await getDocs(staffQuery);
+
+      let isTaken = false;
+      staffSnap.forEach((docSnap) => {
+        if (
+          docSnap.id !== staffData.firestoreDocId &&
+          docSnap.id !== staffData.id &&
+          docSnap.data().uid !== staffData.uid
+        ) {
+          isTaken = true;
+        }
+      });
+
+      if (!isTaken) {
+        const userQuery = query(collection(db, 'users'), where('username', '==', trimmed));
+        const userSnap = await getDocs(userQuery);
+        userSnap.forEach((docSnap) => {
+          if (docSnap.id !== staffData.firestoreDocId && docSnap.id !== staffData.uid) {
+            isTaken = true;
+          }
+        });
+      }
+
+      if (isTaken) {
+        setUsernameStatus('taken');
+        setUsernameMessage('Username is already taken');
+      } else {
+        setUsernameStatus('available');
+        setUsernameMessage('Username is available');
+      }
+    } catch (err) {
+      console.error('Error checking username availability:', err);
+    } finally {
+      setUsernameChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!originalProfileData) return;
+    const currentUsername = (originalProfileData.username || '').trim().toLowerCase();
+    const candidateUsername = (profileData.username || '').trim().toLowerCase();
+
+    if (!candidateUsername) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Username cannot be empty');
+      setUsernameChecking(false);
+      return;
+    }
+
+    if (candidateUsername === currentUsername) {
+      setUsernameStatus('current');
+      setUsernameMessage('');
+      setUsernameChecking(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      checkUsernameAvailability(profileData.username);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [profileData.username, originalProfileData]);
 
   useEffect(() => {
     let active = true;
@@ -306,6 +409,14 @@ function ProfileSettings({ onClose }) {
     }
   };
 
+  const handleUsernameChange = (e) => {
+    const val = e.target.value.replace(/\s+/g, '');
+    setProfileData(prev => ({
+      ...prev,
+      username: val
+    }));
+  };
+
   const handleProfilePictureChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -324,8 +435,83 @@ function ProfileSettings({ onClose }) {
     return EDITABLE_KEYS.some(key => profileData[key] !== originalProfileData[key]);
   }, [profileData, originalProfileData, profilePicture]);
 
+  const isFormValid = useMemo(() => {
+    const cleanUsername = (profileData.username || '').trim();
+    const cleanFirstName = (profileData.firstName || '').trim();
+    const cleanLastName = (profileData.lastName || '').trim();
+
+    if (!cleanUsername || cleanUsername.length < 3) return false;
+    if (!cleanFirstName || !cleanLastName) return false;
+    if (usernameChecking) return false;
+    if (usernameStatus === 'taken' || usernameStatus === 'invalid') return false;
+
+    return true;
+  }, [profileData.username, profileData.firstName, profileData.lastName, usernameChecking, usernameStatus]);
+
   const handleUpdateProfile = async () => {
     try {
+      if (usernameChecking) {
+        toast.warning('Please wait while checking username availability');
+        return;
+      }
+
+      const cleanUsername = (profileData.username || '').trim();
+      const cleanFirstName = (profileData.firstName || '').trim();
+      const cleanLastName = (profileData.lastName || '').trim();
+      const originalUsername = (originalProfileData?.username || '').trim();
+      const isUsernameChanged = cleanUsername.toLowerCase() !== originalUsername.toLowerCase();
+
+      if (!cleanUsername) {
+        toast.error('Username cannot be empty. Please enter your username.');
+        setUsernameStatus('invalid');
+        setUsernameMessage('Username cannot be empty');
+        return;
+      }
+
+      if (cleanUsername.length < 3) {
+        toast.error('Username must be at least 3 characters long.');
+        setUsernameStatus('invalid');
+        setUsernameMessage('Must be at least 3 characters');
+        return;
+      }
+
+      if (!cleanFirstName) {
+        toast.error('First Name cannot be empty.');
+        return;
+      }
+
+      if (!cleanLastName) {
+        toast.error('Last Name cannot be empty.');
+        return;
+      }
+
+      if (isUsernameChanged) {
+        if (usernameStatus === 'taken') {
+          toast.error('The selected username is already taken. Please choose another.');
+          return;
+        }
+        if (usernameStatus === 'invalid') {
+          toast.error(usernameMessage || 'Please provide a valid username.');
+          return;
+        }
+
+        // Final verification check against database
+        const staffQuery = query(collection(db, 'staff'), where('username', '==', cleanUsername));
+        const staffSnap = await getDocs(staffQuery);
+        const staffDataCheck = JSON.parse(localStorage.getItem('staffData') || '{}');
+        const alreadyExists = staffSnap.docs.some(docSnap =>
+          docSnap.id !== staffDataCheck.firestoreDocId &&
+          docSnap.id !== staffDataCheck.id &&
+          docSnap.data().uid !== staffDataCheck.uid
+        );
+        if (alreadyExists) {
+          toast.error('Username already exists. Please choose a different username.');
+          setUsernameStatus('taken');
+          setUsernameMessage('Username is already taken');
+          return;
+        }
+      }
+
       setSaving(true);
       const staffData = JSON.parse(localStorage.getItem('staffData'));
       
@@ -361,6 +547,7 @@ function ProfileSettings({ onClose }) {
         middleName: (profileData.middleName || '').trim(),
         middleInitial: rawMi ? rawMi.charAt(0).toUpperCase() : '',
         suffix: (profileData.suffix || '').trim(),
+        username: cleanUsername,
         office: normalizedOffice,
         officeId: normalizedOfficeId,
         name: fullNameValue,
@@ -369,12 +556,17 @@ function ProfileSettings({ onClose }) {
         updatedAt: new Date().toISOString()
       };
 
+      if (isUsernameChanged) {
+        updateData.qrCodeData = '';
+      }
+
       const docRef = doc(db, 'staff', staffData.firestoreDocId);
       await updateDoc(docRef, updateData);
 
       const updatedStaffData = {
         ...staffData,
         ...profileData,
+        username: cleanUsername,
         office: normalizedOffice,
         officeId: normalizedOfficeId,
         middleName: (profileData.middleName || '').trim(),
@@ -383,12 +575,23 @@ function ProfileSettings({ onClose }) {
         name: fullNameValue,
         fullName: fullNameValue
       };
+
+      if (isUsernameChanged) {
+        updatedStaffData.qrCodeData = '';
+        setQrCodeDataURL('');
+      }
       
       localStorage.setItem('staffData', JSON.stringify(updatedStaffData));
-      toast.success('Profile updated successfully!');
+
+      if (isUsernameChanged) {
+        toast.success(`Profile and username updated! Your new login username is @${cleanUsername}. Please generate a new QR code if you use QR login.`);
+      } else {
+        toast.success('Profile updated successfully!');
+      }
+
       setTimeout(() => {
         window.location.reload();
-      }, 1200);
+      }, 1500);
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile: ' + error.message);
@@ -531,157 +734,168 @@ function ProfileSettings({ onClose }) {
               {/* Profile Information Section */}
               <div className="settings-section">
                 <h3>Profile Information</h3>
+
+                {/* Username Notice Banner */}
+                <div className="profile-notice-banner">
+                  <FaInfoCircle className="notice-banner-icon" />
+                  <div className="notice-banner-text">
+                    <strong>Username Requirement:</strong> Your username is your login credential and must be unique across all staff accounts. Changing it will update your login credentials and invalidate any previously generated QR codes.
+                  </div>
+                </div>
             
-            <div className="profile-info-grid">
-              <div className="profile-picture-section">
-                <div className="profile-picture-container">
-                  {profilePicturePreview ? (
-                    <img src={profilePicturePreview} alt="Profile" className="profile-picture" />
-                  ) : (
-                    <div className="profile-picture-placeholder">
-                      <span>{profileData.firstName?.charAt(0)}{profileData.lastName?.charAt(0)}</span>
-                    </div>
-                  )}
-                  <label className="upload-btn" title="Upload new photo">
-                    <FaCamera />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfilePictureChange}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="profile-fields">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>LAST NAME <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={profileData.lastName}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>POSITION <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      name="position"
-                      value={profileData.position}
-                      readOnly
-                      className="readonly-field"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>EMAIL ADDRESS <span className="required">*</span></label>
-                    <div className="input-with-icon">
-                      <input
-                        type="text"
-                        value={showEmail ? profileData.email : maskEmail(profileData.email)}
-                        readOnly
-                        className={`readonly-field ${!showEmail ? 'masked-field email-masked' : ''}`}
-                      />
-                      <button 
-                        type="button" 
-                        className="eye-icon-btn"
-                        onClick={() => setShowEmail(!showEmail)}
-                        title={showEmail ? 'Hide email' : 'Show email'}
-                      >
-                        {showEmail ? <FaEyeSlash /> : <FaEye />}
-                      </button>
+                <div className="profile-info-grid">
+                  <div className="profile-picture-section">
+                    <div className="profile-picture-container">
+                      {profilePicturePreview ? (
+                        <img src={profilePicturePreview} alt="Profile" className="profile-picture" />
+                      ) : (
+                        <div className="profile-picture-placeholder">
+                          <span>{profileData.firstName?.charAt(0)}{profileData.lastName?.charAt(0)}</span>
+                        </div>
+                      )}
+                      <label className="upload-btn" title="Upload new photo">
+                        <FaCamera />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProfilePictureChange}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
                     </div>
                   </div>
-                </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>FIRST NAME <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={profileData.firstName}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
+                  <div className="profile-fields">
+                    <div className="form-row name-row">
+                      <div className="form-group">
+                        <label>FIRST NAME <span className="required">*</span></label>
+                        <input
+                          type="text"
+                          name="firstName"
+                          value={profileData.firstName}
+                          onChange={handleInputChange}
+                          required
+                          placeholder="First Name"
+                          className={!(profileData.firstName || '').trim() ? 'is-invalid' : ''}
+                        />
+                      </div>
 
-                  <div className="form-group">
-                    <label>OFFICE <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      name="office"
-                      value={profileData.office}
-                      readOnly
-                      className="readonly-field"
-                    />
-                  </div>
+                      <div className="form-group">
+                        <label>MIDDLE NAME</label>
+                        <input
+                          type="text"
+                          name="middleName"
+                          value={profileData.middleName}
+                          onChange={handleInputChange}
+                          placeholder="Middle Name"
+                        />
+                      </div>
 
-                  <div className="form-group">
-                    <label>USERNAME <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      value={profileData.username}
-                      readOnly
-                      className="readonly-field"
-                    />
-                  </div>
-                </div>
+                      <div className="form-group">
+                        <label>LAST NAME <span className="required">*</span></label>
+                        <input
+                          type="text"
+                          name="lastName"
+                          value={profileData.lastName}
+                          onChange={handleInputChange}
+                          required
+                          placeholder="Last Name"
+                          className={!(profileData.lastName || '').trim() ? 'is-invalid' : ''}
+                        />
+                      </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>MIDDLE NAME</label>
-                    <input
-                      type="text"
-                      name="middleName"
-                      value={profileData.middleName}
-                      onChange={handleInputChange}
-                    />
-                  </div>
+                      <div className="form-group suffix-group">
+                        <label>SUFFIX</label>
+                        <input
+                          type="text"
+                          name="suffix"
+                          value={profileData.suffix}
+                          onChange={handleInputChange}
+                          placeholder="Jr, Sr, III"
+                          maxLength="10"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="form-group">
-                    <label>STAFF ID <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      value={profileData.staffId}
-                      readOnly
-                      className="readonly-field"
-                    />
-                  </div>
-                </div>
+                    <div className="form-row account-row">
+                      <div className="form-group username-form-group">
+                        <label>
+                          USERNAME <span className="required">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="username"
+                          value={profileData.username}
+                          onChange={handleUsernameChange}
+                          placeholder="Enter username"
+                          autoComplete="off"
+                          className={`username-input ${
+                            usernameStatus === 'available'
+                              ? 'is-valid'
+                              : usernameStatus === 'taken' || usernameStatus === 'invalid'
+                              ? 'is-invalid'
+                              : ''
+                          }`}
+                          required
+                        />
+                        <div className="username-status-indicator">
+                          {usernameChecking && (
+                            <span className="status-badge checking">
+                              <span className="status-spinner" /> Checking availability...
+                            </span>
+                          )}
+                          {!usernameChecking && usernameStatus === 'available' && (
+                            <span className="status-badge available">
+                              <FaCheckCircle /> Username is available
+                            </span>
+                          )}
+                          {!usernameChecking && (usernameStatus === 'taken' || usernameStatus === 'invalid') && (
+                            <span className="status-badge taken">
+                              <FaExclamationCircle /> {usernameMessage}
+                            </span>
+                          )}
+                          {!usernameChecking && usernameStatus === 'current' && (
+                            <span className="status-badge current">
+                              Current username
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                <div className="form-row small-fields">
-                  <div className="form-group small">
-                    <label>M.I.</label>
-                    <input
-                      type="text"
-                      name="middleInitial"
-                      value={profileData.middleInitial}
-                      readOnly
-                      maxLength="1"
-                      className="readonly-field"
-                    />
-                  </div>
+                      <div className="form-group">
+                        <label>OFFICE <span className="required">*</span></label>
+                        <input
+                          type="text"
+                          name="office"
+                          value={profileData.office}
+                          readOnly
+                          className="readonly-field"
+                        />
+                      </div>
 
-                  <div className="form-group small">
-                    <label>SUFFIX</label>
-                    <input
-                      type="text"
-                      name="suffix"
-                      value={profileData.suffix}
-                      onChange={handleInputChange}
-                      placeholder="Jr, Sr, III"
-                    />
+                      <div className="form-group">
+                        <label>EMAIL ADDRESS <span className="required">*</span></label>
+                        <div className="input-with-icon">
+                          <input
+                            type="text"
+                            value={showEmail ? profileData.email : maskEmail(profileData.email)}
+                            readOnly
+                            className={`readonly-field ${!showEmail ? 'masked-field email-masked' : ''}`}
+                          />
+                          <button 
+                            type="button" 
+                            className="eye-icon-btn"
+                            onClick={() => setShowEmail(!showEmail)}
+                            title={showEmail ? 'Hide email' : 'Show email'}
+                          >
+                            {showEmail ? <FaEyeSlash /> : <FaEye />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
           {/* Account Security Section */}
           <div className="settings-section">
@@ -782,8 +996,26 @@ function ProfileSettings({ onClose }) {
               type="button"
               className="update-btn"
               onClick={handleUpdateProfile}
-              disabled={saving || !hasChanges}
-              title={!hasChanges ? 'Make a change to enable saving' : undefined}
+              disabled={saving || !hasChanges || !isFormValid}
+              title={
+                !hasChanges
+                  ? 'Make a change to enable saving'
+                  : !(profileData.username || '').trim()
+                  ? 'Username is required and cannot be empty'
+                  : (profileData.username || '').trim().length < 3
+                  ? 'Username must be at least 3 characters'
+                  : !(profileData.firstName || '').trim()
+                  ? 'First Name is required and cannot be empty'
+                  : !(profileData.lastName || '').trim()
+                  ? 'Last Name is required and cannot be empty'
+                  : usernameChecking
+                  ? 'Checking username availability...'
+                  : usernameStatus === 'taken'
+                  ? 'Username is already taken'
+                  : usernameStatus === 'invalid'
+                  ? (usernameMessage || 'Invalid username')
+                  : undefined
+              }
             >
               {saving ? 'Updating...' : 'Update Profile'}
             </button>
