@@ -76,10 +76,10 @@ function ProfileSettings({ onClose }) {
 
   const generateQRCodeImage = async (encryptedData) => {
     try {
-      // Generate QR code image from encrypted data
+      // Generate QR code image from encrypted data with integer scaling
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 400,
         margin: 4,
+        scale: 6,
         color: {
           dark: '#105E06',
           light: '#FFFFFF'
@@ -130,8 +130,8 @@ function ProfileSettings({ onClose }) {
       
       // 3. Generate QR code image with encrypted data
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 400,
         margin: 4,
+        scale: 6,
         color: {
           dark: '#105E06',
           light: '#FFFFFF'
