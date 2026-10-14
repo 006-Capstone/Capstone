@@ -279,12 +279,7 @@ const Login = ({ onLogin, onForgotPassword }) => {
           return { width: edgeSize, height: edgeSize };
         },
         aspectRatio: 1.0,
-        disableFlip: false,
-        videoConstraints: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: cameraConfig.facingMode || "environment"
-        }
+        disableFlip: false
       };
 
       await scanner.start(
