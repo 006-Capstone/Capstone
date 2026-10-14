@@ -4,8 +4,15 @@ import { signInWithEmailAndPassword, signInWithCustomToken, signInAnonymously } 
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import jsQR from 'jsqr';
+import {
+  QRCodeReader,
+  RGBLuminanceSource,
+  BinaryBitmap,
+  HybridBinarizer,
+  GlobalHistogramBinarizer
+} from '@zxing/library';
 import { decryptCredentials } from '../utils/qrEncryption';
 import '../styles/Login.css';
 
@@ -226,7 +233,10 @@ const Login = ({ onLogin, onForgotPassword }) => {
       console.log('[Config] Initializing QR scanner...');
       await stopScannerSafe();
       
-      const scanner = new Html5Qrcode("qr-reader-admin");
+      const scanner = new Html5Qrcode("qr-reader-admin", {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        verbose: false
+      });
       qrScannerRef.current = scanner;
       setQrScanner(scanner);
       
@@ -260,17 +270,26 @@ const Login = ({ onLogin, onForgotPassword }) => {
         cameraConfig = targetDeviceId ? { deviceId: { exact: targetDeviceId } } : { facingMode: "user" };
       }
 
+      const scanConfig = {
+        fps: 20,
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          // Generous scanning area so dense codes stay sharp and easy to align
+          const edgeSize = Math.max(220, Math.min(290, Math.floor(minEdge * 0.85)));
+          return { width: edgeSize, height: edgeSize };
+        },
+        aspectRatio: 1.0,
+        disableFlip: false,
+        videoConstraints: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: cameraConfig.facingMode || "environment"
+        }
+      };
+
       await scanner.start(
         cameraConfig,
-        {
-          fps: 15,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            const edgeSize = Math.max(180, Math.min(240, Math.floor(minEdge * 0.75)));
-            return { width: edgeSize, height: edgeSize };
-          },
-          disableFlip: false
-        },
+        scanConfig,
         onScanSuccess,
         onScanError
       );
@@ -294,7 +313,22 @@ const Login = ({ onLogin, onForgotPassword }) => {
   };
 
   const scanFileWithScales = async (file) => {
-    // 1. Load image into HTML Image element
+    // 1. Try native BarcodeDetector if available (instant & handles all densities)
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+      try {
+        const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        const imgBitmap = await createImageBitmap(file);
+        const barcodes = await barcodeDetector.detect(imgBitmap);
+        if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+          console.log('[Upload] QR Code detected with native BarcodeDetector');
+          return barcodes[0].rawValue;
+        }
+      } catch (nativeErr) {
+        console.warn('[Upload] Native BarcodeDetector fallback:', nativeErr);
+      }
+    }
+
+    // 2. Load image into HTML Image element
     const img = await new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
@@ -302,58 +336,81 @@ const Login = ({ onLogin, onForgotPassword }) => {
       image.src = URL.createObjectURL(file);
     });
 
-    // 2. Decode using jsQR across original + multi-scale resolutions
-    const candidateResolutions = [
-      { w: img.width, h: img.height },
-      { w: 600, h: Math.round(600 / (img.width / img.height)) },
-      { w: 800, h: Math.round(800 / (img.width / img.height)) },
-      { w: 400, h: Math.round(400 / (img.width / img.height)) },
-      { w: 1000, h: Math.round(1000 / (img.width / img.height)) }
-    ];
+    // 3. Multi-scale with quiet-zone padding using ZXing QRCodeReader
+    // Adding 30-50px white margin is critical for QR codes downloaded with small margins
+    const zxingScales = [2, 1, 3];
+    const paddings = [40, 20, 60];
 
-    for (const res of candidateResolutions) {
-      if (!res.w || !res.h) continue;
-
-      // Try raw image colors, then high-contrast binarization
-      for (const applyBinarization of [false, true]) {
+    for (const scale of zxingScales) {
+      for (const pad of paddings) {
         try {
+          const sw = Math.round(img.width * scale);
+          const sh = Math.round(img.height * scale);
           const canvas = document.createElement('canvas');
-          canvas.width = res.w;
-          canvas.height = res.h;
+          canvas.width = sw + pad * 2;
+          canvas.height = sh + pad * 2;
           const ctx = canvas.getContext('2d', { willReadFrequently: true });
           if (!ctx) continue;
 
+          // Clean white quiet zone
           ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, res.w, res.h);
-          ctx.drawImage(img, 0, 0, res.w, res.h);
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, pad, pad, sw, sh);
 
-          const imgData = ctx.getImageData(0, 0, res.w, res.h);
-          if (applyBinarization) {
-            const d = imgData.data;
-            for (let i = 0; i < d.length; i += 4) {
-              const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-              const v = lum < 165 ? 0 : 255;
-              d[i] = v;
-              d[i + 1] = v;
-              d[i + 2] = v;
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const w = canvas.width;
+          const h = canvas.height;
+
+          // Grayscale luminance array for ZXing
+          const lum = new Uint8ClampedArray(w * h);
+          const data = imgData.data;
+          for (let i = 0; i < lum.length; i++) {
+            const idx = i * 4;
+            lum[i] = (data[idx] + 2 * data[idx + 1] + data[idx + 2]) / 4;
+          }
+
+          const lumSource = new RGBLuminanceSource(lum, w, h);
+          const reader = new QRCodeReader();
+
+          // Try ZXing HybridBinarizer
+          try {
+            const bitmap = new BinaryBitmap(new HybridBinarizer(lumSource));
+            const result = reader.decode(bitmap);
+            if (result && result.getText()) {
+              console.log(`[Upload] QR Code detected with ZXing Hybrid (scale: ${scale}, pad: ${pad})`);
+              return result.getText();
             }
-          }
+          } catch (_) {}
 
-          const code = jsQR(imgData.data, imgData.width, imgData.height, {
-            inversionAttempts: 'attemptBoth'
-          });
+          // Try ZXing GlobalHistogramBinarizer
+          try {
+            const bitmap = new BinaryBitmap(new GlobalHistogramBinarizer(lumSource));
+            const result = reader.decode(bitmap);
+            if (result && result.getText()) {
+              console.log(`[Upload] QR Code detected with ZXing GlobalHistogram (scale: ${scale}, pad: ${pad})`);
+              return result.getText();
+            }
+          } catch (_) {}
 
-          if (code && code.data) {
-            console.log(`[Upload] QR Code detected with jsQR (res: ${res.w}x${res.h}, binarized: ${applyBinarization})`);
-            return code.data;
-          }
+          // Also attempt jsQR on the padded canvas
+          try {
+            const code = jsQR(imgData.data, imgData.width, imgData.height, {
+              inversionAttempts: 'attemptBoth'
+            });
+            if (code && code.data) {
+              console.log(`[Upload] QR Code detected with jsQR (scale: ${scale}, pad: ${pad})`);
+              return code.data;
+            }
+          } catch (_) {}
         } catch (passErr) {
-          // continue next attempt
+          // continue
         }
       }
     }
 
-    // 3. Fallback: Html5Qrcode scanFile
+    // 4. Fallback: Html5Qrcode scanFile
     try {
       const helperContainerId = "qr-reader-file-helper";
       const helperScanner = new Html5Qrcode(helperContainerId);
@@ -835,6 +892,17 @@ const Login = ({ onLogin, onForgotPassword }) => {
                 <div className="qr-camera-loading">
                   <FaSpinner className="qr-spinner-icon" />
                   <span>Opening camera...</span>
+                </div>
+              )}
+              {scanningStatus === 'ready' && (
+                <div className="qr-scanner-overlay" aria-hidden="true">
+                  <div className="qr-scanner-guide">
+                    <span className="qr-corner qr-corner-tl"></span>
+                    <span className="qr-corner qr-corner-tr"></span>
+                    <span className="qr-corner qr-corner-bl"></span>
+                    <span className="qr-corner qr-corner-br"></span>
+                    <div className="qr-scanner-laser"></div>
+                  </div>
                 </div>
               )}
               <div id="qr-reader-admin" className="qr-camera-target"></div>

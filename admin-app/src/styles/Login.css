@@ -757,6 +757,104 @@ body {
   display: none !important;
 }
 
+/* Active Scanner Overlay & Animation */
+.qr-scanner-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-scanner-guide {
+  width: 250px;
+  height: 250px;
+  position: relative;
+  border-radius: 18px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+/* 4 Corner Guide Brackets */
+.qr-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: #22c55e;
+  border-style: solid;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.75));
+  z-index: 6;
+}
+
+.qr-corner-tl {
+  top: 0;
+  left: 0;
+  border-width: 3.5px 0 0 3.5px;
+  border-top-left-radius: 14px;
+}
+
+.qr-corner-tr {
+  top: 0;
+  right: 0;
+  border-width: 3.5px 3.5px 0 0;
+  border-top-right-radius: 14px;
+}
+
+.qr-corner-bl {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 3.5px 3.5px;
+  border-bottom-left-radius: 14px;
+}
+
+.qr-corner-br {
+  bottom: 0;
+  right: 0;
+  border-width: 0 3.5px 3.5px 0;
+  border-bottom-right-radius: 14px;
+}
+
+/* Animated Laser Scanner Line */
+.qr-scanner-laser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, #22c55e 18%, #86efac 50%, #22c55e 82%, transparent 100%);
+  box-shadow: 0 0 14px 3px rgba(34, 197, 94, 0.9), 0 0 28px 6px rgba(34, 197, 94, 0.4);
+  animation: qrLaserScan 2.4s ease-in-out infinite alternate;
+  z-index: 7;
+}
+
+.qr-scanner-laser::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 5%;
+  width: 90%;
+  height: 36px;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.28) 0%, rgba(34, 197, 94, 0) 100%);
+  pointer-events: none;
+}
+
+@keyframes qrLaserScan {
+  0% {
+    top: 4px;
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: calc(100% - 7px);
+    opacity: 0.95;
+  }
+}
+
 /* Upload and Switch Camera Actions */
 .qr-card-actions {
   margin-top: 18px;

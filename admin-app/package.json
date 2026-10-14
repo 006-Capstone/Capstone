@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@zxing/library": "^0.23.0",
     "crypto-js": "^4.2.0",
     "firebase": "^12.16.0",
     "firebase-admin": "^14.4.0",

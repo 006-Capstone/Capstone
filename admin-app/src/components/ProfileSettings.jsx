@@ -182,13 +182,13 @@ function ProfileSettings({ onClose }) {
   const generateQRCodeImage = async (encryptedData) => {
     try {
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 300,
-        margin: 2,
+        margin: 4,
+        scale: 6,
         color: {
           dark: '#105E06',
           light: '#FFFFFF'
         },
-        errorCorrectionLevel: 'H'
+        errorCorrectionLevel: 'M'
       });
       setQrCodeDataURL(qrDataURL);
     } catch (error) {
@@ -225,8 +225,8 @@ function ProfileSettings({ onClose }) {
       const encryptedData = encryptQRData(username, officeId, token, password);
 
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 400,
         margin: 4,
+        scale: 6,
         color: {
           dark: '#105E06',
           light: '#FFFFFF'
