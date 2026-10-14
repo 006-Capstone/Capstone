@@ -879,6 +879,10 @@ export const calculateStaffMonthlyBehavior = (
     : 100;
   const netRolloverNextMonth = weeklyBreakdown[3]?.unresolvedAtEnd || 0;
 
+  // Real-time SLA compliance check for open tickets
+  const activeStaffTickets = staffRequests.filter(r => r.status !== 'Resolved' && r.status !== 'Cancelled');
+  const overdueTicketsCount = activeStaffTickets.filter(r => calculateTicketOverdue(r).isOverdue).length;
+
   // Trajectory Analysis: Multi-week pattern detection
   const avgWeeklyIntake = totalAssigned / 4;
   const volumeSpikes = weeklyBreakdown.map(w => ({
@@ -923,6 +927,7 @@ export const calculateStaffMonthlyBehavior = (
   }
 
   // Option B Warning Determination (Ground-truth baseline)
+  // SLA-Aware: Staff are protected from disciplinary NTE warnings if they have ZERO overdue tickets.
   let warningStatus = 'good';
   let warningLabel = 'Good Standing';
   let warningShortLabel = 'Good Standing';
@@ -930,30 +935,38 @@ export const calculateStaffMonthlyBehavior = (
   let warningReason = 'Performance and clearance remained within healthy operational parameters throughout the month.';
 
   if (totalAssigned > 0 || netRolloverNextMonth > 0) {
-    if (isChronicRollover && overallClearanceRate < 20 && !hasVolumeSpikes && netRolloverNextMonth >= 15) {
+    if (overdueTicketsCount >= 10 && isChronicRollover && overallClearanceRate < 20 && !hasVolumeSpikes) {
       warningStatus = 'warning_4_termination';
       warningLabel = '4th Warning: Notice for Termination';
       warningShortLabel = '4th Warning: Termination';
       warningColor = '#991b1b';
-      warningReason = `Critical operational breakdown: Persistent inaction across all 4 weeks with minimal resolution (${overallClearanceRate}% clearance) and severe unaddressed rollover debt (${netRolloverNextMonth} tickets carried over).`;
-    } else if (isChronicRollover && overallClearanceRate < 40 && !hasVolumeSpikes && netRolloverNextMonth >= 10) {
+      warningReason = `Critical operational breakdown: Persistent inaction across all 4 weeks with minimal resolution (${overallClearanceRate}% clearance), ${overdueTicketsCount} overdue tickets, and severe rollover debt.`;
+    } else if (overdueTicketsCount >= 5 && isChronicRollover && overallClearanceRate < 40 && !hasVolumeSpikes) {
       warningStatus = 'warning_3_suspension';
       warningLabel = '3rd Warning: Notice of Suspension';
       warningShortLabel = '3rd Warning: Suspension';
       warningColor = '#dc2626';
-      warningReason = `Severe chronic backlog failure: Tickets compounded week-over-week without recovery, ending with ${netRolloverNextMonth} unresolved rollovers and low overall clearance (${overallClearanceRate}%).`;
-    } else if (isChronicRollover || (overallClearanceRate < 60 && !hasVolumeSpikes && netRolloverNextMonth >= 6)) {
+      warningReason = `Severe chronic backlog failure: Tickets compounded week-over-week without recovery, ending with ${overdueTicketsCount} overdue tickets and low overall clearance (${overallClearanceRate}%).`;
+    } else if (overdueTicketsCount >= 3 && (isChronicRollover || (overallClearanceRate < 60 && !hasVolumeSpikes))) {
       warningStatus = 'warning_2_verbal';
       warningLabel = '2nd Warning: Verbal Reprimand';
       warningShortLabel = '2nd Warning: Verbal Reprimand';
       warningColor = '#ea580c';
-      warningReason = `Persistent multi-week backlog accumulation: Clearance dropped across consecutive weeks, leaving ${netRolloverNextMonth} unresolved rollovers carried into next month under standard workload.`;
-    } else if (isDecliningClearance || (weeklyBreakdown[3].avgPickupLatencyHours > 24 && !hasVolumeSpikes) || (overallClearanceRate < 75 && netRolloverNextMonth > 3)) {
+      warningReason = `Persistent multi-week backlog accumulation: Clearance dropped across consecutive weeks with ${overdueTicketsCount} overdue tickets carried over under standard workload.`;
+    } else if (overdueTicketsCount >= 1 && (isDecliningClearance || (weeklyBreakdown[3]?.avgPickupLatencyHours > 24 && !hasVolumeSpikes) || (overallClearanceRate < 75 && netRolloverNextMonth > 3))) {
+      // 1st Warning NTE requires at least 1 actual overdue ticket to justify disciplinary explanation
       warningStatus = 'warning_1_nte';
       warningLabel = '1st Warning: Notice to Explain (NTE)';
       warningShortLabel = '1st Warning: NTE';
       warningColor = '#d97706';
-      warningReason = `Emerging deceleration observed in latter half of month (Weeks 3–4): Resolution velocity slowed with notable queue latency, warranting an initial explanation of delays.`;
+      warningReason = `Overdue breach detected (${overdueTicketsCount} overdue) alongside late-month resolution deceleration or notable queue latency, warranting an explanation of delays.`;
+    } else if (overdueTicketsCount === 0 && (weeklyBreakdown[3]?.avgPickupLatencyHours > 48 || (isDecliningClearance && overallClearanceRate < 50))) {
+      // Operational advisory note only when tickets are slow to be claimed/started, but NONE are overdue yet
+      warningStatus = 'good';
+      warningLabel = 'Good Standing (Pacing Advisory)';
+      warningShortLabel = 'Good Standing';
+      warningColor = '#16a34a';
+      warningReason = 'All tickets are currently within allowed SLA deadlines. Minor queue pickup latency noted, but no disciplinary action is warranted.';
     }
   }
 

@@ -133,7 +133,7 @@
 .nearing-summary-cards {
   padding: var(--space-4, 16px) var(--space-6, 24px);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: var(--space-3, 12px);
   background-color: var(--gray-50, #f8f9f7);
   border-bottom: 1px solid var(--color-border-soft, #eaede8);
@@ -192,6 +192,10 @@
 
 .nearing-summary-card.card-tomorrow.has-items .summary-card-count {
   color: #2563eb;
+}
+
+.nearing-summary-card.card-upcoming.has-items .summary-card-count {
+  color: #059669;
 }
 
 /* Controls Bar (Search & Dropdown) */

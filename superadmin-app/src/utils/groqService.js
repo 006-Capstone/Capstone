@@ -740,12 +740,13 @@ Context:
 - Clearance Degrading Across Consecutive Weeks: ${trajectory.isDecliningClearance ? 'Yes' : 'No'}
 - Chronic Rollover Accumulation: ${trajectory.isChronicRollover ? 'Yes' : 'No'}
 
-Warning Tiers Available:
-- "good": Good Standing (healthy clearance, or recovery from volume spikes)
-- "warning_1_nte": 1st Warning: Notice to Explain (NTE) (emerging multi-week latency/delays requiring explanation)
-- "warning_2_verbal": 2nd Warning: Verbal Reprimand (sustained backlog accumulation under standard volume)
-- "warning_3_suspension": 3rd Warning: Notice of Suspension (severe chronic rollover compounding across 4 weeks)
+Warning Tiers Available (Institutional Policy):
+- "good": Good Standing (healthy clearance, or all open tickets are currently within SLA due dates)
+- "warning_1_nte": 1st Warning: Notice to Explain (NTE) (requires at least 1 actual overdue ticket alongside sustained latency/delays)
+- "warning_2_verbal": 2nd Warning: Verbal Reprimand (sustained backlog accumulation with multiple overdue tickets)
+- "warning_3_suspension": 3rd Warning: Notice of Suspension (severe chronic rollover compounding across 4 weeks with substantial overdue tickets)
 - "warning_4_termination": 4th Warning: Notice for Termination (critical operational breakdown/abandonment with minimal resolution)
+NOTE: NEVER escalate above baseline warning status "${warningEvaluation.status}" if all tickets are within due date without overdue breaches. Always honor the baseline status "${warningEvaluation.status}".
 
 Respond with valid JSON matching this exact structure:
 {

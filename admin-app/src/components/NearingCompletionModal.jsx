@@ -34,7 +34,7 @@ const NearingCompletionModal = ({
   onGoToQueue
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'overdue' | 'today' | 'tomorrow'
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'overdue' | 'today' | 'tomorrow' | 'upcoming'
   const [dontShowAgainSession, setDontShowAgainSession] = useState(false);
 
   // Close on Escape key
@@ -61,7 +61,7 @@ const NearingCompletionModal = ({
     onClose();
   };
 
-  // Filter and enrich active tickets that are overdue, due today, or due tomorrow (excluding due in 2+ days)
+  // Filter and enrich active tickets that are overdue, due today, due tomorrow, or due soon (within 3 days)
   const activeEtcTickets = useMemo(() => {
     if (!Array.isArray(tickets)) return [];
 
@@ -76,8 +76,8 @@ const NearingCompletionModal = ({
       const etcInfo = parseTicketETC(ticket);
       if (!etcInfo) continue;
 
-      // Only include overdue, today, and tomorrow (due in 2+ days removed)
-      if (etcInfo.isOverdue || etcInfo.isToday || etcInfo.isTomorrow) {
+      // Include all requests within the 3-day threshold (matching the banner)
+      if (etcInfo.diffDays <= 3) {
         list.push({
           ...ticket,
           etcInfo
@@ -85,7 +85,7 @@ const NearingCompletionModal = ({
       }
     }
 
-    // Sort by urgency: most overdue first, then today, then tomorrow
+    // Sort by urgency: most overdue first, then today, tomorrow, and upcoming
     list.sort((a, b) => a.etcInfo.diffDays - b.etcInfo.diffDays);
     return list;
   }, [tickets]);
@@ -95,18 +95,21 @@ const NearingCompletionModal = ({
     let overdue = 0;
     let today = 0;
     let tomorrow = 0;
+    let upcoming = 0;
 
     for (const item of activeEtcTickets) {
       if (item.etcInfo.isOverdue) overdue++;
       else if (item.etcInfo.isToday) today++;
       else if (item.etcInfo.isTomorrow) tomorrow++;
+      else upcoming++;
     }
 
     return {
       total: activeEtcTickets.length,
       overdue,
       today,
-      tomorrow
+      tomorrow,
+      upcoming
     };
   }, [activeEtcTickets]);
 
@@ -121,6 +124,8 @@ const NearingCompletionModal = ({
       list = list.filter(item => item.etcInfo.isToday);
     } else if (activeFilter === 'tomorrow') {
       list = list.filter(item => item.etcInfo.isTomorrow);
+    } else if (activeFilter === 'upcoming') {
+      list = list.filter(item => !item.etcInfo.isOverdue && !item.etcInfo.isToday && !item.etcInfo.isTomorrow);
     }
 
     // Filter by search query
@@ -143,14 +148,15 @@ const NearingCompletionModal = ({
   // 1. Overdue
   // 2. Due Today
   // 3. Due Tomorrow
+  // 4. Due in 2–3 Days (Upcoming)
   const groupedSections = useMemo(() => {
     const allGroups = groupRequestsByUrgency(displayedTickets);
 
     if (activeFilter === 'all') {
-      return allGroups.filter(g => g.items.length > 0 && g.key !== 'upcoming');
+      return allGroups.filter(g => g.items.length > 0);
     }
 
-    return allGroups.filter(g => g.key === activeFilter && g.key !== 'upcoming');
+    return allGroups.filter(g => g.key === activeFilter);
   }, [displayedTickets, activeFilter]);
 
   if (!isOpen) return null;
@@ -239,6 +245,15 @@ const NearingCompletionModal = ({
           >
             <span className="summary-card-label">Due Tomorrow</span>
             <span className="summary-card-count">{summaryCounts.tomorrow}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nearing-summary-card card-upcoming ${activeFilter === 'upcoming' ? 'active' : ''} ${summaryCounts.upcoming > 0 ? 'has-items' : ''}`}
+            onClick={() => setActiveFilter('upcoming')}
+          >
+            <span className="summary-card-label">Due Soon</span>
+            <span className="summary-card-count">{summaryCounts.upcoming}</span>
           </button>
         </div>
 
