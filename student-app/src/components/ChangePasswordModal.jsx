@@ -57,12 +57,17 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged, onLogout }) => {
     setRequiresRecentLogin(false);
 
     // Validation
+    if (!currentPassword.trim()) {
+      setError('Please enter your current temporary password');
+      return;
+    }
+
     if (!newPassword || !confirmPassword) {
       setError('Please fill in both the new password and confirm password fields');
       return;
     }
 
-    if (currentPassword && newPassword === currentPassword) {
+    if (newPassword === currentPassword.trim()) {
       setError('Your new password cannot be the same as your current temporary password.');
       return;
     }
@@ -89,20 +94,18 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged, onLogout }) => {
         return;
       }
 
-      // If user supplied current password, reauthenticate first to ensure session is 100% fresh
-      if (currentPassword) {
-        try {
-          const credential = EmailAuthProvider.credential(user.email || studentData?.email, currentPassword);
-          await reauthenticateWithCredential(user, credential);
-        } catch (reauthErr) {
-          console.error('[ChangePasswordModal] Reauth error:', reauthErr);
-          if (reauthErr.code === 'auth/wrong-password' || reauthErr.code === 'auth/invalid-credential') {
-            setError('Current temporary password is incorrect. Please double-check the password you logged in with.');
-            setLoading(false);
-            return;
-          }
-          throw reauthErr;
+      // Reauthenticate with current temporary password to verify student identity
+      try {
+        const credential = EmailAuthProvider.credential(user.email || studentData?.email, currentPassword.trim());
+        await reauthenticateWithCredential(user, credential);
+      } catch (reauthErr) {
+        console.error('[ChangePasswordModal] Reauth error:', reauthErr);
+        if (reauthErr.code === 'auth/wrong-password' || reauthErr.code === 'auth/invalid-credential') {
+          setError('Current temporary password is incorrect. Please double-check the password you logged in with.');
+          setLoading(false);
+          return;
         }
+        throw reauthErr;
       }
 
       // Update password in Firebase Authentication directly
@@ -186,7 +189,7 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged, onLogout }) => {
 
             <div className="form-group-modal">
               <label className="form-label-modal">
-                Current Temporary Password <span className="label-hint">(optional if freshly logged in)</span>
+                Current Temporary Password <span className="label-required">*</span>
               </label>
               <div className="password-input-wrapper-modal">
                 <FaKey className="input-icon" />
@@ -196,6 +199,7 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged, onLogout }) => {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter the password you logged in with"
+                  required
                   disabled={loading}
                   autoComplete="current-password"
                 />
@@ -212,7 +216,9 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged, onLogout }) => {
             </div>
 
             <div className="form-group-modal">
-              <label className="form-label-modal">New Password</label>
+              <label className="form-label-modal">
+                New Password <span className="label-required">*</span>
+              </label>
               <div className="password-input-wrapper-modal">
                 <FaLock className="input-icon" />
                 <input
@@ -221,6 +227,7 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged, onLogout }) => {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new secure password"
+                  required
                   disabled={loading}
                   autoComplete="new-password"
                 />
@@ -237,7 +244,9 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged, onLogout }) => {
             </div>
 
             <div className="form-group-modal">
-              <label className="form-label-modal">Confirm New Password</label>
+              <label className="form-label-modal">
+                Confirm New Password <span className="label-required">*</span>
+              </label>
               <div className="password-input-wrapper-modal">
                 <FaLock className="input-icon" />
                 <input
@@ -246,6 +255,7 @@ const ChangePasswordModal = ({ studentData, onPasswordChanged, onLogout }) => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new secure password"
+                  required
                   disabled={loading}
                   autoComplete="new-password"
                 />

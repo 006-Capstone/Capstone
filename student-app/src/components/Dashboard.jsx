@@ -74,32 +74,59 @@ function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
       setStudentName(fullName);
 
       const identifier = student.studentId || student.id || student.uid;
-      loadRequests(identifier, student.uid);
+      loadRequests(identifier, student.uid, student.email);
     }
   }, []);
 
-  const loadRequests = async (studentId, studentUid) => {
+  const loadRequests = async (studentId, studentUid, studentEmail) => {
     try {
       setLoading(true);
       setError('');
 
       const requestsRef = collection(db, 'requests');
-      let q = query(
-        requestsRef,
-        where('studentId', '==', studentId)
-      );
+      const docsMap = new Map();
 
-      let querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty && studentUid) {
-        q = query(
-          requestsRef,
-          where('studentUid', '==', studentUid)
-        );
-        querySnapshot = await getDocs(q);
+      // 1. Query by studentUid
+      if (studentUid) {
+        try {
+          const snap = await getDocs(query(requestsRef, where('studentUid', '==', studentUid)));
+          snap.docs.forEach(d => docsMap.set(d.id, d));
+        } catch (e) {
+          console.warn('Error querying requests by studentUid:', e);
+        }
       }
 
-      const allRequests = querySnapshot.docs.map(doc => {
+      // 2. Query by studentId (exact and academic year prefixed)
+      if (studentId) {
+        try {
+          const snap = await getDocs(query(requestsRef, where('studentId', '==', studentId)));
+          snap.docs.forEach(d => docsMap.set(d.id, d));
+        } catch (e) {
+          console.warn('Error querying requests by studentId:', e);
+        }
+
+        if (/^\d{4}$/.test(studentId)) {
+          const yearPrefixes = ['05-2324-', '05-2425-', '05-2526-', '05-2627-'];
+          for (const prefix of yearPrefixes) {
+            try {
+              const snap = await getDocs(query(requestsRef, where('studentId', '==', `${prefix}${studentId}`)));
+              snap.docs.forEach(d => docsMap.set(d.id, d));
+            } catch (_) {}
+          }
+        }
+      }
+
+      // 3. Query by studentEmail
+      if (studentEmail) {
+        try {
+          const snap = await getDocs(query(requestsRef, where('studentEmail', '==', studentEmail)));
+          snap.docs.forEach(d => docsMap.set(d.id, d));
+        } catch (e) {
+          console.warn('Error querying requests by studentEmail:', e);
+        }
+      }
+
+      const allRequests = Array.from(docsMap.values()).map(doc => {
         const data = doc.data();
         const createdDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : null);
         const isValidDate = createdDate instanceof Date && !isNaN(createdDate.getTime());

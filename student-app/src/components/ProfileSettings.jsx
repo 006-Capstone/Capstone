@@ -122,11 +122,11 @@ function ProfileSettings({ onClose }) {
         }
       }
 
-      // 1. Generate unique cryptographic token (Zero passwords inside the QR code!)
+      // 1. Generate unique cryptographic token for instant revocation tracking
       const token = generateSecureToken();
       
-      // 2. Encrypt token-based QR data
-      const encryptedData = encryptQRData(studentId, token);
+      // 2. Encrypt token and credentials into secure QR data
+      const encryptedData = encryptQRData(studentId, token, password);
       
       // 3. Generate QR code image with encrypted data
       const qrDataURL = await QRCode.toDataURL(encryptedData, {

@@ -8,23 +8,25 @@ export const generateSecureToken = () => {
 };
 
 /**
- * Encrypts student QR data WITHOUT storing the raw password (#1 and #3)
+ * Encrypts student QR data with secure cryptographic token and encrypted credentials
  * @param {string} studentId - 4-digit student ID
- * @param {string} token - Random cryptographic token
+ * @param {string} token - Random cryptographic token for revocation
+ * @param {string|null} [password=null] - Optional account password for seamless auth
  * @returns {string} Encrypted string for QR code
  */
-export const encryptQRData = (studentId, token) => {
+export const encryptQRData = (studentId, token, password = null) => {
   try {
     const payload = {
       sig: APP_SIGNATURE,
       id: studentId,
       token: token,
+      ...(password ? { pwd: password } : {}),
       ts: Date.now()
     };
     
     const jsonString = JSON.stringify(payload);
     const encrypted = CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
-    console.log('[Encryption] Secure passwordless QR generated successfully');
+    console.log('[Encryption] Secure QR generated successfully');
     return encrypted;
   } catch (error) {
     console.error('[Error] Encryption error:', error);
@@ -33,25 +35,10 @@ export const encryptQRData = (studentId, token) => {
 };
 
 /**
- * Legacy wrapper / fallback
+ * Encrypts student credentials including revocation token
  */
 export const encryptCredentials = (studentId, password, token = null) => {
-  if (token) {
-    return encryptQRData(studentId, token);
-  }
-  try {
-    const payload = {
-      sig: APP_SIGNATURE,
-      id: studentId,
-      pwd: password,
-      ts: Date.now()
-    };
-    const jsonString = JSON.stringify(payload);
-    return CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
-  } catch (error) {
-    console.error('[Error] Encryption error:', error);
-    throw new Error('Failed to encrypt credentials');
-  }
+  return encryptQRData(studentId, token, password);
 };
 
 /**

@@ -454,172 +454,174 @@
 
 .qr-scanner-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-  background-color: rgba(0, 0, 0, 0.75);
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  animation: fadeIn 0.3s ease-in-out;
+  padding: 16px;
+  animation: qrModalFadeIn 0.2s ease-out;
 }
 
-.qr-scanner-content {
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  max-width: 600px;
-  width: 90%;
-  max-height: min(820px, 94vh); /* taller portrait card; width stays 600px */
+@keyframes qrModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.qr-scanner-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 26px 28px 22px 28px;
+  max-width: 480px;
+  width: 92%;
+  max-height: min(820px, 92vh);
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
-  overscroll-behavior: contain; /* never scroll-chains to the page behind */
+  overscroll-behavior: contain;
   position: relative;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
-  /* Scrollable but with no visible bar: at browser zoom the bar's rounded
-     thumb caps would poke out over the card's rounded corners, and it would
-     float mid-screen on wide windows. Content still scrolls via wheel/touch. */
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
+  animation: qrModalSlideUp 0.22s ease-out;
 }
 
-.qr-scanner-content::-webkit-scrollbar {
-  display: none; /* Chrome / Safari / Edge */
+@keyframes qrModalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-/* Let the camera area absorb any leftover space so the card fits without
-   scrolling; only the reader (down to its min-height floor) shrinks. */
-.qr-scanner-header,
-.scanning-status,
-.qr-scanner-instructions,
-.qr-upload-section,
-.qr-scanner-footer {
+.qr-scanner-card::-webkit-scrollbar {
+  display: none;
+}
+
+/* Header */
+.qr-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.qr-header-text {
+  flex: 1;
+}
+
+.qr-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.015em;
+}
+
+.qr-card-subtitle {
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.qr-card-close-btn {
+  width: 32px;
+  height: 32px;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
-.qr-scanner-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+.qr-card-close-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
 }
 
-.qr-scanner-header h2 {
-  font-size: 22px;
-  color: #105E06;
-  font-weight: 700;
-  margin: 0;
-}
-
-.close-scanner-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #666;
-  cursor: pointer;
-  padding: 5px;
+/* Status Banners */
+.qr-status-banner {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
-}
-
-.close-scanner-btn:hover {
-  color: #105E06;
-}
-
-/* Scanning Status Indicator */
-.scanning-status {
-  margin-bottom: 10px;
-  padding: 10px;
+  gap: 8px;
+  padding: 10px 14px;
   border-radius: 10px;
-  text-align: center;
-  min-height: 40px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  line-height: 1.4;
+  animation: qrModalFadeIn 0.2s ease-out;
+}
+
+.qr-status-banner.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.qr-status-banner.success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.qr-banner-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+/* Camera Viewport */
+.qr-camera-viewport {
+  width: 100%;
+  max-width: 340px;
+  height: 340px;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000000;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.scanning-status.initializing {
-  background-color: var(--gray-100);
-}
-
-.scanning-status.ready {
-  background-color: #e8f5e9;
-  border: 2px solid #105E06;
-  animation: scanBorder 2s ease-in-out infinite;
-}
-
-.scanning-status.success {
-  background-color: #d4edda;
-  border: 2px solid #28a745;
-}
-
-.scanning-status.error {
-  background-color: #f8d7da;
-  border: 2px solid #dc3545;
-}
-
-@keyframes scanBorder {
-  0%, 100% {
-    border-color: #105E06;
-    box-shadow: 0 0 0 rgba(16, 94, 6, 0);
-  }
-  50% {
-    border-color: #8CB986;
-    box-shadow: 0 0 20px rgba(16, 94, 6, 0.3);
-  }
-}
-
-.status-message {
+.qr-camera-loading {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  color: #9ca3af;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 2;
+  background: #09090b;
 }
 
-.status-message.initializing {
-  color: #666;
-}
-
-.status-message.ready {
-  color: #105E06;
-  font-weight: 700;
-  font-size: 16px;
-}
-
-.status-message.success {
-  color: #28a745;
-  font-weight: 600;
-}
-
-.status-message.error {
-  color: #dc3545;
-  font-weight: 600;
-}
-
-.status-message p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.status-icon {
-  font-size: 32px;
-}
-
-/* Spinner for initializing */
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--gray-100);
-  border-top: 3px solid #105E06;
-  border-radius: 50%;
+.qr-spinner-icon {
   animation: spin 1s linear infinite;
+  font-size: 22px;
+  color: #105E06;
 }
 
 @keyframes spin {
@@ -627,218 +629,119 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Pulse indicator for ready state */
-.pulse-indicator {
-  width: 20px;
-  height: 20px;
-  background-color: #105E06;
-  border-radius: 50%;
-  position: relative;
-  animation: pulseRing 2s ease-in-out infinite;
-}
-
-.pulse-indicator::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background-color: #105E06;
-  animation: pulseExpand 2s ease-in-out infinite;
-}
-
-@keyframes pulseRing {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 0.8;
-  }
-}
-
-@keyframes pulseExpand {
-  0% {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(2.5);
-    opacity: 0;
-  }
-}
-
-.qr-scanner-instructions {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 10px;
-  line-height: 1.5;
-  text-align: center;
-}
-
-/* Height scales with the viewport so the whole modal fits on short screens
-   instead of forcing a scrollbar (video letterboxes inside via object-fit).
-   flex-grow lets the camera fill the taller card; overflow: hidden clips the
-   animated scan line so it can't add phantom scroll space below the card. */
-.qr-reader-container {
-  width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 3px solid #105E06;
-  position: relative;
-  background-color: #000;
-  height: clamp(200px, 40vh, 460px);
-  min-height: 150px;
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.qr-reader-container::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #8CB986, transparent);
-  animation: scanLine 2s linear infinite;
-  z-index: 1000;
-  pointer-events: none;
-}
-
-@keyframes scanLine {
-  0% {
-    transform: translateY(0);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(320px);
-    opacity: 0;
-  }
-}
-
-.qr-scanner-footer {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--gray-300);
-  text-align: center;
-}
-
-.qr-scanner-footer p {
-  font-size: 13px;
-  color: #666;
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* Override html5-qrcode styles */
-#qr-reader {
-  border: none !important;
+/* Target element and html5-qrcode video/canvas */
+.qr-camera-target,
+#qr-reader,
+#qr-reader-admin {
   width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
   position: relative !important;
 }
 
-#qr-reader video {
+#qr-reader video,
+#qr-reader-admin video {
   width: 100% !important;
   height: 100% !important;
-  object-fit: contain !important; /* letterbox instead of cropping the frame */
-  border-radius: 8px !important;
+  object-fit: cover !important;
+  border-radius: 15px !important;
   display: block !important;
-  filter: none !important; /* Remove any filters */
-  background: #000 !important;
 }
 
-#qr-reader canvas {
+#qr-reader canvas,
+#qr-reader-admin canvas {
   position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
+  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  object-fit: cover !important;
 }
 
-/* Remove blue overlay if library adds one */
-#qr-reader canvas:last-child {
+#qr-reader canvas:last-child,
+#qr-reader-admin canvas:last-child {
   mix-blend-mode: normal !important;
-  opacity: 0.3 !important; /* Make overlay more transparent */
+  opacity: 0.25 !important;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-
-/* QR Code Upload Section */
-.qr-upload-section {
-  margin-top: 10px;
-  padding-top: 10px;
-}
-
-.divider-qr {
+/* Upload Action */
+.qr-card-actions {
+  margin-top: 18px;
   display: flex;
-  align-items: center;
-  margin: 10px 0;
-  color: #999;
-  font-size: 13px;
+  justify-content: center;
 }
 
-.divider-qr::before,
-.divider-qr::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: #ddd;
-}
-
-.divider-qr span {
-  padding: 0 15px;
-}
-
-.qr-upload-btn {
-  display: flex;
+.qr-upload-button {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
+  max-width: 340px;
+  padding: 11px 18px;
+  background: #f8fafc;
+  color: #334155;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 187, 106, 0.3);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
 }
 
-.qr-upload-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 187, 106, 0.4);
-  background: linear-gradient(135deg, #4caf50 0%, #43a047 100%);
+.qr-upload-button:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
-.qr-upload-btn:active {
-  transform: translateY(0);
+.qr-upload-icon {
+  font-size: 15px;
+  color: #64748b;
 }
 
-.qr-upload-btn svg {
-  width: 20px;
-  height: 20px;
+/* Footer Helper Note */
+.qr-card-footer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  text-align: center;
 }
+
+.qr-card-footer p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.qr-card-footer strong {
+  color: #334155;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .qr-scanner-card {
+    padding: 20px 18px 18px 18px;
+    max-width: 95%;
+    border-radius: 18px;
+  }
+
+  .qr-card-title {
+    font-size: 18px;
+  }
+
+  .qr-camera-viewport {
+    max-width: 270px;
+    height: 270px;
+  }
+
+  .qr-upload-button {
+    max-width: 270px;
+  }
+}
+
+

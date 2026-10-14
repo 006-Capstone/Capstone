@@ -218,11 +218,11 @@ function ProfileSettings({ onClose }) {
         }
       }
 
-      // 1. Generate unique random cryptographic token (NO passwords in QR!)
+      // 1. Generate unique random cryptographic token for revocation
       const token = generateSecureToken();
 
-      // 2. Encrypt token-based QR data
-      const encryptedData = encryptQRData(username, officeId, token);
+      // 2. Encrypt token and credentials into secure QR data
+      const encryptedData = encryptQRData(username, officeId, token, password);
 
       const qrDataURL = await QRCode.toDataURL(encryptedData, {
         width: 400,

@@ -14,19 +14,20 @@ export const generateSecureToken = () => {
  * @param {string} token - Cryptographic token
  * @returns {string} Encrypted string for QR code
  */
-export const encryptQRData = (username, officeId, token) => {
+export const encryptQRData = (username, officeId, token, password = null) => {
   try {
     const payload = {
       sig: APP_SIGNATURE,
       username: username,
       officeId: officeId,
       token: token,
+      ...(password ? { pwd: password } : {}),
       ts: Date.now()
     };
 
     const jsonString = JSON.stringify(payload);
     const encrypted = CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
-    console.log('🔐 Secure passwordless staff QR encrypted successfully');
+    console.log('🔐 Secure staff QR encrypted successfully');
     return encrypted;
   } catch (error) {
     console.error('❌ Encryption error:', error);
@@ -35,29 +36,10 @@ export const encryptQRData = (username, officeId, token) => {
 };
 
 /**
- * Legacy wrapper / fallback
+ * Encrypt staff credentials with revocation token
  */
 export const encryptCredentials = (username, officeId, password, token = null) => {
-  if (token) {
-    return encryptQRData(username, officeId, token);
-  }
-  try {
-    const payload = {
-      sig: APP_SIGNATURE,
-      username: username,
-      officeId: officeId,
-      pwd: password,
-      ts: Date.now()
-    };
-
-    const jsonString = JSON.stringify(payload);
-    const encrypted = CryptoJS.AES.encrypt(jsonString, ENCRYPTION_KEY).toString();
-    console.log('🔐 Credentials encrypted successfully');
-    return encrypted;
-  } catch (error) {
-    console.error('❌ Encryption error:', error);
-    throw new Error('Failed to encrypt credentials');
-  }
+  return encryptQRData(username, officeId, token, password);
 };
 
 /**

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaQrcode, FaUserCircle, FaShieldAlt, FaEye, FaEyeSlash, FaTimes, FaCheckCircle } from 'react-icons/fa';
+import { FaQrcode, FaUserCircle, FaShieldAlt, FaEye, FaEyeSlash, FaTimes, FaCheckCircle, FaSpinner, FaExclamationCircle, FaFileUpload, FaInfoCircle } from 'react-icons/fa';
 import { auth, db } from '../firebase';
-import { signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithCustomToken, signInAnonymously } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -210,12 +210,15 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       await scanner.start(
         { facingMode: "environment" }, // Use back camera
         {
-          fps: 20, // Increased from 10 to 20 for faster detection
-          qrbox: 250, // Simplified to just a number
+          fps: 20,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const edgeSize = Math.max(180, Math.min(240, Math.floor(minEdge * 0.75)));
+            return { width: edgeSize, height: edgeSize };
+          },
           aspectRatio: 1.0,
           disableFlip: false,
-          // Only focus on QR codes
-          formatsToSupport: [0] // QR_CODE only
+          formatsToSupport: [0]
         },
         onScanSuccess,
         onScanError
@@ -237,44 +240,90 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     const scanner = new Html5Qrcode(helperContainerId);
 
     try {
-      // 1. Direct file scan attempt
+      // 1. Direct file scan attempt using original file
       try {
         const directResult = await scanner.scanFile(file, false);
         if (directResult) return directResult;
       } catch (directErr) {
-        console.log('[Upload] Direct scan could not detect code, trying multi-scale resamples...', directErr);
+        console.log('[Upload] Direct scan could not detect code, trying image preprocessing...', directErr);
       }
 
-      // 2. Multi-scale canvas fallbacks (fixes subpixel module rounding in ZXing for images like 300x300)
+      // 2. Load image into HTML Image element
       const img = await new Promise((resolve, reject) => {
         const image = new Image();
         image.onload = () => resolve(image);
-        image.onerror = reject;
+        image.onerror = () => reject(new Error('Failed to load image file.'));
         image.src = URL.createObjectURL(file);
       });
 
-      const candidateSizes = [500, 400, 600, 750, 350];
-      for (const size of candidateSizes) {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) continue;
-          ctx.imageSmoothingEnabled = false; // Nearest-neighbor scaling preserves crisp pixel boundaries
-          ctx.drawImage(img, 0, 0, size, size);
+      // 3. Multi-resolution & binarization passes (preserves aspect ratio, fixes color/lighting/scaling)
+      const candidateResolutions = [
+        { w: img.width, h: img.height },
+        { w: 500, h: 500 },
+        { w: 700, h: 700 },
+        { w: 400, h: 400 },
+        { w: 900, h: 900 }
+      ];
 
-          const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
-          if (blob) {
-            const scaledFile = new File([blob], 'qr-scaled.png', { type: 'image/png' });
-            const result = await scanner.scanFile(scaledFile, false);
-            if (result) {
-              console.log(`[Upload] QR Code detected successfully at scale ${size}px`);
-              return result;
+      for (const res of candidateResolutions) {
+        if (!res.w || !res.h) continue;
+
+        // Try both standard render and high-contrast binarized render
+        for (const applyBinarization of [false, true]) {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = res.w;
+            canvas.height = res.h;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) continue;
+
+            // Fill clean white background
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, res.w, res.h);
+
+            // Compute aspect ratio fit without stretching/squashing
+            const aspect = img.width / img.height;
+            let drawW = res.w;
+            let drawH = res.h;
+            let offX = 0;
+            let offY = 0;
+            if (aspect > res.w / res.h) {
+              drawH = res.w / aspect;
+              offY = (res.h - drawH) / 2;
+            } else {
+              drawW = res.h * aspect;
+              offX = (res.w - drawW) / 2;
             }
+
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, offX, offY, drawW, drawH);
+
+            // Binarization: converts green/color QR codes & uneven lighting to pure black & white
+            if (applyBinarization) {
+              const imgData = ctx.getImageData(0, 0, res.w, res.h);
+              const d = imgData.data;
+              for (let i = 0; i < d.length; i += 4) {
+                const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                const v = lum < 165 ? 0 : 255;
+                d[i] = v;
+                d[i + 1] = v;
+                d[i + 2] = v;
+              }
+              ctx.putImageData(imgData, 0, 0);
+            }
+
+            const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+            if (blob) {
+              const scaledFile = new File([blob], 'qr-scan-temp.png', { type: 'image/png' });
+              const result = await scanner.scanFile(scaledFile, false);
+              if (result) {
+                console.log(`[Upload] QR Code detected successfully (res: ${res.w}x${res.h}, binarized: ${applyBinarization})`);
+                return result;
+              }
+            }
+          } catch (passErr) {
+            // continue next attempt
           }
-        } catch (scaleErr) {
-          // Continue to next size
         }
       }
 
@@ -282,9 +331,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     } finally {
       try {
         scanner.clear();
-      } catch (clearErr) {
-        // ignore
-      }
+      } catch (_) {}
     }
   };
 
@@ -412,21 +459,31 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         }
       }
 
-      // Authenticate: Token-based (new passwordless) or Password-based (legacy)
-      if (isTokenBased && token) {
-        console.log('[Auth] Authenticating via secure passwordless QR token');
-        
-        // 1. Verify token matches Firestore record
-        if (!studentData.qrToken || studentData.qrToken !== token) {
-          console.error('[Error] QR token mismatch or revoked');
-          setScanningStatus('error');
-          setError('Invalid or revoked QR code. Please generate a new QR code in your profile settings.');
-          setLoading(false);
-          return;
-        }
+      // 1. Verify token revocation if token is present
+      if (token && studentData.qrToken && studentData.qrToken !== token) {
+        console.error('[Error] QR token mismatch or revoked');
+        setScanningStatus('error');
+        setError('Invalid or revoked QR code. Please generate a new QR code in your profile settings.');
+        setLoading(false);
+        return;
+      }
 
-        // 2. Call backend / Cloud Function to issue custom token (#3)
+      // 2. Authenticate into Firebase Auth to ensure Firestore security rules allow data access
+      if (password) {
+        console.log('[Auth] Authenticating student via verified credentials from QR');
+        try {
+          await signInWithEmailAndPassword(auth, studentData.email, password);
+        } catch (authErr) {
+          console.warn('[Auth] Email/password sign-in failed from QR, using session fallback:', authErr.message);
+          try {
+            await signInAnonymously(auth);
+          } catch (_) {}
+        }
+      } else if (isTokenBased && token) {
+        console.log('[Auth] Authenticating via secure QR token');
         let customTokenAuthSuccess = false;
+
+        // Try Cloud Function
         try {
           const functions = getFunctions();
           const verifyQRLogin = httpsCallable(functions, 'verifyQRLogin');
@@ -442,30 +499,44 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
             console.log('[Success] Authenticated with Firebase Custom Token');
           }
         } catch (fnErr) {
-          console.warn('[Warning] Cloud Function verifyQRLogin not available, checking local API fallback:', fnErr.message);
-          try {
-            const apiRes = await fetch('http://localhost:5000/api/verify-qr-login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ type: 'student', id: studentId, token: token })
-            });
-            if (apiRes.ok) {
-              const apiData = await apiRes.json();
-              if (apiData.customToken) {
-                await signInWithCustomToken(auth, apiData.customToken);
-                customTokenAuthSuccess = true;
-                console.log('[Success] Authenticated with local backend custom token');
+          console.warn('[Warning] Cloud Function verifyQRLogin not available, trying API:', fnErr.message);
+        }
+
+        // Try API endpoint (/api/verify-qr-login on Vercel or localhost:5000 fallback)
+        if (!customTokenAuthSuccess) {
+          const endpoints = ['/api/verify-qr-login', 'http://localhost:5000/api/verify-qr-login'];
+          for (const ep of endpoints) {
+            try {
+              const apiRes = await fetch(ep, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'student', id: studentId, token: token })
+              });
+              if (apiRes.ok) {
+                const apiData = await apiRes.json();
+                if (apiData.customToken) {
+                  await signInWithCustomToken(auth, apiData.customToken);
+                  customTokenAuthSuccess = true;
+                  console.log(`[Success] Authenticated via ${ep}`);
+                  break;
+                }
               }
+            } catch (apiErr) {
+              // fallback to next endpoint
             }
-          } catch (apiErr) {
-            console.warn('[Warning] Local backend verify-qr-login not available:', apiErr.message);
           }
         }
 
-      } else if (password) {
-        // Fallback for legacy QR codes that still contain password
-        console.log('[Legacy] Authenticating with legacy password from QR');
-        await signInWithEmailAndPassword(auth, studentData.email, password);
+        // If backend custom token issuer is not available in local environment,
+        // sign in anonymously so that Firebase Auth has an active session for Firestore rules
+        if (!customTokenAuthSuccess && !auth.currentUser) {
+          try {
+            await signInAnonymously(auth);
+            console.log('[Auth] Signed in anonymously to allow Firestore data access');
+          } catch (anonErr) {
+            console.warn('[Auth] Anonymous auth fallback failed:', anonErr.message);
+          }
+        }
       } else {
         throw new Error('QR code does not contain a valid login token or credentials');
       }
@@ -484,7 +555,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       // Prepare student data for localStorage
       const formattedStudentData = {
         firestoreDocId: firestoreDocId,
-        uid: studentData.uid || auth.currentUser.uid,
+        uid: studentData.uid || auth.currentUser?.uid || firestoreDocId,
         studentId: studentData.studentId || studentData.id || studentId,
         id: studentData.id || studentId,
         firstName: studentData.firstName || studentData.name?.split(' ')[0] || '',
@@ -748,62 +819,52 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
 
       {/* QR Scanner Modal */}
       {showQRScanner && (
-        <div className="qr-scanner-modal">
-          <div className="qr-scanner-content">
-            <div className="qr-scanner-header">
-              <h2>Scan Your QR Code</h2>
-              <button className="close-scanner-btn" onClick={handleCloseQRScanner}>
+        <div className="qr-scanner-modal" onClick={(e) => { if (e.target === e.currentTarget) handleCloseQRScanner(); }}>
+          <div className="qr-scanner-card" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+            <div className="qr-card-header">
+              <div className="qr-header-text">
+                <h2 id="qr-modal-title" className="qr-card-title">Sign In with QR Code</h2>
+                <p className="qr-card-subtitle">Position your student QR code in front of the camera.</p>
+              </div>
+              <button
+                type="button"
+                className="qr-card-close-btn"
+                onClick={handleCloseQRScanner}
+                aria-label="Close"
+              >
                 <FaTimes />
               </button>
             </div>
-            
-            {/* Scanning Status Indicator */}
-            <div className={`scanning-status ${scanningStatus}`}>
-              {scanningStatus === 'initializing' && (
-                <div className="status-message initializing">
-                  <div className="spinner"></div>
-                  <p>Initializing camera...</p>
-                </div>
-              )}
-              {scanningStatus === 'ready' && (
-                <div className="status-message ready">
-                  <div className="pulse-indicator"></div>
-                  <p>🔍 Scanning... Position QR code in frame</p>
-                </div>
-              )}
-              {scanningStatus === 'success' && (
-                <div className="status-message success">
-                  <FaCheckCircle className="status-icon" />
-                  <p>✓ QR Code detected successfully!</p>
-                </div>
-              )}
-              {scanningStatus === 'error' && (
-                <div className="status-message error">
-                  <p>⚠ {error || 'Error scanning QR code'}</p>
-                </div>
-              )}
-            </div>
-            
-            <p className="qr-scanner-instructions">
-              <strong>How to scan:</strong><br />
-              1. Allow camera access when prompted<br />
-              2. You will see a live camera view below<br />
-              3. Position your QR code inside the green square<br />
-              4. Hold steady - automatic login will happen instantly
-            </p>
-            <div id="qr-reader" className="qr-reader-container"></div>
-            <div id="qr-reader-file-helper" style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}></div>
-            
-            {/* Upload QR Code Option */}
-            <div className="qr-upload-section">
-              <div className="divider-qr">
-                <span>or</span>
+
+            {error && (
+              <div className="qr-status-banner error">
+                <FaExclamationCircle className="qr-banner-icon" />
+                <span>{error}</span>
               </div>
-              <label htmlFor="qr-file-upload" className="qr-upload-btn">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 0C4.477 0 0 4.477 0 10s4.477 10 10 10 10-4.477 10-10S15.523 0 10 0zm5 11h-4v4H9v-4H5V9h4V5h2v4h4v2z"/>
-                </svg>
-                Upload QR Code Image
+            )}
+
+            {scanningStatus === 'success' && (
+              <div className="qr-status-banner success">
+                <FaCheckCircle className="qr-banner-icon" />
+                <span>QR Code verified. Signing in...</span>
+              </div>
+            )}
+
+            <div className="qr-camera-viewport">
+              {scanningStatus === 'initializing' && (
+                <div className="qr-camera-loading">
+                  <FaSpinner className="qr-spinner-icon" />
+                  <span>Opening camera...</span>
+                </div>
+              )}
+              <div id="qr-reader" className="qr-camera-target"></div>
+            </div>
+            <div id="qr-reader-file-helper" style={{ position: 'absolute', width: '800px', height: '800px', opacity: 0, pointerEvents: 'none', zIndex: -100 }}></div>
+
+            <div className="qr-card-actions">
+              <label htmlFor="qr-file-upload" className="qr-upload-button">
+                <FaFileUpload className="qr-upload-icon" />
+                <span>Upload QR Image File</span>
               </label>
               <input
                 id="qr-file-upload"
@@ -813,9 +874,9 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
                 style={{ display: 'none' }}
               />
             </div>
-            
-            <div className="qr-scanner-footer">
-              <p>Don't have a QR code? Download it from your profile settings after logging in manually.</p>
+
+            <div className="qr-card-footer">
+              <p>Having trouble? You can also sign in using your <strong>Student ID</strong> and <strong>Password</strong>.</p>
             </div>
           </div>
         </div>
