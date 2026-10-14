@@ -1292,13 +1292,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     }
   };
 
-  const generateRequestId = (officeName) => {
-    const officePrefix = officeName.substring(0, 3).toUpperCase();
-    const randomNum1 = Math.floor(100 + Math.random() * 900);
-    const randomNum2 = Math.floor(100 + Math.random() * 900);
-    const randomNum3 = Math.floor(100 + Math.random() * 900);
-    return `${officePrefix}-${randomNum1}-${randomNum2}-${randomNum3}`;
-  };
 
   const handleUrgencyChange = async (newUrgency) => {
     if (!isOwner) {
@@ -1499,7 +1492,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       }
 
       setShowReassignModal(false);
-      const newRequestId = generateRequestId(reassignOffice);
       const staffData = JSON.parse(localStorage.getItem('staffData')) || { name: 'Staff Member' };
       const currentOfficeHistory = ticket.officeHistory || {};
       const currentHandler = ticket.claimedBy || ticket.assignedTo || staffData.name;
@@ -1518,14 +1510,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       const initialOffice = ticket.originalOffice || originalDepartmentName || ticket.reassignedFrom || ticket.previousOffice || ticket.office;
       const updateData = {
         office: reassignOffice,
-        requestId: newRequestId,
+        requestId: ticket.requestId,
         officeId: reassignOffice.toLowerCase(),
         originalOffice: initialOffice,
         reassignedFrom: ticket.office,
         reassignedBy: staffData.name,
         reassignedAt: serverTimestamp(),
         reassignmentNote: reassignNote.trim(),
-        previousRequestId: ticket.requestId,
         previousOffice: ticket.office,
         internalTargetDate: reassignTargetDate,
         reroutedTargetDate: reassignTargetDate,
@@ -1594,7 +1585,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       
       await notifyStaffReassignment(
         reassignOffice,
-        newRequestId,
+        ticket.requestId,
         ticket.subject,
         ticket.office,
         staffData.name

@@ -529,8 +529,10 @@ const GuestLogin = () => {
         setTrackNotFound(true);
         return;
       }
-      const q = query(collection(db, 'requests'), where('requestId', '==', cleanId), limit(1));
-      const snapshot = await getDocs(q);
+      let snapshot = await getDocs(query(collection(db, 'requests'), where('requestId', '==', cleanId), limit(1)));
+      if (snapshot.empty) {
+        snapshot = await getDocs(query(collection(db, 'requests'), where('previousRequestId', '==', cleanId), limit(1)));
+      }
       if (snapshot.empty) {
         setStatusData(null);
         setTrackNotFound(true);
