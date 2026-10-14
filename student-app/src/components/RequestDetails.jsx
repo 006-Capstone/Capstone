@@ -466,7 +466,26 @@ function RequestDetails({ requestData, onNavigate }) {
         const msg = f.message;
         const msgLower = msg.toLowerCase();
 
-        if (msgLower.includes('reassigned from') || msgLower.includes('rerouted from')) {
+        if (
+          f.type === 'staff_reassignment' ||
+          f.reassignType === 'same_office_staff' ||
+          msgLower.includes('workload rebalanced') ||
+          (msgLower.includes('reassigned from') && (msgLower.includes('super administrator') || request.workloadRebalanced || request.reassignType === 'same_office_staff'))
+        ) {
+          const match = msg.match(/(?:reassigned from)\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n.]+)/i);
+          const fromStaff = f.fromStaff || (match ? match[1].trim() : '') || request.reassignedFromStaff || 'Staff Member';
+          const toStaff = f.toStaff || (match ? match[2].trim() : '') || request.reassignedToStaff || 'Staff Member';
+          const byAdmin = f.by || (match ? match[3].trim() : '') || request.reassignedBy || 'Super Administrator';
+
+          events.push({
+            type: 'staff_reassign',
+            statusLabel: 'REASSIGNED',
+            from: fromStaff,
+            to: toStaff,
+            by: byAdmin,
+            date: f.sentAt ? (f.sentAt.toDate ? f.sentAt.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (typeof f.sentAt === 'string' ? new Date(f.sentAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '')) : ''
+          });
+        } else if (msgLower.includes('reassigned from') || msgLower.includes('rerouted from')) {
           const match = msg.match(/(?:reassigned|rerouted) from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
           if (match) {
             let reason = '';
@@ -479,7 +498,8 @@ function RequestDetails({ requestData, onNavigate }) {
 
             if (fromOffice && toOffice && fromOffice.toLowerCase() !== toOffice.toLowerCase()) {
               events.push({
-                type: 'reassigned',
+                type: 'office_reroute',
+                statusLabel: 'REROUTED',
                 from: fromOffice,
                 to: toOffice,
                 by: byStaff,
@@ -504,8 +524,8 @@ function RequestDetails({ requestData, onNavigate }) {
       });
     }
 
-    const hasReassignedEvent = events.some(e => e.type === 'reassigned');
-    if (!hasReassignedEvent && request.reassignedFrom) {
+    const hasOfficeRerouteEvent = events.some(e => e.type === 'office_reroute' || e.type === 'reassigned');
+    if (!hasOfficeRerouteEvent && request.reassignedFrom) {
       const currentOffice = request.office || 'Office';
       const fromOffice = request.reassignedFrom;
       const history = request.officeHistory || {};
@@ -516,7 +536,8 @@ function RequestDetails({ requestData, onNavigate }) {
 
       if (originOffice) {
         events.push({
-          type: 'reassigned',
+          type: 'office_reroute',
+          statusLabel: 'REROUTED',
           from: originOffice,
           to: fromOffice,
           by: (history[originOffice] && history[originOffice].handledBy) || '',
@@ -528,7 +549,8 @@ function RequestDetails({ requestData, onNavigate }) {
 
       if (fromOffice.toLowerCase() !== currentOffice.toLowerCase()) {
         events.push({
-          type: 'reassigned',
+          type: 'office_reroute',
+          statusLabel: 'REROUTED',
           from: fromOffice,
           to: currentOffice,
           by: request.reassignedBy || (history[fromOffice] && history[fromOffice].handledBy) || '',
@@ -539,7 +561,8 @@ function RequestDetails({ requestData, onNavigate }) {
       } else {
         const otherOffice = Object.keys(history).find(k => k.toLowerCase() !== currentOffice.toLowerCase()) || 'Other Office';
         events.push({
-          type: 'reassigned',
+          type: 'office_reroute',
+          statusLabel: 'REROUTED',
           from: otherOffice,
           to: currentOffice,
           by: request.reassignedBy || (history[otherOffice] && history[otherOffice].handledBy) || '',
@@ -562,6 +585,19 @@ function RequestDetails({ requestData, onNavigate }) {
           details: [
             `Claimed and taken over by ${event.staffName}`
           ]
+        });
+      } else if (event.type === 'staff_reassign') {
+        timelineItems.push({
+          kind: 'sub',
+          subType: 'reassigned',
+          status: 'REASSIGNED',
+          completed: true,
+          active: false,
+          date: event.date,
+          details: [
+            `${event.from} → ${event.to}`,
+            event.by ? `Reassigned by ${event.by}` : ''
+          ].filter(Boolean)
         });
       } else if (event.from && event.to && event.from.trim().toLowerCase() !== event.to.trim().toLowerCase()) {
         const isReturn = idx > 0 && event.to === events[0]?.from;

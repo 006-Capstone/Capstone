@@ -2367,7 +2367,26 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     const msg = f.message;
                     const msgLower = msg.toLowerCase();
 
-                    if (msgLower.includes('reassigned from') || msgLower.includes('rerouted from')) {
+                    if (
+                      f.type === 'staff_reassignment' ||
+                      f.reassignType === 'same_office_staff' ||
+                      msgLower.includes('workload rebalanced') ||
+                      (msgLower.includes('reassigned from') && (msgLower.includes('super administrator') || ticket.workloadRebalanced || ticket.reassignType === 'same_office_staff'))
+                    ) {
+                      const match = msg.match(/(?:reassigned from)\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n.]+)/i);
+                      const fromStaff = f.fromStaff || (match ? match[1].trim() : '') || ticket.reassignedFromStaff || 'Staff Member';
+                      const toStaff = f.toStaff || (match ? match[2].trim() : '') || ticket.reassignedToStaff || 'Staff Member';
+                      const byAdmin = f.by || (match ? match[3].trim() : '') || ticket.reassignedBy || 'Super Administrator';
+
+                      events.push({
+                        type: 'staff_reassign',
+                        statusLabel: 'REASSIGNED',
+                        from: fromStaff,
+                        to: toStaff,
+                        by: byAdmin,
+                        date: f.sentAt
+                      });
+                    } else if (msgLower.includes('reassigned from') || msgLower.includes('rerouted from')) {
                       const match = msg.match(/(?:reassigned|rerouted) from\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n]+)/i);
                       if (match) {
                         let reason = '';
@@ -2380,7 +2399,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
                         if (fromOffice && toOffice && fromOffice.toLowerCase() !== toOffice.toLowerCase()) {
                           events.push({
-                            type: 'reassigned',
+                            type: 'office_reroute',
+                            statusLabel: 'REROUTED',
                             from: fromOffice,
                             to: toOffice,
                             by: byStaff,
@@ -2406,8 +2426,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 }
 
                 // 2. If no events parsed from followUps, build from ticket reroute metadata
-                const hasReassignedEvent = events.some(e => e.type === 'reassigned');
-                if (!hasReassignedEvent && ticket.reassignedFrom) {
+                const hasOfficeRerouteEvent = events.some(e => e.type === 'office_reroute' || e.type === 'reassigned');
+                if (!hasOfficeRerouteEvent && ticket.reassignedFrom) {
                   const currentOffice = ticket.office || 'Office';
                   const fromOffice = ticket.reassignedFrom;
                   const history = ticket.officeHistory || {};
@@ -2419,7 +2439,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
                   if (originOffice) {
                     events.push({
-                      type: 'reassigned',
+                      type: 'office_reroute',
+                      statusLabel: 'REROUTED',
                       from: originOffice,
                       to: fromOffice,
                       by: (history[originOffice] && history[originOffice].handledBy) || '',
@@ -2430,7 +2451,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   // Main reassignment leg (From -> To)
                   if (fromOffice.toLowerCase() !== currentOffice.toLowerCase()) {
                     events.push({
-                      type: 'reassigned',
+                      type: 'office_reroute',
+                      statusLabel: 'REROUTED',
                       from: fromOffice,
                       to: currentOffice,
                       by: ticket.reassignedBy || (history[fromOffice] && history[fromOffice].handledBy) || '',
@@ -2440,7 +2462,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   } else {
                     const otherOffice = Object.keys(history).find(k => k.toLowerCase() !== currentOffice.toLowerCase()) || 'Other Office';
                     events.push({
-                      type: 'reassigned',
+                      type: 'office_reroute',
+                      statusLabel: 'REROUTED',
                       from: otherOffice,
                       to: currentOffice,
                       by: ticket.reassignedBy || (history[otherOffice] && history[otherOffice].handledBy) || '',
@@ -2464,6 +2487,24 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                           {event.date && <p className="step-date-label">{formatDate(event.date)}</p>}
                           <p className="step-sub-desc">
                             Claimed and taken over by {event.staffName}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (event.type === 'staff_reassign') {
+                    return (
+                      <div key={`reassign-${idx}`} className="timeline-step step-sub-node step-complete">
+                        <div className="step-circle sub-complete">
+                          <FaCheck />
+                        </div>
+                        <div className="step-content">
+                          <h4 className="step-status-name sub-highlight">REASSIGNED</h4>
+                          {event.date && <p className="step-date-label">{formatDate(event.date)}</p>}
+                          <p className="step-sub-desc">
+                            {event.from} → {event.to}
+                            {event.by ? ` by ${event.by}` : ''}
                           </p>
                         </div>
                       </div>

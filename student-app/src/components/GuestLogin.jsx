@@ -414,6 +414,31 @@ const GuestLogin = () => {
       }
     ];
 
+    if (docData.followUps && Array.isArray(docData.followUps)) {
+      docData.followUps.forEach((f) => {
+        if (!f || !f.message || typeof f.message !== 'string') return;
+        const msgLower = f.message.toLowerCase();
+        if (
+          f.type === 'staff_reassignment' ||
+          f.reassignType === 'same_office_staff' ||
+          msgLower.includes('workload rebalanced') ||
+          (msgLower.includes('reassigned from') && (msgLower.includes('super administrator') || docData.workloadRebalanced))
+        ) {
+          const match = f.message.match(/(?:reassigned from)\s+(.+?)\s+to\s+(.+?)\s+by\s+([^\r\n.]+)/i);
+          const fromStaff = f.fromStaff || (match ? match[1].trim() : '') || docData.reassignedFromStaff || 'Staff Member';
+          const toStaff = f.toStaff || (match ? match[2].trim() : '') || docData.reassignedToStaff || 'Staff Member';
+          const byAdmin = f.by || (match ? match[3].trim() : '') || docData.reassignedBy || 'Super Administrator';
+          timeline.push({
+            status: 'REASSIGNED',
+            completed: true,
+            active: false,
+            date: toLong(f.sentAt),
+            description: `${fromStaff} → ${toStaff} (Reassigned by ${byAdmin})`
+          });
+        }
+      });
+    }
+
     if (docData.reassignedFrom) {
       timeline.push({
         status: 'REROUTED',

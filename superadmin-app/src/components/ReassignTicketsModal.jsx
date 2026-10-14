@@ -236,6 +236,7 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
           reassignedBy: 'Super Administrator',
           reassignedAt: serverTimestamp(),
           reassignReason: 'workload_rebalancing',
+          reassignType: 'same_office_staff',
           workloadRebalanced: true,
           pendingTakeover: true,
           claimedBy: cleanFromName,
@@ -246,7 +247,13 @@ const ReassignTicketsModal = ({ isOpen, onClose, staffMember, allStaff, onReassi
             message: `Workload rebalanced: Request reassigned from ${cleanFromName} to ${cleanTargetName} by Super Administrator.`,
             sentBy: 'system',
             sentByName: 'Super Administrator',
-            sentAt: new Date().toISOString()
+            sentAt: new Date().toISOString(),
+            type: 'staff_reassignment',
+            reassignType: 'same_office_staff',
+            isStaffReassign: true,
+            fromStaff: cleanFromName,
+            toStaff: cleanTargetName,
+            by: 'Super Administrator'
           })
         };
 
