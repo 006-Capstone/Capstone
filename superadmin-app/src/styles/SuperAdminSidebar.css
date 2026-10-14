@@ -269,6 +269,41 @@
   white-space: nowrap;
 }
 
+.change-password-sidebar-btn {
+  width: 100%;
+  padding: 8.5px 12px;
+  background-color: var(--sage-50, #f4f8f3);
+  border: 1px solid var(--sage-200, #d5e6d4);
+  border-radius: 8px;
+  color: var(--green-900, #0a4605);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  transition: all 0.18s ease;
+}
+
+.change-password-sidebar-btn:hover {
+  background-color: var(--sage-100, #e6f1e5);
+  color: var(--green-950, #072a04);
+  border-color: var(--sage-300, #c1dec0);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(16, 94, 6, 0.12);
+}
+
+.change-password-sidebar-btn:active {
+  transform: translateY(0);
+}
+
+.change-password-sidebar-btn .sidebar-btn-icon {
+  font-size: 13px;
+  color: var(--color-primary, #105e06);
+}
+
 .logout-button {
   width: 100%;
   padding: 9px 12px;

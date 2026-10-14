@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
+import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt, FaTimes, FaExclamationTriangle, FaKey } from 'react-icons/fa';
+import SuperadminChangePasswordModal from './SuperadminChangePasswordModal';
 import '../styles/SuperAdminSidebar.css';
 
 const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, onLogout }) => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   const handleLogout = () => {
     // For superadmin, just clear any stored data and reload (fallback if
@@ -110,6 +112,18 @@ const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, on
 
           <button
             type="button"
+            className="change-password-sidebar-btn"
+            onClick={() => {
+              setShowChangePasswordModal(true);
+              onClose?.();
+            }}
+          >
+            <FaKey className="sidebar-btn-icon" aria-hidden="true" />
+            <span>Change Password</span>
+          </button>
+
+          <button
+            type="button"
             className="logout-button"
             onClick={() => setShowLogoutConfirm(true)}
           >
@@ -118,6 +132,12 @@ const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, on
           </button>
         </div>
       </aside>
+
+      {showChangePasswordModal && (
+        <SuperadminChangePasswordModal
+          onClose={() => setShowChangePasswordModal(false)}
+        />
+      )}
 
       {showLogoutConfirm && (
         <div

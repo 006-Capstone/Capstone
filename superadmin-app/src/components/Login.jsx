@@ -80,7 +80,8 @@ const Login = ({ onLogin }) => {
       localStorage.setItem('superadminData', JSON.stringify({
         username: superadminData.username,
         email: superadminData.email,
-        uid: superadminData.uid || auth.currentUser?.uid
+        uid: superadminData.uid || auth.currentUser?.uid,
+        docId: superadminDoc.id
       }));
       
       console.log('[Success] Superadmin logged in');
@@ -158,23 +159,7 @@ const Login = ({ onLogin }) => {
               </div>
               
               <div className="form-group">
-                <div className="password-label-row">
-                  <label className="form-label" htmlFor="password">Password</label>
-                  <a
-                    href="#forgot-password"
-                    className="forgot-password"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alertModal({
-                        title: 'Superadmin Password Reset',
-                        message: 'To reset superadmin credentials, please contact the database administrator or system technician.',
-                        variant: 'info'
-                      });
-                    }}
-                  >
-                    Forgot Password?
-                  </a>
-                </div>
+                <label className="form-label" htmlFor="password">Password</label>
                 <div className="password-input-wrapper">
                   <input
                     type={showPassword ? "text" : "password"}
