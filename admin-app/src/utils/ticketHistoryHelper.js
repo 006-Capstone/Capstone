@@ -360,3 +360,44 @@ export function formatOfficeTitle(officeName) {
   return `${clean} Department`;
 }
 
+/**
+ * Resolves the original department/office where the request was first filed.
+ * Retains the original office even if the request was subsequently rerouted/reassigned.
+ *
+ * @param {object} ticket - Request data object
+ * @returns {string} The original office name
+ */
+export function getOriginalOffice(ticket) {
+  if (!ticket) return '';
+  if (ticket.originalOffice) return ticket.originalOffice;
+
+  // 1. Check officeHistory for the earliest recorded office
+  if (ticket.officeHistory && typeof ticket.officeHistory === 'object' && Object.keys(ticket.officeHistory).length > 0) {
+    const historyEntries = Object.entries(ticket.officeHistory);
+    historyEntries.sort((a, b) => {
+      const timeA = a[1]?.handledAt ? new Date(a[1].handledAt).getTime() : 0;
+      const timeB = b[1]?.handledAt ? new Date(b[1].handledAt).getTime() : 0;
+      return timeA - timeB;
+    });
+    if (historyEntries[0] && historyEntries[0][0]) {
+      return historyEntries[0][0];
+    }
+  }
+
+  // 2. Check followUps for the earliest reroute/reassignment event
+  if (ticket.followUps && Array.isArray(ticket.followUps)) {
+    for (const f of ticket.followUps) {
+      if (!f || !f.message || typeof f.message !== 'string') continue;
+      const msg = f.message;
+      const match = msg.match(/(?:reassigned|rerouted) from\s+(.+?)\s+to\s+(.+?)\s+by/i);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+  }
+
+  // 3. Fallbacks
+  return ticket.previousOffice || ticket.reassignedFrom || ticket.office || '';
+}
+
+

@@ -1515,10 +1515,12 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       }
       
       const previousHandler = currentOfficeHistory[reassignOffice];
+      const initialOffice = ticket.originalOffice || originalDepartmentName || ticket.reassignedFrom || ticket.previousOffice || ticket.office;
       const updateData = {
         office: reassignOffice,
         requestId: newRequestId,
         officeId: reassignOffice.toLowerCase(),
+        originalOffice: initialOffice,
         reassignedFrom: ticket.office,
         reassignedBy: staffData.name,
         reassignedAt: serverTimestamp(),

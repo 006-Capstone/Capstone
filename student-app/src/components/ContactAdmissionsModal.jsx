@@ -130,6 +130,8 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
         // while targetRole, department, and category strictly isolate it for Superadmin
         office: 'Registrar',
         department: 'Registrar',
+        originalOffice: 'Registrar',
+        originalOfficeId: 'registrar',
         targetRole: 'superadmin',
         assignedToOffice: 'Superadmin',
         isAdmissionsInquiry: true,

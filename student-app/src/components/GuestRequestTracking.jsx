@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaArrowLeft, FaCheckCircle, FaClock, FaTimesCircle, FaSignInAlt } from 'react-icons/fa';
 import { useNotification } from '../context/NotificationContext';
+import { getOriginalOffice } from '../utils/ticketHistoryHelper';
 import '../styles/GuestRequestTracking.css';
 
 const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
@@ -157,7 +158,7 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
               <div className="detail-row-tracking">
                 <span className="detail-label-tracking">OFFICE</span>
                 <span className="detail-value-tracking">
-                  {requestData.office || 'N/A'}
+                  {getOriginalOffice(requestData) || requestData.office || 'N/A'}
                 </span>
               </div>
 

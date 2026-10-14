@@ -279,7 +279,6 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
       setResponseTime(0);
       setHelpfulness(0);
       setComments('');
-      setFollowUp(false);
       
       // Navigate back to appropriate page
       if (selectedRequest) {

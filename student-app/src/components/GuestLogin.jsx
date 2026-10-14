@@ -8,7 +8,7 @@ import { validateContent } from '../utils/contentModeration';
 import GuestSubmitted from './GuestSubmitted';
 import GuestRequestStatus from './GuestRequestStatus';
 import { useNotification } from '../context/NotificationContext';
-import { resolveOriginalHandler } from '../utils/ticketHistoryHelper';
+import { resolveOriginalHandler, getOriginalOffice } from '../utils/ticketHistoryHelper';
 import '../styles/GuestLogin.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -306,7 +306,8 @@ const GuestLogin = () => {
 
   const buildStatusData = (docData, enteredCode) => {
     const status = docData.status || 'Pending';
-    const officeName = docData.office || 'Office';
+    const originalOffice = getOriginalOffice(docData);
+    const officeName = originalOffice || docData.office || 'Office';
     const isInProcess = status === 'In Process';
     const isResolved = status === 'Resolved';
     const processingActive = isInProcess || isResolved || status === 'Returned' || status === 'For Follow Up';
@@ -652,6 +653,9 @@ const GuestLogin = () => {
         subject: subject.trim(),
         description: description.trim(),
         office: officeName,
+        officeId: selectedOffice,
+        originalOffice: officeName,
+        originalOfficeId: selectedOffice,
         status: 'Pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

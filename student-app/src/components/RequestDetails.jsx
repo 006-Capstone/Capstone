@@ -18,7 +18,7 @@ import { isTicketInactiveExpired, autoCancelInactiveTicket, formatInactivityDead
 import StatusBadge from './StatusBadge';
 import { ChatPanelSkeleton } from './common/Skeleton';
 import { useNotification } from '../context/NotificationContext';
-import { resolveOriginalHandler, getStaffSenderOffice, formatOfficeTitle } from '../utils/ticketHistoryHelper';
+import { resolveOriginalHandler, getStaffSenderOffice, formatOfficeTitle, getOriginalOffice } from '../utils/ticketHistoryHelper';
 import '../styles/RequestDetails.css';
 
 // Smart image compression to stay under Firestore 1 MB document limit
@@ -1059,7 +1059,7 @@ function RequestDetails({ requestData, onNavigate }) {
             </div>
             <div className="detail-row">
               <span className="label">OFFICE</span>
-              <span className="value">{request.office || 'N/A'}</span>
+              <span className="value">{getOriginalOffice(request) || request.office || 'N/A'}</span>
             </div>
             <div className="detail-row">
               <span className="label">DATE OF CREATION</span>

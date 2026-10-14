@@ -379,6 +379,8 @@ function NewRequest({ onNavigate }) {
         studentSection: student.section || 'N/A',
         office: selectedOfficeData.name,
         officeId: selectedOffice,
+        originalOffice: selectedOfficeData.name,
+        originalOfficeId: selectedOffice,
         subject: subject.trim(),
         description: description.trim(),
         status: 'Pending',
