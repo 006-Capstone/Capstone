@@ -653,17 +653,7 @@
 
 #qr-reader canvas,
 #qr-reader-admin canvas {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-}
-
-#qr-reader canvas:last-child,
-#qr-reader-admin canvas:last-child {
-  mix-blend-mode: normal !important;
-  opacity: 0.25 !important;
+  display: none !important;
 }
 
 /* Upload Action */

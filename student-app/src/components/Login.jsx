@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaQrcode, FaUserCircle, FaShieldAlt, FaEye, FaEyeSlash, FaTimes, FaCheckCircle, FaSpinner, FaExclamationCircle, FaFileUpload, FaInfoCircle } from 'react-icons/fa';
 import { auth, db } from '../firebase';
 import { signInWithEmailAndPassword, signInWithCustomToken, signInAnonymously } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Html5Qrcode } from 'html5-qrcode';
+import jsQR from 'jsqr';
 import { decryptCredentials } from '../utils/qrEncryption';
 import ContactAdmissionsModal from './ContactAdmissionsModal';
 import '../styles/Login.css';
@@ -18,6 +19,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showContactAdmissions, setShowContactAdmissions] = useState(false);
   const [qrScanner, setQrScanner] = useState(null);
+  const qrScannerRef = useRef(null);
   const [scanningStatus, setScanningStatus] = useState('initializing'); // 'initializing', 'ready', 'scanning', 'success', 'error'
 
   const handleStudentIdChange = (e) => {
@@ -171,21 +173,33 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     }
   };
 
-  useEffect(() => {
-    // Cleanup QR scanner on unmount
-    return () => {
-      if (qrScanner) {
-        try {
-          const state = qrScanner.getState();
-          if (state === 2) { // Only stop if scanning
-            qrScanner.stop().catch(err => console.log('Cleanup stop warning:', err));
-          }
-        } catch (err) {
-          console.log('Cleanup error:', err);
-        }
+  const stopScannerSafe = async () => {
+    const s = qrScannerRef.current;
+    if (s) {
+      try {
+        await s.stop();
+      } catch (_) {}
+      try {
+        s.clear();
+      } catch (_) {}
+      qrScannerRef.current = null;
+      setQrScanner(null);
+    }
+    // Also stop any running media stream tracks directly
+    try {
+      const video = document.querySelector('#qr-reader video, #qr-reader-admin video');
+      if (video && video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
       }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    return () => {
+      stopScannerSafe();
     };
-  }, [qrScanner]);
+  }, []);
 
   const handleQRLogin = async () => {
     setShowQRScanner(true);
@@ -201,24 +215,44 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   const initializeQRScanner = async () => {
     try {
       console.log('[Config] Initializing QR scanner...');
+      await stopScannerSafe();
       
       const scanner = new Html5Qrcode("qr-reader");
+      qrScannerRef.current = scanner;
       setQrScanner(scanner);
       
       console.log('[Camera] Starting camera...');
       
+      // Determine camera config: on phones, select back/environment; on PCs/laptops, select primary webcam
+      let cameraConfig = { facingMode: "environment" };
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length > 0) {
+          const backCam = devices.find(d => {
+            const label = (d.label || '').toLowerCase();
+            return label.includes('back') || label.includes('rear') || label.includes('environment');
+          });
+          if (backCam) {
+            cameraConfig = { deviceId: { exact: backCam.id } };
+          } else {
+            cameraConfig = { deviceId: { exact: devices[0].id } };
+          }
+        }
+      } catch (camErr) {
+        console.warn('[Camera] Device enumeration fallback:', camErr);
+        cameraConfig = { facingMode: "user" };
+      }
+
       await scanner.start(
-        { facingMode: "environment" }, // Use back camera
+        cameraConfig,
         {
-          fps: 20,
+          fps: 15,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
             const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
             const edgeSize = Math.max(180, Math.min(240, Math.floor(minEdge * 0.75)));
             return { width: edgeSize, height: edgeSize };
           },
-          aspectRatio: 1.0,
-          disableFlip: false,
-          formatsToSupport: [0]
+          disableFlip: false
         },
         onScanSuccess,
         onScanError
@@ -235,104 +269,77 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   };
 
   const scanFileWithScales = async (file) => {
-    // Dedicated instance on helper element to avoid interfering with camera DOM
-    const helperContainerId = "qr-reader-file-helper";
-    const scanner = new Html5Qrcode(helperContainerId);
+    // 1. Load image into HTML Image element
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Failed to load image file.'));
+      image.src = URL.createObjectURL(file);
+    });
 
-    try {
-      // 1. Direct file scan attempt using original file
-      try {
-        const directResult = await scanner.scanFile(file, false);
-        if (directResult) return directResult;
-      } catch (directErr) {
-        console.log('[Upload] Direct scan could not detect code, trying image preprocessing...', directErr);
-      }
+    // 2. Decode using jsQR across original + multi-scale resolutions
+    const candidateResolutions = [
+      { w: img.width, h: img.height },
+      { w: 600, h: Math.round(600 / (img.width / img.height)) },
+      { w: 800, h: Math.round(800 / (img.width / img.height)) },
+      { w: 400, h: Math.round(400 / (img.width / img.height)) },
+      { w: 1000, h: Math.round(1000 / (img.width / img.height)) }
+    ];
 
-      // 2. Load image into HTML Image element
-      const img = await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error('Failed to load image file.'));
-        image.src = URL.createObjectURL(file);
-      });
+    for (const res of candidateResolutions) {
+      if (!res.w || !res.h) continue;
 
-      // 3. Multi-resolution & binarization passes (preserves aspect ratio, fixes color/lighting/scaling)
-      const candidateResolutions = [
-        { w: img.width, h: img.height },
-        { w: 500, h: 500 },
-        { w: 700, h: 700 },
-        { w: 400, h: 400 },
-        { w: 900, h: 900 }
-      ];
+      // Try raw image colors, then high-contrast binarization
+      for (const applyBinarization of [false, true]) {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = res.w;
+          canvas.height = res.h;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) continue;
 
-      for (const res of candidateResolutions) {
-        if (!res.w || !res.h) continue;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, res.w, res.h);
+          ctx.drawImage(img, 0, 0, res.w, res.h);
 
-        // Try both standard render and high-contrast binarized render
-        for (const applyBinarization of [false, true]) {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = res.w;
-            canvas.height = res.h;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (!ctx) continue;
-
-            // Fill clean white background
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, res.w, res.h);
-
-            // Compute aspect ratio fit without stretching/squashing
-            const aspect = img.width / img.height;
-            let drawW = res.w;
-            let drawH = res.h;
-            let offX = 0;
-            let offY = 0;
-            if (aspect > res.w / res.h) {
-              drawH = res.w / aspect;
-              offY = (res.h - drawH) / 2;
-            } else {
-              drawW = res.h * aspect;
-              offX = (res.w - drawW) / 2;
+          const imgData = ctx.getImageData(0, 0, res.w, res.h);
+          if (applyBinarization) {
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+              const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+              const v = lum < 165 ? 0 : 255;
+              d[i] = v;
+              d[i + 1] = v;
+              d[i + 2] = v;
             }
-
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(img, offX, offY, drawW, drawH);
-
-            // Binarization: converts green/color QR codes & uneven lighting to pure black & white
-            if (applyBinarization) {
-              const imgData = ctx.getImageData(0, 0, res.w, res.h);
-              const d = imgData.data;
-              for (let i = 0; i < d.length; i += 4) {
-                const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-                const v = lum < 165 ? 0 : 255;
-                d[i] = v;
-                d[i + 1] = v;
-                d[i + 2] = v;
-              }
-              ctx.putImageData(imgData, 0, 0);
-            }
-
-            const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
-            if (blob) {
-              const scaledFile = new File([blob], 'qr-scan-temp.png', { type: 'image/png' });
-              const result = await scanner.scanFile(scaledFile, false);
-              if (result) {
-                console.log(`[Upload] QR Code detected successfully (res: ${res.w}x${res.h}, binarized: ${applyBinarization})`);
-                return result;
-              }
-            }
-          } catch (passErr) {
-            // continue next attempt
           }
+
+          const code = jsQR(imgData.data, imgData.width, imgData.height, {
+            inversionAttempts: 'attemptBoth'
+          });
+
+          if (code && code.data) {
+            console.log(`[Upload] QR Code detected with jsQR (res: ${res.w}x${res.h}, binarized: ${applyBinarization})`);
+            return code.data;
+          }
+        } catch (passErr) {
+          // continue next attempt
         }
       }
-
-      throw new Error('Could not detect QR code in the image. Please ensure the image is clear and not cropped.');
-    } finally {
-      try {
-        scanner.clear();
-      } catch (_) {}
     }
+
+    // 3. Fallback: Html5Qrcode scanFile
+    try {
+      const helperContainerId = "qr-reader-file-helper";
+      const helperScanner = new Html5Qrcode(helperContainerId);
+      const fallbackResult = await helperScanner.scanFile(file, false);
+      try { helperScanner.clear(); } catch (_) {}
+      if (fallbackResult) return fallbackResult;
+    } catch (fallbackErr) {
+      console.log('[Upload] Fallback Html5Qrcode could not detect:', fallbackErr);
+    }
+
+    throw new Error('Could not detect QR code in the image. Please ensure the image is clear and not cropped.');
   };
 
   const onScanSuccess = async (decodedText, decodedResult) => {
@@ -340,18 +347,8 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
     console.log('[Stats] Decoded result:', decodedResult);
     setScanningStatus('success');
     
-    // Stop scanner safely if running
-    if (qrScanner) {
-      try {
-        const state = qrScanner.getState();
-        if (state === 2) {
-          await qrScanner.stop();
-          console.log('Scanner stopped successfully');
-        }
-      } catch (err) {
-        console.warn('Error stopping scanner:', err);
-      }
-    }
+    // Stop scanner safely
+    await stopScannerSafe();
     
     // Small delay to show success message
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -616,26 +613,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   };
 
   const handleCloseQRScanner = async () => {
-    if (qrScanner) {
-      try {
-        // Get the scanner state before stopping
-        const state = qrScanner.getState();
-        console.log('Scanner state before closing:', state);
-        
-        // Only stop if scanner is actually running
-        if (state === 2) { // 2 = SCANNING state
-          await qrScanner.stop().catch(err => console.log('Scanner stop warning:', err));
-        }
-      } catch (err) {
-        console.log('Scanner close error:', err);
-      }
-      try {
-        qrScanner.clear();
-      } catch (clearErr) {
-        // ignore
-      }
-      setQrScanner(null);
-    }
+    await stopScannerSafe();
     setShowQRScanner(false);
     setScanningStatus('initializing');
     setLoading(false);
@@ -661,17 +639,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       console.log('[Upload] Processing uploaded QR code image...', file.name, 'Size:', file.size);
 
       // Stop active camera stream if running to prevent resource locks
-      if (qrScanner) {
-        try {
-          const state = qrScanner.getState();
-          if (state === 2) {
-            await qrScanner.stop();
-            console.log('[Camera] Scanner stopped for file upload');
-          }
-        } catch (stopErr) {
-          console.log('[Camera] Stop camera error:', stopErr);
-        }
-      }
+      await stopScannerSafe();
 
       // Scan the uploaded image with multi-scale fallback
       const decodedText = await scanFileWithScales(file);
