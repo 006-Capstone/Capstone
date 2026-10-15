@@ -1,7 +1,14 @@
 import Groq from 'groq-sdk';
 
 const apiKey = process.env.GROQ_API_KEY || process.env.REACT_APP_GROQ_API_KEY || process.env.REACT_APP_GROQ_KEY || process.env.VITE_GROQ_API_KEY;
-const MODEL_NAME = 'llama-3.1-8b-instant';
+const candidateModels = [
+  'llama-3.3-70b-versatile',
+  'llama3-70b-8192',
+  'llama3-8b-8192',
+  'gemma2-9b-it',
+  'mixtral-8x7b-32768',
+  'llama-3.1-8b-instant'
+];
 
 export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
@@ -29,8 +36,6 @@ export default async function handler(req, res) {
     const groq = new Groq({ apiKey });
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const { subject, description, officeName } = body;
-
-    console.log("Calling Groq completion with model:", MODEL_NAME, "for office:", officeName || 'N/A', "subject:", subject);
 
     const systemPrompt = `You are a strict, professional AI content moderation system for Academia De San Jose's official student ticketing portal.
 Your task is to analyze ticket inquiries submitted by students, parents, or alumni, and ensure they meet school standards.
@@ -70,41 +75,65 @@ Respond ONLY with a valid JSON object in this exact schema (no markdown, no extr
   "tone": "appropriate" | "inappropriate" | "aggressive" | "neutral"
 }`;
 
-    try {
-      const completion = await groq.chat.completions.create({
-        model: MODEL_NAME,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: `Target Office: ${officeName || 'General Office'}\nSubject: ${subject}\nDescription: ${description}`
-          }
-        ],
-        temperature: 0.1,
-        response_format: { type: 'json_object' }
-      });
+    let completion = null;
+    let lastError = null;
 
-      const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
-      return res.status(200).json(parsed);
-    } catch (groqErr) {
-      console.error("Groq API Call Error Details:", {
-        status: groqErr.status,
-        message: groqErr.message,
-        errorBody: groqErr.error
-      });
-      // Fallback gracefully so student ticket submission doesn't get blocked
-      return res.status(200).json({
-        approved: true,
-        isRelevant: true,
-        isSpam: false,
-        hasProfanity: false,
-        reason: "Fallback: AI service temporarily bypass",
-        fallback: true
-      });
+    for (const model of candidateModels) {
+      try {
+        console.log(`[Groq Moderation] Attempting analysis with model: ${model}`);
+        completion = await groq.chat.completions.create({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: `Target Office: ${officeName || 'General Office'}\nSubject: ${subject}\nDescription: ${description}`
+            }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        });
+
+        if (completion?.choices?.[0]?.message?.content) {
+          console.log(`[Groq Moderation] Successfully completed with model: ${model}`);
+          break;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`[Groq Moderation] Model ${model} failed (${err?.status || err?.code}):`, err?.message || err);
+
+        // If model not found or decommissioned, continue to the next candidate model
+        if (
+          err?.status === 404 ||
+          err?.status === 400 ||
+          err?.code === 'model_not_found' ||
+          err?.code === 'model_decommissioned' ||
+          err?.error?.code === 'model_decommissioned' ||
+          (err?.message && (err.message.includes('not exist') || err.message.includes('decommissioned') || err.message.includes('access to it')))
+        ) {
+          continue;
+        }
+        break;
+      }
     }
+
+    if (completion?.choices?.[0]?.message?.content) {
+      const parsed = JSON.parse(completion.choices[0].message.content);
+      return res.status(200).json(parsed);
+    }
+
+    console.error("Groq Moderation could not complete with any candidate model. Last error:", lastError?.message || lastError);
+    return res.status(200).json({
+      approved: true,
+      isRelevant: true,
+      isSpam: false,
+      hasProfanity: false,
+      reason: "Fallback: AI service temporarily bypass",
+      fallback: true
+    });
   } catch (error) {
     console.error("Groq moderation server error:", error);
     return res.status(200).json({
