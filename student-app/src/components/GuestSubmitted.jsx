@@ -4,7 +4,7 @@ import { MdTrackChanges } from 'react-icons/md';
 import { jsPDF } from 'jspdf';
 import '../styles/GuestSubmitted.css';
 
-const GuestSubmitted = ({ data, onHome, onTrack }) => {
+const GuestSubmitted = ({ data, onHome, onTrack, onSubmitAnother }) => {
   const [copied, setCopied] = useState(false);
   if (!data) return null;
 
@@ -55,9 +55,17 @@ const GuestSubmitted = ({ data, onHome, onTrack }) => {
     if (data.studentName) {
       y += 8;
       doc.setFont('helvetica', 'bold');
-      doc.text('Student Name:', 20, y);
+      doc.text(data.isAlumni ? 'Alumni Name:' : 'Student Name:', 20, y);
       doc.setFont('helvetica', 'normal');
       doc.text(data.studentName, 70, y);
+    }
+
+    if (data.isAlumni && data.batchYear) {
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Batch / Year:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.batchYear, 70, y);
     }
 
     if (data.parentGuardianName) {
@@ -146,8 +154,14 @@ const GuestSubmitted = ({ data, onHome, onTrack }) => {
         </div>
         {data.studentName && (
           <div className="guest-detail-row">
-            <span className="guest-detail-label">Student Name</span>
+            <span className="guest-detail-label">{data.isAlumni ? 'Alumni Name' : 'Student Name'}</span>
             <span className="guest-detail-value">{data.studentName}</span>
+          </div>
+        )}
+        {data.isAlumni && data.batchYear && (
+          <div className="guest-detail-row">
+            <span className="guest-detail-label">Batch / Year Graduated</span>
+            <span className="guest-detail-value">{data.batchYear}</span>
           </div>
         )}
         {data.parentGuardianName && (
@@ -177,7 +191,7 @@ const GuestSubmitted = ({ data, onHome, onTrack }) => {
             <MdTrackChanges /> Track Status Now
           </button>
         )}
-        <button type="button" className="submit-btn-guest" onClick={onHome}>
+        <button type="button" className="submit-btn-guest" onClick={onSubmitAnother || onHome}>
           Submit Another Request
         </button>
       </div>

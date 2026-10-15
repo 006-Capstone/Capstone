@@ -7,7 +7,7 @@ import Notifications from './Notifications';
 import Brand from './Brand';
 import '../styles/Header.css';
 
-function Header({ onMenuToggle, isSidebarOpen = false, onViewRequest, onNavigate }) {
+function Header({ onMenuToggle, isSidebarOpen = false, onViewRequest, onNavigate, onLogout }) {
   const [studentData, setStudentData] = useState(null);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -128,7 +128,10 @@ function Header({ onMenuToggle, isSidebarOpen = false, onViewRequest, onNavigate
       </header>
 
       {showProfileSettings && (
-        <ProfileSettings onClose={() => setShowProfileSettings(false)} />
+        <ProfileSettings
+          onClose={() => setShowProfileSettings(false)}
+          onLogout={onLogout}
+        />
       )}
     </>
   );

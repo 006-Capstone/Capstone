@@ -159,12 +159,12 @@
 
 /* ---- Centered Content Column ---- */
 .guest-content {
-  max-width: 960px;
+  max-width: 1140px;
   margin: 0 auto;
-  padding: 32px clamp(16px, 3vw, 32px) 64px;
+  padding: 30px clamp(16px, 3vw, 32px) 64px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 28px;
   width: 100%;
   box-sizing: border-box;
   flex: 1 0 auto;
@@ -174,9 +174,13 @@
 .guest-section {
   background: #ffffff;
   border: 1px solid #E7E5E5;
-  border-radius: 12px;
+  border-radius: 14px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
   padding: 32px 36px;
+  max-width: 880px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .section-title-guest {
@@ -987,13 +991,15 @@
 .guest-options-container {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
   width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
 }
 
 .guest-options-hero {
   text-align: center;
-  padding: 16px 20px 8px;
+  padding: 8px 20px 4px;
 }
 
 .guest-options-badge {
@@ -1002,50 +1008,53 @@
   background: #E1E7DF;
   border: 1px solid #8CB986;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #105E06;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   letter-spacing: 0.02em;
 }
 
 .guest-options-title {
-  font-size: clamp(24px, 3.5vw, 32px);
+  font-size: clamp(22px, 3vw, 28px);
   font-weight: 800;
   color: #105E06;
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   letter-spacing: -0.02em;
 }
 
 .guest-options-subtitle {
-  font-size: clamp(14px, 1.8vw, 16px);
+  font-size: clamp(13.5px, 1.5vw, 15px);
   color: #555555;
   margin: 0 auto;
-  max-width: 620px;
-  line-height: 1.6;
+  max-width: 580px;
+  line-height: 1.55;
 }
 
 .guest-options-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
   margin-top: 8px;
+  align-items: stretch;
 }
 
 .guest-option-card {
   background: #ffffff;
   border: 1.5px solid #E3E1E1;
   border-radius: 16px;
-  padding: 32px 28px;
+  padding: 24px 22px 20px 22px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .guest-option-card::before {
@@ -1060,13 +1069,22 @@
 }
 
 .guest-option-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   border-color: #105E06;
-  box-shadow: 0 12px 28px rgba(16, 94, 6, 0.12);
+  box-shadow: 0 10px 24px rgba(16, 94, 6, 0.1);
 }
 
 .guest-option-card:hover::before {
   background: #105E06;
+}
+
+.guest-option-card.guest-card-alumni:hover {
+  border-color: #d97706;
+  box-shadow: 0 10px 24px rgba(217, 119, 6, 0.12);
+}
+
+.guest-option-card.guest-card-alumni:hover::before {
+  background: #d97706;
 }
 
 .guest-option-card:focus-visible {
@@ -1075,19 +1093,27 @@
   box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.2);
 }
 
+.guest-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
 .guest-option-icon-wrapper {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 .guest-option-card:hover .guest-option-icon-wrapper {
-  transform: scale(1.06);
+  transform: scale(1.05);
 }
 
 .guest-option-icon-wrapper.track-icon-bg {
@@ -1100,20 +1126,56 @@
   color: #105E06;
 }
 
+.guest-option-icon-wrapper.alumni-icon-bg {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
 .guest-option-icon {
-  font-size: 28px;
+  font-size: 24px;
+}
+
+.guest-card-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.guest-card-badge.badge-track {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.guest-card-badge.badge-student {
+  background-color: #f1f8f1;
+  color: #15803d;
+  border: 1px solid #c7e6c8;
+}
+
+.guest-card-badge.badge-alumni {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 .guest-option-content {
   flex: 1 1 auto;
-  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-bottom: 18px;
 }
 
 .guest-option-name {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  color: #1b1b1b;
-  margin: 0 0 10px 0;
+  color: #111827;
+  margin: 0 0 8px 0;
+  line-height: 1.35;
   transition: color 0.15s ease;
 }
 
@@ -1121,25 +1183,42 @@
   color: #105E06;
 }
 
+.guest-option-card.guest-card-alumni:hover .guest-option-name {
+  color: #b45309;
+}
+
 .guest-option-desc {
-  font-size: 14px;
-  color: #666666;
-  line-height: 1.6;
+  font-size: 13.5px;
+  color: #4b5563;
+  line-height: 1.55;
   margin: 0;
+  flex: 1;
 }
 
 .guest-option-action {
-  display: inline-flex;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #edf2ee;
+  width: 100%;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  justify-content: space-between;
+  font-size: 13px;
   font-weight: 700;
   color: #105E06;
-  transition: gap 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .guest-option-card:hover .guest-option-action {
-  gap: 12px;
+  color: #0e3a13;
+}
+
+.guest-option-card.guest-card-alumni .guest-option-action {
+  color: #b45309;
+}
+
+.guest-option-card.guest-card-alumni:hover .guest-option-action {
+  color: #78350f;
 }
 
 .guest-option-arrow {
@@ -1148,7 +1227,16 @@
 }
 
 .guest-option-card:hover .guest-option-arrow {
-  transform: translateX(3px);
+  transform: translateX(4px);
+}
+
+@media (max-width: 920px) {
+  .guest-options-grid {
+    grid-template-columns: 1fr;
+    max-width: 520px;
+    margin: 8px auto 0;
+    gap: 16px;
+  }
 }
 
 .guest-section-header-row {
@@ -1179,4 +1267,102 @@
   background: #ffffff;
   border-color: #105E06;
   color: #105E06;
+}
+
+/* ---- Alumni Specific Styles ---- */
+.guest-option-icon-wrapper.alumni-icon-bg {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.guest-option-card:hover .guest-option-icon-wrapper.alumni-icon-bg {
+  background: #FDE68A;
+  color: #92400E;
+}
+
+.alumni-section-header {
+  margin-bottom: 24px;
+}
+
+.alumni-pill-tag {
+  display: inline-block;
+  padding: 4px 14px;
+  background-color: #FEF3C7;
+  border: 1px solid #FCD34D;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400E;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.alumni-info-hint {
+  font-size: 13px;
+  color: #64748b;
+  margin: -4px 0 16px 0;
+  line-height: 1.5;
+}
+
+.proof-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toggle-proof-guide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #105E06;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.toggle-proof-guide-btn:hover {
+  background-color: #e8f5e9;
+  text-decoration: underline;
+}
+
+.proof-guide-card {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #105E06;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.proof-guide-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.proof-guide-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.proof-guide-list li {
+  margin-bottom: 4px;
+}
+
+.proof-guide-list li:last-child {
+  margin-bottom: 0;
 }

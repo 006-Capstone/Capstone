@@ -166,14 +166,17 @@ function App() {
         console.log('[Logout] Signed out');
       }
     } catch (error) {
-      console.error('[Logout] Error signing out:', error);
+      console.warn('[Logout] Error signing out:', error);
     }
     
     setIsLoggedIn(false);
     setIsGuest(false);
+    setStudentData(null);
+    setMustChangePassword(false);
     localStorage.removeItem('studentLoggedIn');
     localStorage.removeItem('studentIsGuest');
     localStorage.removeItem('studentData');
+    localStorage.removeItem('studentActivePage');
     localStorage.removeItem('selectedRequest'); // Clear selected request on logout
     setActivePage('dashboard'); // Reset to dashboard on logout
   };
@@ -267,7 +270,7 @@ function App() {
   }
 
   if (isGuest) {
-    return <GuestLogin />;
+    return <GuestLogin onLogout={handleLogout} />;
   }
 
   // Show password change modal if required
@@ -283,6 +286,7 @@ function App() {
         isSidebarOpen={isSidebarOpen}
         onViewRequest={handleViewRequestDetails}
         onNavigate={handleNavigate}
+        onLogout={handleLogout}
       />
       <div className="app-body">
         <Sidebar
@@ -291,6 +295,7 @@ function App() {
           hasUnreadBulletin={hasUnreadBulletin}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          onLogout={handleLogout}
         />
         <main id="main-content" className="main-content" tabIndex={-1}>
           {renderPage()}

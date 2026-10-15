@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   FaDownload, 
+  FaFilePdf,
   FaCalendarAlt, 
   FaChevronDown, 
   FaInbox, 
@@ -27,6 +28,8 @@ import NotificationBell from './NotificationBell';
 import Toast from './Toast';
 import PerformanceMonitor from './PerformanceMonitor';
 import StudentFeedbackModal from './StudentFeedbackModal';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import '../styles/Analytics.css';
 
 const EMPTY_FILTER = { from: '', to: '' };
@@ -611,6 +614,193 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
     });
   };
 
+  const exportToPDF = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const currentDate = new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // Primary header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(45, 80, 22); // #2d5016
+      doc.text('ACADEMIA DE SAN JOSE', 14, 18);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      doc.text('Superadmin Command Center • Analytics Overview & Reports', 14, 24);
+
+      let filterSubtitle = 'Date Range: All Time';
+      if (isFilterActive) {
+        filterSubtitle = `Date Range: ${appliedFilter.from ? formatFilterDate(appliedFilter.from) : 'All'} to ${appliedFilter.to ? formatFilterDate(appliedFilter.to) : 'All'}`;
+      }
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`${filterSubtitle}  |  Generated: ${currentDate}`, 14, 29);
+
+      // Green divider bar
+      doc.setDrawColor(45, 80, 22);
+      doc.setLineWidth(0.8);
+      doc.line(14, 32, 196, 32);
+
+      let startY = 38;
+
+      // 1. Executive Summary Table
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(45, 80, 22);
+      doc.text('1. Executive Performance Summary', 14, startY);
+
+      autoTable(doc, {
+        startY: startY + 3,
+        head: [['Metric', 'Value', 'Key Indicator', 'Details']],
+        body: [
+          ['Total Requests', String(totalRequests), 'Overall Volume', 'All logged tickets across portal'],
+          ['Avg Resolution Time', String(avgResolution), 'Processing Speed', 'Average hours to resolution'],
+          ['Cancelled Rate', String(cancelledRate), 'Drop-off Metric', 'Tickets terminated or cancelled'],
+          ['Active Portal Users', String(activeUsers), 'User Base', 'Registered active community users'],
+          ['Student Satisfaction', `${satisfactionData.percentage}%`, 'Quality Benchmark', `${satisfactionData.total} reviews recorded (${satisfactionData.fiveStars} 5-star, ${satisfactionData.fourStars} 4-star)`]
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [45, 80, 22], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8.5, textColor: 40 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 45 },
+          1: { fontStyle: 'bold', cellWidth: 35 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 67 }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      startY = doc.lastAutoTable.finalY + 10;
+
+      // 2. Department Efficiency Table
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(45, 80, 22);
+      doc.text('2. Department Efficiency & Request Breakdown', 14, startY);
+
+      const deptRows = departmentData.map(dept => [
+        dept.department,
+        String(dept.tickets),
+        `${dept.volumeShare}%`,
+        String(dept.staffCount),
+        String(dept.pendingCount),
+        String(dept.inProcessCount),
+        String(dept.resolvedCount),
+        `${dept.completionRate}%`,
+        dept.resolution,
+        `${dept.satisfaction} (${dept.feedbackCount})`
+      ]);
+
+      autoTable(doc, {
+        startY: startY + 3,
+        head: [['Department', 'Total', 'Share', 'Staff', 'Pend.', 'In Proc.', 'Resolv.', 'Clear %', 'Avg Time', 'Rating']],
+        body: deptRows,
+        theme: 'striped',
+        headStyles: { fillColor: [45, 80, 22], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 7.5, textColor: 40 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 32 },
+          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'center' },
+          5: { halign: 'center' },
+          6: { halign: 'center' },
+          7: { halign: 'center', fontStyle: 'bold' },
+          8: { halign: 'center' },
+          9: { halign: 'center' }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      startY = doc.lastAutoTable.finalY + 10;
+
+      // 3. Individual Staff Workload Table
+      const staffRows = [];
+      departmentData.forEach(dept => {
+        if (dept.staffWorkload && dept.staffWorkload.length > 0) {
+          dept.staffWorkload.forEach(staff => {
+            staffRows.push([
+              dept.department,
+              staff.name,
+              staff.role || 'Staff',
+              String(staff.total),
+              String(staff.inProcess),
+              String(staff.resolved),
+              `${staff.completionRate}%`,
+              staff.avgResolution || 'N/A'
+            ]);
+          });
+        }
+      });
+
+      if (staffRows.length > 0) {
+        if (startY > 230) {
+          doc.addPage();
+          startY = 20;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(45, 80, 22);
+        doc.text('3. Individual Staff Workload Breakdown', 14, startY);
+
+        autoTable(doc, {
+          startY: startY + 3,
+          head: [['Department', 'Staff Member', 'Role', 'Handled', 'In Process', 'Resolved', 'Clearance %', 'Avg Resolution']],
+          body: staffRows,
+          theme: 'striped',
+          headStyles: { fillColor: [45, 80, 22], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 8, textColor: 40 },
+          columnStyles: {
+            0: { fontStyle: 'bold', cellWidth: 30 },
+            1: { cellWidth: 38 },
+            2: { cellWidth: 26 },
+            3: { halign: 'center' },
+            4: { halign: 'center' },
+            5: { halign: 'center' },
+            6: { halign: 'center', fontStyle: 'bold' },
+            7: { halign: 'center' }
+          },
+          margin: { left: 14, right: 14 }
+        });
+      }
+
+      // Add page numbering & footer on all pages
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(140);
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.3);
+        doc.line(14, 287, 196, 287);
+        doc.text('Academia De San Jose • Confidential Superadmin Analytics Document', 14, 292);
+        doc.text(`Page ${i} of ${pageCount}`, 196, 292, { align: 'right' });
+      }
+
+      const filename = `analytics_overview_report_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+      console.log(`📄 PDF analytics report exported: ${filename}`);
+    } catch (err) {
+      console.error('Error exporting PDF report:', err);
+    }
+  };
+
   const exportToCSV = () => {
     const currentDate = new Date().toLocaleString('en-US', {
       year: 'numeric',
@@ -733,15 +923,28 @@ const Analytics = ({ initialTab = 'overview', initialDept = 'all' }) => {
         </div>
         <div className="analytics-header-right">
           {activeTab === 'overview' && (
-            <button
-              type="button"
-              className="btn-primary export-button"
-              onClick={exportToCSV}
-              title="Export Overview & Reports to CSV"
-            >
-              <FaDownload className="export-icon" aria-hidden="true" />
-              <span>Export CSV</span>
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn-primary export-pdf-button"
+                onClick={exportToPDF}
+                title="Export Overview & Reports to PDF"
+                aria-label="Export Overview & Reports to PDF"
+              >
+                <FaFilePdf className="export-icon" aria-hidden="true" />
+                <span>Export PDF</span>
+              </button>
+              <button
+                type="button"
+                className="btn-primary export-button"
+                onClick={exportToCSV}
+                title="Export Overview & Reports to CSV"
+                aria-label="Export Overview & Reports to CSV"
+              >
+                <FaDownload className="export-icon" aria-hidden="true" />
+                <span>Export CSV</span>
+              </button>
+            </>
           )}
           <NotificationBell />
         </div>

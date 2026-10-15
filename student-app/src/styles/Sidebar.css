@@ -195,7 +195,7 @@
   font-size: var(--font-size-2xs);
   color: var(--color-text-body);
   line-height: 1.45;
-  margin: auto var(--space-4) var(--space-4);
+  margin: auto var(--space-4) var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: linear-gradient(180deg, var(--sage-100) 0%, var(--sage-50) 100%);
   border: 1px solid var(--sage-200);
@@ -308,4 +308,44 @@
     opacity: 1;
     pointer-events: auto;
   }
+}
+
+/* Sidebar Footer & Logout Button (Placed under Office Hours) */
+.sidebar .sidebar-footer {
+  flex: 0 0 auto;
+  padding: 0 var(--space-4) var(--space-4);
+  box-sizing: border-box;
+}
+
+.sidebar .logout-button {
+  width: 100%;
+  padding: 9px 12px;
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.18s ease;
+}
+
+.sidebar .logout-button:hover {
+  background-color: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.22);
+}
+
+.sidebar .logout-button:active {
+  transform: translateY(0);
+}
+
+.sidebar .logout-button .logout-icon {
+  font-size: 14px;
 }

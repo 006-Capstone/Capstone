@@ -26,8 +26,11 @@ import {
   FaUserFriends,
   FaChevronDown,
   FaCheck,
-  FaDownload
+  FaDownload,
+  FaFilePdf
 } from 'react-icons/fa';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { calculateStaffMonthlyBehavior } from '../utils/performanceAnalytics';
 import { analyzeMonthlyStaffBehaviorWithAI } from '../utils/groqService';
 import { OverviewCardsSkeleton, DataTableSkeleton } from './common/Skeleton';
@@ -420,6 +423,187 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
     window.print();
   };
 
+  const exportPerformanceToPDF = useCallback(() => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const monthName = selectedMonthOption ? selectedMonthOption.label : 'Current Month';
+      const deptFilterName = selectedDept === 'all' ? 'All Departments' : selectedDept;
+
+      // Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(16, 94, 6); // #105e06
+      doc.text('ACADEMIA DE SAN JOSE', 14, 18);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      doc.text('Superadmin Command Center • Staff Performance & Behavioral Monitor Report', 14, 24);
+
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Cycle: ${monthName} (4-Week Window)  |  Scope: ${deptFilterName}  |  Generated: ${currentDate}`, 14, 29);
+
+      // Green divider bar
+      doc.setDrawColor(16, 94, 6);
+      doc.setLineWidth(0.8);
+      doc.line(14, 32, 196, 32);
+
+      let startY = 38;
+
+      // 1. Executive Performance Summary
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(16, 94, 6);
+      doc.text('1. Executive Performance Summary', 14, startY);
+
+      autoTable(doc, {
+        startY: startY + 3,
+        head: [['Key Evaluation Metric', 'Status / Value', 'Observation Scope & Notes']],
+        body: [
+          ['Monitored Staff Count', String(summaryStats.totalStaffCount), 'Active staff evaluated in selected cycle'],
+          ['Total Assigned Tickets in Cycle', String(summaryStats.totalAssignedMonth), 'Cumulative tickets routed to departments'],
+          ['Total Resolved Tickets in Cycle', String(summaryStats.totalResolvedMonth), 'Successfully completed and closed tickets'],
+          ['Overall Monthly Clearance Rate', `${summaryStats.monthClearanceRate}%`, 'Resolution efficiency percentage'],
+          ['Good Standing (Healthy Throughput)', String(summaryStats.goodCount), 'Staff meeting or exceeding SLA criteria'],
+          ['1st Warning: Notice to Explain (NTE)', String(summaryStats.warning1Count), 'Initial compliance notice issued'],
+          ['2nd Warning: Verbal Reprimand', String(summaryStats.warning2Count), 'Secondary corrective interview required'],
+          ['3rd Warning: Notice of Suspension', String(summaryStats.warning3Count), 'Action plan with administrative suspension'],
+          ['4th Warning: Notice for Termination', String(summaryStats.warning4Count), 'Institutional separation proceedings']
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [16, 94, 6], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8, textColor: 40 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 70 },
+          1: { fontStyle: 'bold', cellWidth: 35, halign: 'center' },
+          2: { cellWidth: 77 }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      startY = doc.lastAutoTable.finalY + 10;
+
+      // 2. Department Health Breakdown
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(16, 94, 6);
+      doc.text('2. Department Health & Workload Breakdown', 14, startY);
+
+      const deptRows = departmentSections.map(dept => [
+        dept.label,
+        String(dept.staffList.length),
+        String(dept.totalAssigned),
+        String(dept.totalResolved),
+        `${dept.avgClearance}%`,
+        String(dept.warningCount)
+      ]);
+
+      autoTable(doc, {
+        startY: startY + 3,
+        head: [['Department Office', 'Staff Count', 'Assigned Tickets', 'Resolved Tickets', 'Clearance Rate', 'Staff with Warnings']],
+        body: deptRows,
+        theme: 'striped',
+        headStyles: { fillColor: [16, 94, 6], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8, textColor: 40 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 45 },
+          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'center', fontStyle: 'bold' },
+          5: { halign: 'center' }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      startY = doc.lastAutoTable.finalY + 10;
+
+      // 3. Individual Staff Performance & Warning Audit
+      if (filteredProfiles.length > 0) {
+        if (startY > 230) {
+          doc.addPage();
+          startY = 20;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(16, 94, 6);
+        doc.text('3. Individual Staff Performance & Warning Audit', 14, startY);
+
+        const staffRows = filteredProfiles.map(p => {
+          const s = p.staff || {};
+          const t = p.totals || {};
+          const w = p.warningEvaluation || {};
+          const avgResText = (t.avgMonthlyResolutionHours || 0) > 0 ? `${t.avgMonthlyResolutionHours}h` : 'N/A';
+          return [
+            s.name || s.fullName || 'N/A',
+            s.department || s.office || 'N/A',
+            String(t.totalAssigned || 0),
+            String(t.totalResolved || 0),
+            `${t.overallClearanceRate || 0}%`,
+            avgResText,
+            w.label || w.shortLabel || 'Good Standing',
+            w.nteRecommended ? 'YES' : 'NO'
+          ];
+        });
+
+        autoTable(doc, {
+          startY: startY + 3,
+          head: [['Staff Name', 'Department', 'Assigned', 'Resolved', 'Clear %', 'Avg Time', 'Warning Standing', 'NTE']],
+          body: staffRows,
+          theme: 'striped',
+          headStyles: { fillColor: [16, 94, 6], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 7.5, textColor: 40 },
+          columnStyles: {
+            0: { fontStyle: 'bold', cellWidth: 40 },
+            1: { cellWidth: 32 },
+            2: { halign: 'center' },
+            3: { halign: 'center' },
+            4: { halign: 'center', fontStyle: 'bold' },
+            5: { halign: 'center' },
+            6: { fontStyle: 'bold' },
+            7: { halign: 'center' }
+          },
+          margin: { left: 14, right: 14 }
+        });
+      }
+
+      // Add page numbering & footer on all pages
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(140);
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.3);
+        doc.line(14, 287, 196, 287);
+        doc.text('Academia De San Jose • Confidential Staff Behavioral & Performance Audit', 14, 292);
+        doc.text(`Page ${i} of ${pageCount}`, 196, 292, { align: 'right' });
+      }
+
+      const safeMonth = (selectedMonthOption ? selectedMonthOption.label : 'monthly').toLowerCase().replace(/\s+/g, '_');
+      const filename = `performance_monitor_report_${safeMonth}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+      console.log(`📄 PDF performance report exported: ${filename}`);
+    } catch (err) {
+      console.error('Error exporting Performance PDF report:', err);
+    }
+  }, [selectedMonthOption, selectedDept, summaryStats, departmentSections, filteredProfiles]);
+
   // Export comprehensive monthly performance, warnings, and 4-week trajectory data to CSV
   const exportPerformanceToCSV = useCallback(() => {
     const currentDate = new Date().toLocaleDateString('en-US', {
@@ -639,6 +823,17 @@ const PerformanceMonitor = ({ initialDept = 'all', initialSearchQuery = '' }) =>
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            className="pm-export-btn pm-export-pdf-btn"
+            onClick={exportPerformanceToPDF}
+            title="Export monthly performance and behavior report to PDF"
+            aria-label="Export Performance Report as PDF"
+          >
+            <FaFilePdf className="pm-export-icon" />
+            <span>Export PDF</span>
+          </button>
 
           <button
             type="button"

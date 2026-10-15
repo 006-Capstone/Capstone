@@ -37,7 +37,10 @@ import {
   FaLock,
   FaFileImport,
   FaUserEdit,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaEye,
+  FaEyeSlash,
+  FaSpinner
 } from 'react-icons/fa';
 import { db, auth, getSecondaryAuth } from '../firebase';
 import { collection, addDoc, getDocs, getDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
@@ -154,6 +157,9 @@ const UserManagement = () => {
   const [activityCategoryFilter, setActivityCategoryFilter] = useState('all');
   const [showFullAuditModal, setShowFullAuditModal] = useState(false);
   const [resendingCredentialsEmail, setResendingCredentialsEmail] = useState(false);
+  const [resendModalState, setResendModalState] = useState(null); // null | 'confirm' | 'success' | 'error' | 'info'
+  const [resendResultData, setResendResultData] = useState(null);
+  const [showTempPassword, setShowTempPassword] = useState(false);
 
   // Edit User Modal State
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -1813,24 +1819,37 @@ const UserManagement = () => {
     setActivitySearchTerm('');
     setActivityCategoryFilter('all');
     setShowFullAuditModal(false);
+    setResendModalState(null);
+    setResendResultData(null);
+    setShowTempPassword(false);
   };
 
-  const handleResendCredentialEmail = async () => {
+  const handleResendCredentialEmail = () => {
     if (!selectedUserProfile || !selectedUserProfile.email) {
-      showToast('No valid email address found for this account.', 'error', { title: 'Missing Email' });
+      setResendResultData({
+        errorMsg: 'No valid email address found for this account. Please update the user email in Edit Details.'
+      });
+      setResendModalState('error');
       return;
     }
 
     const isPendingFirstLogin = selectedUserProfile.mustChangePassword === true;
     if (!isPendingFirstLogin) {
-      showToast('This user has already signed in and set their personal password. Please use "Change Password" to send a reset link.', 'info', { title: 'Password Already Set' });
+      setResendModalState('info');
       return;
     }
 
-    const confirmed = window.confirm(
-      `Are you sure you want to regenerate and email a new temporary password to ${selectedUserProfile.name} (${selectedUserProfile.email})?\n\nThis will assign a new temporary password and require them to change it on their next login.`
-    );
-    if (!confirmed) return;
+    setResendResultData(null);
+    setShowTempPassword(false);
+    setResendModalState('confirm');
+  };
+
+  const executeResendCredentialEmail = async () => {
+    if (!selectedUserProfile || !selectedUserProfile.email) {
+      setResendResultData({ errorMsg: 'No valid email address found for this account.' });
+      setResendModalState('error');
+      return;
+    }
 
     setResendingCredentialsEmail(true);
     try {
@@ -1914,14 +1933,23 @@ const UserManagement = () => {
         console.warn('[UserManagement] Could not log activity log for credential email resend:', actErr);
       }
 
-      showToast(`New temporary credentials successfully generated and sent to ${selectedUserProfile.email}`, 'success', {
-        title: 'Credentials Re-issued'
+      setResendResultData({
+        name: selectedUserProfile.name || selectedUserProfile.fullName || 'User',
+        email: selectedUserProfile.email,
+        id: selectedUserProfile.id || selectedUserProfile.studentId || selectedUserProfile.username || '—',
+        tempPassword: newTempPassword,
+        isStudent,
+        office: selectedUserProfile.office || ''
       });
+      setShowTempPassword(false);
+      setResendModalState('success');
+
       await refreshUserProfile();
     } catch (err) {
       console.error('[UserManagement] Error resending credential email:', err);
       let errorMsg = err.message || 'Failed to send temporary credentials email.';
-      showToast(errorMsg, 'error', { title: 'Credential Dispatch Failed' });
+      setResendResultData({ errorMsg });
+      setResendModalState('error');
     } finally {
       setResendingCredentialsEmail(false);
     }
@@ -2693,6 +2721,258 @@ const UserManagement = () => {
         : confirmAction === 'restore' || isActivatingAccount ? 'restore-confirm-btn'
           : 'suspend-confirm-btn';
 
+  const renderResendModal = () => {
+    if (!resendModalState) return null;
+
+    return (
+      <div 
+        className="create-student-modal"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !resendingCredentialsEmail) {
+            setResendModalState(null);
+          }
+        }}
+        role="dialog"
+        aria-modal="true"
+      >
+        {resendModalState === 'confirm' && selectedUserProfile && (
+          <div className="modal-content confirm-modal resend-credentials-modal">
+            <FaEnvelope className="confirm-icon" aria-hidden="true" style={{ color: 'var(--color-primary, #2d5016)' }} />
+            
+            <h2 className="confirm-title">
+              Resend Temporary Credentials
+            </h2>
+            
+            <p className="confirm-message">
+              Generate and email new temporary login credentials to this account.
+            </p>
+
+            <div className="credentials-box" style={{ textAlign: 'left', marginBottom: '1.25rem' }}>
+              <div className="credential-row">
+                <span className="credential-label">Recipient:</span>
+                <span className="credential-value" style={{ fontWeight: 600 }}>{selectedUserProfile.name}</span>
+              </div>
+              <div className="credential-row">
+                <span className="credential-label">Account Type:</span>
+                <span className="credential-value">
+                  {selectedUserProfile.userType === 'student' ? 'Student' : `Staff (${selectedUserProfile.office || 'Unassigned'})`}
+                </span>
+              </div>
+              <div className="credential-row">
+                <span className="credential-label">{selectedUserProfile.userType === 'student' ? 'Student ID:' : 'Username:'}</span>
+                <span className="credential-value">{selectedUserProfile.id || selectedUserProfile.studentId || selectedUserProfile.username || '—'}</span>
+              </div>
+              <div className="credential-row">
+                <span className="credential-label">Email:</span>
+                <span className="credential-value">{selectedUserProfile.email}</span>
+              </div>
+            </div>
+
+            <div className="success-warning" style={{ background: '#fffbeb', borderColor: '#fef3c7', textAlign: 'left', marginBottom: '1.25rem' }}>
+              <FaExclamationTriangle className="warning-icon" style={{ color: '#d97706' }} />
+              <p style={{ color: '#92400e' }}>
+                This will generate a fresh temporary password and invalidate the previous temporary password. The user will be required to change it on their next login.
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="cancel-btn-super"
+                onClick={() => setResendModalState(null)}
+                disabled={resendingCredentialsEmail}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="create-btn-super"
+                onClick={executeResendCredentialEmail}
+                disabled={resendingCredentialsEmail}
+              >
+                {resendingCredentialsEmail ? (
+                  <>
+                    <FaSpinner className="spin" style={{ animation: 'spin 1s linear infinite' }} />
+                    <span>Sending Email...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaEnvelope />
+                    <span>Generate & Send Email</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {resendModalState === 'success' && resendResultData && (
+          <div className="modal-content success-modal resend-credentials-modal">
+            <div className="success-icon" style={{ color: '#16a34a' }}>
+              <FaCheckCircle />
+            </div>
+            
+            <h2 className="success-title">
+              Credentials Dispatched Successfully!
+            </h2>
+            
+            <p className="success-message">
+              A new temporary password has been generated and dispatched via email.
+            </p>
+
+            <div className="credentials-box" style={{ textAlign: 'left', marginBottom: '1.25rem' }}>
+              <div className="credential-row">
+                <span className="credential-label">Name:</span>
+                <span className="credential-value">{resendResultData.name}</span>
+              </div>
+              <div className="credential-row">
+                <span className="credential-label">
+                  {resendResultData.isStudent ? 'Student ID:' : 'Username:'}
+                </span>
+                <span className="credential-value">{resendResultData.id}</span>
+              </div>
+              <div className="credential-row">
+                <span className="credential-label">Email:</span>
+                <span className="credential-value">{resendResultData.email}</span>
+              </div>
+              <div className="credential-row" style={{ alignItems: 'center' }}>
+                <span className="credential-label">Temporary Password:</span>
+                <div className="credential-value-with-copy">
+                  <span className="temp-password-text">
+                    {showTempPassword ? resendResultData.tempPassword : '••••••••••••'}
+                  </span>
+                  <button
+                    type="button"
+                    className="temp-pwd-action-btn"
+                    onClick={() => setShowTempPassword(!showTempPassword)}
+                    title={showTempPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showTempPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                  <button
+                    type="button"
+                    className={`temp-pwd-action-btn ${copiedField === 'tempPassword' ? 'copied' : ''}`}
+                    onClick={() => handleCopyText(resendResultData.tempPassword, 'tempPassword')}
+                    title="Copy temporary password to clipboard"
+                  >
+                    {copiedField === 'tempPassword' ? (
+                      <>
+                        <FaCheck /> Copied!
+                      </>
+                    ) : (
+                      <>
+                        <FaCopy /> Copy
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="success-warning" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+              <FaEnvelope className="warning-icon" />
+              <p>
+                An email containing their account credentials has been sent to <strong>{resendResultData.email}</strong>. Please advise the user to check their inbox and spam folder. They will be prompted to create a personal password upon signing in.
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="success-close-btn"
+                onClick={() => {
+                  setResendModalState(null);
+                  setResendResultData(null);
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+
+        {resendModalState === 'error' && (
+          <div className="modal-content confirm-modal resend-credentials-modal">
+            <FaExclamationTriangle className="confirm-icon" style={{ color: '#dc2626' }} />
+            
+            <h2 className="confirm-title" style={{ color: '#b91c1c' }}>
+              Credential Dispatch Failed
+            </h2>
+            
+            <p className="confirm-message">
+              {resendResultData?.errorMsg || 'We encountered an error while attempting to send the credentials email.'}
+            </p>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="cancel-btn-super"
+                onClick={() => {
+                  setResendModalState(null);
+                  setResendResultData(null);
+                }}
+              >
+                Close
+              </button>
+              {selectedUserProfile?.email && (
+                <button
+                  type="button"
+                  className="create-btn-super"
+                  onClick={executeResendCredentialEmail}
+                >
+                  Try Again
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {resendModalState === 'info' && (
+          <div className="modal-content confirm-modal resend-credentials-modal">
+            <FaInfoCircle className="confirm-icon" style={{ color: '#0284c7' }} />
+            
+            <h2 className="confirm-title">
+              Password Already Established
+            </h2>
+            
+            <p className="confirm-message">
+              This user has already signed in and replaced their initial temporary password with personal credentials. Temporary credentials cannot be re-issued once an account has completed its first login.
+            </p>
+
+            <div className="success-warning" style={{ textAlign: 'left', marginBottom: '1.25rem', background: '#f0f9ff', borderColor: '#bae6fd' }}>
+              <FaKey className="warning-icon" style={{ color: '#0284c7' }} />
+              <p style={{ color: '#0369a1' }}>
+                If the user has forgotten their password or needs access restored, please use <strong>Change Password</strong> to send an official password reset email link.
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="cancel-btn-super"
+                onClick={() => setResendModalState(null)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="create-btn-super"
+                onClick={() => {
+                  setResendModalState(null);
+                  setUserToChangePassword(selectedUserProfile);
+                  setShowChangePasswordModal(true);
+                }}
+              >
+                <FaKey />
+                <span>Change Password</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Render User Profile as a dedicated subpage within User Management
   if (selectedUserProfile) {
     return (
@@ -2858,12 +3138,12 @@ const UserManagement = () => {
 
                   <button 
                     type="button" 
-                    className={`admin-action-btn resend-email ${selectedUserProfile?.mustChangePassword !== true ? 'disabled-action' : ''}`}
+                    className="admin-action-btn resend-email"
                     onClick={handleResendCredentialEmail}
-                    disabled={resendingCredentialsEmail || !selectedUserProfile?.email || selectedUserProfile?.mustChangePassword !== true}
+                    disabled={resendingCredentialsEmail || !selectedUserProfile?.email}
                     title={
                       selectedUserProfile?.mustChangePassword !== true
-                        ? 'User has already logged in and established their password. Use "Change Password" to send a reset link.'
+                        ? 'User has already logged in and established their password. Click to view options.'
                         : 'Regenerate and email a new temporary password with account ID.'
                     }
                   >
@@ -3814,6 +4094,9 @@ const UserManagement = () => {
           </div>
         )}
 
+        {/* Resend Login Credentials Modal */}
+        {renderResendModal()}
+
         {/* Toast modal notification */}
         {toast && (
           <Toast
@@ -4408,6 +4691,9 @@ const UserManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Resend Login Credentials Modal */}
+      {renderResendModal()}
 
       {archiveRequestsStaff && (
         <div className="create-student-modal">

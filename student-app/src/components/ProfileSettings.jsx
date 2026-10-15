@@ -3,7 +3,7 @@ import { doc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut, signInWithEmailAndPassword } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
-import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload, FaSignOutAlt, FaListAlt } from 'react-icons/fa';
+import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload, FaListAlt } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
 import { encryptCredentials, encryptQRData, generateSecureToken } from '../utils/qrEncryption';
@@ -15,7 +15,7 @@ import '../styles/ProfileSettings.css';
 // (read-only fields like grade level, section, email, school ID and the
 const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix'];
 
-function ProfileSettings({ onClose }) {
+function ProfileSettings({ onClose, onLogout }) {
   const { toast, alertModal, confirm } = useNotification();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -470,30 +470,6 @@ function ProfileSettings({ onClose }) {
     }
   };
 
-  const handleLogout = async () => {
-    const confirmed = await confirm({
-      title: 'Logout',
-      message: 'Are you sure you want to logout?',
-      confirmText: 'Logout',
-      variant: 'danger'
-    });
-
-    if (confirmed) {
-      try {
-        await signOut(auth);
-        // Clear all student-related localStorage
-        localStorage.removeItem('studentData');
-        localStorage.removeItem('studentLoggedIn');
-        localStorage.removeItem('studentIsGuest');
-        // Reload to trigger login screen
-        window.location.href = '/';
-      } catch (error) {
-        console.error('Logout error:', error);
-        toast.error('Failed to logout. Please try again.');
-      }
-    }
-  };
-
   const validatePassword = (password) => {
     if (!password || password.length < 8) {
       return 'Password must be at least 8 characters long';
@@ -903,14 +879,6 @@ function ProfileSettings({ onClose }) {
 
               {/* Action Buttons */}
               <div className="settings-actions">
-                <button
-                  className="logout-btn-settings"
-                  onClick={handleLogout}
-                  aria-label="Log out of your account"
-                >
-                  <FaSignOutAlt aria-hidden="true" />
-                  Log Out
-                </button>
                 <button 
                   className="update-btn" 
                   onClick={handleUpdateProfile}

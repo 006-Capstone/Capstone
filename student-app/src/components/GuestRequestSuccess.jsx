@@ -17,7 +17,11 @@ const GuestRequestSuccess = ({ requestData, onBackToLogin, onSubmitAnother, onTr
     if (ok) {
       localStorage.removeItem('studentLoggedIn');
       localStorage.removeItem('studentIsGuest');
-      window.location.href = '/';
+      if (onBackToLogin) {
+        onBackToLogin();
+      } else {
+        window.location.reload();
+      }
     }
   };
 

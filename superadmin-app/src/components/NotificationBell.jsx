@@ -169,6 +169,7 @@ const NotificationBell = ({ onNavigate }) => {
                   aria-label="Mark all as read"
                 >
                   <FaCheckDouble aria-hidden="true" />
+                  <span>Mark all as read</span>
                 </button>
               )}
               <button

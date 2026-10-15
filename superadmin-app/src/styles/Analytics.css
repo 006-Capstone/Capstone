@@ -72,11 +72,24 @@
   flex-shrink: 0;
 }
 
-.export-button {
+.export-button,
+.export-pdf-button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   white-space: nowrap;
+}
+
+.export-pdf-button {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.export-pdf-button:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+  color: #ffffff;
 }
 
 .export-icon {

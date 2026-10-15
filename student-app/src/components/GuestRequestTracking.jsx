@@ -17,7 +17,11 @@ const GuestRequestTracking = ({ requestData, onBackToLogin }) => {
     if (ok) {
       localStorage.removeItem('studentLoggedIn');
       localStorage.removeItem('studentIsGuest');
-      window.location.href = '/';
+      if (onBackToLogin) {
+        onBackToLogin();
+      } else {
+        window.location.reload();
+      }
     }
   };
   const getStatusIcon = (status) => {

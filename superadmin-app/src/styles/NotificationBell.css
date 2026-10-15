@@ -110,10 +110,36 @@
   gap: var(--space-1);
 }
 
-.mark-all-read-btn,
+.mark-all-read-btn {
+  height: 28px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--sage-50, #f6f8f5);
+  border: 1px solid var(--sage-200, #d4ddd0);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-primary, #2d5016);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.mark-all-read-btn svg {
+  font-size: 11px;
+}
+
+.mark-all-read-btn:hover {
+  background-color: var(--sage-100, #ebf1e8);
+  border-color: var(--color-primary, #2d5016);
+  color: var(--color-primary, #2d5016);
+}
+
 .close-notifications-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -124,11 +150,6 @@
   font-size: var(--font-size-sm);
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.mark-all-read-btn:hover {
-  background-color: var(--sage-50);
-  color: var(--color-primary);
 }
 
 .close-notifications-btn:hover {

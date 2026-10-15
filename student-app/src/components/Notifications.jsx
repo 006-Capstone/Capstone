@@ -272,7 +272,7 @@ const Notifications = ({ isOpen, onClose, bellRef, onViewRequest, onNavigate }) 
               aria-label="Mark all as read"
             >
               <FaCheckDouble />
-              <span>Mark all read</span>
+              <span>Mark all as read</span>
             </button>
           )}
           <button 

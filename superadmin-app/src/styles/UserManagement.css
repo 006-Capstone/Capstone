@@ -3929,3 +3929,59 @@ select.form-input-super option:disabled {
   color: #999;
   letter-spacing: normal;
 }
+
+/* ---- Resend Login Credentials Modal ---- */
+.resend-credentials-modal {
+  max-width: 520px;
+}
+
+.credential-value-with-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.temp-password-text {
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1px;
+  background: var(--sage-50, #f6f8f5);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--sage-200, #d4ddd0);
+  color: var(--color-primary, #2d5016);
+  user-select: all;
+  min-width: 120px;
+  text-align: center;
+}
+
+.temp-pwd-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--color-border-soft, #e2e8f0);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #334155);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.temp-pwd-action-btn:hover {
+  background: var(--color-surface-hover, #f1f5f9);
+  border-color: var(--color-border-hover, #cbd5e1);
+  color: var(--color-primary, #2d5016);
+}
+
+.temp-pwd-action-btn.copied {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}

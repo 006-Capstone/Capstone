@@ -1,0 +1,532 @@
+/* ==========================================================================
+   STUDENT FAQ MODAL STYLES
+   Academia de San Jose — Student Portal
+   ========================================================================== */
+
+.faq-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 16, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  padding: 20px;
+  overflow: hidden;
+  animation: faqFadeIn 0.22s ease-out;
+}
+
+@keyframes faqFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.faq-modal-card {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 680px;
+  height: 84vh;
+  max-height: 740px;
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  box-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  position: relative;
+  animation: faqSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes faqSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal Header */
+.faq-modal-header {
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid #edf2ee;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.faq-header-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.faq-header-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background-color: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1b5e20;
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.faq-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.01em;
+}
+
+.faq-modal-subtitle {
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.faq-modal-close {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.faq-modal-close:hover {
+  background-color: #e5e7eb;
+  color: #111827;
+  transform: scale(1.06);
+}
+
+/* Search Bar */
+.faq-search-wrap {
+  position: relative;
+  padding: 14px 28px 10px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.faq-search-icon {
+  position: absolute;
+  left: 42px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.faq-search-input {
+  width: 100%;
+  padding: 11px 40px 11px 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: #111827;
+  background-color: #f9fafb;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.faq-search-input:focus {
+  outline: none;
+  background-color: #ffffff;
+  border-color: #1b5e20;
+  box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.12);
+}
+
+.faq-search-clear {
+  position: absolute;
+  right: 42px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.faq-search-clear:hover {
+  color: #4b5563;
+}
+
+/* Category Filter Pills */
+.faq-category-pills {
+  display: flex;
+  gap: 8px;
+  padding: 4px 28px 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid #edf2ee;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.faq-category-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.faq-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  color: #4b5563;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.faq-pill:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.faq-pill.active {
+  background-color: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #1b5e20;
+}
+
+/* Accordion List (Scrollable Container) */
+.faq-accordion-list {
+  padding: 18px 28px 24px 28px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #81c784 #f1f5f2;
+}
+
+/* Explicit, visible custom scrollbar */
+.faq-accordion-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.faq-accordion-list::-webkit-scrollbar-track {
+  background: #f1f5f2;
+  border-radius: 8px;
+  margin: 6px 0;
+}
+
+.faq-accordion-list::-webkit-scrollbar-thumb {
+  background-color: #81c784;
+  border-radius: 8px;
+  border: 2px solid #f1f5f2;
+}
+
+.faq-accordion-list::-webkit-scrollbar-thumb:hover {
+  background-color: #2e7d32;
+}
+
+/* Accordion Item Card */
+.faq-accordion-item {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  background-color: #ffffff;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.faq-accordion-item:hover {
+  border-color: #c8e6c9;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+
+.faq-accordion-item.expanded {
+  border-color: #81c784;
+  box-shadow: 0 4px 16px rgba(27, 94, 32, 0.09);
+}
+
+.faq-accordion-header {
+  width: 100%;
+  padding: 15px 18px;
+  background: #ffffff;
+  border: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.faq-accordion-header:hover {
+  background-color: #fbfdfb;
+}
+
+.faq-question-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.faq-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background-color: #f0fdf4;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.faq-accordion-item.expanded .faq-item-icon {
+  background-color: #e8f5e9;
+  color: #1b5e20;
+}
+
+.faq-question-text {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.faq-accordion-item.expanded .faq-question-text {
+  color: #1b5e20;
+}
+
+.faq-chevron {
+  color: #9ca3af;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 5px;
+  transition: color 0.15s ease;
+}
+
+.faq-accordion-item.expanded .faq-chevron {
+  color: #1b5e20;
+}
+
+/* Accordion Body — Open Answer Panel */
+.faq-accordion-body {
+  padding: 18px 22px 20px 22px;
+  background-color: #fafdfa;
+  border-top: 1px solid #edf4ee;
+  animation: faqBodyFade 0.2s ease-out;
+}
+
+@keyframes faqBodyFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.faq-accordion-body p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.7;
+  letter-spacing: 0.005em;
+  word-break: break-word;
+}
+
+.faq-accordion-body p:last-child {
+  margin-bottom: 0;
+}
+
+.faq-accordion-body .faq-bullet-line {
+  margin: 8px 0 8px 16px;
+  padding-left: 8px;
+  color: #1f2937;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.faq-accordion-body .faq-note-line {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background-color: #f0fdf4;
+  border-left: 3.5px solid #16a34a;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #166534;
+  font-weight: 500;
+}
+
+/* Empty State */
+.faq-empty-state {
+  text-align: center;
+  padding: 40px 16px;
+  color: #6b7280;
+}
+
+.faq-empty-icon {
+  font-size: 34px;
+  color: #cbd5e1;
+  margin-bottom: 10px;
+}
+
+.faq-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 6px 0;
+}
+
+.faq-empty-desc {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Modal Footer */
+.faq-modal-footer {
+  padding: 16px 28px;
+  border-top: 1px solid #edf2ee;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.faq-footer-help-text span {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.faq-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.faq-admissions-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid #c8e6c9;
+  background-color: #e8f5e9;
+  color: #1b5e20;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.faq-admissions-btn:hover {
+  background-color: #c8e6c9;
+  color: #0e3a13;
+  transform: translateY(-1px);
+}
+
+.faq-btn-icon {
+  font-size: 11px;
+}
+
+.faq-close-btn {
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background-color: #1b5e20;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.faq-close-btn:hover {
+  background-color: #144718;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 640px) {
+  .faq-modal-overlay {
+    padding: 12px;
+  }
+  .faq-modal-card {
+    height: 90vh;
+    max-height: none;
+    border-radius: 16px;
+  }
+  .faq-modal-header {
+    padding: 18px 20px 14px;
+  }
+  .faq-modal-title {
+    font-size: 18px;
+  }
+  .faq-search-wrap {
+    padding: 12px 20px 8px;
+  }
+  .faq-search-icon {
+    left: 32px;
+  }
+  .faq-search-clear {
+    right: 32px;
+  }
+  .faq-category-pills {
+    padding: 0 20px 12px;
+  }
+  .faq-accordion-list {
+    padding: 14px 20px 18px;
+    gap: 10px;
+  }
+  .faq-accordion-header {
+    padding: 12px 14px;
+  }
+  .faq-accordion-body {
+    padding: 14px 16px 16px;
+  }
+  .faq-modal-footer {
+    padding: 14px 20px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .faq-footer-help-text {
+    text-align: center;
+  }
+  .faq-footer-actions {
+    justify-content: flex-end;
+  }
+}

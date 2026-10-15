@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaQrcode, FaUserCircle, FaShieldAlt, FaEye, FaEyeSlash, FaTimes, FaCheckCircle, FaSpinner, FaExclamationCircle, FaFileUpload, FaInfoCircle, FaSyncAlt } from 'react-icons/fa';
+import { FaQrcode, FaUserCircle, FaShieldAlt, FaEye, FaEyeSlash, FaTimes, FaCheckCircle, FaSpinner, FaExclamationCircle, FaFileUpload, FaInfoCircle, FaSyncAlt, FaQuestionCircle } from 'react-icons/fa';
 import { auth, db } from '../firebase';
 import { signInWithEmailAndPassword, signInWithCustomToken, signInAnonymously } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -15,6 +15,7 @@ import {
 } from '@zxing/library';
 import { decryptCredentials } from '../utils/qrEncryption';
 import ContactAdmissionsModal from './ContactAdmissionsModal';
+import StudentFAQModal from './StudentFAQModal';
 import '../styles/Login.css';
 
 const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
@@ -25,6 +26,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showContactAdmissions, setShowContactAdmissions] = useState(false);
+  const [showFAQModal, setShowFAQModal] = useState(false);
   const [qrScanner, setQrScanner] = useState(null);
   const qrScannerRef = useRef(null);
   const [scanningStatus, setScanningStatus] = useState('initializing'); // 'initializing', 'ready', 'scanning', 'success', 'error'
@@ -948,6 +950,28 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
       <ContactAdmissionsModal
         isOpen={showContactAdmissions}
         onClose={() => setShowContactAdmissions(false)}
+      />
+
+      {/* Floating FAQ Quick Button */}
+      <button 
+        type="button"
+        className="floating-faq-btn"
+        onClick={() => setShowFAQModal(true)}
+        aria-label="Frequently Asked Questions"
+        title="Need help? Click to view Frequently Asked Questions"
+      >
+        <FaQuestionCircle className="floating-faq-icon" />
+        <span>Help & FAQ</span>
+      </button>
+
+      {/* Student FAQ Modal */}
+      <StudentFAQModal
+        isOpen={showFAQModal}
+        onClose={() => setShowFAQModal(false)}
+        onOpenContactAdmissions={() => {
+          setShowFAQModal(false);
+          setShowContactAdmissions(true);
+        }}
       />
     </div>
   );

@@ -292,6 +292,18 @@
   box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.08));
 }
 
+.pm-export-btn.pm-export-pdf-btn {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.pm-export-btn.pm-export-pdf-btn:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+
 .pm-export-icon {
   font-size: 12px;
 }

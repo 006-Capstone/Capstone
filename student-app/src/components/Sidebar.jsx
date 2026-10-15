@@ -12,6 +12,8 @@ import {
   MdEmail,
   MdLocationOn
 } from 'react-icons/md';
+import { FaSignOutAlt } from 'react-icons/fa';
+import { useNotification } from '../context/NotificationContext';
 import '../styles/Sidebar.css';
 
 const FEEDBACK_OFFICES = [
@@ -22,7 +24,8 @@ const FEEDBACK_OFFICES = [
   { label: 'Accounting', page: 'feedback-finance' }
 ];
 
-function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = false, onClose }) {
+function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = false, onClose, onLogout }) {
+  const { confirm } = useNotification();
   const [feedbackOpen, setFeedbackOpen] = useState(activePage.startsWith('feedback'));
   const closeBtnRef = useRef(null);
 
@@ -52,6 +55,30 @@ function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = f
       }
       return next;
     });
+  };
+
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: 'Logout',
+      message: 'Are you sure you want to logout of your student account?',
+      confirmText: 'Logout',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+
+    if (confirmed) {
+      onClose?.();
+      if (onLogout) {
+        await onLogout();
+      } else {
+        localStorage.removeItem('studentLoggedIn');
+        localStorage.removeItem('studentIsGuest');
+        localStorage.removeItem('studentData');
+        localStorage.removeItem('studentActivePage');
+        localStorage.removeItem('selectedRequest');
+        window.location.reload();
+      }
+    }
   };
 
   return (
@@ -177,6 +204,18 @@ function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = f
             <span className="office-info-value">8WHV+322, S.B. Cabahug, Mandaue</span>
           </div>
         </address>
+
+        <div className="sidebar-footer">
+          <button
+            type="button"
+            className="logout-button"
+            onClick={handleLogout}
+            aria-label="Logout of account"
+          >
+            <FaSignOutAlt className="logout-icon" aria-hidden="true" />
+            <span>Logout</span>
+          </button>
+        </div>
       </aside>
     </>
   );

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignInAlt, FaArrowLeft, FaArrowRight, FaInfoCircle, FaIdCard, FaPlus } from 'react-icons/fa';
+import { FaFileUpload, FaUserCircle, FaFileAlt, FaTimes, FaSignInAlt, FaArrowLeft, FaArrowRight, FaInfoCircle, FaIdCard, FaPlus, FaGraduationCap } from 'react-icons/fa';
 import { MdHome, MdTrackChanges, MdCheckCircle, MdWarning, MdError, MdPostAdd } from 'react-icons/md';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, limit, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
 import { validateContent } from '../utils/contentModeration';
 import GuestSubmitted from './GuestSubmitted';
@@ -67,7 +67,7 @@ const compressImage = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-const guestOffices = [
+const defaultGuestOffices = [
   {
     id: 'finance',
     name: 'Accounting',
@@ -91,6 +91,55 @@ const guestOffices = [
     name: 'Guidance',
     description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
     subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
+  }
+];
+
+const defaultAlumniOffices = [
+  {
+    id: 'registrar',
+    name: 'Registrar',
+    description: 'Handles official alumni credentials, Transcript of Records (TOR), diploma copies, Form 137, and graduation certificates.',
+    subjects: [
+      'Transcript of Records (TOR)',
+      'Certified True Copy of Diploma',
+      'Form 137 / Permanent Student Record',
+      'Certificate of Graduation',
+      'Certificate of Medium of Instruction',
+      'Honorable Dismissal / Transfer Credential',
+      'Other Official Academic Document'
+    ]
+  },
+  {
+    id: 'guidance',
+    name: 'Guidance',
+    description: 'Issues certificates of good moral character, character references, and alumni clearance.',
+    subjects: [
+      'Certificate of Good Moral Character',
+      'Recommendation / Character Reference',
+      'Alumni Clearance',
+      'Other Guidance Concern'
+    ]
+  },
+  {
+    id: 'finance',
+    name: 'Accounting',
+    description: 'Assists alumni with payment verification, statement of account, and financial clearance.',
+    subjects: [
+      'Alumni Account Clearance',
+      'Payment Verification',
+      'Official Receipt Verification',
+      'Billing / Ledger Inquiry'
+    ]
+  },
+  {
+    id: 'library',
+    name: 'Library',
+    description: 'Handles library clearance confirmation and archival document retrieval.',
+    subjects: [
+      'Library Clearance Certificate',
+      'Archival Resource Access',
+      'Other Library Request'
+    ]
   }
 ];
 
@@ -146,7 +195,7 @@ const fileToBase64 = (file) => {
   });
 };
 
-const GuestLogin = () => {
+const GuestLogin = ({ onLogout }) => {
   const { toast, confirm } = useNotification();
   const [view, setView] = useState('options'); // 'options' | 'check' | 'new' | 'status' | 'submitted'
   const [requestId, setRequestId] = useState('');
@@ -177,6 +226,120 @@ const GuestLogin = () => {
   
   const authInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
+
+  // Alumni Specific State (No Parent Name Needed)
+  const [alumniFirstName, setAlumniFirstName] = useState('');
+  const [alumniLastName, setAlumniLastName] = useState('');
+  const [batchYear, setBatchYear] = useState('');
+  const [formerStudentId, setFormerStudentId] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [alumniSelectedOffice, setAlumniSelectedOffice] = useState('registrar');
+  const [alumniSubject, setAlumniSubject] = useState('');
+  const [alumniDescription, setAlumniDescription] = useState('');
+  const [alumniAuthFiles, setAlumniAuthFiles] = useState([]);
+  const [alumniAttachmentFiles, setAlumniAttachmentFiles] = useState([]);
+  const [isAlumniAuthDragging, setIsAlumniAuthDragging] = useState(false);
+  const [isAlumniAttachmentDragging, setIsAlumniAttachmentDragging] = useState(false);
+  const [showAlumniProofGuide, setShowAlumniProofGuide] = useState(false);
+  const [alumniValidationResult, setAlumniValidationResult] = useState(null);
+  const [isAlumniValidating, setIsAlumniValidating] = useState(false);
+
+  const alumniAuthInputRef = useRef(null);
+  const alumniAttachmentInputRef = useRef(null);
+
+  // Dynamic Office & Subject Configuration (Synced live from Firestore 'config/requestForm')
+  const [guestOffices, setGuestOffices] = useState(defaultGuestOffices);
+  const [alumniOffices, setAlumniOffices] = useState(defaultAlumniOffices);
+
+  useEffect(() => {
+    let unsubscribe = () => {};
+    try {
+      const docRef = doc(db, 'config', 'requestForm');
+      unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const rawOffices = data.offices || defaultGuestOffices;
+            const normalized = rawOffices.map((o) => {
+              if (o.name === 'Finance' || o.id === 'finance') {
+                return {
+                  ...o,
+                  name: 'Accounting',
+                  description: o.description?.replace(/Finance|finance/g, 'Accounting') || o.description
+                };
+              }
+              return o;
+            });
+            setGuestOffices(normalized);
+
+            if (Array.isArray(data.alumniOffices) && data.alumniOffices.length > 0) {
+              const normalizedAlumni = data.alumniOffices.map((o) => {
+                if (o.name === 'Finance' || o.id === 'finance') {
+                  return { ...o, name: 'Accounting' };
+                }
+                return o;
+              });
+              setAlumniOffices(normalizedAlumni);
+            } else {
+              const mergedAlumni = defaultAlumniOffices.map((alm) => {
+                const matched = normalized.find(
+                  (o) => o.id === alm.id || o.name?.toLowerCase() === alm.name?.toLowerCase()
+                );
+                if (matched) {
+                  return {
+                    ...alm,
+                    name: matched.name
+                  };
+                }
+                return alm;
+              });
+              setAlumniOffices(mergedAlumni);
+            }
+          } else {
+            setGuestOffices(defaultGuestOffices);
+            setAlumniOffices(defaultAlumniOffices);
+          }
+        },
+        (error) => {
+          console.warn('[GuestLogin] Error subscribing to requestForm config, using fallback defaults:', error);
+          setGuestOffices(defaultGuestOffices);
+          setAlumniOffices(defaultAlumniOffices);
+        }
+      );
+    } catch (err) {
+      console.warn('[GuestLogin] Could not initialize requestForm listener:', err);
+    }
+
+    return () => unsubscribe();
+  }, []);
+
+  // Ensure selectedOffice and selected subject stay valid when offices config updates
+  useEffect(() => {
+    if (guestOffices.length > 0 && !guestOffices.some((o) => o.id === selectedOffice)) {
+      setSelectedOffice(guestOffices[0].id);
+      setSubject('');
+    } else if (selectedOffice && subject) {
+      const currentOffice = guestOffices.find((o) => o.id === selectedOffice);
+      if (currentOffice?.subjects && !currentOffice.subjects.includes(subject)) {
+        setSubject('');
+      }
+    }
+  }, [guestOffices, selectedOffice, subject]);
+
+  // Ensure alumniSelectedOffice and alumni subject stay valid when alumni offices config updates
+  useEffect(() => {
+    if (alumniOffices.length > 0 && !alumniOffices.some((o) => o.id === alumniSelectedOffice)) {
+      setAlumniSelectedOffice(alumniOffices[0].id);
+      setAlumniSubject('');
+    } else if (alumniSelectedOffice && alumniSubject) {
+      const currentAlmOffice = alumniOffices.find((o) => o.id === alumniSelectedOffice);
+      if (currentAlmOffice?.subjects && !currentAlmOffice.subjects.includes(alumniSubject)) {
+        setAlumniSubject('');
+      }
+    }
+  }, [alumniOffices, alumniSelectedOffice, alumniSubject]);
 
   // AI validation effect with debounce
   useEffect(() => {
@@ -209,7 +372,38 @@ const GuestLogin = () => {
     }, 1200);
 
     return () => clearTimeout(timeoutId);
-  }, [description, subject, selectedOffice]);
+  }, [description, subject, selectedOffice, guestOffices]);
+
+  // AI validation effect for Alumni form
+  useEffect(() => {
+    if (view !== 'alumni' || !alumniDescription.trim() || !alumniSubject) {
+      setAlumniValidationResult(null);
+      setIsAlumniValidating(false);
+      return;
+    }
+
+    setIsAlumniValidating(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const selectedOfficeData = alumniOffices.find(o => o.id === alumniSelectedOffice);
+        const officeName = selectedOfficeData?.name || 'Registrar';
+        const result = await validateContent(alumniSubject, alumniDescription, officeName);
+        setAlumniValidationResult(result);
+      } catch (error) {
+        console.error('Validation error for alumni:', error);
+        setAlumniValidationResult({
+          isValid: false,
+          errors: ['AI validation service is currently unavailable. Please try again in a moment.'],
+          warnings: [],
+          language: 'unknown'
+        });
+      } finally {
+        setIsAlumniValidating(false);
+      }
+    }, 1200);
+
+    return () => clearTimeout(timeoutId);
+  }, [view, alumniDescription, alumniSubject, alumniSelectedOffice, alumniOffices]);
 
   const handleExitGuestMode = async () => {
     const ok = await confirm({
@@ -221,7 +415,11 @@ const GuestLogin = () => {
     if (ok) {
       localStorage.removeItem('studentLoggedIn');
       localStorage.removeItem('studentIsGuest');
-      window.location.reload();
+      if (onLogout) {
+        onLogout();
+      } else {
+        window.location.reload();
+      }
     }
   };
 
@@ -302,6 +500,70 @@ const GuestLogin = () => {
     }
     setAttachmentFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
     if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+  };
+
+  const handleAlumniAuthChange = (e) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const invalidTypeFiles = selectedFiles.filter((f) => !isAllowedFileType(f));
+    if (invalidTypeFiles.length > 0) {
+      toast.warning('Only PDF, PNG, and JPG files are allowed');
+      e.target.value = '';
+      return;
+    }
+
+    const currentTotalSize = [...alumniAuthFiles, ...alumniAttachmentFiles].reduce((acc, f) => acc + (f.size || 0), 0);
+    const newFilesSize = selectedFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+    if (currentTotalSize + newFilesSize > 10 * 1024 * 1024) {
+      toast.warning('Combined upload size exceeds 10MB limit');
+      e.target.value = '';
+      return;
+    }
+
+    setAlumniAuthFiles((prev) => [...prev, ...selectedFiles]);
+    e.target.value = '';
+  };
+
+  const handleAlumniAttachmentChange = (e) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const invalidTypeFiles = selectedFiles.filter((f) => !isAllowedFileType(f));
+    if (invalidTypeFiles.length > 0) {
+      toast.warning('Only PDF, PNG, and JPG files are allowed');
+      e.target.value = '';
+      return;
+    }
+
+    const currentTotalSize = [...alumniAuthFiles, ...alumniAttachmentFiles].reduce((acc, f) => acc + (f.size || 0), 0);
+    const newFilesSize = selectedFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+    if (currentTotalSize + newFilesSize > 10 * 1024 * 1024) {
+      toast.warning('Combined upload size exceeds 10MB limit');
+      e.target.value = '';
+      return;
+    }
+
+    setAlumniAttachmentFiles((prev) => [...prev, ...selectedFiles]);
+    e.target.value = '';
+  };
+
+  const handleRemoveAlumniAuthFile = (indexToRemove, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setAlumniAuthFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    if (alumniAuthInputRef.current) alumniAuthInputRef.current.value = '';
+  };
+
+  const handleRemoveAlumniAttachmentFile = (indexToRemove, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setAlumniAttachmentFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    if (alumniAttachmentInputRef.current) alumniAttachmentInputRef.current.value = '';
   };
 
   const buildStatusData = (docData, enteredCode) => {
@@ -473,6 +735,8 @@ const GuestLogin = () => {
       subject: docData.subject || 'Student Inquiry',
       description: docData.description || '',
       studentName: docData.studentName || 'Guest Student',
+      isAlumni: Boolean(docData.isAlumni || docData.requesterType === 'Alumni'),
+      batchYear: docData.batchYear || '',
       parentGuardianName: docData.parentGuardianName || '',
       resolutionNote: docData.resolutionNote || '',
       resolvedBy: docData.resolvedBy || '',
@@ -688,7 +952,7 @@ const GuestLogin = () => {
     setParentLastName('');
     setGrade('');
     setSection('');
-    setSelectedOffice('finance');
+    setSelectedOffice(guestOffices[0]?.id || 'finance');
     setSubject('');
     setDescription('');
     setAttachmentFiles([]);
@@ -696,6 +960,57 @@ const GuestLogin = () => {
     setIsAuthDragging(false);
     setIsAttachmentDragging(false);
     setShowProofGuide(false);
+    resetAlumniFields();
+    setView('options');
+  };
+
+  const handleOpenNewStudentRequest = () => {
+    setFirstName('');
+    setLastName('');
+    setParentFirstName('');
+    setParentLastName('');
+    setGrade('');
+    setSection('');
+    setSelectedOffice(guestOffices[0]?.id || 'finance');
+    setSubject('');
+    setDescription('');
+    setAttachmentFiles([]);
+    setAuthFiles([]);
+    setIsAuthDragging(false);
+    setIsAttachmentDragging(false);
+    setShowProofGuide(false);
+    resetAlumniFields();
+    setView('new');
+  };
+
+  const handleCheckAnotherRequest = () => {
+    setRequestId('');
+    setStatusData(null);
+    setTrackNotFound(false);
+    setTrackError('');
+    setView('check');
+  };
+
+  const resetAlumniFields = () => {
+    setAlumniFirstName('');
+    setAlumniLastName('');
+    setBatchYear('');
+    setFormerStudentId('');
+    setContactEmail('');
+    setContactNumber('');
+    setAlumniSelectedOffice(alumniOffices[0]?.id || 'registrar');
+    setAlumniSubject('');
+    setAlumniDescription('');
+    setAlumniAuthFiles([]);
+    setAlumniAttachmentFiles([]);
+    setIsAlumniAuthDragging(false);
+    setIsAlumniAttachmentDragging(false);
+    setShowAlumniProofGuide(false);
+    setAlumniValidationResult(null);
+  };
+
+  const resetAlumniForm = () => {
+    resetAlumniFields();
     setView('options');
   };
 
@@ -715,6 +1030,145 @@ const GuestLogin = () => {
     validationResult &&
     validationResult.isValid &&
     validationResult.errors.length === 0;
+
+  const canSubmitAlumni =
+    alumniFirstName.trim() !== '' &&
+    alumniLastName.trim() !== '' &&
+    batchYear.trim() !== '' &&
+    formerStudentId.trim() !== '' &&
+    contactEmail.trim() !== '' &&
+    contactNumber.trim() !== '' &&
+    !!alumniSelectedOffice &&
+    alumniSubject.trim() !== '' &&
+    alumniDescription.trim() !== '' &&
+    alumniAuthFiles.length > 0 &&
+    !isAlumniValidating &&
+    alumniValidationResult &&
+    alumniValidationResult.isValid &&
+    alumniValidationResult.errors.length === 0;
+
+  const handleSubmitAlumniRequest = async () => {
+    if (!canSubmitAlumni || submitting) return;
+
+    try {
+      setSubmitting(true);
+      const office = alumniOffices.find((o) => o.id === alumniSelectedOffice);
+      const officeName = office ? office.name : 'Registrar';
+      const officePrefixMap = {
+        registrar: 'REG',
+        guidance: 'GUI',
+        finance: 'ACC',
+        library: 'LIB'
+      };
+      const prefix = officePrefixMap[alumniSelectedOffice] || 'ALM';
+      const generatedRequestId = `${prefix}-${random3()}-${random3()}-${random3()}`;
+
+      // Encode attachments with smart compression for images
+      const attachments = [];
+      const now = Date.now();
+
+      for (const file of alumniAuthFiles) {
+        let fileData;
+        const isAuthImage = file.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(file.name);
+        if (isAuthImage) {
+          fileData = await compressImage(file);
+        } else {
+          fileData = await fileToBase64(file);
+        }
+
+        attachments.push({
+          name: file.name || 'valid-id',
+          data: fileData || '',
+          size: file.size || 0,
+          type: file.type || (isAuthImage ? 'image/jpeg' : 'application/pdf'),
+          isAuthProof: true,
+          uploadedAt: now
+        });
+      }
+
+      for (const file of alumniAttachmentFiles) {
+        let fileData;
+        const isAttImage = file.type?.startsWith('image/') || /\.(png|jpe?g)$/i.test(file.name);
+        if (isAttImage) {
+          fileData = await compressImage(file);
+        } else {
+          fileData = await fileToBase64(file);
+        }
+
+        attachments.push({
+          name: file.name || 'attachment',
+          data: fileData || '',
+          size: file.size || 0,
+          type: file.type || (isAttImage ? 'image/jpeg' : 'application/pdf'),
+          uploadedAt: now
+        });
+      }
+
+      const fullAlumniName = `${alumniFirstName.trim()} ${alumniLastName.trim()}`.trim();
+      const newRequestDoc = {
+        requestId: generatedRequestId,
+        originalRequestId: generatedRequestId,
+        studentName: fullAlumniName,
+        alumniName: fullAlumniName,
+        requesterName: fullAlumniName,
+        studentUid: `guest_alumni_${Date.now()}`,
+        grade: 'Alumni',
+        section: batchYear.trim() ? `Batch ${batchYear.trim()}` : 'Alumni',
+        batchYear: batchYear.trim(),
+        formerStudentId: formerStudentId.trim() || null,
+        studentEmail: contactEmail.trim(),
+        studentPhone: contactNumber.trim(),
+        contactEmail: contactEmail.trim(),
+        contactNumber: contactNumber.trim(),
+        isGuest: true,
+        isAlumni: true,
+        requesterType: 'Alumni',
+        subject: alumniSubject.trim(),
+        description: alumniDescription.trim(),
+        office: officeName,
+        officeId: alumniSelectedOffice,
+        originalOffice: officeName,
+        originalOfficeId: alumniSelectedOffice,
+        status: 'Pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        attachments: attachments,
+        followUps: []
+      };
+
+      await addDoc(collection(db, 'requests'), newRequestDoc);
+
+      // Notify office staff in background
+      await notifyStaffNewRequest(
+        officeName,
+        generatedRequestId,
+        alumniSubject.trim(),
+        `${fullAlumniName} (Alumni)`
+      );
+
+      const created = new Date();
+      const submissionInfo = {
+        requestNumber: `#${generatedRequestId}`,
+        rawRequestId: generatedRequestId,
+        officeName,
+        subject: alumniSubject.trim(),
+        description: alumniDescription.trim(),
+        studentName: fullAlumniName,
+        isAlumni: true,
+        batchYear: batchYear.trim(),
+        dateCreated: formatShortDate(created),
+        estimatedCompletion: 'To be determined'
+      };
+
+      setSubmissionData(submissionInfo);
+      setView('submitted');
+    } catch (error) {
+      console.error('[Error] Error submitting alumni request:', error);
+      toast.error('Failed to submit alumni request: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="guest-login-container">
@@ -761,14 +1215,21 @@ const GuestLogin = () => {
                 className={`guest-nav-link ${view === 'check' || view === 'status' ? 'active' : ''}`}
                 onClick={() => setView('check')}
               >
-                <MdTrackChanges /> Check Request Status
+                <MdTrackChanges /> Check Status
               </button>
               <button
                 type="button"
-                className={`guest-nav-link ${view === 'new' || view === 'submitted' ? 'active' : ''}`}
+                className={`guest-nav-link ${view === 'new' ? 'active' : ''}`}
                 onClick={() => setView('new')}
               >
-                <MdPostAdd /> Submit New Request
+                <MdPostAdd /> Student / Parent
+              </button>
+              <button
+                type="button"
+                className={`guest-nav-link ${view === 'alumni' ? 'active' : ''}`}
+                onClick={() => setView('alumni')}
+              >
+                <FaGraduationCap /> Alumni Request
               </button>
             </div>
           </nav>
@@ -781,11 +1242,13 @@ const GuestLogin = () => {
             notFound={trackNotFound}
             error={trackError}
             onHome={goHome}
+            onCheckAnother={handleCheckAnotherRequest}
           />
         ) : view === 'submitted' ? (
           <GuestSubmitted 
             data={submissionData} 
             onHome={resetGuestForm} 
+            onSubmitAnother={handleOpenNewStudentRequest}
             onTrack={() => trackRequest(submissionData.rawRequestId)}
           />
         ) : view === 'check' ? (
@@ -962,7 +1425,7 @@ const GuestLogin = () => {
                     <option value="" disabled hidden style={{ display: 'none' }}>
                       {selectedOffice ? 'Select a subject...' : 'Please select an office first'}
                     </option>
-                    {selectedOffice && guestOffices.find(o => o.id === selectedOffice)?.subjects.map((subj, index) => (
+                    {selectedOffice && (guestOffices.find(o => o.id === selectedOffice)?.subjects || []).map((subj, index) => (
                       <option key={index} value={subj}>
                         {subj}
                       </option>
@@ -1305,6 +1768,444 @@ const GuestLogin = () => {
                 </button>
               </div>
             </section>
+        ) : view === 'alumni' ? (
+          <section className="guest-section">
+            <div className="alumni-section-header">
+              <span className="alumni-pill-tag">Alumni Portal</span>
+              <h2 className="section-title-guest">Alumni Document &amp; Records Request</h2>
+            </div>
+
+            <div className="form-section-guest">
+              <h3 className="guest-subheading">1. Alumni Information</h3>
+              <p className="alumni-info-hint">Please provide your personal details as they appeared on your school records.</p>
+              <div className="field-grid">
+                <div className="form-group-guest full-width">
+                  <label className="form-label-guest">
+                    Alumni Full Name <span className="required-star">*</span>
+                  </label>
+                  <div className="student-name-grid">
+                    <input
+                      id="alumniFirstName"
+                      type="text"
+                      className="form-input-guest"
+                      value={alumniFirstName}
+                      onChange={(e) => setAlumniFirstName(e.target.value)}
+                      placeholder="Enter First Name"
+                      aria-label="Alumni First Name"
+                    />
+                    <input
+                      id="alumniLastName"
+                      type="text"
+                      className="form-input-guest"
+                      value={alumniLastName}
+                      onChange={(e) => setAlumniLastName(e.target.value)}
+                      placeholder="Enter Last Name"
+                      aria-label="Alumni Last Name"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group-guest">
+                  <label className="form-label-guest" htmlFor="batchYear">
+                    Year Graduated / Batch <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="batchYear"
+                    type="text"
+                    className="form-input-guest"
+                    value={batchYear}
+                    onChange={(e) => setBatchYear(e.target.value)}
+                    placeholder="e.g. 2024, 2023, 2020"
+                    maxLength="4"
+                  />
+                </div>
+
+                <div className="form-group-guest">
+                  <label className="form-label-guest" htmlFor="formerStudentId">
+                    Former Student ID or LRN <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="formerStudentId"
+                    type="text"
+                    className="form-input-guest"
+                    value={formerStudentId}
+                    onChange={(e) => setFormerStudentId(e.target.value)}
+                    placeholder="e.g. 1001 or 12-digit LRN"
+                  />
+                </div>
+
+                <div className="form-group-guest">
+                  <label className="form-label-guest" htmlFor="contactEmail">
+                    Active Email Address <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="contactEmail"
+                    type="email"
+                    className="form-input-guest"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="e.g. yourname@email.com (for status updates)"
+                  />
+                </div>
+
+                <div className="form-group-guest">
+                  <label className="form-label-guest" htmlFor="contactNumber">
+                    Contact / Mobile Number <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="contactNumber"
+                    type="tel"
+                    className="form-input-guest"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    placeholder="e.g. 09123456789"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="form-section-guest">
+              <h3 className="guest-subheading">2. Select Target Office</h3>
+              <div className="office-grid" role="radiogroup" aria-label="Select Target Office">
+                {alumniOffices.map((office) => (
+                  <div
+                    key={office.id}
+                    role="radio"
+                    aria-checked={alumniSelectedOffice === office.id}
+                    tabIndex={alumniSelectedOffice === office.id ? 0 : -1}
+                    className={`office-card-guest ${alumniSelectedOffice === office.id ? 'selected' : ''}`}
+                    onClick={() => {
+                      setAlumniSelectedOffice(office.id);
+                      setAlumniSubject('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setAlumniSelectedOffice(office.id);
+                        setAlumniSubject('');
+                      }
+                    }}
+                  >
+                    <div className="office-radio">
+                      {alumniSelectedOffice === office.id && <div className="radio-dot"></div>}
+                    </div>
+                    <div className="office-info">
+                      <div className="office-header-row">
+                        <h4 className="office-name">{office.name}</h4>
+                      </div>
+                      <p className="office-description">{office.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-section-guest">
+              <h3 className="guest-subheading">3. Request Details</h3>
+
+              <div className="form-group-guest">
+                <label className="form-label-guest" htmlFor="alumniSubject">
+                  Document / Subject Type <span className="required-star">*</span>
+                </label>
+                <select
+                  id="alumniSubject"
+                  className="form-select-guest"
+                  value={alumniSubject}
+                  onChange={(e) => setAlumniSubject(e.target.value)}
+                >
+                  <option value="" disabled hidden style={{ display: 'none' }}>
+                    Select document or concern...
+                  </option>
+                  {(alumniOffices.find(o => o.id === alumniSelectedOffice)?.subjects || []).map((subj) => (
+                    <option key={subj} value={subj}>{subj}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group-guest">
+                <label className="form-label-guest" htmlFor="alumniDescription">
+                  Purpose / Details of Request <span className="required-star">*</span>
+                </label>
+                <textarea
+                  id="alumniDescription"
+                  className="form-textarea-guest"
+                  value={alumniDescription}
+                  onChange={(e) => setAlumniDescription(e.target.value)}
+                  placeholder="Specify the purpose of your request (e.g., For Employment, College/Graduate School Admission, PRC/Board Exam, Travel/Visa, etc.) and any specific instructions or requirements."
+                  rows={4}
+                />
+              </div>
+
+              {/* AI Content Moderation Feedback */}
+              {isAlumniValidating && (
+                <div className="ai-feedback-banner validating">
+                  <div className="ai-feedback-header">
+                    <span className="ai-spinner"></span>
+                    <span className="ai-feedback-title">Validating request content...</span>
+                  </div>
+                </div>
+              )}
+
+              {!isAlumniValidating && alumniValidationResult && (
+                <div className={`ai-feedback-banner ${alumniValidationResult.isValid ? 'valid' : 'invalid'}`}>
+                  <div className="ai-feedback-header">
+                    {alumniValidationResult.isValid ? (
+                      <MdCheckCircle className="ai-feedback-icon valid-icon" />
+                    ) : (
+                      <MdError className="ai-feedback-icon error-icon" />
+                    )}
+                    <span className="ai-feedback-title">
+                      {alumniValidationResult.isValid ? 'Content Verified' : 'Please Review Content'}
+                    </span>
+                  </div>
+
+                  {alumniValidationResult.errors && alumniValidationResult.errors.length > 0 && (
+                    <ul className="ai-feedback-list error-list">
+                      {alumniValidationResult.errors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {alumniValidationResult.warnings && alumniValidationResult.warnings.length > 0 && (
+                    <ul className="ai-feedback-list warning-list">
+                      {alumniValidationResult.warnings.map((warn, i) => (
+                        <li key={i}><MdWarning style={{ verticalAlign: 'middle', marginRight: '4px' }} />{warn}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="form-section-guest">
+              <h3 className="guest-subheading">4. Identification &amp; Supporting Documents</h3>
+              <p className="alumni-info-hint">
+                To verify your identity and protect student record confidentiality, please attach a clear photo or scan of a valid ID.
+              </p>
+
+              <div className="form-group-guest">
+                <div className="proof-header-row">
+                  <label className="form-label-guest" htmlFor="alumniAuthProofUpload">
+                    Valid ID Proof <span className="required-star">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="toggle-proof-guide-btn"
+                    onClick={() => setShowAlumniProofGuide(!showAlumniProofGuide)}
+                  >
+                    <FaInfoCircle /> {showAlumniProofGuide ? 'Hide Valid IDs Guide' : 'What IDs are accepted?'}
+                  </button>
+                </div>
+
+                {showAlumniProofGuide && (
+                  <div className="proof-guide-card">
+                    <h4 className="proof-guide-title">Accepted Identification for Alumni</h4>
+                    <ul className="proof-guide-list">
+                      <li><strong>Government-Issued ID:</strong> Passport, Driver's License, National ID (PhilSys), UMID, SSS/GSIS, PRC ID, Postal ID, Voter's ID.</li>
+                      <li><strong>School/Alumni ID:</strong> Former Academia De San Jose Student ID or Alumni Association Card.</li>
+                      <li><strong>Company / Work ID:</strong> Current employee ID with photo and signature.</li>
+                    </ul>
+                  </div>
+                )}
+
+                <div
+                  className={`upload-box-auth ${alumniAuthFiles.length > 0 ? 'has-file' : ''} ${isAlumniAuthDragging ? 'is-drag-over' : ''}`}
+                  id="alumniAuthProofUpload"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => alumniAuthInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAlumniAuthDragging(true);
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAlumniAuthDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAlumniAuthDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAlumniAuthDragging(false);
+                    if (e.dataTransfer?.files) {
+                      handleAlumniAuthChange({ target: { files: e.dataTransfer.files } });
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      alumniAuthInputRef.current?.click();
+                    }
+                  }}
+                >
+                  {alumniAuthFiles.length === 0 && <span className="required-badge">Required</span>}
+                  {alumniAuthFiles.length > 0 ? (
+                    <div className="guest-attached-files-container">
+                      <div className="guest-files-summary">
+                        <span>Attached ID Documents ({alumniAuthFiles.length})</span>
+                        <span>{formatFileSize(alumniAuthFiles.reduce((s, f) => s + (f.size || 0), 0))}</span>
+                      </div>
+                      <div className="guest-attached-files-list">
+                        {alumniAuthFiles.map((file, idx) => (
+                          <div key={`${file.name}-${idx}`} className="guest-attached-file">
+                            <FaFileAlt className="guest-file-icon" />
+                            <div className="guest-file-meta">
+                              <span className="guest-file-name">{file.name}</span>
+                              <span className="guest-file-size">{formatFileSize(file.size)}</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="guest-file-remove"
+                              aria-label={`Remove ${file.name}`}
+                              onClick={(e) => handleRemoveAlumniAuthFile(idx, e)}
+                            >
+                              <FaTimes />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="guest-add-more-hint">
+                        <FaPlus className="add-more-icon" />
+                        <span>Click to attach front/back or additional ID pages</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <FaFileUpload className="upload-icon-large upload-icon-green" />
+                      <p className="upload-text-main">Click to upload valid government ID or alumni ID</p>
+                      <p className="upload-text-sub">PDF, PNG, or JPG (Max 10MB combined total, multiple files allowed)</p>
+                    </>
+                  )}
+                  <input
+                    ref={alumniAuthInputRef}
+                    type="file"
+                    multiple
+                    className="file-input-hidden"
+                    onChange={handleAlumniAuthChange}
+                    accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
+                    aria-label="Upload valid ID (required)"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group-guest">
+                <label className="form-label-guest" htmlFor="alumniOptionalUpload">
+                  Additional Supporting File <span className="optional-guest">(Optional)</span>
+                </label>
+                <div
+                  className={`upload-box-dashed ${alumniAttachmentFiles.length > 0 ? 'has-file' : ''} ${isAlumniAttachmentDragging ? 'is-drag-over' : ''}`}
+                  id="alumniOptionalUpload"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => alumniAttachmentInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAlumniAttachmentDragging(true);
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAlumniAttachmentDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAlumniAttachmentDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAlumniAttachmentDragging(false);
+                    if (e.dataTransfer?.files) {
+                      handleAlumniAttachmentChange({ target: { files: e.dataTransfer.files } });
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      alumniAttachmentInputRef.current?.click();
+                    }
+                  }}
+                >
+                  {alumniAttachmentFiles.length > 0 ? (
+                    <div className="guest-attached-files-container">
+                      <div className="guest-files-summary">
+                        <span>Attached Supporting Documents ({alumniAttachmentFiles.length})</span>
+                        <span>{formatFileSize(alumniAttachmentFiles.reduce((s, f) => s + (f.size || 0), 0))}</span>
+                      </div>
+                      <div className="guest-attached-files-list">
+                        {alumniAttachmentFiles.map((file, idx) => (
+                          <div key={`${file.name}-${idx}`} className="guest-attached-file">
+                            <FaFileAlt className="guest-file-icon" />
+                            <div className="guest-file-meta">
+                              <span className="guest-file-name">{file.name}</span>
+                              <span className="guest-file-size">{formatFileSize(file.size)}</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="guest-file-remove"
+                              aria-label={`Remove ${file.name}`}
+                              onClick={(e) => handleRemoveAlumniAttachmentFile(idx, e)}
+                            >
+                              <FaTimes />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="guest-add-more-hint">
+                        <FaPlus className="add-more-icon" />
+                        <span>Click to add more supporting files</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <FaFileUpload className="upload-icon-large" />
+                      <p className="upload-text-main">Click to attach supporting document or clearance slip</p>
+                      <p className="upload-text-sub">PDF, PNG, or JPG (Max 10MB combined total, multiple files allowed)</p>
+                    </>
+                  )}
+                  <input
+                    ref={alumniAttachmentInputRef}
+                    type="file"
+                    multiple
+                    className="file-input-hidden"
+                    onChange={handleAlumniAttachmentChange}
+                    accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
+                    aria-label="Attach an optional file"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="form-actions-guest">
+              <button 
+                type="button" 
+                className="cancel-btn-guest" 
+                onClick={resetAlumniForm}
+              >
+                Reset
+              </button>
+              <button 
+                type="button" 
+                className="submit-btn-guest" 
+                onClick={handleSubmitAlumniRequest} 
+                disabled={!canSubmitAlumni || submitting}
+              >
+                {submitting && <span className="btn-spinner" />}
+                {submitting ? 'Submitting...' : 'Submit Alumni Request'}
+              </button>
+            </div>
+          </section>
         ) : (
           <div className="guest-options-container">
             <div className="guest-options-hero">
@@ -1328,8 +2229,11 @@ const GuestLogin = () => {
                   }
                 }}
               >
-                <div className="guest-option-icon-wrapper track-icon-bg">
-                  <MdTrackChanges className="guest-option-icon" />
+                <div className="guest-card-top-row">
+                  <div className="guest-option-icon-wrapper track-icon-bg">
+                    <MdTrackChanges className="guest-option-icon" />
+                  </div>
+                  <span className="guest-card-badge badge-track">Tracking</span>
                 </div>
                 <div className="guest-option-content">
                   <h3 className="guest-option-name">Check Request Status</h3>
@@ -1355,17 +2259,50 @@ const GuestLogin = () => {
                   }
                 }}
               >
-                <div className="guest-option-icon-wrapper submit-icon-bg">
-                  <MdPostAdd className="guest-option-icon" />
+                <div className="guest-card-top-row">
+                  <div className="guest-option-icon-wrapper submit-icon-bg">
+                    <MdPostAdd className="guest-option-icon" />
+                  </div>
+                  <span className="guest-card-badge badge-student">Current Students</span>
                 </div>
                 <div className="guest-option-content">
-                  <h3 className="guest-option-name">Submit New Request</h3>
+                  <h3 className="guest-option-name">Enrolled Student &amp; Parent Request</h3>
                   <p className="guest-option-desc">
-                    Send a new request or inquiry directly to Accounting, Library, Registrar, or Guidance Office.
+                    Send an inquiry or document request for currently enrolled students (requires parent/guardian authorization).
                   </p>
                 </div>
                 <div className="guest-option-action">
-                  <span>Create Request</span>
+                  <span>Student Request</span>
+                  <FaArrowRight className="guest-option-arrow" />
+                </div>
+              </div>
+
+              <div 
+                className="guest-option-card guest-card-alumni"
+                onClick={() => setView('alumni')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setView('alumni');
+                  }
+                }}
+              >
+                <div className="guest-card-top-row">
+                  <div className="guest-option-icon-wrapper alumni-icon-bg">
+                    <FaGraduationCap className="guest-option-icon" />
+                  </div>
+                  <span className="guest-card-badge badge-alumni">Graduates</span>
+                </div>
+                <div className="guest-option-content">
+                  <h3 className="guest-option-name">Alumni Services &amp; Records</h3>
+                  <p className="guest-option-desc">
+                    Graduates and former students can request Transcript of Records (TOR), diploma copies, Form 137, or clearance (no parent name needed).
+                  </p>
+                </div>
+                <div className="guest-option-action action-alumni">
+                  <span>Alumni Request</span>
                   <FaArrowRight className="guest-option-arrow" />
                 </div>
               </div>

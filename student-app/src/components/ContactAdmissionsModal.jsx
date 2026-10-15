@@ -13,40 +13,30 @@ import {
   FaLayerGroup,
   FaShieldAlt
 } from 'react-icons/fa';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '../firebase';
 import { createNotification } from '../utils/notificationHelper';
 import '../styles/ContactAdmissionsModal.css';
-
-const GRADE_LEVELS = [
-  'Grade 7',
-  'Grade 8',
-  'Grade 9',
-  'Grade 10',
-  'Grade 11',
-  'Grade 12'
-];
-
-const SECTIONS = [
-  'Section A',
-  'Section B',
-  'Section C'
-];
 
 const ContactAdmissionsModal = ({ isOpen, onClose }) => {
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [email, setEmail] = useState('');
-  const [grade, setGrade] = useState(GRADE_LEVELS[0]);
-  const [section, setSection] = useState(SECTIONS[0]);
   const [message, setMessage] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // Live account verification states
+  const [idStatus, setIdStatus] = useState('idle'); // 'idle' | 'checking' | 'valid' | 'invalid'
+  const [idMessage, setIdMessage] = useState('');
+  const [emailStatus, setEmailStatus] = useState('idle'); // 'idle' | 'valid' | 'invalid'
+  const [emailMessage, setEmailMessage] = useState('');
+  const [verifiedAccount, setVerifiedAccount] = useState(null);
 
   if (!isOpen) return null;
 
@@ -63,28 +53,191 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
     setFirstName('');
     setStudentId('');
     setEmail('');
-    setGrade(GRADE_LEVELS[0]);
-    setSection(SECTIONS[0]);
     setMessage('');
     setSubmittedData(null);
     setErrorMessage('');
+    setIdStatus('idle');
+    setIdMessage('');
+    setEmailStatus('idle');
+    setEmailMessage('');
+    setVerifiedAccount(null);
     onClose();
+  };
+
+  // Helper to ensure an active auth session before Firestore queries
+  const ensureAuthSession = async () => {
+    let currentUid = auth.currentUser?.uid;
+    if (!currentUid) {
+      try {
+        const userCred = await signInAnonymously(auth);
+        currentUid = userCred?.user?.uid;
+      } catch (authErr) {
+        console.warn('[Admissions] Anonymous auth warning:', authErr);
+      }
+    }
+    return currentUid;
+  };
+
+  // Look up student by Student ID in 'students' collection
+  const findStudentAccount = async (targetId) => {
+    const cleanId = (targetId || '').trim();
+    if (!cleanId) return null;
+
+    await ensureAuthSession();
+
+    const studentsRef = collection(db, 'students');
+    const q1 = query(studentsRef, where('id', '==', cleanId));
+    const q2 = query(studentsRef, where('studentId', '==', cleanId));
+
+    const [snap1, snap2] = await Promise.all([
+      getDocs(q1),
+      getDocs(q2)
+    ]);
+
+    let docSnap = !snap1.empty ? snap1.docs[0] : (!snap2.empty ? snap2.docs[0] : null);
+
+    // If not found and input is numeric digits, check academic year prefixes
+    if (!docSnap && /^\d{1,6}$/.test(cleanId)) {
+      const padded = cleanId.padStart(4, '0');
+      const yearPrefixes = ['05-2324-', '05-2425-', '05-2526-', '05-2627-'];
+      for (const prefix of yearPrefixes) {
+        const qPrefix = query(studentsRef, where('studentId', '==', `${prefix}${padded}`));
+        const snapPrefix = await getDocs(qPrefix);
+        if (!snapPrefix.empty) {
+          docSnap = snapPrefix.docs[0];
+          break;
+        }
+      }
+    }
+
+    if (!docSnap) return null;
+    return { firestoreId: docSnap.id, ...docSnap.data() };
+  };
+
+  // Look up student by Email in 'students' collection (for helpful diagnostics)
+  const findStudentByEmail = async (targetEmail) => {
+    const cleanEmail = (targetEmail || '').trim().toLowerCase();
+    if (!cleanEmail) return null;
+
+    await ensureAuthSession();
+
+    const studentsRef = collection(db, 'students');
+    const q = query(studentsRef, where('email', '==', cleanEmail));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return { firestoreId: snap.docs[0].id, ...snap.docs[0].data() };
+    }
+    return null;
+  };
+
+  // Live on-blur validation for Student ID
+  const validateStudentId = async (enteredId) => {
+    const cleanId = (enteredId || '').trim();
+    if (!cleanId) {
+      setIdStatus('idle');
+      setIdMessage('');
+      setVerifiedAccount(null);
+      return null;
+    }
+
+    if (cleanId.length < 3) {
+      setIdStatus('invalid');
+      setIdMessage('Student ID must be at least 3 digits');
+      setVerifiedAccount(null);
+      return null;
+    }
+
+    setIdStatus('checking');
+    setIdMessage('Checking student records...');
+
+    try {
+      const student = await findStudentAccount(cleanId);
+      if (!student) {
+        setIdStatus('invalid');
+        setIdMessage('Student ID not found in school directory');
+        setVerifiedAccount(null);
+        return null;
+      }
+
+      const isArchived = student.isArchived === true;
+      const isSuspended = student.isActive === false;
+      const statusNote = isArchived ? ' (Archived)' : isSuspended ? ' (Suspended)' : '';
+      const displayName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Verified Student';
+      setIdStatus('valid');
+      setIdMessage(`✓ Account verified: ${displayName}${statusNote}`);
+      setVerifiedAccount(student);
+
+      // Helpful autofill for enrolled student convenience
+      if (!firstName.trim() && student.firstName) setFirstName(student.firstName);
+      if (!lastName.trim() && student.lastName) setLastName(student.lastName);
+
+      // If email is already entered, validate against student record
+      if (email.trim()) {
+        if (email.trim().toLowerCase() === (student.email || '').trim().toLowerCase()) {
+          setEmailStatus('valid');
+          setEmailMessage('✓ Email matches student record');
+        } else {
+          setEmailStatus('invalid');
+          setEmailMessage('Email does not match this Student ID record');
+        }
+      }
+
+      return student;
+    } catch (err) {
+      console.warn('[Admissions] ID lookup error:', err);
+      setIdStatus('idle');
+      setIdMessage('');
+      return null;
+    }
+  };
+
+  // Live on-blur validation for Email Address
+  const handleEmailBlur = () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setEmailStatus('idle');
+      setEmailMessage('');
+      return;
+    }
+
+    if (verifiedAccount) {
+      const registeredEmail = (verifiedAccount.email || '').trim().toLowerCase();
+      if (cleanEmail === registeredEmail) {
+        setEmailStatus('valid');
+        setEmailMessage('✓ Email matches student record');
+      } else {
+        setEmailStatus('invalid');
+        setEmailMessage('Email does not match this Student ID record');
+      }
+    } else {
+      setEmailStatus('idle');
+      setEmailMessage('');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
-    // Validations
-    if (!lastName.trim()) {
+    const cleanId = studentId.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
+
+    // 1. Mandatory field checks
+    if (!cleanId) {
+      setErrorMessage('Please enter your Student ID. An existing student account is required to send an inquiry.');
+      return;
+    }
+    if (!cleanLastName) {
       setErrorMessage('Please enter your last name.');
       return;
     }
-    if (!firstName.trim()) {
+    if (!cleanFirstName) {
       setErrorMessage('Please enter your first name.');
       return;
     }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setErrorMessage('Please enter a valid email address.');
       return;
     }
@@ -96,39 +249,61 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
 
     try {
-      // Ensure the user has an active Firebase auth session to satisfy Firestore security rules (request.auth != null)
-      let currentUid = auth.currentUser?.uid;
-      if (!currentUid) {
-        try {
-          const userCred = await signInAnonymously(auth);
-          currentUid = userCred?.user?.uid;
-        } catch (authErr) {
-          console.warn('[Admissions] Anonymous auth warning:', authErr);
-        }
+      // 2. Authoritative database validation against 'students' collection
+      let account = verifiedAccount;
+      if (!account || (account.id !== cleanId && account.studentId !== cleanId)) {
+        account = await findStudentAccount(cleanId);
       }
 
-      // Generate a unique Admissions inquiry reference ID
+      if (!account) {
+        const accountByEmail = await findStudentByEmail(cleanEmail);
+        if (accountByEmail) {
+          setErrorMessage(`A student account was found for email "${cleanEmail}", but the Student ID "${cleanId}" does not match our records. Please verify your Student ID.`);
+        } else {
+          setErrorMessage(`No student account was found in the system for Student ID "${cleanId}". Only registered students with an existing account can submit an admissions inquiry.`);
+        }
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Check email matching
+      const registeredEmail = (account.email || '').trim().toLowerCase();
+      if (registeredEmail && cleanEmail !== registeredEmail) {
+        setErrorMessage(`The email address entered does not match the registered email on file for Student ID "${cleanId}". Please enter your registered school email address.`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 3. Ensure active Firebase auth session for Firestore rules
+      const currentUid = await ensureAuthSession();
+
+      // Automatically pull enrolled Grade Level & Section from verified account
+      const studentGrade = account.gradeLevel || account.grade || 'N/A';
+      const studentSection = account.section || 'N/A';
+      const accountStatus = account.isArchived ? 'Archived' : (account.isActive !== false ? 'Active' : 'Suspended');
+
+      // Generate reference ID and compile payload
       const generatedRequestId = `ADM-${Math.floor(100000 + Math.random() * 900000)}`;
-      const cleanStudentId = studentId.trim();
-      const fullName = `${firstName.trim()} ${lastName.trim()}`;
+      const verifiedStudentId = account.id || account.studentId || cleanId;
+      const verifiedDocId = account.firestoreId;
+      const fullName = `${cleanFirstName} ${cleanLastName}`;
 
       const newInquiryDoc = {
         requestId: generatedRequestId,
         originalRequestId: generatedRequestId,
-        studentId: cleanStudentId || 'N/A',
-        studentUid: currentUid || `guest_${Date.now()}`,
+        studentId: verifiedStudentId,
+        studentFirestoreId: verifiedDocId || null,
+        studentUid: account.uid || currentUid || `guest_${Date.now()}`,
         studentName: fullName,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        studentEmail: email.trim(),
-        email: email.trim(),
-        grade: grade,
-        gradeLevel: grade,
-        section: section.trim() || 'N/A',
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
+        studentEmail: cleanEmail,
+        email: cleanEmail,
+        grade: studentGrade,
+        gradeLevel: studentGrade,
+        section: studentSection,
         subject: '[Admissions] Account / Login Assistance Request',
         description: message.trim(),
-        // office is set to 'Registrar' to satisfy Firestore database security rules schema,
-        // while targetRole, department, and category strictly isolate it for Superadmin
         office: 'Registrar',
         department: 'Registrar',
         originalOffice: 'Registrar',
@@ -140,6 +315,8 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
         status: 'Pending',
         isGuest: true,
         isNewStudentInquiry: true,
+        isVerifiedStudent: true,
+        studentAccountStatus: accountStatus,
         inquirySource: 'Login Page — Contact Admissions',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -147,29 +324,30 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
         followUps: []
       };
 
-      // 1. Save directly into Firestore 'requests' collection
+      // Save directly into Firestore 'requests' collection
       await addDoc(collection(db, 'requests'), newInquiryDoc);
 
-      // 2. Dispatch real-time background notification to Superadmin only (non-blocking)
+      // Dispatch real-time background notification to Superadmin
       try {
-        const studentIdLabel = cleanStudentId ? ` [ID: ${cleanStudentId}]` : '';
+        const gradeSectionLabel = studentGrade !== 'N/A' ? ` (${studentGrade}${studentSection !== 'N/A' ? ' - ' + studentSection : ''})` : '';
+        const statusNote = account.isArchived ? ' [Archived Account]' : (account.isActive === false ? ' [Suspended Account]' : '');
         await createNotification(
           'superadmin',
           'superadmin',
           'new_request',
           'New Account / Login Assistance Request',
-          `${fullName}${studentIdLabel} (${grade}${section.trim() ? ' - ' + section.trim() : ''}) submitted an account / login assistance request.`,
+          `${fullName} [ID: ${verifiedStudentId}]${statusNote}${gradeSectionLabel} submitted an account assistance request.`,
           {
             requestId: generatedRequestId,
-            studentId: cleanStudentId || 'N/A',
+            studentId: verifiedStudentId,
             studentName: fullName,
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            studentEmail: email.trim(),
+            firstName: cleanFirstName,
+            lastName: cleanLastName,
+            studentEmail: cleanEmail,
             office: 'Superadmin',
             targetRole: 'superadmin',
-            grade: grade,
-            section: section.trim() || 'N/A',
+            grade: studentGrade,
+            section: studentSection,
             subject: 'Account / Login Assistance Request'
           }
         );
@@ -179,12 +357,13 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
 
       setSubmittedData({
         requestId: generatedRequestId,
-        studentId: cleanStudentId || 'N/A',
+        studentId: verifiedStudentId,
         fullName: fullName,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim(),
-        grade: grade,
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
+        email: cleanEmail,
+        grade: studentGrade,
+        section: studentSection,
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       });
     } catch (err) {
@@ -324,17 +503,35 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
                 <div className="admissions-field-group">
                   <label className="admissions-label" htmlFor="adm-studentid">
                     <FaIdCard className="field-icon" />
-                    <span>Student ID</span>
+                    <span>Student ID *</span>
                   </label>
                   <input
                     id="adm-studentid"
                     type="text"
-                    className="admissions-input"
+                    className={`admissions-input ${idStatus === 'valid' ? 'input-valid' : idStatus === 'invalid' ? 'input-invalid' : ''}`}
                     placeholder="e.g. 1001"
                     value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
+                    onChange={(e) => {
+                      setStudentId(e.target.value);
+                      if (idStatus !== 'idle') {
+                        setIdStatus('idle');
+                        setIdMessage('');
+                      }
+                      if (emailStatus !== 'idle') {
+                        setEmailStatus('idle');
+                        setEmailMessage('');
+                      }
+                      setVerifiedAccount(null);
+                    }}
+                    onBlur={(e) => validateStudentId(e.target.value)}
+                    required
                     disabled={isSubmitting}
                   />
+                  {idMessage && (
+                    <small className={`admissions-field-note ${idStatus}`}>
+                      {idMessage}
+                    </small>
+                  )}
                 </div>
 
                 <div className="admissions-field-group">
@@ -345,54 +542,47 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
                   <input
                     id="adm-email"
                     type="email"
-                    className="admissions-input"
+                    className={`admissions-input ${emailStatus === 'valid' ? 'input-valid' : emailStatus === 'invalid' ? 'input-invalid' : ''}`}
                     placeholder="e.g. maria.santos@email.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (emailStatus !== 'idle') {
+                        setEmailStatus('idle');
+                        setEmailMessage('');
+                      }
+                    }}
+                    onBlur={handleEmailBlur}
                     required
                     disabled={isSubmitting}
                   />
+                  {emailMessage && (
+                    <small className={`admissions-field-note ${emailStatus}`}>
+                      {emailMessage}
+                    </small>
+                  )}
                 </div>
               </div>
 
-              {/* Row 3: Grade Level & Section */}
-              <div className="admissions-form-grid">
-                <div className="admissions-field-group">
-                  <label className="admissions-label" htmlFor="adm-grade">
-                    <FaGraduationCap className="field-icon" />
-                    <span>Grade Level *</span>
-                  </label>
-                  <select
-                    id="adm-grade"
-                    className="admissions-select"
-                    value={grade}
-                    onChange={(e) => setGrade(e.target.value)}
-                    disabled={isSubmitting}
-                  >
-                    {GRADE_LEVELS.map((lvl) => (
-                      <option key={lvl} value={lvl}>{lvl}</option>
-                    ))}
-                  </select>
+              {/* Verified Academic Profile Confirmation Badge (Option 2) */}
+              {verifiedAccount && (
+                <div className="admissions-verified-badge">
+                  <div className="verified-badge-header">
+                    <FaCheckCircle className="verified-check-icon" />
+                    <span className="verified-title">Enrolled Academic Profile Verified</span>
+                  </div>
+                  <div className="verified-details-row">
+                    <span className="verified-pill">
+                      <FaGraduationCap />
+                      <span>{verifiedAccount.gradeLevel || verifiedAccount.grade || 'Grade Level on File'}</span>
+                    </span>
+                    <span className="verified-pill">
+                      <FaLayerGroup />
+                      <span>{verifiedAccount.section || 'Assigned Section'}</span>
+                    </span>
+                  </div>
                 </div>
-
-                <div className="admissions-field-group">
-                  <label className="admissions-label" htmlFor="adm-section">
-                    <FaLayerGroup className="field-icon" />
-                    <span>Section</span>
-                  </label>
-                  <select
-                    id="adm-section"
-                    className="admissions-select"
-                    value={section}
-                    onChange={(e) => setSection(e.target.value)}
-                    disabled={isSubmitting}
-                  >
-                    {SECTIONS.map((sec) => (
-                      <option key={sec} value={sec}>{sec}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
 
 
               {/* Row 4: Detailed Message */}
@@ -439,7 +629,7 @@ const ContactAdmissionsModal = ({ isOpen, onClose }) => {
                   {isSubmitting ? (
                     <>
                       <span className="admissions-spinner" />
-                      <span>Sending Inquiry...</span>
+                      <span>Verifying & Sending...</span>
                     </>
                   ) : (
                     <>

@@ -316,7 +316,7 @@ const Notifications = ({
                 aria-label="Mark all as read"
               >
                 <FaCheckDouble />
-                <span>Mark all read</span>
+                <span>Mark all as read</span>
               </button>
             )}
             <button 

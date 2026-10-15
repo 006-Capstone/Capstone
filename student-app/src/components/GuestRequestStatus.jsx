@@ -15,7 +15,7 @@ import { Skeleton } from './common/Skeleton';
 import { getStaffSenderOffice, formatOfficeTitle } from '../utils/ticketHistoryHelper';
 import '../styles/GuestRequestStatus.css';
 
-const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
+const GuestRequestStatus = ({ data, loading, notFound, error, onHome, onCheckAnother }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopyId = () => {
@@ -187,7 +187,7 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
           <p className="guest-status-message-text">
             We could not find any request matching that Request ID. Please verify the ID on your submission receipt and try again.
           </p>
-          <button type="button" className="submit-btn-guest" onClick={onHome}>
+          <button type="button" className="submit-btn-guest" onClick={onCheckAnother || onHome}>
             Check Another ID
           </button>
         </div>
@@ -271,10 +271,16 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
             <span className="guest-detail-value">{data.officeName}</span>
           </div>
           <div className="guest-detail-row">
-            <span className="guest-detail-label">Student Name</span>
+            <span className="guest-detail-label">{data.isAlumni ? 'Alumni Name' : 'Student Name'}</span>
             <span className="guest-detail-value">{data.studentName}</span>
           </div>
-          {data.grade && (
+          {data.isAlumni && data.batchYear && (
+            <div className="guest-detail-row">
+              <span className="guest-detail-label">Batch / Year Graduated</span>
+              <span className="guest-detail-value">{data.batchYear}</span>
+            </div>
+          )}
+          {!data.isAlumni && data.grade && (
             <div className="guest-detail-row">
               <span className="guest-detail-label">Grade & Section</span>
               <span className="guest-detail-value">{data.grade} - {data.section}</span>
@@ -370,7 +376,7 @@ const GuestRequestStatus = ({ data, loading, notFound, error, onHome }) => {
         <button type="button" className="guest-outline-btn" onClick={handleDownload}>
           <FaDownload /> Download Receipt
         </button>
-        <button type="button" className="submit-btn-guest" onClick={onHome}>
+        <button type="button" className="submit-btn-guest" onClick={onCheckAnother || onHome}>
           Check Another Request
         </button>
       </div>

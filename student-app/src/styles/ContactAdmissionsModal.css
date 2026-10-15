@@ -502,3 +502,96 @@
     justify-content: center;
   }
 }
+
+/* Live Input Status Notes & Validation */
+.admissions-input.input-valid {
+  border-color: #105e06;
+  background-color: #f6fbf6;
+}
+
+.admissions-input.input-valid:focus {
+  box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.15);
+}
+
+.admissions-input.input-invalid {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.admissions-input.input-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.admissions-field-note {
+  font-size: 11.5px;
+  line-height: 1.35;
+  margin-top: 2px;
+  font-weight: 500;
+  display: block;
+}
+
+.admissions-field-note.valid {
+  color: #15803d;
+}
+
+.admissions-field-note.invalid {
+  color: #b91c1c;
+}
+
+.admissions-field-note.checking {
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Verified Student Badge (Option 2) */
+.admissions-verified-badge {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  animation: admissionsFadeIn 0.2s ease-out;
+}
+
+.verified-badge-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.verified-check-icon {
+  color: #16a34a;
+  font-size: 15px;
+}
+
+.verified-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #166534;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.verified-details-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #86efac;
+  color: #14532d;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 6px;
+}
+
+.verified-pill svg {
+  color: #16a34a;
+  font-size: 13px;
+}
