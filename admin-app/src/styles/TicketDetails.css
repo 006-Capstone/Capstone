@@ -1245,12 +1245,34 @@
   border-bottom: 1px solid #f1f5f9;
   padding: 12px 0;
   margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .student-detail-item {
   font-size: 13px;
-  color: #475569;
-  padding: 5px 0;
+  color: #334155;
+  padding: 3px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  text-align: right;
+}
+
+.student-detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+.student-detail-value {
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
 }
 
 .btn-figma-contact {

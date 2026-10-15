@@ -2557,54 +2557,115 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             </div>
           </div>
 
-          {/* Student Profile Card */}
-          <div className="figma-card student-profile-card">
-            <div className="student-profile-avatar-circle">
-              {ticket.studentProfilePicture ? (
-                <img src={ticket.studentProfilePicture} alt="Student" className="student-profile-photo" />
-              ) : (
-                <FaUserCircle className="student-profile-icon" />
-              )}
-            </div>
+          {/* Student / Guest Profile Card */}
+          {(() => {
+            const isGuest = Boolean(ticket.isGuest);
+            const isAlumni = Boolean(ticket.isAlumni || ticket.requesterType === 'Alumni');
+            const rawGrade = ticket.grade || ticket.studentGradeLevel || '';
+            const rawSection = ticket.section || ticket.studentSection || '';
+            const rawId = ticket.studentId || ticket.formerStudentId || '';
+            const guardianName = ticket.parentGuardianName || (ticket.parentFirstName && ticket.parentLastName ? `${ticket.parentFirstName} ${ticket.parentLastName}`.trim() : '');
 
-            <h4 className="student-name-heading">{ticket.studentName || (ticket.isGuest ? 'Guest User' : 'Student')}</h4>
-            <p className="student-level-tag">{ticket.isGuest ? 'GUEST INQUIRER' : 'JUNIOR HIGH SCHOOL'}</p>
+            // Dynamic classification: Grade 7-10 = Junior High School, Grade 11-12 = Senior High School
+            const gradeNumMatch = String(rawGrade).match(/\d+/);
+            const gradeNum = gradeNumMatch ? parseInt(gradeNumMatch[0], 10) : null;
+            let dynamicLevelTag = 'STUDENT';
+            if (isAlumni) {
+              dynamicLevelTag = 'ALUMNI';
+            } else if (isGuest) {
+              if (gradeNum !== null) {
+                if (gradeNum >= 7 && gradeNum <= 10) dynamicLevelTag = 'GUEST (JUNIOR HIGH SCHOOL)';
+                else if (gradeNum >= 11 && gradeNum <= 12) dynamicLevelTag = 'GUEST (SENIOR HIGH SCHOOL)';
+                else dynamicLevelTag = 'GUEST APPLICANT';
+              } else {
+                dynamicLevelTag = 'GUEST INQUIRER';
+              }
+            } else if (gradeNum !== null) {
+              if (gradeNum >= 7 && gradeNum <= 10) dynamicLevelTag = 'JUNIOR HIGH SCHOOL';
+              else if (gradeNum >= 11 && gradeNum <= 12) dynamicLevelTag = 'SENIOR HIGH SCHOOL';
+            }
 
-            <div className="student-details-list">
-              <div className="student-detail-item">{ticket.isGuest ? 'Guest' : (ticket.studentId || 'N/A')}</div>
-              {(ticket.grade || ticket.studentGradeLevel || ticket.section || ticket.studentSection) && (
-                <div className="student-detail-item">
-                  {ticket.grade || ticket.studentGradeLevel || 'Grade N/A'} - {ticket.section || ticket.studentSection || 'Section N/A'}
+            return (
+              <div className="figma-card student-profile-card">
+                <div className="student-profile-avatar-circle">
+                  {ticket.studentProfilePicture ? (
+                    <img src={ticket.studentProfilePicture} alt="Profile" className="student-profile-photo" />
+                  ) : (
+                    <FaUserCircle className="student-profile-icon" />
+                  )}
                 </div>
-              )}
-              {ticket.parentGuardianName && (
-                <div className="student-detail-item">Guardian: {ticket.parentGuardianName}</div>
-              )}
-              {ticket.studentEmail && (
-                <div className="student-detail-item">{maskEmail(ticket.studentEmail)}</div>
-              )}
-            </div>
 
-            {ticket.studentEmail && isOwner ? (
-              <a 
-                href={`mailto:${ticket.studentEmail}?subject=Regarding Request %23${ticket.requestId}: ${encodeURIComponent(ticket.subject || '')}`}
-                className="btn-figma-contact"
-              >
-                <FaEnvelope className="contact-envelope-icon" />
-                <span>CONTACT STUDENT</span>
-              </a>
-            ) : (
-              <button 
-                type="button" 
-                className="btn-figma-contact" 
-                disabled
-                title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can contact the student` : "No email available"}
-              >
-                <FaEnvelope className="contact-envelope-icon" />
-                <span>CONTACT STUDENT</span>
-              </button>
-            )}
-          </div>
+                <h4 className="student-name-heading">
+                  {ticket.studentName || (isAlumni ? 'Alumni Requester' : isGuest ? 'Guest User' : 'Student')}
+                </h4>
+                <p className="student-level-tag">{dynamicLevelTag}</p>
+
+                <div className="student-details-list">
+                  {/* Student ID / Guest status */}
+                  <div className="student-detail-item">
+                    <span className="student-detail-label">ID:</span>{' '}
+                    <span className="student-detail-value">{rawId || (isGuest ? 'Guest (No ID)' : 'N/A')}</span>
+                  </div>
+
+                  {/* Grade & Section */}
+                  {(rawGrade || rawSection) && (
+                    <div className="student-detail-item">
+                      <span className="student-detail-label">Grade &amp; Section:</span>{' '}
+                      <span className="student-detail-value">
+                        {rawGrade && rawSection 
+                          ? `${rawGrade} - ${rawSection}` 
+                          : rawGrade || rawSection}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Parent / Guardian (if present) */}
+                  {guardianName && (
+                    <div className="student-detail-item">
+                      <span className="student-detail-label">Guardian:</span>{' '}
+                      <span className="student-detail-value">{guardianName}</span>
+                    </div>
+                  )}
+
+                  {/* Contact Number (if present) */}
+                  {(ticket.studentPhone || ticket.contactNumber) && (
+                    <div className="student-detail-item">
+                      <span className="student-detail-label">Phone:</span>{' '}
+                      <span className="student-detail-value">{ticket.studentPhone || ticket.contactNumber}</span>
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  {ticket.studentEmail && (
+                    <div className="student-detail-item" title={ticket.studentEmail}>
+                      <span className="student-detail-label">Email:</span>{' '}
+                      <span className="student-detail-value">{maskEmail(ticket.studentEmail)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {ticket.studentEmail && isOwner ? (
+                  <a 
+                    href={`mailto:${ticket.studentEmail}?subject=Regarding Request %23${ticket.requestId}: ${encodeURIComponent(ticket.subject || '')}`}
+                    className="btn-figma-contact"
+                  >
+                    <FaEnvelope className="contact-envelope-icon" />
+                    <span>{isGuest ? 'CONTACT GUEST' : 'CONTACT STUDENT'}</span>
+                  </a>
+                ) : (
+                  <button 
+                    type="button" 
+                    className="btn-figma-contact" 
+                    disabled
+                    title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can contact the student` : "No email available"}
+                  >
+                    <FaEnvelope className="contact-envelope-icon" />
+                    <span>{isGuest ? 'CONTACT GUEST' : 'CONTACT STUDENT'}</span>
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
         </div>
 
