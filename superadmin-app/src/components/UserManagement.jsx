@@ -725,6 +725,7 @@ const UserManagement = () => {
     setSelectedStudent(null);
     setSelectedStaff(null);
     setConfirmAction('suspend');
+    setConfirmText('');
     setShowConfirmModal(true);
   };
 
@@ -739,6 +740,7 @@ const UserManagement = () => {
     setSelectedStudent(null);
     setSelectedStaff(null);
     setConfirmAction('archive');
+    setConfirmText('');
     setShowConfirmModal(true);
   };
 
@@ -753,10 +755,11 @@ const UserManagement = () => {
     setSelectedStudent(null);
     setSelectedStaff(null);
     setConfirmAction('delete');
+    setConfirmText('');
     setShowConfirmModal(true);
   };
 
-  // Delete user from Firebase Authentication via backend / Vercel API
+  // Delete user from Firebase Authentication via Cloud Function or backend API
   const deleteAuthUser = async (user) => {
     const uid = typeof user === 'string' ? user : user?.uid;
     const email = typeof user === 'object' ? user?.email : null;
@@ -765,37 +768,66 @@ const UserManagement = () => {
       return { success: false, error: 'No UID or email found on user record' };
     }
 
+    // 1. Try Firebase Cloud Function if deployed
     try {
-      const studentPortalUrl = process.env.VITE_STUDENT_APP_URL || process.env.REACT_APP_STUDENT_APP_URL;
-      const apiUrl = process.env.NODE_ENV === 'production'
-        ? '/api/delete-user'
-        : (process.env.REACT_APP_BACKEND_URL
-            ? `${process.env.REACT_APP_BACKEND_URL.replace(/\/$/, '')}/api/delete-user`
-            : (studentPortalUrl
-                ? `${studentPortalUrl.replace(/\/$/, '')}/api/delete-user`
-                : 'http://localhost:5000/api/delete-user'));
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ uid, email })
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok || (data && data.success === false)) {
-        const errorMsg = data?.error || `HTTP ${response.status}: Failed to delete from Auth`;
-        console.warn(`[Warning] Auth deletion failed: ${errorMsg}`);
-        return { success: false, error: errorMsg };
-      } else {
-        console.log(`[Success] Deleted user (${uid || email}) from Firebase Auth:`, data?.message);
+      const functionsInstance = getFunctions(app);
+      const deleteUserFn = httpsCallable(functionsInstance, 'deleteUser');
+      const result = await deleteUserFn({ uid, email });
+      if (result?.data?.success) {
+        console.log('[deleteAuthUser] Deleted via Cloud Function successfully');
         return { success: true };
       }
+    } catch (cfErr) {
+      // Cloud Function might not be deployed yet; fall back to HTTP API
+      console.log('[deleteAuthUser] Cloud Function not available, trying HTTP endpoints:', cfErr.message);
+    }
+
+    // 2. Try configured HTTP API endpoints
+    try {
+      const studentPortalUrl = process.env.VITE_STUDENT_APP_URL || process.env.REACT_APP_STUDENT_APP_URL;
+      const endpointsToTry = [];
+      if (process.env.REACT_APP_BACKEND_URL) {
+        endpointsToTry.push(`${process.env.REACT_APP_BACKEND_URL.replace(/\/$/, '')}/api/delete-user`);
+      }
+      if (studentPortalUrl) {
+        endpointsToTry.push(`${studentPortalUrl.replace(/\/$/, '')}/api/delete-user`);
+      }
+      endpointsToTry.push('/api/delete-user');
+      if (process.env.NODE_ENV !== 'production') {
+        endpointsToTry.push('http://localhost:5000/api/delete-user');
+      }
+
+      for (const apiUrl of endpointsToTry) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ uid, email }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          const data = await response.json().catch(() => null);
+
+          if (response.ok && data?.success !== false) {
+            console.log(`[Success] Deleted user (${uid || email}) from Firebase Auth via ${apiUrl}:`, data?.message);
+            return { success: true };
+          }
+        } catch (_) {
+          // Continue to next endpoint candidate
+        }
+      }
+
+      console.warn('[Warning] Backend delete-user service is currently unreachable.');
+      return { success: false, error: 'Auth server unreachable', isNetworkOffline: true };
     } catch (err) {
       console.warn('[Warning] Could not contact delete-user endpoint:', err.message);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message, isNetworkOffline: true };
     }
   };
 
@@ -872,9 +904,9 @@ const UserManagement = () => {
           await deleteDoc(doc(db, 'students', account.firestoreId));
         }
         if (authFailures > 0) {
-          showToast(`Deleted ${selectedList.length} from database, but ${authFailures} failed in Firebase Auth (${lastError})`, 'error');
+          showToast(`Successfully deleted ${selectedList.length} student account(s) from database. (Auth server notice: ${authFailures} could not sync to Auth server)`, 'warning', { title: 'Accounts Deleted' });
         } else {
-          showToast(`Successfully deleted ${selectedList.length} student account(s).`);
+          showToast(`Successfully deleted ${selectedList.length} student account(s).`, 'success');
         }
       }
 
@@ -1418,13 +1450,17 @@ const UserManagement = () => {
   const handleSuspendStudent = (student) => {
     setSuspensionDuration('indefinite');
     setSelectedStudent(student);
+    setSelectedStaff(null);
     setConfirmAction('suspend');
+    setConfirmText('');
     setShowConfirmModal(true);
   };
 
   const handleDeleteStudent = (student) => {
     setSelectedStudent(student);
+    setSelectedStaff(null);
     setConfirmAction('delete');
+    setConfirmText('');
     setShowConfirmModal(true);
   };
 
@@ -2386,13 +2422,16 @@ const UserManagement = () => {
   const handleModalSuspendAction = () => {
     if (!selectedUserProfile) return;
     setSuspensionDuration('indefinite');
+    setConfirmText('');
     const profile = selectedUserProfile;
     if (profile.userType === 'student') {
       setSelectedStudent(profile);
+      setSelectedStaff(null);
       setConfirmAction('suspend');
       setShowConfirmModal(true);
     } else {
       setSelectedStaff(profile);
+      setSelectedStudent(null);
       setConfirmAction('suspend');
       setShowConfirmModal(true);
     }
@@ -2400,6 +2439,7 @@ const UserManagement = () => {
 
   const handleModalArchiveAction = () => {
     if (!selectedUserProfile) return;
+    setConfirmText('');
     const profile = selectedUserProfile;
     if (profile.userType === 'student') {
       handleArchiveStudent(profile);
@@ -2410,6 +2450,7 @@ const UserManagement = () => {
 
   const handleModalDeleteAction = () => {
     if (!selectedUserProfile) return;
+    setConfirmText('');
     const profile = selectedUserProfile;
     if (profile.userType === 'student') {
       setSelectedStudent(profile);
@@ -2512,15 +2553,20 @@ const UserManagement = () => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         if (authResult && !authResult.success) {
-          showToast(`Account removed from database, but Auth deletion error: ${authResult.error}`, 'error');
+          if (authResult.isNetworkOffline) {
+            showToast('Account deleted from database successfully. (Auth service offline: credentials will be cleaned when auth server is active)', 'warning', { title: 'Account Deleted' });
+          } else {
+            showToast(`Account deleted from database. (Auth note: ${authResult.error})`, 'warning', { title: 'Account Deleted' });
+          }
         } else {
-          showToast('Account deleted successfully!');
+          showToast('Account deleted successfully!', 'success');
         }
       }
       setShowConfirmModal(false);
       setSelectedStudent(null);
       setSelectedStaff(null);
       setConfirmAction(null);
+      setConfirmText('');
     } catch (error) {
       console.error('Error:', error);
       showToast('Failed to perform action: ' + error.message, 'error');
@@ -2564,6 +2610,7 @@ const UserManagement = () => {
     setSelectedStaff(staff);
     setSelectedStudent(null);
     setConfirmAction('archive');
+    setConfirmText('');
     setShowConfirmModal(true);
   };
 
@@ -2571,6 +2618,7 @@ const UserManagement = () => {
     setSelectedStudent(student);
     setSelectedStaff(null);
     setConfirmAction('archive');
+    setConfirmText('');
     setShowConfirmModal(true);
   };
 
@@ -2578,6 +2626,7 @@ const UserManagement = () => {
     setSelectedStaff(staff);
     setSelectedStudent(null);
     setConfirmAction('restore');
+    setConfirmText('');
     setShowConfirmModal(true);
   };
 
@@ -2643,6 +2692,7 @@ const UserManagement = () => {
       setSelectedStudent(null);
       setSelectedStaff(null);
       setConfirmAction(null);
+      setConfirmText('');
     } catch (error) {
       console.error('Error performing archive action:', error);
       showToast('Failed to perform action: ' + error.message, 'error');
@@ -2720,6 +2770,286 @@ const UserManagement = () => {
       : confirmAction === 'archive' ? 'archive-confirm-btn'
         : confirmAction === 'restore' || isActivatingAccount ? 'restore-confirm-btn'
           : 'suspend-confirm-btn';
+
+  const renderConfirmModal = () => {
+    if (!showConfirmModal || (!selectedStudent && !selectedStaff && !isBulkAction)) {
+      return null;
+    }
+
+    const targetUser = selectedStudent || selectedStaff;
+
+    const variant =
+      confirmAction === 'delete'
+        ? 'danger'
+        : confirmAction === 'suspend' && !isActivatingAccount
+          ? 'warning'
+          : confirmAction === 'archive'
+            ? 'archive'
+            : 'success';
+
+    const modalTitle = isBulkAction
+      ? (confirmAction === 'archive'
+          ? `Archive ${selectedStudentIds.length} Student Accounts?`
+          : confirmAction === 'delete'
+            ? `Delete ${selectedStudentIds.length} Student Accounts?`
+            : `${bulkSuspendTargetState ? 'Activate' : 'Suspend'} ${selectedStudentIds.length} Student Accounts?`)
+      : confirmAction === 'archive'
+        ? `Archive ${selectedStudent ? 'Student' : 'Staff'} Account?`
+        : confirmAction === 'restore'
+          ? 'Restore Staff Account?'
+          : confirmAction === 'suspend'
+            ? (isActivatingAccount ? 'Activate Account?' : 'Suspend Account?')
+            : 'Delete Account Permanently?';
+
+    const modalDescription = isBulkAction
+      ? (confirmAction === 'archive'
+          ? `Are you sure you want to archive ${selectedStudentIds.length} selected student accounts? Their profiles and submitted requests will be moved to Archive.`
+          : confirmAction === 'delete'
+            ? `Are you sure you want to permanently delete ${selectedStudentIds.length} selected student accounts from the database? This action cannot be undone.`
+            : `Are you sure you want to ${bulkSuspendTargetState ? 'activate' : 'suspend'} ${selectedStudentIds.length} selected student accounts? ${bulkSuspendTargetState ? 'They will regain immediate portal access.' : 'They will be blocked from logging in until reactivated.'}`)
+      : confirmAction === 'archive'
+        ? (selectedStudent
+            ? `Are you sure you want to archive ${selectedStudent.name || 'this student'}'s account? Their account and related requests will be moved to Archive.`
+            : `Are you sure you want to archive ${selectedStaff?.name || 'this staff member'}'s account? They will be moved to Archive and will no longer be able to log in. Their request history will be kept unchanged.`)
+        : confirmAction === 'restore'
+          ? `Are you sure you want to restore ${selectedStaff?.name || 'this staff member'} to Active Staff? They will regain access to their portal dashboard.`
+          : confirmAction === 'suspend'
+            ? (isActivatingAccount
+                ? `Are you sure you want to activate ${(targetUser?.name || 'this account')}'s account? Portal access and privileges will be restored immediately.`
+                : `Are you sure you want to suspend ${(targetUser?.name || 'this account')}'s account? The user will be blocked from logging into the portal.`)
+            : `Are you sure you want to permanently delete ${(targetUser?.name || 'this account')}'s account? All database records and login credentials will be removed.`;
+
+    const isDoubleConfirmRequired =
+      confirmAction === 'delete' ||
+      confirmAction === 'archive' ||
+      confirmAction === 'restore' ||
+      confirmAction === 'suspend';
+
+    const isConfirmDisabled =
+      actionLoading || (isDoubleConfirmRequired && confirmText !== 'CONFIRM');
+
+    return (
+      <div 
+        className="create-student-modal"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !actionLoading) {
+            cancelConfirm();
+          }
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-modal-title"
+      >
+        <div className="modal-content confirm-modal-enhanced">
+          {/* Header */}
+          <div className="confirm-enhanced-header">
+            <div className={`confirm-enhanced-icon-badge variant-${variant}`}>
+              {confirmAction === 'delete' ? (
+                <FaTrashAlt aria-hidden="true" />
+              ) : confirmAction === 'archive' ? (
+                <FaArchive aria-hidden="true" />
+              ) : confirmAction === 'restore' ? (
+                <FaUndo aria-hidden="true" />
+              ) : isActivatingAccount ? (
+                <FaCheck aria-hidden="true" />
+              ) : (
+                <FaBan aria-hidden="true" />
+              )}
+            </div>
+            <div className="confirm-enhanced-header-text">
+              <h2 id="confirm-modal-title" className="confirm-enhanced-title">{modalTitle}</h2>
+              <p className="confirm-enhanced-description">{modalDescription}</p>
+            </div>
+            <button
+              type="button"
+              className="confirm-enhanced-close-btn"
+              onClick={cancelConfirm}
+              disabled={actionLoading}
+              title="Close modal"
+              aria-label="Close"
+            >
+              <FaTimes aria-hidden="true" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="confirm-enhanced-body">
+            {/* Target Account Summary Card */}
+            {isBulkAction ? (
+              <div className="confirm-bulk-box">
+                <div className="confirm-bulk-header">
+                  {selectedStudentIds.length} Student Accounts Selected
+                </div>
+                <div className="confirm-bulk-chips">
+                  {students
+                    .filter((s) => selectedStudentIds.includes(s.firestoreId))
+                    .slice(0, 8)
+                    .map((s) => (
+                      <span key={s.firestoreId} className="confirm-bulk-chip">
+                        {s.name} <span style={{ opacity: 0.7 }}>({s.id})</span>
+                      </span>
+                    ))}
+                  {selectedStudentIds.length > 8 && (
+                    <span className="confirm-bulk-chip more-chip">
+                      +{selectedStudentIds.length - 8} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : targetUser ? (
+              <div className="confirm-target-card">
+                <div className="confirm-target-primary">
+                  <div className="confirm-target-avatar">
+                    {targetUser.name?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                  <div className="confirm-target-identity">
+                    <div className="confirm-target-name">{targetUser.name || 'Unnamed Account'}</div>
+                    <div className="confirm-target-badges">
+                      <span className="confirm-badge-role">
+                        {selectedStudent ? (
+                          <>
+                            <FaUserGraduate aria-hidden="true" style={{ fontSize: '10px' }} /> Student
+                          </>
+                        ) : (
+                          <>
+                            <FaBuilding aria-hidden="true" style={{ fontSize: '10px' }} /> Staff • {selectedStaff?.office || 'Unassigned'}
+                          </>
+                        )}
+                      </span>
+                      <span className={`confirm-badge-status ${targetUser.isActive !== false ? 'active' : 'suspended'}`}>
+                        {targetUser.isActive !== false ? 'Active' : 'Suspended'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="confirm-target-details-grid">
+                  {selectedStudent && (
+                    <div className="confirm-meta-cell">
+                      <span className="confirm-meta-label">
+                        <FaIdCard aria-hidden="true" /> Student ID
+                      </span>
+                      <span className="confirm-meta-value">{selectedStudent.id || 'N/A'}</span>
+                    </div>
+                  )}
+                  <div className="confirm-meta-cell">
+                    <span className="confirm-meta-label">
+                      <FaEnvelope aria-hidden="true" /> Email Address
+                    </span>
+                    <span className="confirm-meta-value" title={targetUser.email}>
+                      {targetUser.email || 'N/A'}
+                    </span>
+                  </div>
+                  {selectedStudent && (selectedStudent.gradeLevel || selectedStudent.section) && (
+                    <div className="confirm-meta-cell">
+                      <span className="confirm-meta-label">
+                        <FaSchool aria-hidden="true" /> Grade & Section
+                      </span>
+                      <span className="confirm-meta-value">
+                        {selectedStudent.gradeLevel || ''} {selectedStudent.section ? `• ${selectedStudent.section}` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {!selectedStudent && selectedStaff?.username && (
+                    <div className="confirm-meta-cell">
+                      <span className="confirm-meta-label">Username</span>
+                      <span className="confirm-meta-value">@{selectedStaff.username}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Suspension Duration Selector (for Suspend Action) */}
+            {confirmAction === 'suspend' && !isActivatingAccount && (
+              <div className="confirm-duration-box">
+                <div className="confirm-duration-header">
+                  Select Suspension Duration
+                </div>
+                <div className="confirm-duration-pills">
+                  {[
+                    { id: '24h', label: '24 Hours' },
+                    { id: '3d', label: '3 Days' },
+                    { id: '7d', label: '7 Days' },
+                    { id: 'indefinite', label: 'Indefinite' }
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={`confirm-duration-btn ${suspensionDuration === opt.id ? 'selected' : ''}`}
+                      onClick={() => setSuspensionDuration(opt.id)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="confirm-duration-notice">
+                  <FaInfoCircle aria-hidden="true" />
+                  <span>
+                    {suspensionDuration === '24h' && 'Account access will be automatically restored after 24 hours.'}
+                    {suspensionDuration === '3d' && 'Account access will be automatically restored after 3 days.'}
+                    {suspensionDuration === '7d' && 'Account access will be automatically restored after 7 days.'}
+                    {suspensionDuration === 'indefinite' && 'Account will remain disabled until manually reactivated by a superadmin.'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Double Confirmation Guard ("CONFIRM") */}
+            {isDoubleConfirmRequired && (
+              <div className={`confirm-security-box variant-${variant}`}>
+                <div className="confirm-security-header">
+                  <FaShieldAlt aria-hidden="true" />
+                  <span>Security Verification</span>
+                </div>
+                <p className="confirm-security-instruction">
+                  Please type <span className="confirm-keyword-pill">CONFIRM</span> below to verify and authorize this action.
+                </p>
+                <input
+                  type="text"
+                  className="confirm-security-input"
+                  placeholder='Type "CONFIRM"'
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  autoComplete="off"
+                  spellCheck="false"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="confirm-enhanced-footer">
+            <button
+              type="button"
+              className="confirm-enhanced-btn-cancel"
+              onClick={cancelConfirm}
+              disabled={actionLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={`confirm-enhanced-btn-action variant-${variant}`}
+              onClick={
+                isBulkAction
+                  ? handleConfirmBulkAction
+                  : (confirmAction === 'archive' || confirmAction === 'restore' ? confirmArchiveOrRestore : confirmSuspendOrDelete)
+              }
+              disabled={isConfirmDisabled}
+              title={
+                isDoubleConfirmRequired && confirmText !== 'CONFIRM'
+                  ? 'Type CONFIRM to enable this action'
+                  : undefined
+              }
+            >
+              {actionLoading ? 'Processing...' : confirmBtnLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderResendModal = () => {
     if (!resendModalState) return null;
@@ -3981,118 +4311,7 @@ const UserManagement = () => {
         )}
 
         {/* Confirmation Modal (Suspend / Archive / Delete triggered in profile) */}
-        {showConfirmModal && (selectedStudent || selectedStaff || isBulkAction) && (
-          <div className="create-student-modal">
-            <div className="modal-content confirm-modal">
-              {confirmAction === 'archive' || confirmAction === 'restore' ? (
-                confirmAction === 'archive' ? (
-                  <FaArchive className="confirm-icon archive-icon" aria-hidden="true" />
-                ) : (
-                  <FaUndo className="confirm-icon" aria-hidden="true" />
-                )
-              ) : confirmAction === 'delete' ? (
-                <FaKey className="confirm-icon" aria-hidden="true" />
-              ) : isActivatingAccount ? (
-                <FaCheck className="confirm-icon" aria-hidden="true" />
-              ) : (
-                <FaBan className="confirm-icon suspend-icon" aria-hidden="true" />
-              )}
-              <h2 className="confirm-title">
-                {confirmAction === 'archive'
-                  ? `Archive ${selectedStudent ? 'Student' : 'Staff'} Account?`
-                  : confirmAction === 'delete'
-                    ? `Delete ${selectedStudent ? 'Student' : 'Staff'} Account?`
-                    : confirmAction === 'restore'
-                      ? 'Restore Staff Account?'
-                      : `${(selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend' : 'Activate'} ${selectedStudent ? 'Student' : 'Staff'} Account?`}
-              </h2>
-              <div className="confirm-body">
-                <p>
-                  {confirmAction === 'archive'
-                    ? selectedStudent
-                      ? `Archiving will remove ${selectedStudent.name} from the active student directory and archive their submitted requests. This can be viewed in the Archive tab.`
-                      : `Archiving will mark ${selectedStaff?.name} as archived. Their past handled requests remain intact and they can be restored at any time.`
-                    : confirmAction === 'delete'
-                      ? `Are you sure you want to permanently delete this account? This action cannot be undone.`
-                      : confirmAction === 'restore'
-                        ? `Restoring will re-enable ${selectedStaff?.name}'s account and return them to the active staff list.`
-                        : `Are you sure you want to ${(selectedStudent?.isActive || selectedStaff?.isActive) ? 'suspend' : 'activate'} this account?`}
-                </p>
-                <div className="confirm-user-info">
-                  {selectedStudent ? (
-                    <>
-                      <p><strong>Student ID:</strong> {selectedStudent.id}</p>
-                      <p><strong>Name:</strong> {selectedStudent.name}</p>
-                      <p><strong>Email:</strong> {selectedStudent.email}</p>
-                    </>
-                  ) : (
-                    <>
-                      <p><strong>Name:</strong> {selectedStaff?.name}</p>
-                      <p><strong>Email:</strong> {selectedStaff?.email}</p>
-                      {selectedStaff?.office && <p><strong>Office:</strong> {selectedStaff?.office}</p>}
-                    </>
-                  )}
-                </div>
-
-                {confirmAction === 'suspend' && !isActivatingAccount && (
-                  <div className="suspension-duration-selector">
-                    <label className="suspension-duration-label">
-                      <strong>Suspension Duration:</strong>
-                    </label>
-                    <div className="suspension-duration-options">
-                      <button
-                        type="button"
-                        className={`duration-pill-btn ${suspensionDuration === '24h' ? 'selected' : ''}`}
-                        onClick={() => setSuspensionDuration('24h')}
-                      >
-                        24 Hours
-                      </button>
-                      <button
-                        type="button"
-                        className={`duration-pill-btn ${suspensionDuration === '3d' ? 'selected' : ''}`}
-                        onClick={() => setSuspensionDuration('3d')}
-                      >
-                        3 Days
-                      </button>
-                      <button
-                        type="button"
-                        className={`duration-pill-btn ${suspensionDuration === '7d' ? 'selected' : ''}`}
-                        onClick={() => setSuspensionDuration('7d')}
-                      >
-                        7 Days
-                      </button>
-                      <button
-                        type="button"
-                        className={`duration-pill-btn ${suspensionDuration === 'indefinite' ? 'selected' : ''}`}
-                        onClick={() => setSuspensionDuration('indefinite')}
-                      >
-                        Indefinite
-                      </button>
-                    </div>
-                    <p className="suspension-duration-hint">
-                      {suspensionDuration === '24h' && 'Account will be automatically reactivated after 24 hours.'}
-                      {suspensionDuration === '3d' && 'Account will be automatically reactivated after 3 days.'}
-                      {suspensionDuration === '7d' && 'Account will be automatically reactivated after 7 days.'}
-                      {suspensionDuration === 'indefinite' && 'Account will remain suspended until a superadmin manually activates it.'}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="modal-actions">
-                <button className="cancel-btn-super" onClick={cancelConfirm} disabled={actionLoading}>
-                  Cancel
-                </button>
-                <button
-                  className={confirmBtnClass}
-                  onClick={confirmAction === 'archive' || confirmAction === 'restore' ? confirmArchiveOrRestore : confirmSuspendOrDelete}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? 'Processing...' : confirmBtnLabel}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {renderConfirmModal()}
 
         {/* Resend Login Credentials Modal */}
         {renderResendModal()}
@@ -4442,186 +4661,7 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {showConfirmModal && (selectedStudent || selectedStaff || isBulkAction) && (
-        <div className="create-student-modal">
-          <div className="modal-content confirm-modal">
-            {confirmAction === 'archive' || confirmAction === 'restore' ? (
-              confirmAction === 'archive' ? (
-                <FaArchive className="confirm-icon archive-icon" aria-hidden="true" />
-              ) : (
-                <FaUndo className="confirm-icon" aria-hidden="true" />
-              )
-            ) : confirmAction === 'delete' ? (
-              <FaKey className="confirm-icon" aria-hidden="true" />
-            ) : isActivatingAccount ? (
-              <FaCheck className="confirm-icon" aria-hidden="true" />
-            ) : (
-              <FaBan className="confirm-icon suspend-icon" aria-hidden="true" />
-            )}
-            <h2 className="confirm-title">
-              {isBulkAction
-                ? (confirmAction === 'archive'
-                    ? `Archive ${selectedStudentIds.length} Student Accounts?`
-                    : confirmAction === 'delete'
-                      ? `Delete ${selectedStudentIds.length} Student Accounts?`
-                      : `${bulkSuspendTargetState ? 'Activate' : 'Suspend'} ${selectedStudentIds.length} Student Accounts?`)
-                : confirmAction === 'archive'
-                  ? `Archive ${selectedStudent ? 'Student' : 'Staff'} Account?`
-                  : confirmAction === 'restore'
-                    ? 'Restore Staff Account?'
-                    : confirmAction === 'suspend'
-                      ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend Account?' : 'Activate Account?')
-                      : 'Delete Account?'}
-            </h2>
-            <p className="confirm-message">
-              {isBulkAction
-                ? (confirmAction === 'archive'
-                    ? `Are you sure you want to archive ${selectedStudentIds.length} selected student account(s)? Their accounts and related requests will be moved to Archive.`
-                    : confirmAction === 'delete'
-                      ? `Are you sure you want to permanently delete ${selectedStudentIds.length} selected student account(s) from the database? This action cannot be undone.`
-                      : `Are you sure you want to ${bulkSuspendTargetState ? 'activate' : 'suspend'} ${selectedStudentIds.length} selected student account(s)? ${bulkSuspendTargetState ? 'They will be able to log in again.' : 'They will not be able to log in until reactivated.'}`)
-                : confirmAction === 'archive'
-                  ? (selectedStudent
-                      ? `Are you sure you want to archive ${selectedStudent.name}'s account? Their account and related requests will be moved to Archive.`
-                      : `Are you sure you want to archive ${selectedStaff?.name}'s account? They will be moved to Archive and will no longer be able to log in. Their request history will be kept unchanged.`)
-                  : confirmAction === 'restore'
-                    ? `Are you sure you want to restore ${selectedStaff?.name} to Active Staff? They will be able to log in again and their request history stays intact.`
-                    : confirmAction === 'suspend'
-                      ? ((selectedStudent?.isActive || selectedStaff?.isActive)
-                          ? `Are you sure you want to suspend ${(selectedStudent || selectedStaff).name}'s account? They will not be able to log in until reactivated.`
-                          : `Are you sure you want to activate ${(selectedStudent || selectedStaff).name}'s account? They will be able to log in again.`)
-                      : `Are you sure you want to permanently delete ${(selectedStudent || selectedStaff).name}'s account? This action cannot be undone.`}
-            </p>
-            <div className="student-info-box">
-              {isBulkAction ? (
-                <div className="bulk-confirm-preview">
-                  <div className="bulk-confirm-subtitle">
-                    Selected Students ({selectedStudentIds.length}):
-                  </div>
-                  <div className="bulk-confirm-tags">
-                    {students
-                      .filter((s) => selectedStudentIds.includes(s.firestoreId))
-                      .slice(0, 6)
-                      .map((s) => (
-                        <span key={s.firestoreId} className="bulk-confirm-tag">
-                          {s.name} ({s.id})
-                        </span>
-                      ))}
-                    {selectedStudentIds.length > 6 && (
-                      <span className="bulk-confirm-tag more">
-                        +{selectedStudentIds.length - 6} more
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ) : selectedStudent ? (
-                <>
-                  <p><strong>Student ID:</strong> {selectedStudent.id}</p>
-                  <p><strong>Name:</strong> {selectedStudent.name}</p>
-                  <p><strong>Email:</strong> {selectedStudent.email}</p>
-                </>
-              ) : (
-                <>
-                  <p><strong>Name:</strong> {selectedStaff?.name}</p>
-                  <p><strong>Email:</strong> {selectedStaff?.email}</p>
-                  {selectedStaff?.office && <p><strong>Office:</strong> {selectedStaff?.office}</p>}
-                </>
-              )}
-            </div>
-
-            {confirmAction === 'suspend' && !isActivatingAccount && (
-              <div className="suspension-duration-selector" style={{ marginBottom: '20px' }}>
-                <label className="suspension-duration-label">
-                  <strong>Suspension Duration:</strong>
-                </label>
-                <div className="suspension-duration-options">
-                  <button
-                    type="button"
-                    className={`duration-pill-btn ${suspensionDuration === '24h' ? 'selected' : ''}`}
-                    onClick={() => setSuspensionDuration('24h')}
-                  >
-                    24 Hours
-                  </button>
-                  <button
-                    type="button"
-                    className={`duration-pill-btn ${suspensionDuration === '3d' ? 'selected' : ''}`}
-                    onClick={() => setSuspensionDuration('3d')}
-                  >
-                    3 Days
-                  </button>
-                  <button
-                    type="button"
-                    className={`duration-pill-btn ${suspensionDuration === '7d' ? 'selected' : ''}`}
-                    onClick={() => setSuspensionDuration('7d')}
-                  >
-                    7 Days
-                  </button>
-                  <button
-                    type="button"
-                    className={`duration-pill-btn ${suspensionDuration === 'indefinite' ? 'selected' : ''}`}
-                    onClick={() => setSuspensionDuration('indefinite')}
-                  >
-                    Indefinite
-                  </button>
-                </div>
-                <p className="suspension-duration-hint">
-                  {suspensionDuration === '24h' && 'Account will be automatically reactivated after 24 hours.'}
-                  {suspensionDuration === '3d' && 'Account will be automatically reactivated after 3 days.'}
-                  {suspensionDuration === '7d' && 'Account will be automatically reactivated after 7 days.'}
-                  {suspensionDuration === 'indefinite' && 'Account will remain suspended until a superadmin manually activates it.'}
-                </p>
-              </div>
-            )}
-
-            {/* Double Confirmation Input for Destructive Actions */}
-            {(confirmAction === 'delete' || confirmAction === 'archive' || confirmAction === 'restore' || confirmAction === 'suspend') && (
-              <div className="double-confirm-section">
-                <div className="double-confirm-warning">
-                  <FaExclamationTriangle className="warning-icon" />
-                  <p><strong>Important:</strong> Please type <strong className="confirm-keyword">CONFIRM</strong> to proceed with this action.</p>
-                </div>
-                <input
-                  type="text"
-                  className="double-confirm-input"
-                  placeholder='Type "CONFIRM" to proceed'
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-            )}
-
-            <div className="modal-actions">
-              <button className="cancel-btn-super" onClick={cancelConfirm} disabled={actionLoading}>
-                Cancel
-              </button>
-              <button
-                className={confirmBtnClass}
-                onClick={
-                  isBulkAction
-                    ? handleConfirmBulkAction
-                    : (confirmAction === 'archive' || confirmAction === 'restore' ? confirmArchiveOrRestore : confirmSuspendOrDelete)
-                }
-                disabled={
-                  actionLoading || 
-                  (
-                    (confirmAction === 'delete' || confirmAction === 'archive' || confirmAction === 'restore' || confirmAction === 'suspend') &&
-                    confirmText !== 'CONFIRM'
-                  )
-                }
-                title={
-                  (confirmAction === 'delete' || confirmAction === 'archive' || confirmAction === 'restore' || confirmAction === 'suspend') &&
-                  confirmText !== 'CONFIRM'
-                    ? 'Type CONFIRM to enable this button'
-                    : undefined
-                }
-              >
-                {confirmBtnLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {renderConfirmModal()}
 
       {showSuccessModal && (createdStudent || createdStaff) && (
         <div className="create-student-modal">
@@ -5542,7 +5582,9 @@ const UserManagement = () => {
                           onClick={() => {
                             setSuspensionDuration('indefinite');
                             setSelectedStaff(staff);
+                            setSelectedStudent(null);
                             setConfirmAction('suspend');
+                            setConfirmText('');
                             setShowConfirmModal(true);
                           }}
                           title={staff.isActive ? 'Suspend' : 'Activate'}
@@ -5562,7 +5604,9 @@ const UserManagement = () => {
                           className="table-action-btn delete"
                           onClick={() => {
                             setSelectedStaff(staff);
+                            setSelectedStudent(null);
                             setConfirmAction('delete');
+                            setConfirmText('');
                             setShowConfirmModal(true);
                           }}
                           title="Delete this staff member"

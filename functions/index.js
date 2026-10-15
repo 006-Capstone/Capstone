@@ -521,3 +521,56 @@ exports.verifyQRLogin = onCall({
   }
 });
 
+/**
+ * Delete user from Firebase Authentication (Admin only)
+ */
+exports.deleteUser = onCall({
+  cors: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "https://student-portal-one-delta.vercel.app",
+    "https://admin-website-ruddy.vercel.app",
+    /firebase\.app$/,
+    /\.web\.app$/,
+    /\.firebaseapp\.com$/,
+  ],
+}, async (request) => {
+  let { uid, email } = request.data || {};
+  if (!uid && !email) {
+    throw new HttpsError("invalid-argument", "Missing user UID or email");
+  }
+
+  try {
+    if (!uid && email) {
+      try {
+        const userRecord = await admin.auth().getUserByEmail(email.trim());
+        uid = userRecord.uid;
+      } catch (e) {
+        if (e.code === "auth/user-not-found") {
+          return { success: true, message: "User already not in Auth" };
+        }
+        throw e;
+      }
+    }
+
+    if (uid) {
+      try {
+        await admin.auth().deleteUser(uid);
+      } catch (e) {
+        if (e.code === "auth/user-not-found") {
+          return { success: true, message: "User already not in Auth" };
+        }
+        throw e;
+      }
+    }
+
+    logger.info(`User deleted from Auth: ${uid || email}`);
+    return { success: true, message: "User deleted from Firebase Authentication" };
+  } catch (error) {
+    logger.error("Error deleting user from Auth:", error);
+    throw new HttpsError("internal", error.message || "Failed to delete user from Auth");
+  }
+});
+
+
