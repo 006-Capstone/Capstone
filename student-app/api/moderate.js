@@ -28,9 +28,47 @@ export default async function handler(req, res) {
   try {
     const groq = new Groq({ apiKey });
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const { subject, description } = body;
+    const { subject, description, officeName } = body;
 
-    console.log("Calling Groq completion with model:", MODEL_NAME);
+    console.log("Calling Groq completion with model:", MODEL_NAME, "for office:", officeName || 'N/A', "subject:", subject);
+
+    const systemPrompt = `You are a strict, professional AI content moderation system for Academia De San Jose's official student ticketing portal.
+Your task is to analyze ticket inquiries submitted by students, parents, or alumni, and ensure they meet school standards.
+
+Departments and their general scope:
+- Accounting: Tuition fees, payment plans, refunds, billing statements, student accounts, balance inquiries.
+- Registrar: Official records, grades, enrollment, graduation certificate, TOR, diploma, transfer credentials. (NOTE: Form 137 requests are strictly forbidden).
+- Library: Book borrowing, returns, lost books, library cards, archival resource access.
+- Guidance: Good moral character certificate, counseling, disciplinary inquiries, behavior concerns.
+
+Evaluation Criteria:
+1. APPROVAL & RELEVANCE:
+   - Does the description have a genuine, sensible connection to the selected department (${officeName || 'School Office'}) and subject (${subject})?
+   - Reject if the description has nothing to do with the selected subject (e.g., subject is "Balance Verification" but description is "I want to buy food in the cafeteria" or "Can I borrow a basketball?").
+   - Reject completely irrelevant, nonsensical, or off-topic inquiries.
+
+2. SPAM & GIBBERISH:
+   - Reject keyboard mashing, repeated characters, nonsensical words, or joke submissions (e.g., "asdfasdf", "test test test", "haha lol", "qwertyuiop").
+
+3. PROFANITY & HARASSMENT:
+   - Check English, Filipino/Tagalog, and Bisaya/Cebuano for profanity, insults, slurs, threats, aggressive demands, or abusive language.
+   - Legitimate expressions of urgency (e.g., "I need this urgently before deadline") are acceptable.
+
+4. FORM 137:
+   - If the description requests "Form 137" or "SF10", set approved: false, isRelevant: false, and note that Form 137 cannot be requested directly by students.
+
+Respond ONLY with a valid JSON object in this exact schema (no markdown, no extra commentary):
+{
+  "approved": boolean,
+  "isRelevant": boolean,
+  "relevanceReason": "string (clear explanation if not relevant, or empty string if relevant)",
+  "isSpam": boolean,
+  "hasProfanity": boolean,
+  "profanityReason": "string (explanation if profanity found, or empty string)",
+  "reason": "string (overall summary of reason if not approved, or 'Content is appropriate and relevant' if approved)",
+  "language": "english" | "tagalog" | "bisaya" | "mixed" | "unknown",
+  "tone": "appropriate" | "inappropriate" | "aggressive" | "neutral"
+}`;
 
     try {
       const completion = await groq.chat.completions.create({
@@ -38,13 +76,14 @@ export default async function handler(req, res) {
         messages: [
           {
             role: 'system',
-            content: 'You are an AI content moderator for a school ticketing portal. Check if the description is appropriate, polite, and relevant to the ticket subject. Respond ONLY with valid JSON: {"approved": true, "reason": "Appropriate"}'
+            content: systemPrompt
           },
           {
             role: 'user',
-            content: `Subject: ${subject}\nDescription: ${description}`
+            content: `Target Office: ${officeName || 'General Office'}\nSubject: ${subject}\nDescription: ${description}`
           }
         ],
+        temperature: 0.1,
         response_format: { type: 'json_object' }
       });
 
@@ -59,7 +98,11 @@ export default async function handler(req, res) {
       // Fallback gracefully so student ticket submission doesn't get blocked
       return res.status(200).json({
         approved: true,
-        reason: "Fallback: AI service temporarily bypass"
+        isRelevant: true,
+        isSpam: false,
+        hasProfanity: false,
+        reason: "Fallback: AI service temporarily bypass",
+        fallback: true
       });
     }
   } catch (error) {

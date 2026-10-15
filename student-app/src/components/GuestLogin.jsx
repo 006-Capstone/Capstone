@@ -94,55 +94,6 @@ const defaultGuestOffices = [
   }
 ];
 
-const defaultAlumniOffices = [
-  {
-    id: 'registrar',
-    name: 'Registrar',
-    description: 'Handles official alumni credentials, Transcript of Records (TOR), diploma copies, Form 137, and graduation certificates.',
-    subjects: [
-      'Transcript of Records (TOR)',
-      'Certified True Copy of Diploma',
-      'Form 137 / Permanent Student Record',
-      'Certificate of Graduation',
-      'Certificate of Medium of Instruction',
-      'Honorable Dismissal / Transfer Credential',
-      'Other Official Academic Document'
-    ]
-  },
-  {
-    id: 'guidance',
-    name: 'Guidance',
-    description: 'Issues certificates of good moral character, character references, and alumni clearance.',
-    subjects: [
-      'Certificate of Good Moral Character',
-      'Recommendation / Character Reference',
-      'Alumni Clearance',
-      'Other Guidance Concern'
-    ]
-  },
-  {
-    id: 'finance',
-    name: 'Accounting',
-    description: 'Assists alumni with payment verification, statement of account, and financial clearance.',
-    subjects: [
-      'Alumni Account Clearance',
-      'Payment Verification',
-      'Official Receipt Verification',
-      'Billing / Ledger Inquiry'
-    ]
-  },
-  {
-    id: 'library',
-    name: 'Library',
-    description: 'Handles library clearance confirmation and archival document retrieval.',
-    subjects: [
-      'Library Clearance Certificate',
-      'Archival Resource Access',
-      'Other Library Request'
-    ]
-  }
-];
-
 const random3 = () => Math.floor(100 + Math.random() * 900);
 
 const addDays = (date, days) => {
@@ -250,7 +201,6 @@ const GuestLogin = ({ onLogout }) => {
 
   // Dynamic Office & Subject Configuration (Synced live from Firestore 'config/requestForm')
   const [guestOffices, setGuestOffices] = useState(defaultGuestOffices);
-  const [alumniOffices, setAlumniOffices] = useState(defaultAlumniOffices);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -273,39 +223,13 @@ const GuestLogin = ({ onLogout }) => {
               return o;
             });
             setGuestOffices(normalized);
-
-            if (Array.isArray(data.alumniOffices) && data.alumniOffices.length > 0) {
-              const normalizedAlumni = data.alumniOffices.map((o) => {
-                if (o.name === 'Finance' || o.id === 'finance') {
-                  return { ...o, name: 'Accounting' };
-                }
-                return o;
-              });
-              setAlumniOffices(normalizedAlumni);
-            } else {
-              const mergedAlumni = defaultAlumniOffices.map((alm) => {
-                const matched = normalized.find(
-                  (o) => o.id === alm.id || o.name?.toLowerCase() === alm.name?.toLowerCase()
-                );
-                if (matched) {
-                  return {
-                    ...alm,
-                    name: matched.name
-                  };
-                }
-                return alm;
-              });
-              setAlumniOffices(mergedAlumni);
-            }
           } else {
             setGuestOffices(defaultGuestOffices);
-            setAlumniOffices(defaultAlumniOffices);
           }
         },
         (error) => {
           console.warn('[GuestLogin] Error subscribing to requestForm config, using fallback defaults:', error);
           setGuestOffices(defaultGuestOffices);
-          setAlumniOffices(defaultAlumniOffices);
         }
       );
     } catch (err) {
@@ -328,18 +252,18 @@ const GuestLogin = ({ onLogout }) => {
     }
   }, [guestOffices, selectedOffice, subject]);
 
-  // Ensure alumniSelectedOffice and alumni subject stay valid when alumni offices config updates
+  // Ensure alumniSelectedOffice and alumni subject stay valid when offices config updates
   useEffect(() => {
-    if (alumniOffices.length > 0 && !alumniOffices.some((o) => o.id === alumniSelectedOffice)) {
-      setAlumniSelectedOffice(alumniOffices[0].id);
+    if (guestOffices.length > 0 && !guestOffices.some((o) => o.id === alumniSelectedOffice)) {
+      setAlumniSelectedOffice(guestOffices[0].id);
       setAlumniSubject('');
     } else if (alumniSelectedOffice && alumniSubject) {
-      const currentAlmOffice = alumniOffices.find((o) => o.id === alumniSelectedOffice);
-      if (currentAlmOffice?.subjects && !currentAlmOffice.subjects.includes(alumniSubject)) {
+      const currentOffice = guestOffices.find((o) => o.id === alumniSelectedOffice);
+      if (currentOffice?.subjects && !currentOffice.subjects.includes(alumniSubject)) {
         setAlumniSubject('');
       }
     }
-  }, [alumniOffices, alumniSelectedOffice, alumniSubject]);
+  }, [guestOffices, alumniSelectedOffice, alumniSubject]);
 
   // AI validation effect with debounce
   useEffect(() => {
@@ -385,8 +309,8 @@ const GuestLogin = ({ onLogout }) => {
     setIsAlumniValidating(true);
     const timeoutId = setTimeout(async () => {
       try {
-        const selectedOfficeData = alumniOffices.find(o => o.id === alumniSelectedOffice);
-        const officeName = selectedOfficeData?.name || 'Registrar';
+        const selectedOfficeData = guestOffices.find(o => o.id === alumniSelectedOffice);
+        const officeName = selectedOfficeData?.name || '';
         const result = await validateContent(alumniSubject, alumniDescription, officeName);
         setAlumniValidationResult(result);
       } catch (error) {
@@ -403,7 +327,7 @@ const GuestLogin = ({ onLogout }) => {
     }, 1200);
 
     return () => clearTimeout(timeoutId);
-  }, [view, alumniDescription, alumniSubject, alumniSelectedOffice, alumniOffices]);
+  }, [view, alumniDescription, alumniSubject, alumniSelectedOffice, guestOffices]);
 
   const handleExitGuestMode = async () => {
     const ok = await confirm({
@@ -998,7 +922,7 @@ const GuestLogin = ({ onLogout }) => {
     setFormerStudentId('');
     setContactEmail('');
     setContactNumber('');
-    setAlumniSelectedOffice(alumniOffices[0]?.id || 'registrar');
+    setAlumniSelectedOffice(guestOffices[0]?.id || 'finance');
     setAlumniSubject('');
     setAlumniDescription('');
     setAlumniAuthFiles([]);
@@ -1052,15 +976,12 @@ const GuestLogin = ({ onLogout }) => {
 
     try {
       setSubmitting(true);
-      const office = alumniOffices.find((o) => o.id === alumniSelectedOffice);
-      const officeName = office ? office.name : 'Registrar';
-      const officePrefixMap = {
-        registrar: 'REG',
-        guidance: 'GUI',
-        finance: 'ACC',
-        library: 'LIB'
-      };
-      const prefix = officePrefixMap[alumniSelectedOffice] || 'ALM';
+      const office = guestOffices.find((o) => o.id === alumniSelectedOffice);
+      const officeName = office ? office.name : 'Accounting';
+      let prefix = officeName.substring(0, 3).toUpperCase();
+      if (prefix === 'FIN' || officeName.toLowerCase().includes('accounting')) {
+        prefix = 'ACC';
+      }
       const generatedRequestId = `${prefix}-${random3()}-${random3()}-${random3()}`;
 
       // Encode attachments with smart compression for images
@@ -1867,7 +1788,7 @@ const GuestLogin = ({ onLogout }) => {
             <div className="form-section-guest">
               <h3 className="guest-subheading">2. Select Target Office</h3>
               <div className="office-grid" role="radiogroup" aria-label="Select Target Office">
-                {alumniOffices.map((office) => (
+                {guestOffices.map((office) => (
                   <div
                     key={office.id}
                     role="radio"
@@ -1905,19 +1826,22 @@ const GuestLogin = ({ onLogout }) => {
 
               <div className="form-group-guest">
                 <label className="form-label-guest" htmlFor="alumniSubject">
-                  Document / Subject Type <span className="required-star">*</span>
+                  Subject <span className="required-star">*</span>
                 </label>
                 <select
                   id="alumniSubject"
                   className="form-select-guest"
                   value={alumniSubject}
                   onChange={(e) => setAlumniSubject(e.target.value)}
+                  disabled={!alumniSelectedOffice}
                 >
                   <option value="" disabled hidden style={{ display: 'none' }}>
-                    Select document or concern...
+                    {alumniSelectedOffice ? 'Select a subject...' : 'Please select an office first'}
                   </option>
-                  {(alumniOffices.find(o => o.id === alumniSelectedOffice)?.subjects || []).map((subj) => (
-                    <option key={subj} value={subj}>{subj}</option>
+                  {alumniSelectedOffice && (guestOffices.find(o => o.id === alumniSelectedOffice)?.subjects || []).map((subj, index) => (
+                    <option key={index} value={subj}>
+                      {subj}
+                    </option>
                   ))}
                 </select>
               </div>
