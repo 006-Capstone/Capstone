@@ -104,9 +104,7 @@ const ImportUsersModal = ({
         'Email'
       ];
       sampleData = [
-        ['1001', 'Juan', 'Dela Cruz', 'Santos', '', 'Grade 7', 'Diamond', 'juan.delacruz@example.com'],
-        ['1002', 'Maria', 'Santos', 'Reyes', '', 'Grade 8', 'Emerald', 'maria.santos@example.com'],
-        ['1003', 'Jose', 'Rizal', 'Protacio', 'Jr.', 'Grade 9', 'Ruby', 'jose.rizal@example.com']
+        ['1001', 'Juan', 'Dela Cruz', 'Santos', '', 'Grade 7', 'Diamond', 'juan.delacruz@example.com']
       ];
       filename = `students_template.${format}`;
     } else {
@@ -120,9 +118,7 @@ const ImportUsersModal = ({
         'Office'
       ];
       sampleData = [
-        ['Carlos', 'Mendoza', 'Gomez', '', 'carlos.mendoza@example.com', 'cmendoza', 'Accounting'],
-        ['Elena', 'Torres', 'Cruz', '', 'elena.torres@example.com', 'etorres', 'Registrar'],
-        ['Ramon', 'Bautista', 'Lopez', '', 'ramon.bautista@example.com', 'rbautista', 'Guidance']
+        ['Carlos', 'Mendoza', 'Gomez', '', 'carlos.mendoza@example.com', 'cmendoza', 'Accounting']
       ];
       filename = `staff_template.${format}`;
     }

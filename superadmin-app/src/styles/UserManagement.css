@@ -3872,3 +3872,60 @@ select.form-input-super option:disabled {
   }
 }
 
+
+/* Double Confirmation Section */
+.double-confirm-section {
+  margin: 20px 0;
+  padding: 16px;
+  background-color: #fff9e6;
+  border: 2px solid #ffc107;
+  border-radius: 8px;
+}
+
+.double-confirm-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.double-confirm-warning .warning-icon {
+  color: #ffc107;
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.double-confirm-warning p {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.double-confirm-warning .confirm-keyword {
+  color: #d32f2f;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.double-confirm-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  transition: border-color 0.2s;
+  font-family: monospace;
+  letter-spacing: 1px;
+}
+
+.double-confirm-input:focus {
+  outline: none;
+  border-color: #2d5016;
+}
+
+.double-confirm-input::placeholder {
+  color: #999;
+  letter-spacing: normal;
+}

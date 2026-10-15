@@ -36,7 +36,8 @@ import {
   FaTrashAlt,
   FaLock,
   FaFileImport,
-  FaUserEdit
+  FaUserEdit,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import { db, auth, getSecondaryAuth } from '../firebase';
 import { collection, addDoc, getDocs, getDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, where, onSnapshot, limit } from 'firebase/firestore';
@@ -131,6 +132,7 @@ const UserManagement = () => {
   const [createdStaff, setCreatedStaff] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmText, setConfirmText] = useState(''); // For double confirmation
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [isBulkAction, setIsBulkAction] = useState(false);
@@ -2503,6 +2505,7 @@ const UserManagement = () => {
     setSelectedStaff(null);
     setIsBulkAction(false);
     setConfirmAction(null);
+    setConfirmText(''); // Reset confirmation text
   };
 
   const showToast = (message, type = 'success', options = {}) => {
@@ -4286,6 +4289,25 @@ const UserManagement = () => {
                 </p>
               </div>
             )}
+
+            {/* Double Confirmation Input for Destructive Actions */}
+            {(confirmAction === 'delete' || confirmAction === 'archive' || confirmAction === 'restore' || confirmAction === 'suspend') && (
+              <div className="double-confirm-section">
+                <div className="double-confirm-warning">
+                  <FaExclamationTriangle className="warning-icon" />
+                  <p><strong>Important:</strong> Please type <strong className="confirm-keyword">CONFIRM</strong> to proceed with this action.</p>
+                </div>
+                <input
+                  type="text"
+                  className="double-confirm-input"
+                  placeholder='Type "CONFIRM" to proceed'
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+            )}
+
             <div className="modal-actions">
               <button className="cancel-btn-super" onClick={cancelConfirm} disabled={actionLoading}>
                 Cancel
@@ -4297,7 +4319,19 @@ const UserManagement = () => {
                     ? handleConfirmBulkAction
                     : (confirmAction === 'archive' || confirmAction === 'restore' ? confirmArchiveOrRestore : confirmSuspendOrDelete)
                 }
-                disabled={actionLoading}
+                disabled={
+                  actionLoading || 
+                  (
+                    (confirmAction === 'delete' || confirmAction === 'archive' || confirmAction === 'restore' || confirmAction === 'suspend') &&
+                    confirmText !== 'CONFIRM'
+                  )
+                }
+                title={
+                  (confirmAction === 'delete' || confirmAction === 'archive' || confirmAction === 'restore' || confirmAction === 'suspend') &&
+                  confirmText !== 'CONFIRM'
+                    ? 'Type CONFIRM to enable this button'
+                    : undefined
+                }
               >
                 {confirmBtnLabel}
               </button>

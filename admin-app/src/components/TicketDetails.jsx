@@ -2539,7 +2539,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               >
                 <option value="Accounting">Accounting Office</option>
                 <option value="Registrar">Registrar's Office</option>
-                <option value="Library">Library</option>
+                <option value="Library">Library's Office</option>
                 <option value="Guidance">Guidance Office</option>
               </select>
 
