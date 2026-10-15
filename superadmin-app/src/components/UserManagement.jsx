@@ -59,6 +59,36 @@ const DATE_PRESET_OPTIONS = [
   { id: 'thisMonth', label: 'This Month' }
 ];
 
+const OFFICES = [
+  { id: 'finance', name: 'Accounting' },
+  { id: 'library', name: 'Library' },
+  { id: 'guidance', name: 'Guidance' },
+  { id: 'registrar', name: 'Registrar' }
+];
+
+const normalizeOfficeName = (officeStr) => {
+  if (!officeStr) return '—';
+  const lower = String(officeStr).trim().toLowerCase();
+  if (lower === 'finance' || lower === 'accounting') return 'Accounting';
+  if (lower === 'library') return 'Library';
+  if (lower === 'guidance') return 'Guidance';
+  if (lower === 'registrar') return 'Registrar';
+  return officeStr;
+};
+
+const findOffice = (idOrName) => {
+  if (!idOrName) return OFFICES[0];
+  const str = String(idOrName).trim().toLowerCase();
+  const byId = OFFICES.find(o => o.id.toLowerCase() === str);
+  if (byId) return byId;
+  const byName = OFFICES.find(o => o.name.toLowerCase() === str);
+  if (byName) return byName;
+  if (str === 'accounting' || str === 'finance' || str.includes('account') || str.includes('financ')) {
+    return OFFICES.find(o => o.id === 'finance' || o.id === 'accounting') || OFFICES[0];
+  }
+  return OFFICES[0];
+};
+
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('students'); // 'students' or 'staff'
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -85,7 +115,7 @@ const UserManagement = () => {
   const [staffMiddleName, setStaffMiddleName] = useState('');
   const [staffSuffix, setStaffSuffix] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
-  const [staffOffice, setStaffOffice] = useState('accounting');
+  const [staffOffice, setStaffOffice] = useState('finance');
   const [staffUsername, setStaffUsername] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [usernameChecking, setUsernameChecking] = useState(false);
@@ -295,7 +325,7 @@ const UserManagement = () => {
 
       // Office filter (staff tab only)
       if (officeFilter !== 'All') {
-        const itemOffice = (item.office === 'Finance' || item.office === 'finance') ? 'Accounting' : item.office;
+        const itemOffice = normalizeOfficeName(item.office || item.officeId);
         if (itemOffice !== officeFilter) return false;
       }
       // Search — students match by name, student ID or email, staff by name, username, email, or office
@@ -502,12 +532,7 @@ const UserManagement = () => {
     staffEmail.trim() !== '' &&
     staffUsername.trim() !== '';
 
-  const offices = [
-    { id: 'finance', name: 'Accounting' },
-    { id: 'library', name: 'Library' },
-    { id: 'guidance', name: 'Guidance' },
-    { id: 'registrar', name: 'Registrar' }
-  ];
+  const offices = OFFICES;
 
   // Load students and staff from Firestore on component mount with real-time listeners
   useEffect(() => {
@@ -565,9 +590,7 @@ const UserManagement = () => {
               ? formatDisplayName(data.firstName, data.middleName || data.middleInitial, data.lastName, data.suffix)
               : (data.name || data.fullName || data.username || '—');
 
-            const normalizedOffice = (data.office === 'Finance' || data.office === 'finance' || data.office?.toLowerCase?.() === 'finance')
-              ? 'Accounting'
-              : (data.office || '—');
+            const normalizedOffice = normalizeOfficeName(data.office || data.officeId);
 
             return {
               firestoreId: docSnap.id,
@@ -931,37 +954,69 @@ const UserManagement = () => {
       const password = generatePassword();
       setGeneratedPassword(password);
 
+      // Build full name
+      const rawMiddleInitial = studentMiddleName ? studentMiddleName.trim().replace(/\./g, '').charAt(0).toUpperCase() : '';
+      const fullName = formatDisplayName(studentFirstName, studentMiddleName, studentLastName, studentSuffix);
+
       // Create Firebase Authentication account (using isolated secondary auth to protect superadmin session)
       const secondaryAuth = getSecondaryAuth();
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, studentEmail, password);
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(secondaryAuth, studentEmail.trim(), password);
+      } catch (authErr) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          // Check if this email was orphaned in Auth from a previous failed creation (no doc in staff or students in Firestore)
+          const isEmailInStaff = staffMembers.some(s => (s.email || '').toLowerCase() === studentEmail.trim().toLowerCase());
+          const isEmailInStudents = students.some(s => (s.email || '').toLowerCase() === studentEmail.trim().toLowerCase());
+
+          if (!isEmailInStaff && !isEmailInStudents) {
+            console.log('[handleCreateStudent] Detected orphaned auth account for email, cleaning up and recreating:', studentEmail.trim());
+            const delRes = await deleteAuthUser({ email: studentEmail.trim() });
+            if (delRes && delRes.success) {
+              userCredential = await createUserWithEmailAndPassword(secondaryAuth, studentEmail.trim(), password);
+            } else {
+              throw authErr;
+            }
+          } else {
+            throw authErr;
+          }
+        } else {
+          throw authErr;
+        }
+      }
+
       const user = userCredential.user;
       try {
         await signOut(secondaryAuth);
       } catch (_) {}
 
-      // Build full name
-      const rawMiddleInitial = studentMiddleName ? studentMiddleName.trim().replace(/\./g, '').charAt(0).toUpperCase() : '';
-      const fullName = formatDisplayName(studentFirstName, studentMiddleName, studentLastName, studentSuffix);
-
       // Save student data to Firestore
-      await addDoc(collection(db, 'students'), {
-        id: studentId,
-        uid: user.uid,
-        firstName: studentFirstName.trim(),
-        lastName: studentLastName.trim(),
-        middleName: studentMiddleName.trim(),
-        middleInitial: rawMiddleInitial,
-        suffix: studentSuffix.trim(),
-        gradeLevel: studentGradeLevel.trim(),
-        section: studentSection.trim(),
-        name: fullName,
-        fullName: fullName,
-        email: studentEmail.trim(),
-        role: 'student',
-        createdAt: serverTimestamp(),
-        isActive: true,
-        mustChangePassword: true // Force password change on first login
-      });
+      try {
+        await addDoc(collection(db, 'students'), {
+          id: studentId,
+          uid: user.uid,
+          firstName: studentFirstName.trim(),
+          lastName: studentLastName.trim(),
+          middleName: studentMiddleName.trim(),
+          middleInitial: rawMiddleInitial,
+          suffix: studentSuffix.trim(),
+          gradeLevel: studentGradeLevel.trim(),
+          section: studentSection.trim(),
+          name: fullName,
+          fullName: fullName,
+          email: studentEmail.trim(),
+          role: 'student',
+          createdAt: serverTimestamp(),
+          isActive: true,
+          mustChangePassword: true // Force password change on first login
+        });
+      } catch (firestoreErr) {
+        console.error('[handleCreateStudent] Firestore write failed, rolling back Auth user:', firestoreErr);
+        try {
+          await deleteAuthUser({ uid: user.uid, email: studentEmail.trim() });
+        } catch (_) {}
+        throw firestoreErr;
+      }
 
       // Send credentials via email
       let emailFailed = false;
@@ -1086,7 +1141,7 @@ const UserManagement = () => {
     setStaffMiddleName('');
     setStaffSuffix('');
     setStaffEmail('');
-    setStaffOffice('accounting');
+    setStaffOffice('finance');
     setStaffUsername('');
     setGeneratedPassword('');
     setError('');
@@ -1097,6 +1152,7 @@ const UserManagement = () => {
     setError('');
     setUsernameError('');
     setStaffUsername('');
+    setStaffOffice('finance');
   };
 
   // Check username uniqueness when user stops typing
@@ -1189,39 +1245,71 @@ const UserManagement = () => {
       const password = generatePassword();
       setGeneratedPassword(password);
 
-      // Create Firebase Authentication account (using isolated secondary auth to protect superadmin session)
-      const secondaryAuth = getSecondaryAuth();
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, staffEmail, password);
-      const user = userCredential.user;
-      try {
-        await signOut(secondaryAuth);
-      } catch (_) {}
-
-      const selectedOffice = offices.find(o => o.id === staffOffice);
+      const selectedOffice = findOffice(staffOffice);
 
       // Build full name
       const rawMiddleInitial = staffMiddleName ? staffMiddleName.trim().replace(/\./g, '').charAt(0).toUpperCase() : '';
       const fullName = formatDisplayName(staffFirstName, staffMiddleName, staffLastName, staffSuffix);
 
+      // Create Firebase Authentication account (using isolated secondary auth to protect superadmin session)
+      const secondaryAuth = getSecondaryAuth();
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(secondaryAuth, staffEmail.trim(), password);
+      } catch (authErr) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          // Check if this email was orphaned in Auth from a previous failed creation (no doc in staff or students in Firestore)
+          const isEmailInStaff = staffMembers.some(s => (s.email || '').toLowerCase() === staffEmail.trim().toLowerCase());
+          const isEmailInStudents = students.some(s => (s.email || '').toLowerCase() === staffEmail.trim().toLowerCase());
+
+          if (!isEmailInStaff && !isEmailInStudents) {
+            console.log('[handleCreateStaff] Detected orphaned auth account for email, cleaning up and recreating:', staffEmail.trim());
+            const delRes = await deleteAuthUser({ email: staffEmail.trim() });
+            if (delRes && delRes.success) {
+              userCredential = await createUserWithEmailAndPassword(secondaryAuth, staffEmail.trim(), password);
+            } else {
+              throw authErr;
+            }
+          } else {
+            throw authErr;
+          }
+        } else {
+          throw authErr;
+        }
+      }
+
+      const user = userCredential.user;
+      try {
+        await signOut(secondaryAuth);
+      } catch (_) {}
+
       // Save staff data to Firestore
-      await addDoc(collection(db, 'staff'), {
-        uid: user.uid,
-        firstName: staffFirstName.trim(),
-        lastName: staffLastName.trim(),
-        middleName: staffMiddleName.trim(),
-        middleInitial: rawMiddleInitial,
-        suffix: staffSuffix.trim(),
-        name: fullName,
-        fullName: fullName,
-        email: staffEmail.trim(),
-        username: staffUsername.trim(),
-        office: selectedOffice.name,
-        officeId: staffOffice,
-        role: 'staff',
-        createdAt: serverTimestamp(),
-        isActive: true,
-        mustChangePassword: true // Force password change on first login
-      });
+      try {
+        await addDoc(collection(db, 'staff'), {
+          uid: user.uid,
+          firstName: staffFirstName.trim(),
+          lastName: staffLastName.trim(),
+          middleName: staffMiddleName.trim(),
+          middleInitial: rawMiddleInitial,
+          suffix: staffSuffix.trim(),
+          name: fullName,
+          fullName: fullName,
+          email: staffEmail.trim(),
+          username: staffUsername.trim(),
+          office: selectedOffice.name,
+          officeId: selectedOffice.id,
+          role: 'staff',
+          createdAt: serverTimestamp(),
+          isActive: true,
+          mustChangePassword: true // Force password change on first login
+        });
+      } catch (firestoreErr) {
+        console.error('[handleCreateStaff] Firestore write failed, rolling back Auth user:', firestoreErr);
+        try {
+          await deleteAuthUser({ uid: user.uid, email: staffEmail.trim() });
+        } catch (_) {}
+        throw firestoreErr;
+      }
 
       // Send credentials via email
       let emailFailed = false;
@@ -1300,6 +1388,7 @@ const UserManagement = () => {
       setStaffSuffix('');
       setStaffEmail('');
       setStaffUsername('');
+      setStaffOffice('finance');
       setUsernameError('');
       setLoading(false);
 
@@ -1383,9 +1472,7 @@ const UserManagement = () => {
     const computedName = (user.firstName || user.lastName)
       ? formatDisplayName(user.firstName, user.middleName || user.middleInitial, user.lastName, user.suffix)
       : (user.name || user.fullName || user.username || '—');
-    const normalizedOffice = (user.office === 'Finance' || user.office === 'finance' || user.office?.toLowerCase?.() === 'finance')
-      ? 'Accounting'
-      : user.office;
+    const normalizedOffice = normalizeOfficeName(user.office || user.officeId);
     const formattedUser = { 
       ...user, 
       office: normalizedOffice,
@@ -2103,7 +2190,8 @@ const UserManagement = () => {
       setEditSection(selectedUserProfile.section || 'Section A');
     } else {
       setEditUsername(selectedUserProfile.username || '');
-      setEditOffice(selectedUserProfile.officeId || offices.find(o => o.name === selectedUserProfile.office)?.id || offices[0]?.id || 'accounting');
+      const resolvedOffice = findOffice(selectedUserProfile.officeId || selectedUserProfile.office);
+      setEditOffice(resolvedOffice.id);
       setEditUsernameStatus('current');
       setEditUsernameMessage('');
     }
@@ -2190,7 +2278,7 @@ const UserManagement = () => {
         if (selectedUserProfile.gradeLevel !== editGradeLevel.trim()) changes.push(`Grade: ${editGradeLevel.trim()}`);
         if (selectedUserProfile.section !== editSection.trim()) changes.push(`Section: ${editSection.trim()}`);
       } else {
-        const selectedOfficeObj = offices.find(o => o.id === editOffice) || { id: editOffice, name: editOffice };
+        const selectedOfficeObj = findOffice(editOffice);
         const cleanUsername = editUsername.trim();
         updatePayload.username = cleanUsername;
         updatePayload.office = selectedOfficeObj.name;

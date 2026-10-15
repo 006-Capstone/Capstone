@@ -258,8 +258,14 @@ const ImportUsersModal = ({
     if (!officeNameRaw) {
       errors.push('Missing Office');
     } else {
+      const rawLower = officeNameRaw.toLowerCase().trim();
       matchedOffice = offices.find(
-        o => o.name.toLowerCase() === officeNameRaw.toLowerCase() || o.id.toLowerCase() === officeNameRaw.toLowerCase()
+        o => o.name.toLowerCase() === rawLower || 
+             o.id.toLowerCase() === rawLower ||
+             ((rawLower.includes('account') || rawLower.includes('financ')) && (o.id === 'finance' || o.id === 'accounting' || o.name.toLowerCase() === 'accounting')) ||
+             (rawLower.includes('librar') && o.id === 'library') ||
+             (rawLower.includes('guidanc') && o.id === 'guidance') ||
+             (rawLower.includes('registrar') && o.id === 'registrar')
       );
       if (!matchedOffice) {
         const allowedOffices = offices.map(o => o.name).join(', ');
