@@ -1849,57 +1849,44 @@ const GuestLogin = ({ onLogout }) => {
               <div className="form-group-guest">
                 <label className="form-label-guest" htmlFor="alumniDescription">
                   Purpose / Details of Request <span className="required-star">*</span>
+                  {isAlumniValidating && <span className="validation-checking"> (Checking...)</span>}
+                  {!isAlumniValidating && alumniValidationResult && alumniValidationResult.isValid && (!alumniValidationResult.errors || alumniValidationResult.errors.length === 0) && (
+                    <span className="validation-success">
+                      <MdCheckCircle /> Valid
+                    </span>
+                  )}
                 </label>
                 <textarea
                   id="alumniDescription"
-                  className="form-textarea-guest"
+                  className={`form-textarea-guest ${
+                    alumniValidationResult && alumniValidationResult.errors && alumniValidationResult.errors.length > 0 ? 'has-error' : 
+                    alumniValidationResult && alumniValidationResult.warnings && alumniValidationResult.warnings.length > 0 ? 'has-warning' : ''
+                  }`}
                   value={alumniDescription}
                   onChange={(e) => setAlumniDescription(e.target.value)}
                   placeholder="Specify the purpose of your request (e.g., For Employment, College/Graduate School Admission, PRC/Board Exam, Travel/Visa, etc.) and any specific instructions or requirements."
                   rows={4}
                 />
+                {/* Validation Feedback */}
+                {alumniValidationResult && alumniValidationResult.errors && alumniValidationResult.errors.length > 0 && (
+                  <div className="validation-errors">
+                    {alumniValidationResult.errors.map((error, idx) => (
+                      <div key={idx} className="validation-message error-message">
+                        <MdError /> {error}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {alumniValidationResult && alumniValidationResult.warnings && alumniValidationResult.warnings.length > 0 && (
+                  <div className="validation-warnings">
+                    {alumniValidationResult.warnings.map((warning, idx) => (
+                      <div key={idx} className="validation-message warning-message">
+                        <MdWarning /> {warning}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {/* AI Content Moderation Feedback */}
-              {isAlumniValidating && (
-                <div className="ai-feedback-banner validating">
-                  <div className="ai-feedback-header">
-                    <span className="ai-spinner"></span>
-                    <span className="ai-feedback-title">Validating request content...</span>
-                  </div>
-                </div>
-              )}
-
-              {!isAlumniValidating && alumniValidationResult && (
-                <div className={`ai-feedback-banner ${alumniValidationResult.isValid ? 'valid' : 'invalid'}`}>
-                  <div className="ai-feedback-header">
-                    {alumniValidationResult.isValid ? (
-                      <MdCheckCircle className="ai-feedback-icon valid-icon" />
-                    ) : (
-                      <MdError className="ai-feedback-icon error-icon" />
-                    )}
-                    <span className="ai-feedback-title">
-                      {alumniValidationResult.isValid ? 'Content Verified' : 'Please Review Content'}
-                    </span>
-                  </div>
-
-                  {alumniValidationResult.errors && alumniValidationResult.errors.length > 0 && (
-                    <ul className="ai-feedback-list error-list">
-                      {alumniValidationResult.errors.map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {alumniValidationResult.warnings && alumniValidationResult.warnings.length > 0 && (
-                    <ul className="ai-feedback-list warning-list">
-                      {alumniValidationResult.warnings.map((warn, i) => (
-                        <li key={i}><MdWarning style={{ verticalAlign: 'middle', marginRight: '4px' }} />{warn}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="form-section-guest">

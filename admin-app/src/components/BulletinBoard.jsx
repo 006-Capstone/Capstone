@@ -426,12 +426,20 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
     try {
       setSubmitting(true);
-      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      let staffData = null;
+      try {
+        staffData = JSON.parse(localStorage.getItem('staffData'));
+      } catch (err) {
+        console.warn('Failed to parse staffData from localStorage:', err);
+      }
+
+      const activeDept = department || staffData?.office || 'General';
+      const authorName = staffData?.name || staffData?.fullName || 'Staff';
 
       if (editingAnnouncement) {
         // Update the existing announcement (keep original author + created date)
         await updateDoc(doc(db, 'announcements', editingAnnouncement.id), {
-          department,
+          department: activeDept,
           title: announcementTitle.trim(),
           body: announcementBody.trim(),
           photo: announcementPhoto || null,
@@ -440,21 +448,25 @@ const BulletinBoard = ({ department, onViewRequest }) => {
         toast.success('Announcement updated successfully!');
       } else {
         const newAnnouncementRef = await addDoc(collection(db, 'announcements'), {
-          department,
+          department: activeDept,
           title: announcementTitle.trim(),
           body: announcementBody.trim(),
           photo: announcementPhoto || null,
-          createdBy: staffData?.name || 'Staff',
+          createdBy: authorName,
           createdAt: serverTimestamp()
         });
         
-        // Notify all students about the new announcement
-        await notifyStudentsNewAnnouncement(
-          department,
-          announcementTitle.trim(),
-          newAnnouncementRef.id,
-          staffData?.name || 'Staff'
-        );
+        // Notify all students about the new announcement (isolated so failures do not abort announcement)
+        try {
+          await notifyStudentsNewAnnouncement(
+            activeDept,
+            announcementTitle.trim(),
+            newAnnouncementRef.id,
+            authorName
+          );
+        } catch (notifErr) {
+          console.warn('[Announcements] Failed to send student notifications:', notifErr);
+        }
         
         toast.success('Announcement posted successfully!');
       }
@@ -464,7 +476,7 @@ const BulletinBoard = ({ department, onViewRequest }) => {
       console.error('[Error] Error saving announcement:', error);
       toast.error(editingAnnouncement
         ? 'Failed to update announcement. Please try again.'
-        : 'Failed to create announcement. Please try again.');
+        : `Failed to create announcement: ${error?.message || 'Please try again.'}`);
     } finally {
       setSubmitting(false);
     }
@@ -515,7 +527,16 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
     try {
       setSubmitting(true);
-      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      let staffData = null;
+      try {
+        staffData = JSON.parse(localStorage.getItem('staffData'));
+      } catch (err) {
+        console.warn('Failed to parse staffData from localStorage:', err);
+      }
+
+      const activeDept = department || staffData?.office || 'General';
+      const authorName = staffData?.name || staffData?.fullName || 'Staff';
+
       const dateValue = parseInt(
         `${String(monthNum).padStart(2, '0')}${String(dayNum).padStart(2, '0')}`,
         10
@@ -523,35 +544,39 @@ const BulletinBoard = ({ department, onViewRequest }) => {
 
       if (editingDate) {
         await updateDoc(doc(db, 'importantDates', editingDate.id), {
-          office: department,
+          office: activeDept,
           title: dateTitle.trim(),
           month: dateMonth,
           day: String(dayNum).padStart(2, '0'),
           dateValue,
-          updatedBy: staffData?.name || 'Staff',
+          updatedBy: authorName,
           updatedAt: serverTimestamp()
         });
         toast.success('Important date updated successfully!');
       } else {
         const newDateRef = await addDoc(collection(db, 'importantDates'), {
-          office: department,
+          office: activeDept,
           title: dateTitle.trim(),
           month: dateMonth,
           day: String(dayNum).padStart(2, '0'),
           dateValue,
-          createdBy: staffData?.name || 'Staff',
+          createdBy: authorName,
           createdAt: serverTimestamp()
         });
 
-        // Notify all students about the new important deadline
-        await notifyStudentsNewDeadline(
-          department,
-          dateTitle.trim(),
-          dateMonth,
-          String(dayNum).padStart(2, '0'),
-          newDateRef.id,
-          staffData?.name || staffData?.fullName || 'Staff'
-        );
+        // Notify all students about the new important deadline (isolated so failures do not abort date creation)
+        try {
+          await notifyStudentsNewDeadline(
+            activeDept,
+            dateTitle.trim(),
+            dateMonth,
+            String(dayNum).padStart(2, '0'),
+            newDateRef.id,
+            authorName
+          );
+        } catch (notifErr) {
+          console.warn('[ImportantDates] Failed to send student notifications:', notifErr);
+        }
 
         toast.success('Important date added successfully!');
       }
@@ -559,7 +584,9 @@ const BulletinBoard = ({ department, onViewRequest }) => {
       closeCreateModal();
     } catch (error) {
       console.error('[Error] Error saving important date:', error);
-      toast.error(editingDate ? 'Failed to update important date. Please try again.' : 'Failed to create important date. Please try again.');
+      toast.error(editingDate 
+        ? 'Failed to update important date. Please try again.' 
+        : `Failed to create important date: ${error?.message || 'Please try again.'}`);
     } finally {
       setSubmitting(false);
     }
