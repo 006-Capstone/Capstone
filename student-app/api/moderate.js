@@ -1,13 +1,13 @@
 import Groq from 'groq-sdk';
 
 const apiKey = process.env.GROQ_API_KEY || process.env.REACT_APP_GROQ_API_KEY || process.env.REACT_APP_GROQ_KEY || process.env.VITE_GROQ_API_KEY;
-const candidateModels = [
+const defaultCandidateModels = [
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
   'llama-3.3-70b-versatile',
-  'llama3-70b-8192',
-  'llama3-8b-8192',
+  'llama-3.1-8b-instant',
   'gemma2-9b-it',
-  'mixtral-8x7b-32768',
-  'llama-3.1-8b-instant'
+  'mixtral-8x7b-32768'
 ];
 
 export default async function handler(req, res) {
@@ -36,6 +36,26 @@ export default async function handler(req, res) {
     const groq = new Groq({ apiKey });
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const { subject, description, officeName } = body;
+
+    // Dynamically discover active models on this specific Groq key
+    let candidateModels = [...defaultCandidateModels];
+    try {
+      const modelsList = await groq.models.list();
+      if (modelsList?.data && Array.isArray(modelsList.data)) {
+        const availableChatModels = modelsList.data
+          .map(m => m.id)
+          .filter(id => !id.includes('whisper') && !id.includes('tts') && !id.includes('embed') && !id.includes('guard'));
+        console.log('[Groq Moderation] Active chat models on this Groq key:', availableChatModels);
+        if (availableChatModels.length > 0) {
+          candidateModels = [...availableChatModels, ...defaultCandidateModels];
+        }
+      }
+    } catch (listErr) {
+      console.warn('[Groq Moderation] Could not auto-discover models:', listErr?.message || listErr);
+    }
+
+    const uniqueCandidates = [...new Set(candidateModels)];
+    console.log('[Groq Moderation] Evaluating queue of models:', uniqueCandidates);
 
     const systemPrompt = `You are a strict, professional AI content moderation system for Academia De San Jose's official student ticketing portal.
 Your task is to analyze ticket inquiries submitted by students, parents, or alumni, and ensure they meet school standards.
@@ -78,7 +98,7 @@ Respond ONLY with a valid JSON object in this exact schema (no markdown, no extr
     let completion = null;
     let lastError = null;
 
-    for (const model of candidateModels) {
+    for (const model of uniqueCandidates) {
       try {
         console.log(`[Groq Moderation] Attempting analysis with model: ${model}`);
         completion = await groq.chat.completions.create({
@@ -121,7 +141,9 @@ Respond ONLY with a valid JSON object in this exact schema (no markdown, no extr
     }
 
     if (completion?.choices?.[0]?.message?.content) {
-      const parsed = JSON.parse(completion.choices[0].message.content);
+      const rawText = completion.choices[0].message.content.trim();
+      const cleanJson = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
       return res.status(200).json(parsed);
     }
 
