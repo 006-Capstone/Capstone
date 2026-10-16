@@ -72,6 +72,20 @@ export const formatInactivityDeadline = (ticket) => {
  */
 export const isTicketInactiveExpired = (ticket) => {
   if (!ticket) return false;
+
+  // Guest and alumni requests do not have follow-up reply capability in the guest portal;
+  // they should never be auto-cancelled due to inactivity.
+  if (
+    ticket.isGuest ||
+    ticket.isAlumni ||
+    ticket.requesterType === 'Guest' ||
+    ticket.requesterType === 'Alumni' ||
+    ticket.studentUid?.startsWith('guest_') ||
+    ticket.grade === 'Alumni'
+  ) {
+    return false;
+  }
+
   const status = (ticket.status || '').toLowerCase();
   if (status !== 'in process') return false;
   if (!ticket.awaitingStudentResponse) return false;

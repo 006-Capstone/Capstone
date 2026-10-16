@@ -382,8 +382,9 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                       : '#N/A';
                     const formattedDate = formatTicketDate(ticket);
                     const formattedEtc = formatTicketEtc(ticket);
-                    const isGuest = Boolean(ticket.isGuest);
-                    const studentName = ticket.student || ticket.studentName || (isGuest ? 'Guest User' : 'Student');
+                    const isAlumni = Boolean(ticket.isAlumni || ticket.requesterType === 'Alumni' || ticket.studentUid?.startsWith('guest_alumni_') || ticket.grade === 'Alumni');
+                    const isGuest = Boolean(!isAlumni && (ticket.isGuest || ticket.requesterType === 'Guest' || ticket.studentUid?.startsWith('guest_')));
+                    const studentName = ticket.student || ticket.studentName || (isAlumni ? 'Alumni Requester' : isGuest ? 'Guest User' : 'Student');
 
                     return (
                       <tr key={ticket.firestoreId || ticket.id || index} className="ticket-row">
@@ -426,7 +427,9 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                           <div className="student-info">
                             <span className="student-name" title={studentName}>{studentName}</span>
                             <div className="student-id-wrap">
-                              {isGuest ? (
+                              {isAlumni ? (
+                                <span className="guest-badge-pill alumni-badge-pill">Alumni</span>
+                              ) : isGuest ? (
                                 <span className="guest-badge-pill">Guest</span>
                               ) : ticket.studentId ? (
                                 <span className="student-id">ID: {ticket.studentId}</span>

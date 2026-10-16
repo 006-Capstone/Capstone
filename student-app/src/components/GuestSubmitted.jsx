@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaCheckCircle, FaDownload, FaCopy, FaCheck, FaTrackChanges, FaArrowRight } from 'react-icons/fa';
+import { FaCheckCircle, FaDownload, FaCopy, FaCheck, FaTrackChanges, FaArrowRight, FaEnvelope } from 'react-icons/fa';
 import { MdTrackChanges } from 'react-icons/md';
 import { jsPDF } from 'jspdf';
 import '../styles/GuestSubmitted.css';
@@ -25,7 +25,7 @@ const GuestSubmitted = ({ data, onHome, onTrack, onSubmitAnother }) => {
     
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text('Guest Request Submission Receipt', 105, 28, { align: 'center' });
+    doc.text(data.isAlumni ? 'Alumni Request Submission Receipt' : 'Guest Request Submission Receipt', 105, 28, { align: 'center' });
     
     // Divider
     doc.setLineWidth(0.5);
@@ -39,6 +39,12 @@ const GuestSubmitted = ({ data, onHome, onTrack, onSubmitAnother }) => {
     doc.text('Request Number:', 20, y);
     doc.setFont('helvetica', 'normal');
     doc.text(data.requestNumber, 70, y);
+
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Requester Type:', 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.requesterType || (data.isAlumni ? 'Alumni' : 'Guest Requester'), 70, y);
     
     y += 8;
     doc.setFont('helvetica', 'bold');
@@ -68,12 +74,36 @@ const GuestSubmitted = ({ data, onHome, onTrack, onSubmitAnother }) => {
       doc.text(data.batchYear, 70, y);
     }
 
+    if (data.isAlumni && data.formerStudentId) {
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Former Student ID:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.formerStudentId, 70, y);
+    }
+
+    if (!data.isAlumni && (data.grade || data.section)) {
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Grade & Section:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${data.grade || ''}${data.section ? ` - Section ${data.section}` : ''}`, 70, y);
+    }
+
     if (data.parentGuardianName) {
       y += 8;
       doc.setFont('helvetica', 'bold');
       doc.text('Parent/Guardian:', 20, y);
       doc.setFont('helvetica', 'normal');
       doc.text(data.parentGuardianName, 70, y);
+    }
+
+    if (data.email) {
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Email Address:', 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.email, 70, y);
     }
     
     y += 8;
@@ -122,7 +152,7 @@ const GuestSubmitted = ({ data, onHome, onTrack, onSubmitAnother }) => {
         <h2 className="guest-success-title">Request Successfully Submitted</h2>
         <p className="guest-success-message">
           Your request has been routed to the <strong>{data.officeName} Department</strong>.
-          Our office staff has been notified and will process your inquiry.
+          {data.email ? ' An official confirmation receipt with your Tracking Request ID has also been emailed to you.' : ' Our office staff has been notified and will process your inquiry.'}
         </p>
       </div>
 
@@ -145,6 +175,12 @@ const GuestSubmitted = ({ data, onHome, onTrack, onSubmitAnother }) => {
           <span className="guest-detail-value font-mono font-bold">{data.requestNumber}</span>
         </div>
         <div className="guest-detail-row">
+          <span className="guest-detail-label">Requester Type</span>
+          <span className="guest-detail-value font-semibold">
+            {data.requesterType || (data.isAlumni ? 'Alumni' : 'Guest Requester')}
+          </span>
+        </div>
+        <div className="guest-detail-row">
           <span className="guest-detail-label">Target Office</span>
           <span className="guest-detail-value">{data.officeName}</span>
         </div>
@@ -162,6 +198,28 @@ const GuestSubmitted = ({ data, onHome, onTrack, onSubmitAnother }) => {
           <div className="guest-detail-row">
             <span className="guest-detail-label">Batch / Year Graduated</span>
             <span className="guest-detail-value">{data.batchYear}</span>
+          </div>
+        )}
+        {data.isAlumni && data.formerStudentId && (
+          <div className="guest-detail-row">
+            <span className="guest-detail-label">Former Student ID</span>
+            <span className="guest-detail-value">{data.formerStudentId}</span>
+          </div>
+        )}
+        {!data.isAlumni && (data.grade || data.section) && (
+          <div className="guest-detail-row">
+            <span className="guest-detail-label">Grade & Section</span>
+            <span className="guest-detail-value">
+              {data.grade || ''}{data.section ? ` - ${data.section}` : ''}
+            </span>
+          </div>
+        )}
+        {data.email && (
+          <div className="guest-detail-row">
+            <span className="guest-detail-label">Email Receipt Sent To</span>
+            <span className="guest-detail-value font-semibold" style={{ color: '#166534', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <FaEnvelope /> {data.email}
+            </span>
           </div>
         )}
         {data.parentGuardianName && (

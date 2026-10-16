@@ -951,7 +951,18 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         updatedAt: serverTimestamp()
       };
 
-      if (requiresFollowUp) {
+      const isGuestOrAlumni = Boolean(
+        ticket.isGuest ||
+        ticket.isAlumni ||
+        ticket.requesterType === 'Guest' ||
+        ticket.requesterType === 'Alumni' ||
+        ticket.studentUid?.startsWith('guest_') ||
+        ticket.grade === 'Alumni'
+      );
+
+      // Only registered students have the in-portal follow-up response feature.
+      // Guest and alumni requests do not have reply capability, so they should never be set to awaiting response.
+      if (requiresFollowUp && !isGuestOrAlumni) {
         updatePayload.awaitingStudentResponse = true;
         updatePayload.awaitingResponseSince = new Date().toISOString();
       }
@@ -959,7 +970,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       await updateDoc(docRef, updatePayload);
 
       if (ticket.studentUid) {
-        if (requiresFollowUp) {
+        if (requiresFollowUp && !isGuestOrAlumni) {
           await notifyStudentFollowUpRequired(
             ticket.studentUid,
             ticket.requestId,
@@ -977,7 +988,10 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         }
       }
 
-      showToast('Message sent to student successfully!', 'success');
+      const recipientLabel = isGuestOrAlumni 
+        ? (ticket.isAlumni || ticket.requesterType === 'Alumni' ? 'alumni' : 'guest') 
+        : 'student';
+      showToast(`Message sent to ${recipientLabel} successfully!`, 'success');
       setReplyMessage('');
       setReplyFiles([]);
       loadTicketDetails();
@@ -1667,6 +1681,22 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     );
   }
 
+  const isAlumniRequest = Boolean(
+    ticket.isAlumni ||
+    ticket.requesterType === 'Alumni' ||
+    ticket.studentUid?.startsWith('guest_alumni_') ||
+    ticket.grade === 'Alumni'
+  );
+
+  const isGuestRequest = Boolean(
+    !isAlumniRequest && (
+      ticket.isGuest ||
+      ticket.requesterType === 'Guest' ||
+      ticket.studentUid?.startsWith('guest_') ||
+      ticket.inquirySource?.toLowerCase().includes('guest')
+    )
+  );
+
   return (
     <div className="ticket-details-container">
       {/* Header */}
@@ -1807,7 +1837,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
           {/* Original Submission & Chat Card */}
           <div className="figma-card original-submission-card">
             <div className="submission-card-header">
-              <h3 className="submission-section-title">Original Message from Student</h3>
+              <h3 className="submission-section-title">
+                {isAlumniRequest 
+                  ? 'Original Message from Alumni' 
+                  : isGuestRequest 
+                    ? 'Original Message from Guest' 
+                    : 'Original Message from Student'}
+              </h3>
               <span className="submission-date-label">Created on {formatDate(ticket.createdAt)}</span>
             </div>
 
@@ -1816,7 +1852,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               <div className="student-quote-header">
                 <div className="student-author-tag">
                   <FaUserCircle className="student-author-icon" />
-                  <span className="student-author-title">{ticket.studentName || 'Student'}’s Inquiry</span>
+                  <span className="student-author-title">
+                    {ticket.studentName || (isAlumniRequest ? 'Alumni' : isGuestRequest ? 'Guest' : 'Student')}’s Inquiry
+                  </span>
                 </div>
                 <span className="student-inquiry-badge">Primary Message</span>
               </div>
@@ -1957,8 +1995,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </div>
             )}
 
-            {/* Awaiting Student Response Banner / Inactivity Cancellation Banner */}
-            {ticket.status === 'In Process' && ticket.awaitingStudentResponse && (
+            {/* Awaiting Student Response Banner: Only applies to enrolled students who have the follow-up reply feature */}
+            {!isGuestRequest && !isAlumniRequest && ticket.status === 'In Process' && ticket.awaitingStudentResponse && (
               <div className="awaiting-response-banner">
                 <FaClock className="awaiting-icon" />
                 <div className="awaiting-text">
@@ -1982,7 +2020,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               <div className={`reply-composer-section ${!canReplyToStudent ? 'reply-composer-readonly' : ''}`}>
                 <div className="reply-composer-header">
                   <FaUserCircle className="reply-composer-avatar" />
-                  <span className="reply-composer-title">Reply to student</span>
+                  <span className="reply-composer-title">Reply to {isAlumniRequest ? 'alumni' : isGuestRequest ? 'guest' : 'student'}</span>
                   {!canReplyToStudent && (
                     <span className="reply-readonly-badge">
                       <FaLock className="reply-lock-icon" /> 
@@ -2061,17 +2099,20 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                   )}
                 </div>
 
-                <div className="reply-followup-toggle-row">
-                  <label className="reply-followup-checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={requiresFollowUp}
-                      onChange={(e) => setRequiresFollowUp(e.target.checked)}
-                      disabled={sending || !canReplyToStudent}
-                    />
-                    <span>Requires student follow-up (auto-cancels if no response by estimated completion date)</span>
-                  </label>
-                </div>
+                {/* Follow-up toggle: only available for enrolled students who have the follow-up reply feature */}
+                {!isGuestRequest && !isAlumniRequest && (
+                  <div className="reply-followup-toggle-row">
+                    <label className="reply-followup-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={requiresFollowUp}
+                        onChange={(e) => setRequiresFollowUp(e.target.checked)}
+                        disabled={sending || !canReplyToStudent}
+                      />
+                      <span>Requires student follow-up (auto-cancels if no response by estimated completion date)</span>
+                    </label>
+                  </div>
+                )}
 
                 <div className="reply-composer-actions">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2133,7 +2174,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 <div className="step-content">
                   <h4 className="step-status-name">SUBMITTED</h4>
                   <p className="step-date-label">{formatDate(ticket.createdAt)}</p>
-                  <p className="step-sub-desc">Initial Student Request</p>
+                  <p className="step-sub-desc">
+                    {isAlumniRequest ? 'Initial Alumni Request' : isGuestRequest ? 'Initial Guest Request' : 'Initial Student Request'}
+                  </p>
                 </div>
               </div>
 
@@ -2650,17 +2693,17 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                     className="btn-figma-contact"
                   >
                     <FaEnvelope className="contact-envelope-icon" />
-                    <span>{isGuest ? 'CONTACT GUEST' : 'CONTACT STUDENT'}</span>
+                    <span>{isAlumni ? 'CONTACT ALUMNI' : isGuest ? 'CONTACT GUEST' : 'CONTACT STUDENT'}</span>
                   </a>
                 ) : (
                   <button 
                     type="button" 
                     className="btn-figma-contact" 
                     disabled
-                    title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can contact the student` : "No email available"}
+                    title={!isOwner ? `Only the assigned staff member (${ticketHandler || 'assigned staff'}) can contact the ${isAlumni ? 'alumni' : isGuest ? 'guest' : 'student'}` : "No email available"}
                   >
                     <FaEnvelope className="contact-envelope-icon" />
-                    <span>{isGuest ? 'CONTACT GUEST' : 'CONTACT STUDENT'}</span>
+                    <span>{isAlumni ? 'CONTACT ALUMNI' : isGuest ? 'CONTACT GUEST' : 'CONTACT STUDENT'}</span>
                   </button>
                 )}
               </div>

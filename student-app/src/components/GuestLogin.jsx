@@ -154,6 +154,7 @@ const GuestLogin = ({ onLogout }) => {
   const [lastName, setLastName] = useState('');
   const [parentFirstName, setParentFirstName] = useState('');
   const [parentLastName, setParentLastName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
   const [grade, setGrade] = useState('');
   const [section, setSection] = useState('');
   const [selectedOffice, setSelectedOffice] = useState('finance');
@@ -748,6 +749,28 @@ const GuestLogin = ({ onLogout }) => {
 
   const goHome = () => setView('options');
 
+  const sendReceiptNotification = async (receiptData) => {
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || '';
+      const endpoint = `${API_URL}/api/send-request-receipt`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(receiptData)
+      });
+      if (!res.ok && window.location.hostname === 'localhost' && !API_URL) {
+        await fetch('http://localhost:5000/api/send-request-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(receiptData)
+        });
+      }
+      console.log('[Success] Request receipt email dispatched');
+    } catch (err) {
+      console.warn('[Warning] Failed to dispatch receipt email:', err);
+    }
+  };
+
   const handleSubmitRequest = async () => {
     if (!canSubmit || submitting) return;
 
@@ -818,6 +841,8 @@ const GuestLogin = ({ onLogout }) => {
         parentGuardianName: fullParentGuardianName,
         parentFirstName: parentFirstName.trim(),
         parentLastName: parentLastName.trim(),
+        studentEmail: guestEmail.trim(),
+        contactEmail: guestEmail.trim(),
         studentUid: `guest_${Date.now()}`,
         grade: grade.trim(),
         section: section.trim(),
@@ -847,14 +872,33 @@ const GuestLogin = ({ onLogout }) => {
       );
 
       const created = new Date();
+
+      // Dispatch confirmation receipt email to guest
+      sendReceiptNotification({
+        email: guestEmail.trim(),
+        recipientName: `${firstName.trim()} ${lastName.trim()}`,
+        requestId: generatedRequestId,
+        officeName,
+        subject: subject.trim(),
+        description: description.trim(),
+        isAlumni: false,
+        dateSubmitted: formatShortDate(created)
+      });
+
       const submissionInfo = {
         requestNumber: `#${generatedRequestId}`,
         rawRequestId: generatedRequestId,
+        requesterType: 'Guest Requester',
+        isGuest: true,
+        isAlumni: false,
         officeName,
         subject: subject.trim(),
         description: description.trim(),
         studentName: `${firstName.trim()} ${lastName.trim()}`,
         parentGuardianName: fullParentGuardianName,
+        grade: grade.trim(),
+        section: section.trim(),
+        email: guestEmail.trim(),
         dateCreated: formatShortDate(created),
         estimatedCompletion: 'To be determined'
       };
@@ -874,6 +918,7 @@ const GuestLogin = ({ onLogout }) => {
     setLastName('');
     setParentFirstName('');
     setParentLastName('');
+    setGuestEmail('');
     setGrade('');
     setSection('');
     setSelectedOffice(guestOffices[0]?.id || 'finance');
@@ -893,6 +938,7 @@ const GuestLogin = ({ onLogout }) => {
     setLastName('');
     setParentFirstName('');
     setParentLastName('');
+    setGuestEmail('');
     setGrade('');
     setSection('');
     setSelectedOffice(guestOffices[0]?.id || 'finance');
@@ -944,6 +990,8 @@ const GuestLogin = ({ onLogout }) => {
     lastName.trim() !== '' &&
     parentFirstName.trim() !== '' &&
     parentLastName.trim() !== '' &&
+    guestEmail.trim() !== '' &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()) &&
     grade.trim() !== '' &&
     section.trim() !== '' &&
     !!selectedOffice &&
@@ -1068,15 +1116,33 @@ const GuestLogin = ({ onLogout }) => {
       );
 
       const created = new Date();
+
+      // Dispatch confirmation receipt email to alumni
+      sendReceiptNotification({
+        email: contactEmail.trim(),
+        recipientName: fullAlumniName,
+        requestId: generatedRequestId,
+        officeName,
+        subject: alumniSubject.trim(),
+        description: alumniDescription.trim(),
+        isAlumni: true,
+        batchYear: batchYear.trim(),
+        dateSubmitted: formatShortDate(created)
+      });
+
       const submissionInfo = {
         requestNumber: `#${generatedRequestId}`,
         rawRequestId: generatedRequestId,
+        requesterType: 'Alumni',
+        isAlumni: true,
+        isGuest: true,
         officeName,
         subject: alumniSubject.trim(),
         description: alumniDescription.trim(),
         studentName: fullAlumniName,
-        isAlumni: true,
         batchYear: batchYear.trim(),
+        formerStudentId: formerStudentId.trim() || null,
+        email: contactEmail.trim(),
         dateCreated: formatShortDate(created),
         estimatedCompletion: 'To be determined'
       };
@@ -1300,6 +1366,24 @@ const GuestLogin = ({ onLogout }) => {
                         aria-label="Parent or Guardian Last Name"
                       />
                     </div>
+                  </div>
+                  <div className="form-group-guest full-width">
+                    <label className="form-label-guest" htmlFor="guestEmail">
+                      Active Email Address <span className="required-star">*</span>
+                    </label>
+                    <input
+                      id="guestEmail"
+                      type="email"
+                      className="form-input-guest"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      placeholder="e.g. parent.name@email.com or student@email.com"
+                      aria-label="Active Email Address"
+                      required
+                    />
+                    <p className="alumni-info-hint" style={{ marginTop: '6px', fontSize: '0.8rem', color: '#64748b' }}>
+                      An official confirmation receipt containing your Request Tracking ID will be emailed to this address upon submission.
+                    </p>
                   </div>
                 </div>
               </div>

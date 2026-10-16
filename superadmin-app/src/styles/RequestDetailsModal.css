@@ -562,7 +562,7 @@
 .req-modal-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 1rem 1.5rem;
   background: var(--color-surface, #ffffff);
   border-top: 1px solid var(--color-border-soft, #e5eae4);

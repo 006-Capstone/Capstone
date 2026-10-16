@@ -1247,6 +1247,12 @@
   letter-spacing: 0.04em;
 }
 
+.guest-badge-pill.alumni-badge-pill {
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+
 /* Assigned Cell */
 .assigned-to {
   display: inline-flex;

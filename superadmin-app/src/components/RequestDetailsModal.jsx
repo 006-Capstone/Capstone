@@ -433,17 +433,6 @@ const RequestDetailsModal = ({
 
         {/* Modal Footer */}
         <div className="req-modal-footer">
-          <div className="modal-footer-left">
-            {requesterEmail && (
-              <a
-                href={`mailto:${requesterEmail}?subject=Re: [${requestData?.requestId || 'Inquiry'}] ${encodeURIComponent(requestData?.subject || 'Support Assistance')}`}
-                className="btn-email-requester"
-              >
-                <FaEnvelope />
-                <span>Send Email to Requester</span>
-              </a>
-            )}
-          </div>
           <div className="modal-footer-right">
             {isLoginAssistance && (
               <button

@@ -369,7 +369,9 @@ const NearingCompletionModal = ({
                                     {ticket.student || ticket.studentName || 'Student'}
                                   </span>
                                   <span className="nearing-student-id">
-                                    {ticket.isGuest ? (
+                                    {ticket.isAlumni || ticket.requesterType === 'Alumni' ? (
+                                      <span className="nearing-guest-badge" style={{ background: '#e0e7ff', color: '#3730a3' }}>Alumni</span>
+                                    ) : ticket.isGuest ? (
                                       <span className="nearing-guest-badge">Guest</span>
                                     ) : ticket.studentId ? (
                                       `ID: ${ticket.studentId}`
