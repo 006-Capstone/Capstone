@@ -386,8 +386,14 @@ const Archive = ({ isEmbedded = false }) => {
           console.log('[Archive] Updating staff document in staff collection');
           await updateDoc(doc(db, 'staff', account.firestoreId), {
             isArchived: false,
+            isActive: true,
             restoredAt: serverTimestamp(),
-            restoredBy: restoredBy
+            restoredBy: restoredBy,
+            mustChangePassword: true,
+            passwordChangeReason: 'restored',
+            isRestored: true,
+            qrCodeData: '',
+            qrCodeGeneratedAt: null
           });
           console.log('[Archive] Staff document updated successfully');
           restoredCount++;
@@ -428,6 +434,8 @@ const Archive = ({ isEmbedded = false }) => {
                 restoredAt: serverTimestamp(),
                 restoredBy: restoredBy,
                 mustChangePassword: true,
+                passwordChangeReason: 'restored',
+                isRestored: true,
                 qrCodeData: '', // Clear QR code on restoration
                 qrCodeGeneratedAt: null // Clear QR generation timestamp
               });
@@ -479,6 +487,8 @@ const Archive = ({ isEmbedded = false }) => {
             restoredAt: serverTimestamp(),
             restoredBy: restoredBy,
             mustChangePassword: true,
+            passwordChangeReason: 'restored',
+            isRestored: true,
             isActive: accountData.isActive !== undefined ? accountData.isActive : true,
             qrCodeData: '', // Clear QR code on restoration
             qrCodeGeneratedAt: null // Clear QR generation timestamp

@@ -125,9 +125,13 @@ const Login = ({ onLogin, onForgotPassword }) => {
             await updateDoc(doc(db, 'staff', staffDoc.id), {
               isActive: true,
               autoReactivatedAt: serverTimestamp(),
-              suspendedUntil: null
+              suspendedUntil: null,
+              mustChangePassword: true,
+              passwordChangeReason: 'reactivated'
             });
             staffData.isActive = true;
+            staffData.mustChangePassword = true;
+            staffData.passwordChangeReason = 'reactivated';
           } catch (autoErr) {
             console.warn('[Login] Failed to record staff auto-reactivation:', autoErr);
           }
@@ -165,6 +169,13 @@ const Login = ({ onLogin, onForgotPassword }) => {
         profilePicture: staffData.profilePicture || '',
         uid: staffData.uid || auth.currentUser?.uid,
         mustChangePassword: staffData.mustChangePassword === true,
+        passwordChangeReason: staffData.passwordChangeReason || '',
+        restoredAt: staffData.restoredAt || null,
+        reactivatedAt: staffData.reactivatedAt || null,
+        autoReactivatedAt: staffData.autoReactivatedAt || null,
+        suspendedAt: staffData.suspendedAt || null,
+        passwordLastChanged: staffData.passwordLastChanged || null,
+        createdAt: staffData.createdAt || null,
         firestoreDocId: staffDoc.id // Save the document ID
       };
       
@@ -632,6 +643,13 @@ const Login = ({ onLogin, onForgotPassword }) => {
         profilePicture: staffData.profilePicture || '',
         uid: staffData.uid || auth.currentUser?.uid || staffDoc.id,
         mustChangePassword: staffData.mustChangePassword === true,
+        passwordChangeReason: staffData.passwordChangeReason || '',
+        restoredAt: staffData.restoredAt || null,
+        reactivatedAt: staffData.reactivatedAt || null,
+        autoReactivatedAt: staffData.autoReactivatedAt || null,
+        suspendedAt: staffData.suspendedAt || null,
+        passwordLastChanged: staffData.passwordLastChanged || null,
+        createdAt: staffData.createdAt || null,
         firestoreDocId: staffDoc.id
       };
       

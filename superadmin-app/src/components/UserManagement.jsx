@@ -849,6 +849,9 @@ const UserManagement = () => {
         if (newStatus) {
           bulkPayload.reactivatedAt = serverTimestamp();
           bulkPayload.reactivatedBy = auth?.currentUser?.email || 'Super Admin';
+          bulkPayload.mustChangePassword = true;
+          bulkPayload.passwordChangeReason = 'reactivated';
+          bulkPayload.isReactivated = true;
         } else {
           bulkPayload.suspendedAt = serverTimestamp();
           bulkPayload.suspendedBy = auth?.currentUser?.email || 'Super Admin';
@@ -1048,7 +1051,8 @@ const UserManagement = () => {
           role: 'student',
           createdAt: serverTimestamp(),
           isActive: true,
-          mustChangePassword: true // Force password change on first login
+          mustChangePassword: true, // Force password change on first login
+          passwordChangeReason: 'first_login'
         });
       } catch (firestoreErr) {
         console.error('[handleCreateStudent] Firestore write failed, rolling back Auth user:', firestoreErr);
@@ -1341,7 +1345,8 @@ const UserManagement = () => {
           role: 'staff',
           createdAt: serverTimestamp(),
           isActive: true,
-          mustChangePassword: true // Force password change on first login
+          mustChangePassword: true, // Force password change on first login
+          passwordChangeReason: 'first_login'
         });
       } catch (firestoreErr) {
         console.error('[handleCreateStaff] Firestore write failed, rolling back Auth user:', firestoreErr);
@@ -1871,7 +1876,6 @@ const UserManagement = () => {
 
     const isPendingFirstLogin = selectedUserProfile.mustChangePassword === true;
     if (!isPendingFirstLogin) {
-      setResendModalState('info');
       return;
     }
 
@@ -1945,6 +1949,7 @@ const UserManagement = () => {
         try {
           await updateDoc(doc(db, targetCollection, docId), {
             mustChangePassword: true,
+            passwordChangeReason: 'temporary_reset',
             passwordResetAt: serverTimestamp(),
             lastPasswordResetAt: serverTimestamp(),
             passwordResetBy: adminEmail
@@ -2484,6 +2489,9 @@ const UserManagement = () => {
           updatePayload.reactivatedBy = adminEmail;
           updatePayload.suspendedUntil = null;
           updatePayload.suspensionDuration = null;
+          updatePayload.mustChangePassword = true;
+          updatePayload.passwordChangeReason = 'reactivated';
+          updatePayload.isReactivated = true;
         } else {
           updatePayload.suspendedAt = serverTimestamp();
           updatePayload.suspendedBy = adminEmail;
@@ -3468,12 +3476,12 @@ const UserManagement = () => {
 
                   <button 
                     type="button" 
-                    className="admin-action-btn resend-email"
+                    className={`admin-action-btn resend-email ${selectedUserProfile?.mustChangePassword !== true ? 'disabled-action' : ''}`}
                     onClick={handleResendCredentialEmail}
-                    disabled={resendingCredentialsEmail || !selectedUserProfile?.email}
+                    disabled={resendingCredentialsEmail || !selectedUserProfile?.email || selectedUserProfile?.mustChangePassword !== true}
                     title={
                       selectedUserProfile?.mustChangePassword !== true
-                        ? 'User has already logged in and established their password. Click to view options.'
+                        ? 'Disabled: Account credentials already established (Changed & Secured). Resending temporary login credentials is only permitted while status is "Pending Change".'
                         : 'Regenerate and email a new temporary password with account ID.'
                     }
                   >
@@ -3649,7 +3657,9 @@ const UserManagement = () => {
                   </div>
                   <p className="stat-period">
                     {selectedUserProfile.mustChangePassword === true
-                      ? 'Temporary default password'
+                      ? (selectedUserProfile.passwordChangeReason === 'restored' || selectedUserProfile.passwordChangeReason === 'reactivated' || selectedUserProfile.restoredAt || selectedUserProfile.reactivatedAt
+                          ? 'Mandatory security verification'
+                          : 'Temporary default password')
                       : (selectedUserProfile.passwordChangedAt || selectedUserProfile.lastPasswordUpdate || selectedUserProfile.passwordLastChanged)
                       ? 'User updated password'
                       : selectedUserProfile.mustChangePassword === false

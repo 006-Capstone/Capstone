@@ -108,9 +108,13 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
             await updateDoc(doc(db, 'students', firestoreDocId), {
               isActive: true,
               autoReactivatedAt: serverTimestamp(),
-              suspendedUntil: null
+              suspendedUntil: null,
+              mustChangePassword: true,
+              passwordChangeReason: 'reactivated'
             });
             studentData.isActive = true;
+            studentData.mustChangePassword = true;
+            studentData.passwordChangeReason = 'reactivated';
           } catch (autoErr) {
             console.warn('[Login] Failed to record auto-reactivation:', autoErr);
           }
@@ -156,7 +160,14 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         phoneNumber: studentData.phoneNumber || '',
         profilePicture: studentData.profilePicture || '',
         twoFactorEnabled: studentData.twoFactorEnabled || false,
-        mustChangePassword: studentData.mustChangePassword || false // Flag for forced password change
+        mustChangePassword: studentData.mustChangePassword || false, // Flag for forced password change
+        passwordChangeReason: studentData.passwordChangeReason || '',
+        restoredAt: studentData.restoredAt || null,
+        reactivatedAt: studentData.reactivatedAt || null,
+        autoReactivatedAt: studentData.autoReactivatedAt || null,
+        suspendedAt: studentData.suspendedAt || null,
+        passwordLastChanged: studentData.passwordLastChanged || null,
+        createdAt: studentData.createdAt || null
       };
       
       console.log('[Success] Formatted student data for localStorage:', formattedStudentData);
@@ -639,7 +650,14 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
         phoneNumber: studentData.phoneNumber || '',
         profilePicture: studentData.profilePicture || '',
         twoFactorEnabled: studentData.twoFactorEnabled || false,
-        mustChangePassword: studentData.mustChangePassword || false // Flag for forced password change
+        mustChangePassword: studentData.mustChangePassword || false, // Flag for forced password change
+        passwordChangeReason: studentData.passwordChangeReason || '',
+        restoredAt: studentData.restoredAt || null,
+        reactivatedAt: studentData.reactivatedAt || null,
+        autoReactivatedAt: studentData.autoReactivatedAt || null,
+        suspendedAt: studentData.suspendedAt || null,
+        passwordLastChanged: studentData.passwordLastChanged || null,
+        createdAt: studentData.createdAt || null
       };
       
       console.log('[Success] Login successful via QR code!');

@@ -50,19 +50,41 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
     }
   };
 
+  const isRestoredOrReactivated = Boolean(
+    staffData?.passwordChangeReason === 'restored' ||
+    staffData?.passwordChangeReason === 'reactivated' ||
+    staffData?.passwordChangeReason === 'archived' ||
+    staffData?.passwordChangeReason === 'suspended' ||
+    staffData?.isRestored === true ||
+    staffData?.isReactivated === true ||
+    staffData?.restoredAt ||
+    staffData?.reactivatedAt ||
+    staffData?.autoReactivatedAt ||
+    (staffData?.suspendedAt && staffData?.passwordChangeReason !== 'first_login') ||
+    staffData?.passwordLastChanged ||
+    staffData?.passwordChangedAt
+  );
+
+  const passwordFieldLabel = isRestoredOrReactivated ? 'Old Password' : 'Current Temporary Password';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setRequiresRecentLogin(false);
 
     // Validation
+    if (isRestoredOrReactivated && !currentPassword.trim()) {
+      setError('Please enter your old password for verification');
+      return;
+    }
+
     if (!newPassword || !confirmPassword) {
       setError('Please fill in both the new password and confirm password fields');
       return;
     }
 
-    if (currentPassword && newPassword === currentPassword) {
-      setError('Your new password cannot be the same as your current temporary password.');
+    if (currentPassword && newPassword === currentPassword.trim()) {
+      setError(`Your new password cannot be the same as your ${isRestoredOrReactivated ? 'old password' : 'current temporary password'}.`);
       return;
     }
 
@@ -88,15 +110,15 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
         return;
       }
 
-      // If user supplied their current password, reauthenticate first to ensure session is 100% fresh
-      if (currentPassword) {
+      // If user supplied their current/old password, reauthenticate first to ensure session is 100% fresh
+      if (currentPassword.trim()) {
         try {
-          const credential = EmailAuthProvider.credential(user.email || staffData?.email, currentPassword);
+          const credential = EmailAuthProvider.credential(user.email || staffData?.email, currentPassword.trim());
           await reauthenticateWithCredential(user, credential);
         } catch (reauthErr) {
           console.error('[ChangePasswordModal] Reauth error:', reauthErr);
           if (reauthErr.code === 'auth/wrong-password' || reauthErr.code === 'auth/invalid-credential') {
-            setError('Current temporary password is incorrect. Please double-check the password you logged in with.');
+            setError(`${passwordFieldLabel} is incorrect. Please double-check the password you logged in with.`);
             setLoading(false);
             return;
           }
@@ -112,6 +134,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
         const staffRef = doc(db, 'staff', staffData.firestoreDocId);
         await updateDoc(staffRef, {
           mustChangePassword: false,
+          passwordChangeReason: null,
           passwordLastChanged: new Date().toISOString()
         });
       }
@@ -119,7 +142,9 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
       // Update localStorage
       const updatedStaffData = {
         ...staffData,
-        mustChangePassword: false
+        mustChangePassword: false,
+        passwordChangeReason: null,
+        passwordLastChanged: new Date().toISOString()
       };
       localStorage.setItem('staffData', JSON.stringify(updatedStaffData));
 
@@ -133,7 +158,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
       
       if (error.code === 'auth/requires-recent-login') {
         setRequiresRecentLogin(true);
-        setError('Your security session has expired. Please enter your Current Temporary Password above to verify, or sign out and log back in.');
+        setError(`Your security session has expired. Please enter your ${passwordFieldLabel} above to verify, or sign out and log back in.`);
       } else if (error.code === 'auth/weak-password') {
         setError('Password is too weak. Please choose a stronger password.');
       } else {
@@ -148,14 +173,19 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
     <div className="change-password-modal-overlay">
       <div className="change-password-modal">
         <div className="change-password-modal-content">
-          <div className="modal-icon-container">
-            <FaShieldAlt className="modal-icon" />
+          <div className="change-password-modal-header">
+            <div className="modal-header-icon-box">
+              <FaShieldAlt className="modal-header-icon" />
+            </div>
+            <div className="modal-header-text">
+              <h2 className="modal-title">Change Your Password</h2>
+              <p className="modal-subtitle">
+                {isRestoredOrReactivated
+                  ? "For security following account restoration, please verify your old password and set a new password."
+                  : "For security, you must update your temporary password before accessing your admin account."}
+              </p>
+            </div>
           </div>
-          
-          <h2 className="modal-title">Change Your Password</h2>
-          <p className="modal-subtitle">
-            For security reasons, you must update your temporary password before accessing your admin account.
-          </p>
 
           <form onSubmit={handleSubmit} className="change-password-form">
             {error && (
@@ -178,7 +208,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
 
             <div className="form-group-modal">
               <label className="form-label-modal">
-                Current Temporary Password <span className="label-hint">(optional if freshly logged in)</span>
+                {passwordFieldLabel} {isRestoredOrReactivated ? <span className="label-required">*</span> : <span className="label-hint">(optional if freshly logged in)</span>}
               </label>
               <div className="password-input-wrapper-modal">
                 <FaKey className="input-icon" />
@@ -187,7 +217,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
                   className="form-input-modal"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter the password you logged in with"
+                  placeholder={isRestoredOrReactivated ? "Enter your old password" : "Enter the password you logged in with"}
                   disabled={loading}
                   autoComplete="current-password"
                 />
@@ -204,7 +234,9 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
             </div>
 
             <div className="form-group-modal">
-              <label className="form-label-modal">New Password</label>
+              <label className="form-label-modal">
+                New Password <span className="label-required">*</span>
+              </label>
               <div className="password-input-wrapper-modal">
                 <FaLock className="input-icon" />
                 <input
@@ -213,6 +245,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new secure password"
+                  required
                   disabled={loading}
                   autoComplete="new-password"
                 />
@@ -229,7 +262,9 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
             </div>
 
             <div className="form-group-modal">
-              <label className="form-label-modal">Confirm New Password</label>
+              <label className="form-label-modal">
+                Confirm New Password <span className="label-required">*</span>
+              </label>
               <div className="password-input-wrapper-modal">
                 <FaLock className="input-icon" />
                 <input
@@ -238,6 +273,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new secure password"
+                  required
                   disabled={loading}
                   autoComplete="new-password"
                 />
@@ -254,21 +290,23 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
             </div>
 
             <div className="password-requirements">
-              <p className="requirements-title">Password Requirements:</p>
-              <ul className="requirements-list">
-                <li className={newPassword.length >= 8 ? 'valid' : ''}>
-                  At least 8 characters long
-                </li>
-                <li className={/[A-Z]/.test(newPassword) ? 'valid' : ''}>
-                  Contains uppercase letter (A-Z)
-                </li>
-                <li className={/[a-z]/.test(newPassword) ? 'valid' : ''}>
-                  Contains lowercase letter (a-z)
-                </li>
-                <li className={/[0-9]/.test(newPassword) ? 'valid' : ''}>
-                  Contains number (0-9)
-                </li>
-              </ul>
+              <div className="requirements-header">
+                <span className="requirements-title">Requirements:</span>
+              </div>
+              <div className="requirements-grid">
+                <span className={`requirement-item ${newPassword.length >= 8 ? 'valid' : ''}`}>
+                  <span className="req-bullet">{newPassword.length >= 8 ? '✓' : '•'}</span> 8+ characters
+                </span>
+                <span className={`requirement-item ${/[A-Z]/.test(newPassword) ? 'valid' : ''}`}>
+                  <span className="req-bullet">{/[A-Z]/.test(newPassword) ? '✓' : '•'}</span> Uppercase letter
+                </span>
+                <span className={`requirement-item ${/[a-z]/.test(newPassword) ? 'valid' : ''}`}>
+                  <span className="req-bullet">{/[a-z]/.test(newPassword) ? '✓' : '•'}</span> Lowercase letter
+                </span>
+                <span className={`requirement-item ${/[0-9]/.test(newPassword) ? 'valid' : ''}`}>
+                  <span className="req-bullet">{/[0-9]/.test(newPassword) ? '✓' : '•'}</span> Number
+                </span>
+              </div>
             </div>
 
             <button 
@@ -281,9 +319,9 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
           </form>
 
           <div className="modal-bottom-area">
-            <p className="modal-note">
-              <FaLock /> One-time mandatory security check.
-            </p>
+            <span className="modal-note">
+              <FaLock /> Mandatory security verification
+            </span>
             <button 
               type="button" 
               className="modal-logout-link"
@@ -291,7 +329,7 @@ const ChangePasswordModal = ({ staffData, onPasswordChanged, onLogout }) => {
               disabled={loading}
             >
               <FaSignOutAlt className="logout-icon" />
-              <span>Sign Out & Return to Login</span>
+              <span>Sign Out</span>
             </button>
           </div>
         </div>

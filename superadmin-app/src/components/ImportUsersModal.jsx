@@ -475,7 +475,8 @@ const ImportUsersModal = ({
               role: 'student',
               createdAt: serverTimestamp(),
               isActive: true,
-              mustChangePassword: true
+              mustChangePassword: true,
+              passwordChangeReason: 'first_login'
             });
 
             // 4. Send email credentials if requested (non-blocking with timeout)
@@ -520,7 +521,8 @@ const ImportUsersModal = ({
               role: 'staff',
               createdAt: serverTimestamp(),
               isActive: true,
-              mustChangePassword: true
+              mustChangePassword: true,
+              passwordChangeReason: 'first_login'
             });
 
             if (sendEmails) {
