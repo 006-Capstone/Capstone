@@ -752,22 +752,27 @@ const GuestLogin = ({ onLogout }) => {
   const sendReceiptNotification = async (receiptData) => {
     try {
       const API_URL = process.env.REACT_APP_API_URL || '';
-      const endpoint = `${API_URL}/api/send-request-receipt`;
+      let endpoint = `${API_URL}/api/send-request-receipt`;
+
+      // When running on localhost without a configured backend URL, direct to port 5000
+      if (window.location.hostname === 'localhost' && !API_URL) {
+        endpoint = 'http://localhost:5000/api/send-request-receipt';
+      }
+
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(receiptData)
       });
-      if (!res.ok && window.location.hostname === 'localhost' && !API_URL) {
-        await fetch('http://localhost:5000/api/send-request-receipt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(receiptData)
-        });
+
+      const result = await res.json().catch(() => null);
+      if (!res.ok || (result && !result.success)) {
+        console.warn('[GuestLogin] Email receipt service returned error:', res.status, result?.error || 'Unknown error');
+        return;
       }
-      console.log('[Success] Request receipt email dispatched');
+      console.log('[GuestLogin] Request receipt email sent successfully:', result?.messageId);
     } catch (err) {
-      console.warn('[Warning] Failed to dispatch receipt email:', err);
+      console.warn('[GuestLogin] Could not reach email service. If running locally, ensure email-backend is running on port 5000 with valid GMAIL credentials:', err);
     }
   };
 

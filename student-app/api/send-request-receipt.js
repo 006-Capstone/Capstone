@@ -40,12 +40,21 @@ module.exports = async function handler(req, res) {
     const formattedRequestId = `#${cleanRequestId}`;
     const trackingPortalUrl = process.env.STUDENT_APP_URL || 'https://student-portal-one-delta.vercel.app';
     const fromEmail = process.env.GMAIL_USER || 'academiadesanjose3@gmail.com';
+    const gmailPass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+
+    if (!gmailPass) {
+      console.error('[Error] GMAIL_APP_PASSWORD is not configured in environment variables');
+      return res.status(500).json({
+        success: false,
+        error: 'GMAIL_APP_PASSWORD is not configured in Vercel environment variables. Please add GMAIL_APP_PASSWORD to your Vercel Project Settings.'
+      });
+    }
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.GMAIL_USER || 'academiadesanjose3@gmail.com',
-        pass: process.env.GMAIL_APP_PASSWORD
+        user: fromEmail,
+        pass: gmailPass
       }
     });
 
