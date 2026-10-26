@@ -1,6 +1,6 @@
-# Academia De San Jose Secure Web-Based Academic Request Ticketing and Management System
+# Academia De San Jose
 
-A secure web-based academic request ticketing and management system for Academia De San Jose, built as a Capstone project for Southwestern University PHINMA (SWU).
+A secure web-based academic request ticketing and management system as a Capstone project for Academia De San Jose. The platform eliminates physical queues and paperwork through digitized ticket lifecycles, automated Estimated Time of Completion (ETC) tracking, dynamic multi-office request forms, and automated email receipts and notifications. It also integrates an AI Operational Insights Service (powered by the Groq API / LLaMA model) in the executive dashboard to analyze staff performance trends, ticket volume bottlenecks, and departmental efficiency.
 
 ---
 
