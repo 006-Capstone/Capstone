@@ -19,6 +19,7 @@ serviceAccountKey.json
 # Markdown documentation files
 *.md
 **/*.md
+!README.md
 
 # Testing
 /coverage
