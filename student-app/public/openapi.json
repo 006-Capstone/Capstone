@@ -1,0 +1,647 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Academia De San Jose API",
+    "description": "Interactive REST API documentation of **Academia De San Jose Secure Web-Based Academic Request Ticketing and Management System** (Group SWU-006). This API provides services for user authentication, QR login verification, ticket receipt notifications, password recovery workflows, content moderation, and executive operational insights across institutional departments (**Registrar**, **Accounting**, **Guidance**, and **Library**). Click **Authorize** to test protected administrative endpoints.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://student-portal-one-delta.vercel.app",
+      "description": "Production Server (Student Portal)"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "API status and health monitoring."
+    },
+    {
+      "name": "Authentication & QR Login",
+      "description": "Student QR code instant authentication and account credential dispatch."
+    },
+    {
+      "name": "Password Recovery",
+      "description": "6-digit security codes and server-side password reset workflows."
+    },
+    {
+      "name": "Ticketing & Receipts",
+      "description": "Automated email receipts and request tracking notifications across Registrar, Accounting, Guidance, and Library."
+    },
+    {
+      "name": "Content Moderation",
+      "description": "Automated scanning and moderation for service request submissions via Groq LLaMA."
+    },
+    {
+      "name": "Administration & AI Insights",
+      "description": "Privileged user deletion (Firebase Admin SDK) and Groq LLaMA-3 executive operational analytics."
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "API Health Check",
+        "description": "Returns operational status and timestamp of the API service.",
+        "operationId": "getHealthStatus",
+        "responses": {
+          "200": {
+            "description": "API is online and operational.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/verify-qr-login": {
+      "post": {
+        "tags": ["Authentication & QR Login"],
+        "summary": "Verify Student QR Code Login",
+        "description": "Validates a student's personal QR code token to issue a Firebase custom authentication token for instant login.",
+        "operationId": "verifyQrLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyQrLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "QR code token verified successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyQrLoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing parameters or invalid login type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or revoked QR code token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student account not found in records.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/send-credentials": {
+      "post": {
+        "tags": ["Authentication & QR Login"],
+        "summary": "Dispatch Student Credentials via Email",
+        "description": "Generates and sends official initial account credentials to a newly registered student via Gmail SMTP.",
+        "operationId": "sendCredentials",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendCredentialsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credentials email successfully sent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/send-temporary-password": {
+      "post": {
+        "tags": ["Authentication & QR Login"],
+        "summary": "Dispatch Temporary Password via Email",
+        "description": "Sends temporary login access to students or department staff (Registrar, Accounting, Guidance, or Library).",
+        "operationId": "sendTemporaryPassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendTemporaryPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Temporary password email sent successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/send-reset-code": {
+      "post": {
+        "tags": ["Password Recovery"],
+        "summary": "Send Password Reset Verification Code",
+        "description": "Generates a 6-digit security code (valid for 2 minutes) and dispatches it to the user's registered email.",
+        "operationId": "sendResetCode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendResetCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reset code successfully sent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing email or recipient name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/verify-reset-code": {
+      "post": {
+        "tags": ["Password Recovery"],
+        "summary": "Verify 6-Digit Password Reset Code",
+        "description": "Validates the user-submitted security code against the stored reset token in Firestore.",
+        "operationId": "verifyResetCode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyResetCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Code verified. Password reset allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid, expired, or non-existent verification code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reset-password": {
+      "post": {
+        "tags": ["Password Recovery"],
+        "summary": "Reset User Password",
+        "description": "Securely updates the user's password via Firebase Admin SDK upon valid verification code.",
+        "operationId": "resetPassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated successfully in Firebase Auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired verification code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/send-request-receipt": {
+      "post": {
+        "tags": ["Ticketing & Receipts"],
+        "summary": "Send Request Submission Email Receipt",
+        "description": "Dispatches an official ticket receipt with ticket ID, office name (Registrar, Accounting, Guidance, or Library), subject, and description.",
+        "operationId": "sendRequestReceipt",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendReceiptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email receipt dispatched successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required email or request ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/moderate": {
+      "post": {
+        "tags": ["Content Moderation"],
+        "summary": "Moderate Request & Feedback Content",
+        "description": "Scans user-submitted request text (subject, description) using Groq LLaMA models before persisting to Firestore.",
+        "operationId": "moderateContent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Content moderation evaluation completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/delete-user": {
+      "post": {
+        "tags": ["Administration & AI Insights"],
+        "summary": "Delete User Account (Firebase Admin)",
+        "description": "Administrative endpoint to permanently delete a user from Firebase Authentication using master server privileges.",
+        "operationId": "deleteUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User deleted successfully from Firebase Auth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing user UID or email.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/insights": {
+      "post": {
+        "tags": ["Administration & AI Insights"],
+        "summary": "Generate AI Operational Insights",
+        "description": "Queries the Groq API (LLaMA-3) to analyze ticket throughput across Registrar, Accounting, Guidance, and Library.",
+        "operationId": "generateAiInsights",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiInsightsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI analysis and executive summary generated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiInsightsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter your Firebase Authentication ID Token or Admin Bearer Token"
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "ok" },
+          "service": { "type": "string", "example": "Academia De San Jose API" },
+          "version": { "type": "string", "example": "1.0.0" },
+          "timestamp": { "type": "string", "example": "2026-10-26T12:00:00.000Z" }
+        }
+      },
+      "VerifyQrLoginRequest": {
+        "type": "object",
+        "required": ["type", "id", "token"],
+        "properties": {
+          "type": { "type": "string", "enum": ["student"], "example": "student" },
+          "id": { "type": "string", "description": "Student ID", "example": "2026-0042" },
+          "token": { "type": "string", "description": "QR security token", "example": "asj_qr_9f82a17b" }
+        }
+      },
+      "VerifyQrLoginResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "customToken": { "type": "string", "description": "Firebase Custom Auth Token", "example": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." },
+          "userData": {
+            "type": "object",
+            "properties": {
+              "studentId": { "type": "string", "example": "2026-0042" },
+              "email": { "type": "string", "example": "student@academiadesanjose.edu.ph" },
+              "firstName": { "type": "string", "example": "Juan" },
+              "lastName": { "type": "string", "example": "Dela Cruz" }
+            }
+          }
+        }
+      },
+      "SendCredentialsRequest": {
+        "type": "object",
+        "required": ["email", "studentId", "password", "studentName"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "student@academiadesanjose.edu.ph" },
+          "studentId": { "type": "string", "example": "2026-0042" },
+          "password": { "type": "string", "example": "TempPass#2026" },
+          "studentName": { "type": "string", "example": "Juan Dela Cruz" }
+        }
+      },
+      "SendTemporaryPasswordRequest": {
+        "type": "object",
+        "required": ["email", "userName", "temporaryPassword"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "staff@academiadesanjose.edu.ph" },
+          "userName": { "type": "string", "example": "Maria Santos" },
+          "temporaryPassword": { "type": "string", "example": "TempPass#2026" },
+          "role": { "type": "string", "enum": ["student", "staff", "admin"], "example": "staff" },
+          "office": { "type": "string", "enum": ["Registrar", "Accounting", "Guidance", "Library"], "example": "Registrar" }
+        }
+      },
+      "SendResetCodeRequest": {
+        "type": "object",
+        "required": ["email", "studentName"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "student@academiadesanjose.edu.ph" },
+          "studentName": { "type": "string", "example": "Juan Dela Cruz" },
+          "studentId": { "type": "string", "example": "2026-0042" },
+          "expiryMinutes": { "type": "integer", "default": 2, "example": 2 }
+        }
+      },
+      "VerifyResetCodeRequest": {
+        "type": "object",
+        "required": ["email", "code"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "student@academiadesanjose.edu.ph" },
+          "code": { "type": "string", "example": "481920" }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "required": ["email", "verificationCode", "newPassword"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "student@academiadesanjose.edu.ph" },
+          "verificationCode": { "type": "string", "example": "481920" },
+          "newPassword": { "type": "string", "format": "password", "example": "NewSecurePassword#2026" }
+        }
+      },
+      "SendReceiptRequest": {
+        "type": "object",
+        "required": ["email", "requestId"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "student@academiadesanjose.edu.ph" },
+          "recipientName": { "type": "string", "example": "Juan Dela Cruz" },
+          "requestId": { "type": "string", "example": "REG-2026-0189" },
+          "officeName": { "type": "string", "enum": ["Registrar", "Accounting", "Guidance", "Library"], "example": "Registrar" },
+          "subject": { "type": "string", "example": "Transcript of Records (TOR)" },
+          "description": { "type": "string", "example": "Request for official transcript copy." }
+        }
+      },
+      "ModerateRequest": {
+        "type": "object",
+        "properties": {
+          "subject": { "type": "string", "example": "Inquiry regarding enrollment schedule" },
+          "description": { "type": "string", "example": "Please assist with my enrollment schedule." },
+          "officeName": { "type": "string", "enum": ["Registrar", "Accounting", "Guidance", "Library"], "example": "Registrar" }
+        }
+      },
+      "ModerateResponse": {
+        "type": "object",
+        "properties": {
+          "approved": { "type": "boolean", "example": true },
+          "reason": { "type": "string", "example": "Content complies with guidelines" }
+        }
+      },
+      "DeleteUserRequest": {
+        "type": "object",
+        "properties": {
+          "uid": { "type": "string", "example": "firebase_auth_uid_12345" },
+          "email": { "type": "string", "format": "email", "example": "user@academiadesanjose.edu.ph" }
+        }
+      },
+      "AiInsightsRequest": {
+        "type": "object",
+        "properties": {
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "totalTickets": { "type": "integer", "example": 254 },
+              "resolvedTickets": { "type": "integer", "example": 218 },
+              "pendingTickets": { "type": "integer", "example": 24 },
+              "departmentBreakdown": {
+                "type": "object",
+                "example": {
+                  "Registrar": 110,
+                  "Accounting": 75,
+                  "Guidance": 40,
+                  "Library": 29
+                }
+              }
+            }
+          }
+        }
+      },
+      "AiInsightsResponse": {
+        "type": "object",
+        "properties": {
+          "executiveSummary": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string", "example": "System monitoring active across Registrar, Accounting, Guidance, and Library." },
+              "bottleneck": { "type": "string", "example": "Registrar queue has highest volume." },
+              "actionPriority": { "type": "string", "example": "Normal operational flow" }
+            }
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "example": "rec-1" },
+                "title": { "type": "string", "example": "Balance peak office requests" },
+                "category": { "type": "string", "example": "Staff Allocation" },
+                "priority": { "type": "string", "example": "NORMAL" },
+                "description": { "type": "string", "example": "Maintain assigned staff during peak morning request windows." }
+              }
+            }
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Operation completed successfully." }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "Error message description." }
+        }
+      }
+    }
+  }
+}

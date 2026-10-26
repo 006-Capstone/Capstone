@@ -9,6 +9,7 @@ A secure web-based academic request ticketing and management system as a Capston
 * **Student & Guest Portal:** [https://student-portal-one-delta.vercel.app/](https://student-portal-one-delta.vercel.app/)
 * **Office Staff Portal:** [https://admin-website-ruddy.vercel.app/](https://admin-website-ruddy.vercel.app/)
 * **Super Admin Portal:** [https://superadmin-website.vercel.app/](https://superadmin-website.vercel.app/)
+* **API Documentation (Swagger UI):** [https://student-portal-one-delta.vercel.app/docs](https://student-portal-one-delta.vercel.app/docs)
 
 ---
 

@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Interactive REST API Documentation for Academia De San Jose Secure Web-Based Academic Request Ticketing and Management System.">
+  <title>Academia De San Jose API Documentation</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+
+  <style>
+    :root {
+      --brand-forest: #0d4a05;
+      --brand-green: #105e06;
+      --brand-accent: #1a7a0e;
+      --brand-sage-bg: #f4f8f3;
+      --brand-sage-light: #eaf2e8;
+      --brand-border: #e2e8f0;
+      --text-main: #181b18;
+      --text-muted: #4b5563;
+      --card-bg: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #f7faf7;
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Branded Header (Solid Green - No Gradients) */
+    .brand-header {
+      background: #0d4a05;
+      color: #ffffff;
+      padding: 16px clamp(16px, 4vw, 48px);
+      box-shadow: 0 4px 16px rgba(13, 74, 5, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-header-content {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand-title-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #ffffff;
+      padding: 2px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .brand-headings h1 {
+      margin: 0;
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+    }
+
+    .brand-headings p {
+      margin: 2px 0 0 0;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 400;
+    }
+
+    .brand-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 20px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #d6f2ce;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #4ade80;
+      box-shadow: 0 0 8px #4ade80;
+    }
+
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: #ffffff;
+      color: var(--brand-forest);
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .nav-btn:hover {
+      background: #f0fdf4;
+      transform: translateY(-1px);
+    }
+
+    /* Sub-nav / Quick Links Bar */
+    .quick-bar {
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 9px clamp(16px, 4vw, 48px);
+      font-size: 0.8rem;
+    }
+
+    .quick-bar-content {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .department-tags {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .department-label {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+
+    .dept-pill {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: var(--brand-sage-bg);
+      border: 1px solid #dce9da;
+      color: var(--brand-forest);
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+
+    .quick-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .quick-links a {
+      color: var(--brand-green);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.78rem;
+      transition: color 0.15s ease;
+    }
+
+    .quick-links a:hover {
+      color: var(--brand-forest);
+      text-decoration: underline;
+    }
+
+    /* Main Container */
+    #swagger-ui {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 16px clamp(12px, 3vw, 40px) 60px;
+    }
+
+    /* Swagger UI Core */
+    .swagger-ui {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    }
+
+    .swagger-ui .topbar {
+      display: none !important;
+    }
+
+    /* Info Section */
+    .swagger-ui .info {
+      margin: 20px 0 24px !important;
+    }
+
+    .swagger-ui .info .title {
+      font-size: clamp(1.6rem, 2.8vw, 2.2rem) !important;
+      font-weight: 800 !important;
+      letter-spacing: -0.02em !important;
+      color: var(--brand-forest) !important;
+    }
+
+    .swagger-ui .info .title small.version-stamp {
+      background-color: var(--brand-forest) !important;
+      border-radius: 6px !important;
+      padding: 3px 8px !important;
+      font-size: 0.75rem !important;
+    }
+
+    .swagger-ui .info p {
+      font-size: 0.95rem !important;
+      line-height: 1.65 !important;
+      color: var(--text-muted) !important;
+    }
+
+    /* Hide redundant contact link */
+    .swagger-ui .info .contact,
+    .swagger-ui .info a[href*="github.com"] {
+      display: none !important;
+    }
+
+    /* Scheme & Server Container */
+    .swagger-ui .scheme-container {
+      background: var(--card-bg) !important;
+      border: 1px solid var(--brand-border) !important;
+      border-radius: 12px !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+      padding: 16px 20px !important;
+      margin-bottom: 24px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+    }
+
+    .swagger-ui .schemes-title {
+      display: none !important;
+    }
+
+    /* ==========================================================================
+       AUTHORIZE BUTTON & MODAL (No Gradients, Redundant Close Button Removed)
+       ========================================================================== */
+    .swagger-ui .btn.authorize {
+      color: var(--brand-forest) !important;
+      border: 1.5px solid var(--brand-forest) !important;
+      background: transparent !important;
+      font-weight: 700 !important;
+      font-size: 0.85rem !important;
+      border-radius: 8px !important;
+      padding: 8px 18px !important;
+      transition: all 0.15s ease !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+    }
+
+    .swagger-ui .btn.authorize svg {
+      fill: var(--brand-forest) !important;
+    }
+
+    .swagger-ui .btn.authorize:hover {
+      background-color: var(--brand-forest) !important;
+      color: #ffffff !important;
+    }
+
+    .swagger-ui .btn.authorize:hover svg {
+      fill: #ffffff !important;
+    }
+
+    /* Backdrop */
+    .swagger-ui .dialog-ux .backdrop-ux {
+      background: rgba(15, 23, 42, 0.55) !important;
+      backdrop-filter: blur(4px) !important;
+    }
+
+    /* Modal Dialog */
+    .swagger-ui .dialog-ux .modal-ux {
+      border-radius: 16px !important;
+      border: 1px solid var(--brand-border) !important;
+      box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.25) !important;
+      max-width: 600px !important;
+      width: 92% !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      background: #ffffff !important;
+    }
+
+    /* Solid Green Header - No Gradient */
+    .swagger-ui .dialog-ux .modal-ux-header {
+      background: #0d4a05 !important;
+      padding: 18px 24px !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux-header h3 {
+      color: #ffffff !important;
+      font-size: 1.2rem !important;
+      font-weight: 750 !important;
+      letter-spacing: -0.01em !important;
+      margin: 0 !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux-header .close-modal {
+      background: rgba(255, 255, 255, 0.15) !important;
+      border-radius: 50% !important;
+      width: 32px !important;
+      height: 32px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border: none !important;
+      cursor: pointer !important;
+      padding: 0 !important;
+      transition: background 0.15s ease !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux-header .close-modal:hover {
+      background: rgba(255, 255, 255, 0.3) !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux-header .close-modal svg {
+      fill: #ffffff !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux-content {
+      padding: 24px 28px 28px !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux-content h4 {
+      color: var(--brand-forest) !important;
+      font-weight: 700 !important;
+      font-size: 1.05rem !important;
+      margin: 0 0 8px !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux-content p {
+      color: var(--text-muted) !important;
+      font-size: 0.88rem !important;
+      line-height: 1.55 !important;
+      margin-bottom: 16px !important;
+    }
+
+    .swagger-ui .auth-container {
+      background: #f8faf8 !important;
+      border: 1px solid #e2e8f0 !important;
+      border-radius: 10px !important;
+      padding: 16px 20px !important;
+      margin-bottom: 20px !important;
+    }
+
+    .swagger-ui .auth-container label {
+      font-size: 0.82rem !important;
+      font-weight: 600 !important;
+      color: #1e293b !important;
+      display: block !important;
+      margin-bottom: 6px !important;
+    }
+
+    .swagger-ui .auth-container input[type="text"] {
+      width: 100% !important;
+      background: #ffffff !important;
+      border: 1.5px solid #cbd5e1 !important;
+      border-radius: 8px !important;
+      padding: 10px 14px !important;
+      font-size: 0.88rem !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      color: #0f172a !important;
+      box-sizing: border-box !important;
+    }
+
+    .swagger-ui .auth-container input[type="text"]:focus {
+      border-color: #105e06 !important;
+      box-shadow: 0 0 0 3px rgba(16, 94, 6, 0.12) !important;
+      outline: none !important;
+    }
+
+    /* Modal Buttons: Hide redundant Close button */
+    .swagger-ui .auth-btn-wrapper {
+      display: flex !important;
+      justify-content: flex-end !important;
+      gap: 12px !important;
+      margin-top: 20px !important;
+      padding-top: 16px !important;
+      border-top: 1px solid #eef2f6 !important;
+    }
+
+    .swagger-ui .auth-btn-wrapper .btn-done {
+      display: none !important; /* Removed redundant close button */
+    }
+
+    .swagger-ui .auth-btn-wrapper .btn.modal-btn.auth {
+      background: #0d4a05 !important;
+      color: #ffffff !important;
+      border: none !important;
+      border-radius: 8px !important;
+      font-weight: 700 !important;
+      padding: 10px 24px !important;
+      font-size: 0.88rem !important;
+      cursor: pointer !important;
+      transition: background 0.15s ease !important;
+    }
+
+    .swagger-ui .auth-btn-wrapper .btn.modal-btn.auth:hover {
+      background: #072a04 !important;
+    }
+
+    /* Remove distracting hover copy button */
+    .swagger-ui .copy-to-clipboard,
+    .swagger-ui .copy-to-clipboard button,
+    .swagger-ui .btn.copy-to-clipboard {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* ==========================================================================
+       EXAMPLE VALUE & SCHEMA: CLEAN WHITE CODE/FONT COLOR (NO SAME COLOR/DARK FONT)
+       ========================================================================== */
+    .swagger-ui .model-example,
+    .swagger-ui .model-example pre,
+    .swagger-ui .example,
+    .swagger-ui .example pre,
+    .swagger-ui .highlight-code,
+    .swagger-ui .highlight-code pre,
+    .swagger-ui pre.microlight,
+    .swagger-ui .body-param__example pre {
+      background: #1e293b !important; /* Premium dark slate background */
+      border: 1px solid #334155 !important;
+      border-radius: 8px !important;
+      padding: 14px 16px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 0.82rem !important;
+      line-height: 1.5 !important;
+    }
+
+    /* Force all text, spans, and tokens inside code blocks to WHITE */
+    .swagger-ui .model-example *,
+    .swagger-ui .model-example pre *,
+    .swagger-ui .example *,
+    .swagger-ui .example pre *,
+    .swagger-ui .highlight-code *,
+    .swagger-ui .highlight-code pre *,
+    .swagger-ui pre.microlight *,
+    .swagger-ui pre.microlight code,
+    .swagger-ui pre.microlight span,
+    .swagger-ui .body-param__example pre * {
+      color: #ffffff !important; /* PURE WHITE FONT */
+      background: transparent !important;
+    }
+
+    /* Tag Section Containers */
+    .swagger-ui .opblock-tag-section {
+      background: #ffffff !important;
+      border: 1px solid var(--brand-border) !important;
+      border-radius: 12px !important;
+      margin: 18px 0 !important;
+      padding: 14px 18px !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+    }
+
+    .swagger-ui .opblock-tag {
+      font-size: 1.15rem !important;
+      font-weight: 700 !important;
+      color: var(--brand-forest) !important;
+      border-bottom: 1px solid #f1f5f9 !important;
+      padding: 6px 0 10px !important;
+      letter-spacing: -0.01em !important;
+    }
+
+    .swagger-ui .opblock-tag small {
+      color: var(--text-muted) !important;
+      font-weight: 400 !important;
+      font-size: 0.85rem !important;
+    }
+
+    /* Opblocks (Endpoints) */
+    .swagger-ui .opblock {
+      border-radius: 10px !important;
+      margin: 0 0 12px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+      border-width: 1px !important;
+      overflow: hidden !important;
+      transition: all 0.15s ease !important;
+    }
+
+    .swagger-ui .opblock:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    .swagger-ui .opblock .opblock-summary {
+      padding: 10px 14px !important;
+    }
+
+    .swagger-ui .opblock .opblock-summary-method {
+      border-radius: 6px !important;
+      font-weight: 750 !important;
+      font-size: 0.78rem !important;
+      padding: 5px 12px !important;
+      letter-spacing: 0.03em !important;
+      min-width: 72px !important;
+      text-align: center !important;
+    }
+
+    .swagger-ui .opblock .opblock-summary-path {
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 0.88rem !important;
+      font-weight: 600 !important;
+      color: #1e293b !important;
+    }
+
+    .swagger-ui .opblock .opblock-summary-description {
+      color: #64748b !important;
+      font-size: 0.82rem !important;
+    }
+
+    /* Colors per HTTP Method */
+    .swagger-ui .opblock.opblock-post {
+      border-color: #86efac !important;
+      background: rgba(240, 253, 244, 0.55) !important;
+    }
+    .swagger-ui .opblock.opblock-post .opblock-summary-method {
+      background-color: #16a34a !important;
+    }
+
+    .swagger-ui .opblock.opblock-get {
+      border-color: #bae6fd !important;
+      background: rgba(240, 249, 255, 0.55) !important;
+    }
+    .swagger-ui .opblock.opblock-get .opblock-summary-method {
+      background-color: #0284c7 !important;
+    }
+
+    .swagger-ui .opblock.opblock-delete {
+      border-color: #fecdd3 !important;
+      background: rgba(255, 241, 242, 0.55) !important;
+    }
+    .swagger-ui .opblock.opblock-delete .opblock-summary-method {
+      background-color: #e11d48 !important;
+    }
+
+    /* Interactive Buttons */
+    .swagger-ui .btn.execute {
+      background-color: var(--brand-forest) !important;
+      border-color: var(--brand-forest) !important;
+      color: #ffffff !important;
+      font-weight: 600 !important;
+      border-radius: 7px !important;
+    }
+
+    .swagger-ui .btn.execute:hover {
+      background-color: #072a04 !important;
+    }
+
+    .swagger-ui .btn.try-out__btn {
+      border-radius: 6px !important;
+      font-weight: 600 !important;
+      font-size: 0.78rem !important;
+    }
+
+    /* Schemas Section */
+    .swagger-ui section.models {
+      background: #ffffff !important;
+      border: 1px solid var(--brand-border) !important;
+      border-radius: 12px !important;
+      margin: 28px 0 !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+      overflow: hidden !important;
+    }
+
+    .swagger-ui section.models h4 {
+      font-size: 1.15rem !important;
+      font-weight: 750 !important;
+      color: var(--brand-forest) !important;
+      padding: 16px 20px !important;
+      margin: 0 !important;
+      border-bottom: 1px solid #f1f5f9 !important;
+      background: #ffffff !important;
+    }
+
+    .swagger-ui section.models.is-open h4 {
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    .swagger-ui section.models .model-container {
+      background: #ffffff !important;
+      border-bottom: 1px solid #f1f5f9 !important;
+      padding: 12px 20px !important;
+      margin: 0 !important;
+    }
+
+    .swagger-ui section.models .model-container:last-child {
+      border-bottom: none !important;
+    }
+
+    .swagger-ui .model-box {
+      background: #f8faf8 !important;
+      border: 1px solid #e2e8f0 !important;
+      border-radius: 8px !important;
+      padding: 12px 16px !important;
+      margin: 8px 0 !important;
+    }
+
+    .swagger-ui .model-title {
+      font-size: 0.95rem !important;
+      font-weight: 700 !important;
+      color: var(--brand-forest) !important;
+    }
+
+    .swagger-ui table.model {
+      background: transparent !important;
+      width: 100% !important;
+    }
+
+    .swagger-ui table.model tr {
+      border-bottom: 1px solid #eef2f6 !important;
+    }
+
+    .swagger-ui table.model tr:last-child {
+      border-bottom: none !important;
+    }
+
+    .swagger-ui table.model td {
+      padding: 8px 10px !important;
+      vertical-align: top !important;
+    }
+
+    .swagger-ui table.model td:first-child,
+    .swagger-ui .model .property,
+    .swagger-ui .property.primitive {
+      font-weight: 600 !important;
+      color: #0f172a !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 0.84rem !important;
+    }
+
+    .swagger-ui .prop-type {
+      color: #0284c7 !important;
+      font-weight: 600 !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 0.8rem !important;
+    }
+
+    .swagger-ui .prop-format {
+      color: #64748b !important;
+      font-size: 0.78rem !important;
+      font-style: italic !important;
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* Footer */
+    .docs-footer {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px clamp(16px, 4vw, 48px);
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--brand-border);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Bar with School Branding (Solid Green) -->
+  <header class="brand-header">
+    <div class="brand-header-content">
+      <div class="brand-title-group">
+        <img src="/school-logo.jpg" alt="Academia De San Jose Logo" class="brand-logo" onerror="this.src='/logo.jpg'">
+        <div class="brand-headings">
+          <h1>Academia De San Jose API</h1>
+          <p>Academic Request Ticketing and Management System (SWU-006)</p>
+        </div>
+      </div>
+      <div class="brand-actions">
+        <div class="status-badge">
+          <span class="status-dot"></span>
+          <span>API Operational</span>
+        </div>
+        <a href="/" class="nav-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Return to Portal
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick Info Bar -->
+  <nav class="quick-bar" aria-label="System navigation">
+    <div class="quick-bar-content">
+      <div class="department-tags">
+        <span class="department-label">Supported Offices:</span>
+        <span class="dept-pill">Registrar</span>
+        <span class="dept-pill">Accounting</span>
+        <span class="dept-pill">Guidance</span>
+        <span class="dept-pill">Library</span>
+      </div>
+      <div class="quick-links">
+        <a href="https://admin-website-ruddy.vercel.app/" target="_blank" rel="noopener">Office Staff Portal ↗</a>
+        <a href="https://superadmin-website.vercel.app/" target="_blank" rel="noopener">Super Admin Portal ↗</a>
+        <a href="/openapi.json" target="_blank" rel="noopener">OpenAPI Spec (JSON) ↗</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Swagger UI Root Container -->
+  <main id="swagger-ui"></main>
+
+  <footer class="docs-footer">
+    Copyright © 2024–2026 Southwestern University PHINMA • Academia De San Jose Capstone Project SWU-006
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', function() {
+      SwaggerUIBundle({
+        url: '/openapi.json',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        displayRequestDuration: true,
+        docExpansion: 'list',
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 1,
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+        layout: 'BaseLayout'
+      });
+    });
+  </script>
+</body>
+</html>
